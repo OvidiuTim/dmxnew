@@ -1,0 +1,17 @@
+<div class="d-flex flex-row" style="margin: 12px;">
+    <input [(ngModel)]="ToolNameFilter" class="form-control"
+    (keyup)="FilterFn()" placeholder="Cauta echipament">
+  </div> 
+
+  <div *ngFor="let dataItem of ShedList"  >
+   {{dataItem.ToolName}} ----  <button onclick="GoNext()">  Alege angajatul</button>
+    <div *ngIf="ActivateGoNext">
+        <label>{{dataItem.ToolSerie}}</label>
+    </div>
+
+
+  </div>
+
+
+
+

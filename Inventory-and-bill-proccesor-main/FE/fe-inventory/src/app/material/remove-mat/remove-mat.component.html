@@ -1,0 +1,75 @@
+<div *ngIf="ActivateModal">
+
+    <h3>{{NameOfMaterial}}
+    </h3>
+
+
+    <div class="btn-group btn-group-toggle" data-toggle="buttons">
+        <label class="btn btn-secondary active">
+        <input type="radio" name="options" id="option1" checked (click)="MinusPiece()"> Scade {{UnityOfMesurment}}
+        </label>
+        <label class="btn btn-secondary">
+        <input type="radio" name="options" id="option2" (click)="MinusKg()"> Scade {{TypeOfUnityOfMesurment}}
+        </label>
+    </div>
+<!-- scade dupa bucati -->
+    <div *ngIf="ActivatlMinusPiece">
+        <div class="form-froup row" >
+
+
+                <label class="col-sm-2 col-form-label">Numar de {{UnityOfMesurment}}</label>
+                <input list="amount" [(ngModel)]="RemoveAmount">
+                <datalist id="amount">
+                    <option *ngFor="let amount of AmountList" >
+                        {{amount}}
+                    </option>
+                </datalist> 
+
+
+                <label class="col-sm-2 col-form-label">Cine preia din magazie?</label>
+                <input type="text" class="form-control" [(ngModel)]="MaterialLocation"
+                style="margin: 2px;" type="password">
+
+        </div>
+
+        <button (click)="updateToolOne()" *ngIf="mat.MaterialId!=0" class="btn btn-warning">
+            Scade
+        </button>
+
+
+    </div>
+
+
+    <!-- scade dupa kg -->
+
+    <div *ngIf="ActivateMinusKg">
+        <div class="form-froup row" >
+
+
+                <label class="col-sm-2 col-form-label">Numar de {{TypeOfUnityOfMesurment}}</label>
+                    <input list="amount" [(ngModel)]="RemoveQuantity">
+                    <datalist id="amount">
+                        <option *ngFor="let quant of QuantityList" >
+                            {{quant}}
+                        </option>
+                    </datalist> 
+
+                <label class="col-sm-2 col-form-label">Cine preia din magazie?</label>
+                <input type="text" class="form-control" [(ngModel)]="MaterialLocation"
+                style="margin: 2px;" type="password">
+
+        </div>
+
+        <button (click)="updateToolTwo()" *ngIf="mat.MaterialId!=0" class="btn btn-warning">
+            Scade
+        </button>
+
+
+    </div>
+
+</div>
+
+<div *ngIf="ActivateAlert">
+    <h2>Actiunea a fost efectuata</h2>
+</div>
+    

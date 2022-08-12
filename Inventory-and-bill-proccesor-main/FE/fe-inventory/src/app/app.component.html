@@ -1,0 +1,90 @@
+<div class="container">
+
+    <h3 class="d-flex justify-content-center">Deposit intrare/iesire</h3>
+    <h5 class="d-flex justify-content-center">Management echipamente si materiale pe angajat</h5>
+  
+    <nav class="navbar navbar-expand-sm bg-light navbar-dark">
+    <ul class="navbar-nav">
+
+        <li class="nav-item">
+            <button type="button" class="m-1 btn btn-light btn-outline-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                Unelte
+              </button>
+              <div class="dropdown-menu">
+                <a class="dropdown-item" 
+                routerLink="tool"
+                data-backdrop="static" data-keyboard="false"
+                style="margin: 2px;">Vezi toate uneltele</a>
+
+                <a class="dropdown-item" 
+                routerLink="shed"
+                data-backdrop="static" data-keyboard="false"
+                style="margin: 2px;">Vezi uneltele din magazie</a>
+
+                <a class="dropdown-item"
+                routerLink="workfield"
+                data-backdrop="static" data-keyboard="false"
+                style="margin: 2px;">Vezi toate uneltele din santier</a>
+
+                <a class="dropdown-item" 
+                routerLink="unfunctional"
+                data-backdrop="static" data-keyboard="false"
+                style="margin: 2px;"> vezi uneltele nefunctionale</a>
+              </div>
+        </li>
+        
+        <li class="nav-item">
+            <button routerLink="material"
+            class="m-1 btn btn-light btn-outline-primary" Button>Materiale/Consumabile</button>
+        </li>
+
+        <li class="nav-item">
+          <button routerLink="cofrajmetalic"
+          class="m-1 btn btn-light btn-outline-primary" Button>Cofraj metalic</button>
+        </li>
+
+        <li class="nav-item">
+          <button routerLink="cofrajtipdoka"
+          class="m-1 btn btn-light btn-outline-primary" Button>Cofraj doka</button>
+        </li>
+
+        <li class="nav-item">
+          <button routerLink="popi"
+          class="m-1 btn btn-light btn-outline-primary" Button>Popi</button>
+        </li>
+
+        <li class="nav-item">
+          <button routerLink="schelausoara"
+          class="m-1 btn btn-light btn-outline-primary" Button>Schela usoara</button>
+        </li>
+
+        <li class="nav-item">
+          <button routerLink="schelafatada"
+          class="m-1 btn btn-light btn-outline-primary" Button>Schela fatada</button>
+        </li>
+
+        <li class="nav-item">
+          <button routerLink="schelafatadamodulara"
+          class="m-1 btn btn-light btn-outline-primary" Button>S.F. modulara</button>
+        </li>
+
+
+      
+
+
+
+    </ul>
+    
+
+    </nav>
+
+
+  
+  <router-outlet></router-outlet>
+  
+  </div>
+
+
+  
+  
+  

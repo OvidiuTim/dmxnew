@@ -1,0 +1,27 @@
+<div *ngIf="ActivateModal" >
+    <h5>
+        {{ToolName}} 
+    </h5>
+    <br>
+    <br>
+    <h5>
+    cate bucati
+    <select  style="margin: 2px;" [(ngModel)]="UsedPieces">
+        <option *ngFor="let usrName of PieceList" >
+            {{usrName}}
+        </option>
+    </select>
+    angajatul <input [(ngModel)]="User" type="password" id="exampleInputPassword1" style="margin: 2px;">
+    </h5>
+
+        
+    <button (click)="updateShed()" class="btn btn-primary">
+        Schimba
+    </button>
+
+</div>
+
+<div *ngIf="ActivateAlert">
+    <h2>Actiunea a fost efectuata</h2>
+</div>
+    

@@ -1,0 +1,30 @@
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Angajat</th>
+            <th>Material</th>
+            <th>Serie Material</th>
+            <th>Cantitate</th>
+            <th>Adus/Luat</th>
+            <th>Data preluare</th>
+            <th>Optiuni</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr *ngFor="let dataItem of ConsumableList">
+            <td>{{dataItem.User}}</td>
+            <td>{{dataItem.Material}}</td>
+            <th>{{dataItem.MaterialAmount}}</th>
+            <th>{{dataItem.GiveRecive}}</th>
+            <td>{{dataItem.DateOfGiving}}</td>
+            <td>
+              <button type="button" class="btn btn-danger mr-1"
+              (click)="deleteClick(dataItem)"
+              style="margin:5px;">
+              Sterge
+              </button>
+
+        </tr>
+    </tbody>
+    
+</table>

@@ -1,0 +1,36 @@
+<div *ngIf="ActivateModal">
+
+    <div class="btn-group btn-group-toggle" data-toggle="buttons">
+        <label class="btn btn-secondary active">
+        <input type="radio" name="options" id="option1" (click)="BrokeDown()"> S-a stricat
+        </label>
+        <label class="btn btn-secondary">
+        <input type="radio" name="options" id="option2" (click)="Repaired()"> S-a reparat
+        </label>
+    </div>
+
+<div *ngIf="Broken">
+    <label class="col-sm-2 col-form-label">Ce service</label>
+    <div class="col-sm-10">
+        <input type="text" class="form-control" [(ngModel)]="Service"
+        placeholder="Introdu detalii despre stare, in ce service, si cand se " 
+        style="margin: 2px;">
+    </div>
+</div>
+
+<div *ngIf="Repair">
+    <h5>
+        Apasa butonul de mai jost pentru a trece ca fiind reparata
+    </h5>
+</div>
+
+<button (click)="updateTool()" class="btn btn-primary">
+    Schimba
+</button>
+
+</div>
+
+<div *ngIf="ActivateAlert">
+    <h2>Actiunea a fost efectuata</h2>
+</div>
+    

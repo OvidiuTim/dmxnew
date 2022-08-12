@@ -1,0 +1,61 @@
+<div *ngIf="ActivateModal" >
+    <div class="btn-group btn-group-toggle" data-toggle="buttons">
+        <label class="btn btn-secondary active">
+        <input type="radio" name="options" id="option1"  (click)="brokenInShed()"> Stricat/In magazie
+        </label>
+        <label class="btn btn-secondary">
+        <input type="radio" name="options" id="option2"  (click)="brokenInService()">  Stricat/In service
+        </label>
+    </div>
+
+    <div *ngIf="BrokenInShed">
+        <br>
+        <br>
+        <h5>  Detalii <input type="text" [(ngModel)]="Detail"
+            placeholder="Introdu detalii despre stare, ex maner rupt - etc" 
+            style="margin: 2px;">
+        cate bucati
+        <select  style="margin: 2px;" [(ngModel)]="UsedPieces">
+            <option *ngFor="let usrName of PieceList" >
+                {{usrName}}
+            </option>
+        </select>
+        <br>
+        <br>
+        </h5>
+
+    </div>
+
+    <div *ngIf="BrokenInService">
+        <br>
+        <br>
+    
+        <h5>  Detalii <input type="text" [(ngModel)]="Service"
+            placeholder="Introdu detalii despre in ce service, si cand se intoarce"
+            style="margin: 2px;">
+            Service <input type="text" [(ngModel)]="Detail"
+            placeholder="Introdu detalii despre stare, ex maner rupt - etc" 
+            style="margin: 2px;">
+        cate bucati
+        <select  style="margin: 2px;" [(ngModel)]="UsedPieces">
+            <option *ngFor="let usrName of PieceList" >
+                {{usrName}}
+            </option>
+        </select>
+        <br>
+        <br>
+        </h5>
+
+
+    </div>
+
+    <button (click)="updateShed()" class="btn btn-primary">
+        Schimba
+    </button>
+</div>
+
+
+<div *ngIf="ActivateAlert">
+    <h2>Actiunea a fost efectuata</h2>
+</div>
+    

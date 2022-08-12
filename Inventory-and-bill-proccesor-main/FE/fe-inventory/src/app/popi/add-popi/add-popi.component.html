@@ -1,0 +1,27 @@
+<div *ngIf="ActivateNewCofraj">
+
+    <div class="form-froup row">
+
+        <label class="col-sm-2 col-form-label">nume </label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" [(ngModel)]="PopiName"
+            placeholder="Numele "
+            style="margin:2px;">
+        </div>
+    </div>
+
+    <div class="form-froup row">
+
+        <label class="col-sm-2 col-form-label">cantitate </label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" [(ngModel)]="PopiCantitate"
+            placeholder="Introduceti cantitatea"
+            style="margin:2px;">
+        </div>
+
+        <button (click)="addCofrajmetalic()" class="btn btn-primary">
+            Adauga
+        </button>
+    </div>
+
+</div>

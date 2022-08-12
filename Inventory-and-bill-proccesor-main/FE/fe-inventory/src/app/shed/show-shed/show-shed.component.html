@@ -1,0 +1,93 @@
+
+<h3>
+    Uneltele din magazie
+    <button class="btn btn-secondary -end" onclick="window.location.href = 'http://localhost:4200/workfield';">
+      vezi santier</button>
+</h3>
+
+<div class="d-flex flex-row" style="margin: 12px;">
+  <input [(ngModel)]="ToolNameFilter" class="form-control"
+  (keyup)="FilterFn()" placeholder="Cauta echipament">
+</div> 
+
+<div class="modal fade" id="GiveToUser" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Da unealta catre angajat</h5>
+        <button type="button" class="close" 
+        data-dismiss="modal" aria-label="Close"
+        (click)="closeClick()" >
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+          <app-shed-to-workplace [she]="she" *ngIf="ActivateGiveToolToUser">
+          </app-shed-to-workplace>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="exampleModal3" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel"> Unealta s-a stricata </h5>
+            <button type="button" class="close" 
+            data-dismiss="modal" aria-label="Close"
+            (click)="closeClick()" >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <app-shed-to-unfunctional [she]="she" *ngIf="ActivateServiceTolComp">
+            </app-shed-to-unfunctional>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<table class="table table-striped">
+      
+    <thead>
+        
+        <tr>
+            <th>Serie</th>
+            <th>Nume echipament</th>
+            <th>Producator</th>
+            <th>Componente</th>
+            <th>Numar bucati</th>
+            <th>Status</th>
+            <th>Predare</th>
+            <th>S-a stricat</th>
+
+
+        </tr>
+    </thead>
+    <tbody>
+        <tr *ngFor="let dataItem of ShedList"  >
+
+            <td>{{dataItem.ToolSerie}}</td>
+            <td>{{dataItem.ToolName}}</td>
+            <td>{{dataItem.Provider}}</td>
+            <td>{{dataItem.Components}}</td>
+            <td>{{dataItem.Pieces}}</td>
+            <td>{{dataItem.Status}}</td>
+            <td>  
+              <button type="button" class="btn btn-success" (click)="GiveToolToUser(dataItem)" data-toggle="modal" data-target="#GiveToUser">
+                 Predare
+              </button> 
+
+
+            </td>
+            <td>
+              <button type="button" class="btn btn-warning" (click)="changeSerClick(dataItem)"  data-toggle="modal" data-target="#exampleModal3">
+                Nefuctionala
+              </button>
+            </td>
+
+        </tr >
+    </tbody>
+</table>

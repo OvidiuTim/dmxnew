@@ -1,0 +1,24 @@
+<div *ngIf="ActivateModal">
+    <label class="col-sm-2 col-form-label">Detalii service</label>
+    <div class="col-sm-10">
+        <input type="text" class="form-control" [(ngModel)]="Service"
+        placeholder="Introdu detalii despre in ce service, si cand se intoarce" 
+        style="margin: 2px;">
+    </div>
+
+    <label class="col-sm-2 col-form-label">Detalii status unealta</label>
+    <div class="col-sm-10">
+        <input type="text" class="form-control" [(ngModel)]="Detail"
+        placeholder="Introdu detalii despre stare" 
+        style="margin: 2px;">
+    </div>
+
+    <button (click)="updateTool()" class="btn btn-primary">
+        Schimba
+    </button>
+</div>
+
+<div *ngIf="ActivateAlert">
+    <h2>Actiunea a fost efectuata</h2>
+</div>
+    

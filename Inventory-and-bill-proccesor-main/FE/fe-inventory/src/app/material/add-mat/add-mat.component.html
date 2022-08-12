@@ -1,0 +1,69 @@
+<div *ngIf="ActivateModal" >
+<h3>{{NameOfMaterial}}</h3>
+
+
+
+    <div class="btn-group btn-group-toggle" data-toggle="buttons">
+        <label class="btn btn-secondary active">
+        <input type="radio" name="options" id="option1" checked (click)="MinusPiece()"> Adauga {{UnityOfMesurment}}
+        </label>
+        <label class="btn btn-secondary">
+        <input type="radio" name="options" id="option2" (click)="MinusKg()"> Adauga {{TypeOfUnityOfMesurment}}
+        </label>
+    </div>
+
+
+<div *ngIf="ActivatlMinusPiece">
+    <div class="d-flex flex-row bd-highlight mb-3">
+        <div class="form-froup row" >
+            
+            <label class="col-sm-2 col-form-label">Numar de {{UnityOfMesurment}}</label>
+            <input list="amount" [(ngModel)]="AddAmount">
+            <datalist id="amount">
+                <option *ngFor="let amount of AmountList" >
+                    {{amount}}
+                </option>
+            </datalist> 
+
+                <label class="col-sm-2 col-form-label">Cine preia din magazie?</label>
+                <input type="text" class="form-control" [(ngModel)]="MaterialLocation"
+                style="margin: 2px;" type="password">
+    </div>
+</div>
+
+<button (click)="updateMaterialByPiece()" *ngIf="mat.MaterialId!=0" class="btn btn-primary">
+    Adauga {{UnityOfMesurment}}
+</button>
+
+</div>
+
+<div *ngIf="ActivateMinusKg">
+
+    <div class="d-flex flex-row bd-highlight mb-3">
+        <div class="form-froup row" >
+            
+                <label class="col-sm-2 col-form-label">Numar de {{TypeOfUnityOfMesurment}}</label>
+                    <input list="amount" [(ngModel)]="AddQuantity">
+                    <datalist id="amount">
+                        <option *ngFor="let quant of QuantityList" >
+                            {{quant}}
+                        </option>
+                    </datalist> 
+
+                <label class="col-sm-2 col-form-label">Cine preia din magazie?</label>
+                <input type="text" class="form-control" [(ngModel)]="MaterialLocation"
+                style="margin: 2px;" type="password">
+    </div>
+</div>
+
+<button (click)="updateMaterialByKg()" *ngIf="mat.MaterialId!=0" class="btn btn-primary">
+    Adauga {{TypeOfUnityOfMesurment}}
+</button>
+</div>
+
+</div>
+
+<div *ngIf="ActivateAlert">
+    <h2>Actiunea a fost efectuata</h2>
+</div>
+    
