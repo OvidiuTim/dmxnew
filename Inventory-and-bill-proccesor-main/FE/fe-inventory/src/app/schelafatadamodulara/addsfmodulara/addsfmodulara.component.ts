@@ -50,15 +50,17 @@ export class AddsfmodularaComponent implements OnInit {
 
 
 
+  ActivateAlert:boolean=false;
   addCofrajmetalic(){
-    this.Location = "Magazie"
+    this.ActivateNewCofraj = false;
+    this.ActivateAlert = true;    this.Location = "Magazie"
     var val = {SchelaFatadaModularaId:this.SchelaFatadaModularaId,
                SchelaFatadaModularaName:this.SchelaFatadaModularaName,
                SchelaFatadaModularaCantitate:this.SchelaFatadaModularaCantitate,
                Location:this.Location,
                 };
     this.service.addschelafatadaM(val).subscribe(res=>{
-       alert(res.toString());
+       (res.toString());
 
     });
   }

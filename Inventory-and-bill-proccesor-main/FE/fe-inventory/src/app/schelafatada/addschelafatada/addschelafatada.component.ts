@@ -49,7 +49,10 @@ export class AddschelafatadaComponent implements OnInit {
 
 
 
+  ActivateAlert:boolean=false;
   addCofrajmetalic(){
+    this.ActivateNewCofraj = false;
+    this.ActivateAlert = true;
     this.Location = "Magazie"
     var val = {SchelaFatadaId:this.SchelaFatadaId,
                SchelaFatadaName:this.SchelaFatadaName,
@@ -57,7 +60,7 @@ export class AddschelafatadaComponent implements OnInit {
                Location:this.Location,
                 };
     this.service.addschelafatada(val).subscribe(res=>{
-       alert(res.toString());
+       (res.toString());
 
     });
   }

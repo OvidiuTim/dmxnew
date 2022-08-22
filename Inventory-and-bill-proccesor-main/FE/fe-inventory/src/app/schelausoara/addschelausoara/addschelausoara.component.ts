@@ -49,8 +49,10 @@ export class AddschelausoaraComponent implements OnInit {
   }
 
 
-
+  ActivateAlert:boolean=false;
   addCofrajmetalic(){
+    this.ActivateNewCofraj = false;
+    this.ActivateAlert = true;
     this.Location = "Magazie"
     var val = {SchelaFatadaId:this.SchelaFatadaId,
                SchelaUsoaraName:this.SchelaUsoaraName,
@@ -58,7 +60,7 @@ export class AddschelausoaraComponent implements OnInit {
                Location:this.Location,
                 };
     this.service.addschelausoara(val).subscribe(res=>{
-       alert(res.toString());
+       (res.toString());
 
     });
   }

@@ -24,6 +24,7 @@ export class AddcolajmetalicComponent implements OnInit {
   ActivateNewCofraj:boolean=true;
   ActivateGiveCofraj:boolean=false;
   ActivateTakeCofraj:boolean=false;
+  ActivateAlert:boolean=false;
 
   DateSchela!:any;
   BucketDate!: Date;
@@ -53,6 +54,8 @@ export class AddcolajmetalicComponent implements OnInit {
 
 
   addCofrajmetalic(){
+    this.ActivateNewCofraj = false;
+    this.ActivateAlert = true;
     this.Location = "Magazie"
     var val = {CofrajMetalicId:this.CofrajMetalicId,
                CofrajMetalicName:this.CofrajMetalicName,

@@ -49,8 +49,10 @@ export class AddcolajtipdokaComponent implements OnInit {
   }
 
 
-
+  ActivateAlert:boolean=false;
   addCofrajmetalic(){
+    this.ActivateNewCofraj = false;
+    this.ActivateAlert = true;
     this.Location = "Magazie"
     var val = {CofrajtTipDokaId:this.CofrajtTipDokaId,
                CofrajtTipDokaName:this.CofrajtTipDokaName,

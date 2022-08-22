@@ -49,8 +49,10 @@ export class AddPopiComponent implements OnInit {
   }
 
 
-
+  ActivateAlert:boolean=false;
   addCofrajmetalic(){
+    this.ActivateNewCofraj = false;
+    this.ActivateAlert = true;
     this.Location = "Magazie"
     var val = {PopiDokaId:this.PopiDokaId,
                PopiName:this.PopiName,
