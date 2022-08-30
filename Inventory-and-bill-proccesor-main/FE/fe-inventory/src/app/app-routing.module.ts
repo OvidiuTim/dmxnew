@@ -17,6 +17,7 @@ import { PopiComponent } from './popi/popi.component';
 import { SchelausoaraComponent } from './schelausoara/schelausoara.component';
 import { SchelafatadaComponent } from './schelafatada/schelafatada.component';
 import { SchelafatadamodularaComponent } from './schelafatadamodulara/schelafatadamodulara.component';
+import { MijloacefixeComponent } from './mijloacefixe/mijloacefixe.component';
 
 const routes: Routes = [
   {path:'user',component:UserComponent},
@@ -34,7 +35,8 @@ const routes: Routes = [
   {path: 'popi', component:PopiComponent},
   {path: 'schelausoara', component:SchelausoaraComponent},
   {path: 'schelafatada', component:SchelafatadaComponent},
-  {path: 'schelafatadamodulara', component:SchelafatadamodularaComponent}
+  {path: 'schelafatadamodulara', component:SchelafatadamodularaComponent},
+  {path: 'mijloacefixe', component:MijloacefixeComponent}
 
   ];
 

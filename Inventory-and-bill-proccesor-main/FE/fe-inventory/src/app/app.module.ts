@@ -63,6 +63,9 @@ import { EditschelafatadaComponent } from './schelafatada/editschelafatada/edits
 import { SchelafatadamodularaComponent } from './schelafatadamodulara/schelafatadamodulara.component';
 import { AddsfmodularaComponent } from './schelafatadamodulara/addsfmodulara/addsfmodulara.component';
 import { EditsfmodularaComponent } from './schelafatadamodulara/editsfmodulara/editsfmodulara.component';
+import { MijloacefixeComponent } from './mijloacefixe/mijloacefixe.component';
+import { AddMijloaceComponent } from './mijloacefixe/add-mijloace/add-mijloace.component';
+import { EditmijloaceComponent } from './mijloacefixe/editmijloace/editmijloace.component';
 
 
 
@@ -126,6 +129,9 @@ import { EditsfmodularaComponent } from './schelafatadamodulara/editsfmodulara/e
     SchelafatadamodularaComponent,
     AddsfmodularaComponent,
     EditsfmodularaComponent,
+    MijloacefixeComponent,
+    AddMijloaceComponent,
+    EditmijloaceComponent,
   ],
   imports: [
     BrowserModule,

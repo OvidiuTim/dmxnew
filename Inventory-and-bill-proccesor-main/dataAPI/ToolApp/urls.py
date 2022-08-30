@@ -48,7 +48,8 @@ urlpatterns=[
     url(r'^schelafatadamodulara/$',views.schelafatadamodularaApi),
     url(r'^schelafatadamodulara/([0-9]+)$',views.schelafatadamodularaApi),
 
-
+    url(r'^mijloacefixe/$',views.mijloacefixeApi),
+    url(r'^mijloacefixe/([0-9]+)$',views.mijloacefixeApi),
 
     url(r'^combustibil/$',views.combustibilApi),
     url(r'^combustibil/([0-9]+)$',views.combustibilApi),

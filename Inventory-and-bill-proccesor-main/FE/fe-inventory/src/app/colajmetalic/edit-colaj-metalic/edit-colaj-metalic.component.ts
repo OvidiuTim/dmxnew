@@ -25,12 +25,6 @@ export class EditColajMetalicComponent implements OnInit {
   ActivateGiveCofraj:boolean=false;
   ActivateTakeCofraj:boolean=true;
 
-  DateSchela!:any;
-  BucketDate!: Date;
-  HistoriesScheleId!: string;
-  SchelaName!: string;
-  UserName!: string;
-  CombustibilCantitate!: string;
 
 
   ngOnInit(): void {
@@ -39,9 +33,9 @@ export class EditColajMetalicComponent implements OnInit {
     this.CofrajMetalicId=this.cme.CofrajMetalicId;
     this.CofrajMetalicName=this.cme.CofrajMetalicName;
     this.CofrajMetalicCantitate=this.cme.CofrajMetalicCantitate;
-
-
   }
+
+
 
   preiaCofraj(){
     this.ActivateGiveCofraj = false;
@@ -81,7 +75,23 @@ export class EditColajMetalicComponent implements OnInit {
       })
     }
   }
+  DateSchela!:any;
+  BucketDate!: Date;
+  HistoriesScheleId!: string;
+  SchelaName!: string;
+  UserName!: string;
+  CombustibilCantitate!: string;
+  Directie!: string;
 
+      /* AICI istoric*/
+  addConsumable(){
+    this.Directie = " a luat"   
+    var val = {HistoriesScheleId:this.HistoriesScheleId,
+      Directie:this.Directie,
+};;
+      this.service.addConsumable(val).subscribe(res=>{
+        alert(res.toString());});
+  }
     /* AICI preluare de la ANGAJAT */
     takeCofrajFromWorker(){
       this.Location=this.cme.Location;

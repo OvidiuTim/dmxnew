@@ -3,8 +3,8 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.parsers import JSONParser
 from django.http.response import JsonResponse
 
-from ToolApp.models import Shed, Unfunctional, Users,Tools,Histories, Materials, Consumables, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles
-from ToolApp.serializers import ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer,ToolSerializer,HistorySerializer, MaterialSerializer, WorkFieldSerializer, CofrajMetalicSerializer, CofrajtTipDokaSerializer, PopiSerializer, SchelaUsoaraSerializer, SchelaFatadaSerializer, SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer
+from ToolApp.models import Shed, Unfunctional, Users,Tools,Histories, Materials, Consumables, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes
+from ToolApp.serializers import ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer,ToolSerializer,HistorySerializer, MaterialSerializer, WorkFieldSerializer, CofrajMetalicSerializer, CofrajtTipDokaSerializer, PopiSerializer, SchelaUsoaraSerializer, SchelaFatadaSerializer, SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer
 
 # Create your views here.
 #api angajati
@@ -502,4 +502,35 @@ def istoricschelaApi(request,id=0):
     elif request.method=='DELETE':
         istoricschele=HistorieScheles.objects.get(HistoriesScheleId=id)
         istoricschele.delete()
+        return JsonResponse("Deleted Succeffully!!", safe=False)
+
+
+#api mijloace fixe
+@csrf_exempt
+def mijloacefixeApi(request,id=0):
+    if request.method=='GET':
+        mijloacefixe = MijloaceFixes.objects.all()
+        mijloacefixe_serializer = MijloaceFixeSerializer(mijloacefixe, many=True)
+        return JsonResponse(mijloacefixe_serializer.data, safe=False)
+
+    elif request.method=='POST':
+        mijloacefixe_data=JSONParser().parse(request)
+        mijloacefixe_serializer = MijloaceFixeSerializer(data=mijloacefixe_data)
+        if mijloacefixe_serializer.is_valid():
+            mijloacefixe_serializer.save()
+            return JsonResponse("Added Successfully!!" , safe=False)
+        return JsonResponse("Failed to Add.",safe=False)
+    
+    elif request.method=='PUT':
+        mijloacefixe_data = JSONParser().parse(request)
+        mijloacefixe=MijloaceFixes.objects.get(MijloaceFixeId=mijloacefixe_data['MijloaceFixeId'])
+        mijloacefixe_serializer=MijloaceFixeSerializer(mijloacefixe,data=mijloacefixe_data)
+        if mijloacefixe_serializer.is_valid():
+            mijloacefixe_serializer.save()
+            return JsonResponse("Updated Successfully!!", safe=False)
+        return JsonResponse("Failed to Update.", safe=False)
+
+    elif request.method=='DELETE':
+        mijloacefixe=MijloaceFixes.objects.get(MijloaceFixeId=id)
+        mijloacefixe.delete()
         return JsonResponse("Deleted Succeffully!!", safe=False)

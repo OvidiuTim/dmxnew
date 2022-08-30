@@ -283,4 +283,44 @@ deleteschelafatadaM(val:any){
   return this.http.delete(this.APIUrl + '/schelafatadamodulara/'+val);
 }
 
+//s istoric
+getistoricM():Observable<any[]>{
+  return this.http.get<any[]>(this.APIUrl + '/istoric_schele/');
 }
+
+addistoricM(val:any){
+  return this.http.post(this.APIUrl + '/istoric_schele/',val);
+}
+
+updateistoricM(val:any){
+  return this.http.put(this.APIUrl + '/istoric_schele/',val);
+}
+
+
+deleteistoricM(val:any){
+  return this.http.delete(this.APIUrl + '/istoric_schele/'+val);
+}
+
+//mijloace api
+getmijloace():Observable<any[]>{
+return this.http.get<any[]>(this.APIUrl + '/mijloacefixe/');
+}
+
+addmijloace(val:any){
+  return this.http.post(this.APIUrl + '/mijloacefixe/',val);
+  }
+
+updatemijloace(val:any){
+  return this.http.put(this.APIUrl + '/mijloacefixe/',val);
+  }
+
+
+deleteMijloace(val:any){
+  return this.http.delete(this.APIUrl + '/mijloacefixe/'+val);
+  }
+
+
+
+
+}
+

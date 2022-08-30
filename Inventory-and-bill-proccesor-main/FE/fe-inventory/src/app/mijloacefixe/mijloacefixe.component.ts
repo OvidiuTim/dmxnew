@@ -2,11 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import {SharedService} from 'src/app/shared.service';
 
 @Component({
-  selector: 'app-colajtipdoka',
-  templateUrl: './colajtipdoka.component.html',
-  styleUrls: ['./colajtipdoka.component.css']
+  selector: 'app-mijloacefixe',
+  templateUrl: './mijloacefixe.component.html',
+  styleUrls: ['./mijloacefixe.component.css']
 })
-export class ColajtipdokaComponent implements OnInit {
+export class MijloacefixeComponent implements OnInit {
 
   constructor(private service:SharedService) { }
 
@@ -26,7 +26,7 @@ export class ColajtipdokaComponent implements OnInit {
  
 
   refreshMatList(){
-    this.service.getDokaList().subscribe(data=>{
+    this.service.getmijloace().subscribe(data=>{
       this.MetalicList=data;
       this.MaterialListWithoutFilter=data;
     });
@@ -35,9 +35,9 @@ export class ColajtipdokaComponent implements OnInit {
   newClick(){
     
     this.cme={
-      CofrajtTipDokaId:0,
-      CofrajtTipDokaName:"",
-      CofrajtTipDokaCantitate:"",
+      MijloaceFixeId:0,
+      MijloaceFixeName:"",
+      MijloaceFixeCantitate:"",
       Location:"",
     }
     this.ActivateAddMetalComp=true;
@@ -63,12 +63,12 @@ export class ColajtipdokaComponent implements OnInit {
     var MaterialIdFilter = this.MaterialIdFilter;
     var MaterialNameFilter = this.MaterialNameFilter;
 
-    this.MetalicList = this.MaterialListWithoutFilter.filter(function (el: { CofrajtTipDokaId: 
-      { toString: () => string; }; CofrajtTipDokaName: { toString: () => string; }; }){
-      return el.CofrajtTipDokaId.toString().toLowerCase().includes(
+    this.MetalicList = this.MaterialListWithoutFilter.filter(function (el: { MijloaceFixeId: 
+      { toString: () => string; }; MijloaceFixeName: { toString: () => string; }; }){
+      return el.MijloaceFixeId.toString().toLowerCase().includes(
         MaterialIdFilter.toString().trim().toLowerCase()
       )&&
-      el.CofrajtTipDokaName.toString().toLowerCase().includes(
+      el.MijloaceFixeName.toString().toLowerCase().includes(
       MaterialNameFilter.toString().trim().toLowerCase()
       )
     });

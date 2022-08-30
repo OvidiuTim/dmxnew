@@ -132,6 +132,12 @@ class SchelaFatadaModularas(models.Model):
     SchelaFatadaModularaCantitate= models.CharField(max_length=100)
     Location= models.CharField(max_length=500, null=True) 
 
+class MijloaceFixes(models.Model):
+    MijloaceFixeId = models.AutoField(primary_key=True)
+    MijloaceFixeName = models.CharField(max_length=100)
+    MijloaceFixeCantitate= models.CharField(max_length=100)
+    Location= models.CharField(max_length=500) 
+
 class Combustibils(models.Model):
     CombustibilId = models.AutoField(primary_key=True)
     CombustibilName = models.CharField(max_length=100)
@@ -144,5 +150,6 @@ class HistorieScheles(models.Model):
     UserName = models.CharField(max_length=100)
     CombustibilCantitate= models.CharField(max_length=100)
     DateSchela = models.DateField()
+    Directie = models.CharField(max_length=500, null=True)
 
     

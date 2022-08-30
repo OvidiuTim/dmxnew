@@ -5,6 +5,11 @@ data-backdrop="static" data-keyboard="false">
     Material nou
 </button>
 
+<div class="d-flex flex-row " style="margin: 8px;" >
+  <input [(ngModel)]="MaterialNameFilter" class="form-control"
+  (keyup)="FilterFn()" placeholder="Cauta material">
+</div>  
+
 <div class="modal fade" id="newMaterialModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
       <div class="modal-content">

@@ -28,6 +28,7 @@ export class ColajmetalicComponent implements OnInit {
   refreshMatList(){
     this.service.getCofMetList().subscribe(data=>{
       this.MetalicList=data;
+      this.MaterialListWithoutFilter=data;
     });
   }
 
@@ -53,5 +54,23 @@ export class ColajmetalicComponent implements OnInit {
     this.ActivateAddMetalComp=false;
     this.ActivateEditMetalComp=false;
     this.refreshMatList();
+  }
+
+  MaterialNameFilter:string="";
+  MaterialListWithoutFilter:any=[];
+  MaterialIdFilter:string="";
+  FilterFn(){
+    var MaterialIdFilter = this.MaterialIdFilter;
+    var MaterialNameFilter = this.MaterialNameFilter;
+
+    this.MetalicList = this.MaterialListWithoutFilter.filter(function (el: { CofrajMetalicId: 
+      { toString: () => string; }; CofrajMetalicName: { toString: () => string; }; }){
+      return el.CofrajMetalicId.toString().toLowerCase().includes(
+        MaterialIdFilter.toString().trim().toLowerCase()
+      )&&
+      el.CofrajMetalicName.toString().toLowerCase().includes(
+      MaterialNameFilter.toString().trim().toLowerCase()
+      )
+    });
   }
 }

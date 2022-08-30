@@ -28,6 +28,7 @@ export class SchelafatadaComponent implements OnInit {
   refreshMatList(){
     this.service.getschelafatada().subscribe(data=>{
       this.MetalicList=data;
+      this.MaterialListWithoutFilter=data;
     });
   }
 
@@ -53,5 +54,23 @@ export class SchelafatadaComponent implements OnInit {
     this.ActivateAddMetalComp=false;
     this.ActivateEditMetalComp=false;
     this.refreshMatList();
+  }
+
+  MaterialNameFilter:string="";
+  MaterialListWithoutFilter:any=[];
+  MaterialIdFilter:string="";
+  FilterFn(){
+    var MaterialIdFilter = this.MaterialIdFilter;
+    var MaterialNameFilter = this.MaterialNameFilter;
+
+    this.MetalicList = this.MaterialListWithoutFilter.filter(function (el: { SchelaFatadaId: 
+      { toString: () => string; }; SchelaFatadaName: { toString: () => string; }; }){
+      return el.SchelaFatadaId.toString().toLowerCase().includes(
+        MaterialIdFilter.toString().trim().toLowerCase()
+      )&&
+      el.SchelaFatadaName.toString().toLowerCase().includes(
+      MaterialNameFilter.toString().trim().toLowerCase()
+      )
+    });
   }
 }

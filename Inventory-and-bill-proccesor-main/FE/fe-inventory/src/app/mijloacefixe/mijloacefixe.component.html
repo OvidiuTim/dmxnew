@@ -2,8 +2,9 @@
 data-toggle="modal" data-target="#newMaterialModal"
 (click)="newClick()"
 data-backdrop="static" data-keyboard="false">
-    element nou
+   element nou
 </button>
+
 <div class="d-flex flex-row " style="margin: 8px;" >
   <input [(ngModel)]="MaterialNameFilter" class="form-control"
   (keyup)="FilterFn()" placeholder="Cauta material">
@@ -14,7 +15,7 @@ data-backdrop="static" data-keyboard="false">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="newMaterialModalLabel">
-            Adauga element nou </h5>
+           element nou </h5>
           <button type="button" class="close" 
           data-dismiss="modal" aria-label="Close"
           (click)="closeClick()" >
@@ -22,8 +23,8 @@ data-backdrop="static" data-keyboard="false">
           </button>
         </div>
         <div class="modal-body">
-            <app-addsfmodulara [cme]="cme" *ngIf="ActivateAddMetalComp">
-            </app-addsfmodulara>
+            <app-add-mijloace [cme]="cme" *ngIf="ActivateAddMetalComp">
+            </app-add-mijloace>
             
         </div>
       </div>
@@ -45,8 +46,8 @@ data-backdrop="static" data-keyboard="false">
           </button>
         </div>
         <div class="modal-body">
-            <app-editsfmodulara [cme]="cme" *ngIf="ActivateEditMetalComp">
-            </app-editsfmodulara>
+            <app-editmijloace [cme]="cme" *ngIf="ActivateEditMetalComp">
+            </app-editmijloace>
             
         </div>
       </div>
@@ -66,8 +67,8 @@ data-backdrop="static" data-keyboard="false">
 
     <tbody>
         <tr *ngFor="let dataItem of MetalicList"  >
-            <td>{{dataItem.SchelaFatadaModularaName}}</td>
-            <td>{{dataItem.SchelaFatadaModularaCantitate}} </td>
+            <td>{{dataItem.MijloaceFixeName}}</td>
+            <td>{{dataItem.MijloaceFixeCantitate}} </td>
             <td>{{dataItem.Location}} </td>
 
             <td>

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from ToolApp.models import Consumables, Materials, Shed, Tools, Histories, Unfunctional, Users, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles
+from ToolApp.models import Consumables, Materials, MijloaceFixes, Shed, Tools, Histories, Unfunctional, Users, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -186,5 +186,15 @@ class HistorieScheleSerializer(serializers.ModelSerializer):
                   'UserName',
                   'CombustibilCantitate',
                   'DateSchela',
+                  'Directie',
                   )
 
+
+class MijloaceFixeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MijloaceFixes
+        fields = ('MijloaceFixeId',
+                  'MijloaceFixeName',
+                  'MijloaceFixeCantitate',
+                  'Location'
+                  )
