@@ -47,14 +47,21 @@ export class ShowUsrComponent implements OnInit {
 
 
   deleteClick(item: { UserId: any; }){
-    if(confirm('Are you sure??')){
+    
       this.service.deleteUser(item.UserId).subscribe(data=>{
-        alert(data.toString());
+        (data.toString());
         this.refreshUsrList();
       })
-    }
+    
   }
-
+  givetool(item: { UserId: any; }){
+    
+    this.service.deleteUser(item.UserId).subscribe(data=>{
+      (data.toString());
+      this.refreshUsrList();
+    })
+  
+}
   closeClick(){
     this.ActivateAddEditUsrComp=false;
     this.ActivateUrsHisComp=false;
