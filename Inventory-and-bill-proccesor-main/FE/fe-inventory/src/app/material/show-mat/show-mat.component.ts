@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import {SharedService} from 'src/app/shared.service';
+import { ngxCsv } from 'ngx-csv/ngx-csv';
 
 @Component({
   selector: 'app-show-mat',
@@ -114,5 +115,43 @@ export class ShowMatComponent implements OnInit {
 
 
   
+  data = [
+    {
+      name: "Test 1",
+      age: 13,
+      average: 8.2,
+      approved: true,
+      description: "using 'Content here, content here' "
+    },
+    {
+      name: 'Test 2',
+      age: 11,
+      average: 8.2,
+      approved: true,
+      description: "using 'Content here, content here' "
+    },
+    {
+      name: 'Test 4',
+      age: 10,
+      average: 8.2,
+      approved: true,
+      description: "using 'Content here, content here' "
+    },
+  ];
 
+
+  filedownload(){
+    var options = { 
+      fieldSeparator: ',',
+      quoteStrings: '"',
+      decimalseparator: '.',
+      showLabels: true, 
+      showTitle: true,
+      title: 'Report Materiale',
+      useBom: true,
+      headers: [" Name", "age", "avarage", "aproved" , "ceva"]
+    };
+   
+    new ngxCsv(this.data, "materiale", options);
+  }
 }

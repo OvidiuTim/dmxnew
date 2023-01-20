@@ -178,3 +178,15 @@ data-backdrop="static" data-keyboard="false"
         </tr >
     </tbody>
 </table>
+
+
+<ul *ngFor="let d of data">
+  <li>1 {{d.name}}</li>
+  <li>1 {{d.age}}</li>
+  <li>1 {{d.average}}</li>
+  <li>1 {{d.approved}}</li>
+  <li>1 {{d.description}}</li>
+
+</ul>
+
+<button (click)="filedownload()">click</button>
