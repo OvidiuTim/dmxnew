@@ -14,8 +14,7 @@ del, dfn, em, img, ins, kbd, q, samp,
 small, strong, sub, sup, var,
 b, i,
 dl, dt, dd, ol, ul, li,
-fieldset, form, label, legend,
-table, caption, tbody, tfoot, thead, tr, th, td,
+fieldset, form, label, legend, caption, tbody, tfoot, td,
 article, aside, canvas, details, figcaption, figure,
 footer, header, hgroup, menu, nav, section, summary,
 time, mark, audio, video {
@@ -83,10 +82,6 @@ abbr[title], dfn[title] {
     cursor:help;
 }
 
-table {
-    border-collapse:collapse;
-    border-spacing:0;
-}
 
 /* change border colour to suit your needs */
 hr {
@@ -212,6 +207,54 @@ input, select {
     border-radius: 3px;
     border: none;
 }
+
+/*---------- modals ----------*/
+.modal {
+    width: 100vw;
+    height: 100%;
+}
+.modal-dialog {
+    width: 90%;
+    max-width: 1000px;
+    margin: 25vh auto 0;
+    display: flex;
+    justify-content: center;
+}
+.modal-content {
+    width: 100%;
+    
+    background-color: #fff;
+    height: max-content;
+    align-self: center;
+    padding: 40px;
+}
+.modal-header {
+    padding-bottom: 20px;
+}
+.modal-header h5 {
+    font: normal normal bold 20px Arial;
+    padding-left: 20px;
+}
+.modal-header .close {
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    border-radius: 3px;
+    border: none;
+    background-color: #efefef;
+}
+.modal-footer {
+    padding-top: 20px;
+    margin-top: 40px;
+    border-top: solid 1px #cccccc;
+    display: flex;
+    gap: 20px ;
+}
+.modal-footer .btn {
+    padding: 10px ;
+    font: normal normal 14px Arial;
+}
+
 
 
 

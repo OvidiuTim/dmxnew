@@ -9,111 +9,92 @@
         </div>
     </section>
     <section class="pages-content">
-    <div class="searchbox">
-        <input type="text" placeholder="căutare">
-    </div>
-    <div class="angajati">
-        <div class="tag">
-            <div class="info">
-                <img src="./../../../assets/media/profile-pic.jpeg" alt="">
-                <h6>Nume <br> Prenume</h6>
-            </div>
-            <div class="buttons">
-                <button type="button" class="unelte" data-toggle="modal" data-target="#exampleModal"> Unelte</button>
-                <button class="materiale">materiale</button>
-                <button class="schela">schela</button>
-            </div>
+        <div class="searchbox">
+            <input type="text" placeholder="căutare">
         </div>
-        <div class="tag">
-            <div class="info">
-                <img src="./../../../assets/media/profile-pic.jpeg" alt="">
-                <h6>Nume <br> Prenume</h6>
+        <div class="angajati">
+            <div class="tag">
+                <div class="info">
+                    <img src="./../../../assets/media/profile-pic.jpeg" alt="">
+                    <h6>Nume <br> Prenume</h6>
+                </div>
+                <div class="buttons">
+                    <button type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"> Unelte</button>
+                    <button type="button" class="materiale" data-toggle="modal"
+                        data-target="#modalMateriale">materiale</button>
+                    <button type="button" class="schela" data-toggle="modal" data-target="#modalSchela">schela</button>
+                </div>
             </div>
-            <div class="buttons">
-                <button class="unelte">unelte</button>
-                <button class="materiale">materiale</button>
-                <button class="schela">schela</button>
-            </div>
+
         </div>
-        <div class="tag">
-            <div class="info">
-                <img src="./../../../assets/media/profile-pic.jpeg" alt="">
-                <h6>Nume <br> Prenume</h6>
-            </div>
-            <div class="buttons">
-                <button class="unelte">unelte</button>
-                <button class="materiale">materiale</button>
-                <button class="schela">schela</button>
-            </div>
-        </div>
-        <div class="tag">
-            <div class="info">
-                <img src="./../../../assets/media/profile-pic.jpeg" alt="">
-                <h6>Nume <br> Prenume</h6>
-            </div>
-            <div class="buttons">
-                <button class="unelte">unelte</button>
-                <button class="materiale">materiale</button>
-                <button class="schela">schela</button>
-            </div>
-        </div>
-        <div class="tag">
-            <div class="info">
-                <img src="./../../../assets/media/profile-pic.jpeg" alt="">
-                <h6>Nume <br> Prenume</h6>
-            </div>
-            <div class="buttons">
-                <button class="unelte">unelte</button>
-                <button class="materiale">materiale</button>
-                <button class="schela">schela</button>
-            </div>
-        </div>
-    </div>
+
+    </section>
 
 
-    <!-- Modal Unelte-->
-    <div class="modal fade" id="unelteModal" tabindex="-1" role="dialog" aria-labelledby="unelteModal"
+    <!-- Modal Unelte -->
+    <div class="modal fade" id="modalUnelte" tabindex="-1" role="dialog" aria-labelledby="modalUnelteLabel"
         aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Unelte</h5>
+                    <h5 class="modal-title" id="modalUnelteLabel">Unelte</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
                 <div class="modal-body">
-                    <div class="predare">
-                        <input type="text">
-                        <thead>
-                            <tr>
-                                <th>Nume echipament</th>
-                                <th>Predare</th>
-                            </tr>
-                        </thead>
-                    </div>
+                    <app-modal-unelte></app-modal-unelte>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save changes</button>
                 </div>
             </div>
         </div>
     </div>
-</section>
 
-
-<!-- Modal test unelte -->
-<div class="modal fade" id="exampleModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="exampleModalLabel">Modal title</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="modal-body">
-        <app-modal-unelte></app-modal-unelte>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary">Save changes</button>
-      </div>
+    <!-- Modal Materiale -->
+    <div class="modal fade" id="modalMateriale" tabindex="-1" role="dialog" aria-labelledby="modalMaterialeLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalMaterialeLabel">Materiale</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <app-modal-materiale></app-modal-materiale>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save changes</button>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
+
+    <!-- Modal Schela -->
+    <div class="modal fade" id="modalSchela" tabindex="-1" role="dialog" aria-labelledby="modalSchelaLabel"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalSchelaLabel">Schela</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <app-modal-schela></app-modal-schela>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
