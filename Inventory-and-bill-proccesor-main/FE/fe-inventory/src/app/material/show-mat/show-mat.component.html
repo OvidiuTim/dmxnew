@@ -1,5 +1,7 @@
 
 <!-- Button trigger modal -->
+
+<button (click)="filedownload2()">click</button>
 <button type="button" class="btn btn-primary float-end m-2" 
 data-toggle="modal" data-target="#newMaterialModal"
 (click)="newClick()"
@@ -180,13 +182,3 @@ data-backdrop="static" data-keyboard="false"
 </table>
 
 
-<ul *ngFor="let d of data">
-  <li>1 {{d.name}}</li>
-  <li>1 {{d.age}}</li>
-  <li>1 {{d.average}}</li>
-  <li>1 {{d.approved}}</li>
-  <li>1 {{d.description}}</li>
-
-</ul>
-
-<button (click)="filedownload()">click</button>

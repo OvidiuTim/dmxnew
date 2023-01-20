@@ -39,13 +39,11 @@ export class ShowMatComponent implements OnInit {
     
     this.mat={
       MaterialId:0,
-
       MaterialName:"",
       Quantity:"",
       Amount:"",
       MaterialLocation:"",
       OneUnity:"",
-
       UnityOfMesurment:"",
       TypeOfUnityOfMesurment:"",
     }
@@ -95,7 +93,9 @@ export class ShowMatComponent implements OnInit {
     this.service.getMatList().subscribe(data=>{
       this.MaterialList=data;
       this.MaterialListWithoutFilter=data;
+
     });
+
   }
 
   FilterFn(){
@@ -114,44 +114,21 @@ export class ShowMatComponent implements OnInit {
   }
 
 
-  
-  data = [
-    {
-      name: "Test 1",
-      age: 13,
-      average: 8.2,
-      approved: true,
-      description: "using 'Content here, content here' "
-    },
-    {
-      name: 'Test 2',
-      age: 11,
-      average: 8.2,
-      approved: true,
-      description: "using 'Content here, content here' "
-    },
-    {
-      name: 'Test 4',
-      age: 10,
-      average: 8.2,
-      approved: true,
-      description: "using 'Content here, content here' "
-    },
-  ];
 
-
-  filedownload(){
-    var options = { 
-      fieldSeparator: ',',
-      quoteStrings: '"',
-      decimalseparator: '.',
-      showLabels: true, 
-      showTitle: true,
-      title: 'Report Materiale',
-      useBom: true,
-      headers: [" Name", "age", "avarage", "aproved" , "ceva"]
-    };
-   
-    new ngxCsv(this.data, "materiale", options);
-  }
+filedownload2(){
+  alert(this.MaterialList.lenght)
+  var options = { 
+    fieldSeparator: ',',
+    quoteStrings: '"',
+    decimalseparator: '.',
+    showLabels: true, 
+    showTitle: true,
+    title: 'Report Materiale',
+    useBom: true,
+    headers: [" MaterialId", "MaterialName", "Quantity", "Amount" , "MaterialLocation", "OneUnity", "UnityOfMesurment", "TypeOfUnityOfMesurment"]
+  };
+ 
+  new ngxCsv(this.MaterialList, "materiale", options);
 }
+}
+

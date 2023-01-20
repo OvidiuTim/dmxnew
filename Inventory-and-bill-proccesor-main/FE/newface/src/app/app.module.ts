@@ -9,6 +9,9 @@ import { AngajatiComponent } from './magazie/angajati/angajati.component';
 import { UnelteComponent } from './magazie/unelte/unelte.component';
 import { MaterialeComponent } from './magazie/materiale/materiale.component';
 import { SchelaComponent } from './magazie/schela/schela.component';
+import { ModalUnelteComponent } from './magazie/angajati/modal-unelte/modal-unelte.component';
+import { ModalMaterialeComponent } from './magazie/angajati/modal-materiale/modal-materiale.component';
+import { ModalSchelaComponent } from './magazie/angajati/modal-schela/modal-schela.component';
 
 @NgModule({
   declarations: [
@@ -18,7 +21,10 @@ import { SchelaComponent } from './magazie/schela/schela.component';
     AngajatiComponent,
     UnelteComponent,
     MaterialeComponent,
-    SchelaComponent
+    SchelaComponent,
+    ModalUnelteComponent,
+    ModalMaterialeComponent,
+    ModalSchelaComponent
   ],
   imports: [
     BrowserModule,
