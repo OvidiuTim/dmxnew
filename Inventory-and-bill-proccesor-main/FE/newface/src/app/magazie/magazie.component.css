@@ -152,3 +152,14 @@ input, select {
 .pages-content {
     grid-column: 2;
 }
+
+
+@media only screen and (min-width:1120px) {
+    body{
+        grid-template-columns: 240px auto;
+    }
+/*---------- Sidebar ----------*/
+    .sidebar {
+        padding: 80px 40px;
+    }
+}
