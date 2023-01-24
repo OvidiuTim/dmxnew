@@ -12,6 +12,7 @@ import { SchelaComponent } from './magazie/schela/schela.component';
 import { ModalUnelteComponent } from './magazie/angajati/modal-unelte/modal-unelte.component';
 import { ModalMaterialeComponent } from './magazie/angajati/modal-materiale/modal-materiale.component';
 import { ModalSchelaComponent } from './magazie/angajati/modal-schela/modal-schela.component';
+import { AdministratorComponent } from './administrator/administrator.component';
 
 @NgModule({
   declarations: [
@@ -24,7 +25,8 @@ import { ModalSchelaComponent } from './magazie/angajati/modal-schela/modal-sche
     SchelaComponent,
     ModalUnelteComponent,
     ModalMaterialeComponent,
-    ModalSchelaComponent
+    ModalSchelaComponent,
+    AdministratorComponent
   ],
   imports: [
     BrowserModule,
