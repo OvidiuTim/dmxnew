@@ -136,6 +136,7 @@ input, select {
     text-align: left;
     font: normal normal bold 20px Arial;
     border-bottom: solid 1px #cccccc;
+    cursor: pointer;
 }
 .pages h5 {
     padding-bottom: 25px;

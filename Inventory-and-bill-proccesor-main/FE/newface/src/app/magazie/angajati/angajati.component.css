@@ -131,6 +131,7 @@ input, select {
     text-align: left;
     font: normal normal bold 20px Arial;
     border-bottom: solid 1px #cccccc;
+    cursor: pointer;
 }
 .pages h5 {
     padding-bottom: 25px;
@@ -233,7 +234,6 @@ input, select {
 }
 .modal-header h5 {
     font: normal normal bold 20px Arial;
-    padding-left: 20px;
 }
 .modal-header .close {
     width: 30px;

@@ -1,11 +1,11 @@
 <body>
     <section class="sidebar">
-        <h1>Magazie</h1>
+        <h1 (click)="seeMagazie()">Magazie</h1>
         <div class="pages">
-            <h5 class="page-on">Angajați</h5>
-            <h5>Materiale</h5>
-            <h5>Unelte</h5>
-            <h5>schela</h5>
+            <h5 class="page-on" (click)="seeAngajati()">Angajați</h5>
+            <h5 (click)="seeMateriale()">Materiale</h5>
+            <h5 (click)="seeUnelte()">Unelte</h5>
+            <h5 (click)="seeSchela()">schela</h5>
         </div>
     </section>
     <section class="pages-content">
