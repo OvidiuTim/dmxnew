@@ -7,6 +7,7 @@ import { MaterialeComponent } from './magazie/materiale/materiale.component';
 import { SchelaComponent } from './magazie/schela/schela.component';
 import { UnelteComponent } from './magazie/unelte/unelte.component';
 import { AdministratorComponent } from './administrator/administrator.component';
+import { IstoricComponent } from './administrator/istoric/istoric.component';
 
 
 
@@ -17,6 +18,7 @@ const routes: Routes = [
   {path:'schela',component:SchelaComponent},
   {path:'unelte',component:UnelteComponent},
   {path:'admin',component:AdministratorComponent},
+  {path:'istoric',component:IstoricComponent},
   
 ];
 

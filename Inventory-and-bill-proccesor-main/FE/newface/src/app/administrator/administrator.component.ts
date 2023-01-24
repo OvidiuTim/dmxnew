@@ -9,5 +9,20 @@ import { Router } from '@angular/router';
 export class AdministratorComponent {
 
   constructor(private router: Router) { }
-  
+
+  seeAngajati(){
+    this.router.navigateByUrl('/angajati')
+  }
+  seeMateriale(){
+    this.router.navigateByUrl('/materiale')
+  }
+  seeUnelte(){
+    this.router.navigateByUrl('/unelte')
+  }
+  seeSchela(){
+    this.router.navigateByUrl('/schela')
+  }
+  seeIstoric(){
+    this.router.navigateByUrl('/istoric')
+  }
 }

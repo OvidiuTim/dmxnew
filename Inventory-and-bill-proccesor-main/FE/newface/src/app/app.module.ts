@@ -13,6 +13,7 @@ import { ModalUnelteComponent } from './magazie/angajati/modal-unelte/modal-unel
 import { ModalMaterialeComponent } from './magazie/angajati/modal-materiale/modal-materiale.component';
 import { ModalSchelaComponent } from './magazie/angajati/modal-schela/modal-schela.component';
 import { AdministratorComponent } from './administrator/administrator.component';
+import { IstoricComponent } from './administrator/istoric/istoric.component';
 
 @NgModule({
   declarations: [
@@ -26,7 +27,8 @@ import { AdministratorComponent } from './administrator/administrator.component'
     ModalUnelteComponent,
     ModalMaterialeComponent,
     ModalSchelaComponent,
-    AdministratorComponent
+    AdministratorComponent,
+    IstoricComponent
   ],
   imports: [
     BrowserModule,
