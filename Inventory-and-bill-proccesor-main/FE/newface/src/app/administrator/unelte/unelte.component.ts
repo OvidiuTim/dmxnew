@@ -2,14 +2,17 @@ import { Component } from '@angular/core';
 import { Router } from '@angular/router';
 
 @Component({
-  selector: 'app-istoric',
-  templateUrl: './istoric.component.html',
-  styleUrls: ['./istoric.component.css']
+  selector: 'app-unelte',
+  templateUrl: './unelte.component.html',
+  styleUrls: ['./unelte.component.css']
 })
-export class IstoricComponent {
+export class UnelteComponent {
   
   constructor(private router: Router) { }
-
+  
+  seeMagazie(){
+    this.router.navigateByUrl('/magazie')
+  }
   seeAngajati(){
     this.router.navigateByUrl('/angajati')
   }
@@ -21,8 +24,5 @@ export class IstoricComponent {
   }
   seeSchela(){
     this.router.navigateByUrl('/schela')
-  }
-  seeIstoric(){
-    this.router.navigateByUrl('/istoric')
   }
 }
