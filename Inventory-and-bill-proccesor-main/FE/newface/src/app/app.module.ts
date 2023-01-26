@@ -14,6 +14,7 @@ import { ModalMaterialeComponent } from './magazie/angajati/modal-materiale/moda
 import { ModalSchelaComponent } from './magazie/angajati/modal-schela/modal-schela.component';
 import { AdministratorComponent } from './administrator/administrator.component';
 import { IstoricComponent } from './administrator/istoric/istoric.component';
+import{SharedService} from './shared.service';
 
 @NgModule({
   declarations: [
@@ -34,7 +35,7 @@ import { IstoricComponent } from './administrator/istoric/istoric.component';
     BrowserModule,
     AppRoutingModule
   ],
-  providers: [],
+  providers: [SharedService],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

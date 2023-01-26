@@ -1,1 +1,33 @@
-<p>login works!</p>
+
+<head>
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
+  </head>
+  
+  <section id="login">
+      <div class="container">
+          <div class="row">
+              <div class="col-xs-12">
+                  <div class="form-wrap">
+                  <h1>Intra in contul tau</h1>
+                      <form role="form" action="javascript:;" method="post" id="login-form" autocomplete="off">
+                          <div class="form-group">
+                              <label for="email" class="sr-only">User</label>
+                              <input type="email" name="email" id="email" class="form-control" placeholder="User">
+                          </div>
+                          <div class="form-group">
+                              <label for="key" class="sr-only">Parola</label>
+                              <input type="password" name="key" id="key" class="form-control" placeholder="Parola">
+                          </div>
+  
+                          <input type="submit" id="btn-login" class="btn btn-custom btn-lg btn-block" (click)="seeMagazie()" value="Intra in cont">
+                      </form>
+  
+                      <hr>
+                  </div>
+              </div> <!-- /.col-xs-12 -->
+          </div> <!-- /.row -->
+      </div> <!-- /.container -->
+  </section>
+  
