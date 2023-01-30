@@ -12,11 +12,16 @@
         <div class="searchbox">
             <input type="text" placeholder="căutare">
         </div>
-        <div class="angajati">
-            <div class="tag">
+        <button type="button" class="btn btn-primary" 
+data-toggle="modal" data-target="#exampleModal" (click)="addClick()" data-backdrop="static" data-keyboard="false">
+    Adauga angajat
+  </button>
+
+        <div class="angajati" >
+            <div class="tag"*ngFor="let dataItem of UserList">
                 <div class="info">
                     <img src="./../../../assets/media/profile-pic.jpeg" alt="">
-                    <h6>Nume <br> Prenume</h6>
+                    <h6>{{dataItem.UserName}}</h6>
                 </div>
                 <div class="buttons">
                     <button type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"> Unelte</button>

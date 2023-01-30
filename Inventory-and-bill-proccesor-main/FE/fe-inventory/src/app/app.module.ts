@@ -12,7 +12,7 @@ import { AddEditTolComponent } from './tool/add-edit-tol/add-edit-tol.component'
 import { HistoryComponent } from './history/history.component';
 import { ShowHisComponent } from './history/show-his/show-his.component';
 import { AddEditHisComponent } from './history/add-edit-his/add-edit-his.component';
-import{SharedService} from './shared.service';
+import {SharedService} from './shared.service';
 import {DatePipe} from '@angular/common';
 
 import {HttpClientModule} from '@angular/common/http';

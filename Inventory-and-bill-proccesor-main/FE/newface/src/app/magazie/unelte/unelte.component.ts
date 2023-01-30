@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+import {SharedService} from 'src/app/shared.service';
 import { Router } from '@angular/router';
 
 @Component({
@@ -6,10 +7,15 @@ import { Router } from '@angular/router';
   templateUrl: './unelte.component.html',
   styleUrls: ['./unelte.component.css']
 })
-export class UnelteComponent {
+export class UnelteComponent implements OnInit {
+
+  constructor(private router: Router, private service:SharedService) { }
   
-  constructor(private router: Router) { }
-  
+
+  ngOnInit(): void {
+
+  }
+
   seeMagazie(){
     this.router.navigateByUrl('/magazie')
   }

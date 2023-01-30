@@ -1,15 +1,51 @@
-import { Component } from '@angular/core';
+import { Component, OnInit} from '@angular/core';
 import { Router } from '@angular/router';
+import {SharedService} from 'src/app/shared.service';
 
 @Component({
   selector: 'app-angajati',
   templateUrl: './angajati.component.html',
   styleUrls: ['./angajati.component.css']
 })
-export class AngajatiComponent {
+export class AngajatiComponent implements OnInit {
 
-  constructor(private router: Router) { }
+  constructor(private service:SharedService,private router: Router) { }
     
+  UserList:any=[];
+  usr:any;
+  ModalTitle:string | undefined;
+  ActivateAddEditUsrComp:boolean=false;
+  ActivateUrsHisComp:boolean=false;
+
+  ngOnInit(): void {
+    this.refreshUsrList();
+  }
+
+  refreshUsrList(){
+    this.service.getUsrList().subscribe(data=>{
+      this.UserList=data;
+       });
+  }
+
+
+
+  addClick(){
+    this.usr={
+      UserId:0,
+      UserSerie:"",
+      UserName:"",
+      UserPin:"",
+      NameAndSerie:"",
+      
+    }
+    this.ModalTitle="Adauga angajat";
+    this.ActivateAddEditUsrComp=true;
+
+  }
+
+
+
+
   seeMagazie(){
     this.router.navigateByUrl('/magazie')
   }
