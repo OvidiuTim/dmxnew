@@ -207,6 +207,7 @@ input, select {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    text-transform: capitalize;
 }
 /*.nameBtn button{
     font: normal normal 13px Arial;
