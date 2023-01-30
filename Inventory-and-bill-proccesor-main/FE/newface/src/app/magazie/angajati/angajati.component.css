@@ -221,7 +221,7 @@ input, select {
     width: 100%;
     margin-top: 20px;
     display: flex;
-    column-gap: 7px;
+    justify-content: space-between;
 }
 .buttons img, .nameBtn button img {
     height: 20px;
@@ -238,7 +238,26 @@ input, select {
     display: flex;
     align-items: center;
 }
-
+.buttons button:hover {
+    background-color: #d9d9d9;
+}
+.stergebtn {
+    width: 100%;
+    margin-top: 20px;
+    font-size: 13px;
+    text-transform:capitalize;
+    padding: 7px;
+    cursor: pointer;
+    border-radius: 3px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center    ;
+}
+.stergebtn img {
+    width: 20px;
+    margin-right: 10px;
+}
 /*---------- modals ----------*/
 .modal {
     width: 100vw;
@@ -253,7 +272,6 @@ input, select {
 }
 .modal-content {
     width: 100%;
-    
     background-color: #fff;
     height: max-content;
     align-self: center;
@@ -262,8 +280,14 @@ input, select {
 .modal-header {
     padding-bottom: 20px;
 }
+.modal-header img {
+    width: 30px;
+    margin-right: 20px;
+}
 .modal-header h5 {
     font: normal normal bold 20px Arial;
+    display: flex;
+    align-items: center;
 }
 .modal-header .close {
     width: 30px;
