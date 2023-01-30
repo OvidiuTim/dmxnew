@@ -183,12 +183,12 @@ input, select {
     padding-bottom: 40px;
     height: auto;
     display: grid ;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
     gap: 40px;
 }
 .angajati .tag {
     width: 100%;
-    max-width: 250px;
+    max-width: 310px;
     box-shadow: 5px 5px 5px 5px #cccccc;
     border-radius: 3px;
     padding: 25px 15px;
@@ -203,19 +203,40 @@ input, select {
     height: auto;
     aspect-ratio: 1 / 1;
 }
+.info .nameBtn {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.nameBtn button{
+    font: normal normal 13px Arial;
+    border-radius: 3px;
+    border:none;
+    padding: 7px;
+    width: min-content;
+    display: flex;
+    align-items:center;
+}
 .tag .buttons {
     width: 100%;
     margin-top: 20px;
     display: flex;
     column-gap: 7px;
 }
+.buttons img, .nameBtn button img {
+    height: 20px;
+    width: 20px;
+    margin-right: 7px;
+}
 .buttons button {
-    font-size: 12px;
+    font-size: 13px;
     text-transform:capitalize;
     padding: 7px;
     cursor: pointer;
     border-radius: 3px;
     border: none;
+    display: flex;
+    align-items: center;
 }
 
 /*---------- modals ----------*/
