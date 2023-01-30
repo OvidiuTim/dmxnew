@@ -11,17 +11,18 @@
     <section class="pages-content">
         <div class="searchbox">
             <input type="text" placeholder="căutare">
+            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addAngajatModal"
+                (click)="addClick()" data-backdrop="static" data-keyboard="false">
+                Adauga angajat
+            </button>
         </div>
-        <button type="button" class="btn btn-primary" 
-data-toggle="modal" data-target="#exampleModal" (click)="addClick()" data-backdrop="static" data-keyboard="false">
-    Adauga angajat
-  </button>
 
-        <div class="angajati" >
-            <div class="tag"*ngFor="let dataItem of UserList">
+
+        <div class="angajati">
+            <div class="tag">
                 <div class="info">
                     <img src="./../../../assets/media/profile-pic.jpeg" alt="">
-                    <h6>{{dataItem.UserName}}</h6>
+                    <h6>nume nume</h6>
                 </div>
                 <div class="buttons">
                     <button type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"> Unelte</button>
@@ -35,6 +36,27 @@ data-toggle="modal" data-target="#exampleModal" (click)="addClick()" data-backdr
 
     </section>
 
+    <!-- Modal Adauga Angajat -->
+    <div class="modal fade" id="addAngajatModal" tabindex="-1" role="dialog" aria-labelledby="modaladdAngajatModal"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modaladdAngajatModal">Adauga Angajat</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <app-modal-add-angajat></app-modal-add-angajat>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
+                    <button type="button" class="btn btn-primary">Salvează</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal Unelte -->
     <div class="modal fade" id="modalUnelte" tabindex="-1" role="dialog" aria-labelledby="modalUnelteLabel"

@@ -156,9 +156,13 @@ input, select {
 /*---------- search box ----------*/
 .searchbox {
     margin-bottom:40px;
+    width: 100%;
+    display: flex;
+    height: auto;
+    justify-content: space-between;
 }
 .searchbox input {
-    width: 100%;
+    width: 65%;
     padding: 5px 10px;
     color: dimgray;
     outline: none;
@@ -166,7 +170,12 @@ input, select {
 .searchbox input::placeholder {
     font-size: 13px;
 }
-
+.searchbox .btn {
+    font: normal normal 13px Arial;
+    border-radius: 3px;
+    border:none;
+    padding: 7px 15px;
+}
 /*---------- angajati ----------*/
 .angajati {
     width: 100%;
@@ -270,4 +279,11 @@ input, select {
     .sidebar {
         padding: 80px 40px;
     }
+/*---------- search box ----------*/
+.searchbox input {
+    width: 80%;
+    padding: 5px 10px;
+    color: dimgray;
+    outline: none;
+}    
 }
