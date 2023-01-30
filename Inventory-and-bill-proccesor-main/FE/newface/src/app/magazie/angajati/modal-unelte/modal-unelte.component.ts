@@ -11,9 +11,33 @@ export class ModalUnelteComponent implements OnInit {
 
   constructor(private router: Router, private service:SharedService) { }
   
+  ToolList:any=[];
+  btntype:string="";
+  mainlocation:any=[];
+
 
   ngOnInit(): void {
+ 
+    this.refreshTolList();
+    this.btntype = "btn-success";
 
+
+    
+  }
+
+
+  refreshTolList(){
+    this.service.getTolList().subscribe(data=>{
+      this.ToolList=data;
+
+      this.mainlocation=this.ToolList.MainLocation;
+    });
+
+    if(this.mainlocation == "Magazie"){
+      this.btntype = "btn-warning";
+    }else{
+      this.btntype = "btn-success";
+    }
   }
 
 }

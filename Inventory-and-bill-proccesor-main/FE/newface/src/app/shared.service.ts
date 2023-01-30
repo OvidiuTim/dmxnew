@@ -27,6 +27,22 @@ export class SharedService {
       return this.http.delete(this.APIUrl + '/user/'+val);
     }
 
+  //unelte api
+  getTolList():Observable<any[]>{
+    return this.http.get<any[]>(this.APIUrl + '/tool/');
+  }
 
+  addTool(val:any){
+    return this.http.post(this.APIUrl + '/tool/',val);
+  }
+
+  updateTool(val:any){
+    return this.http.put(this.APIUrl + '/tool/',val);
+  }
+
+
+  deleteTool(val:any){
+    return this.http.delete(this.APIUrl + '/tool/'+val);
+  }
 
 }

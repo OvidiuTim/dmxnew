@@ -7,9 +7,24 @@
             <thead>
                 <tr>
                     <th>Nume echipament</th>
-                    <th>Predare</th>
+                    <th>locatie</th>
+                    <th>Actiune</th>
                 </tr>
             </thead>
+            <tbody>
+                <tr *ngFor="let dataItem of ToolList"  >
+      
+                    <td>{{dataItem.ToolName}}</td>
+                    <td>{{dataItem.MainLocation}}</td>
+                    <td>
+                        <button type="button" class="btn {{btntype}}"  data-toggle="modal" data-target="#GiveToUser">
+                            Predare
+                         </button> 
+                    </td>
+                    
+      
+                </tr >
+            </tbody>
         </table>
     </div>
 </div>
