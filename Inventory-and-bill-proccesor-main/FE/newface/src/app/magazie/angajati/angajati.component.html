@@ -1,4 +1,6 @@
 <body>
+    <!--- *ngIf="allowthischeck" -->
+    
     <section class="sidebar">
         <h1 (click)="seeMagazie()">Magazie</h1>
         <div class="pages">
@@ -19,11 +21,11 @@
 
 
         <div class="angajati">
-            <div class="tag"  >
+            <div class="tag" *ngFor="let dataItem of UserList" >
                 <div class="info">
                     <img src="./../../../assets/media/profile-pic.jpeg" alt="">
                     <div class="nameBtn">
-                        <h6>nume nume</h6>
+                        <h6>{{dataItem.UserName}}</h6>
                         <!--<button type="button" class="btn btn-danger"> <img src="./../../../assets/media/icons/trash.svg" alt=""> Sterge</button>-->
                     </div>
                     

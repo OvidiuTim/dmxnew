@@ -10,6 +10,9 @@ export class SharedService {
 
   constructor(private http:HttpClient)  { }
 
+  admin:boolean=false;
+  allowthis:boolean=false;
+
     //anagajati api
     getUsrList():Observable<any[]>{
       return this.http.get<any[]>(this.APIUrl + '/user/');

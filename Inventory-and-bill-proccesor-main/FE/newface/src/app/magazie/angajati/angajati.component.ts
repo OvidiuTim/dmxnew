@@ -13,12 +13,15 @@ export class AngajatiComponent implements OnInit {
     
   UserList:any=[];
   usr:any;
-  ModalTitle:string | undefined;
-  ActivateAddEditUsrComp:boolean=false;
-  ActivateUrsHisComp:boolean=false;
+
+  allowthischeck:boolean=false;
 
   ngOnInit(): void {
     this.refreshUsrList();
+
+    this.allowthischeck = this.service.allowthis
+    console.log(this.service.admin)
+    console.log(this.service.allowthis)
   }
 
   refreshUsrList(){
@@ -38,8 +41,7 @@ export class AngajatiComponent implements OnInit {
       NameAndSerie:"",
       
     }
-    this.ModalTitle="Adauga angajat";
-    this.ActivateAddEditUsrComp=true;
+
 
   }
 
