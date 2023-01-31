@@ -127,8 +127,8 @@ input, select {
     display: flex;
     align-items: center;
     justify-content: center;
-
 }
+   
 .magazie-table th,.magazie-table td , .personal-table th, .personal-table td{
     padding: 15px 7px;
 }
