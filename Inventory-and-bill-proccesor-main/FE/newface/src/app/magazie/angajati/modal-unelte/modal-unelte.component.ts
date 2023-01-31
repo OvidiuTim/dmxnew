@@ -12,32 +12,49 @@ export class ModalUnelteComponent implements OnInit {
   constructor(private router: Router, private service:SharedService) { }
   
   ToolList:any=[];
-  btntype:string="";
-  mainlocation:any=[];
+  ToolListWithoutFilter:any=[];
+
+
+  ToolLocationFilter:string="";
+
+  une:any;
 
 
   ngOnInit(): void {
- 
-    this.refreshTolList();
-    this.btntype = "btn-success";
-
-
     
+    this.refreshTolList();
+
+  }
+
+  FilterFn(){
+    
+    var ToolLocationFilter = this.ToolLocationFilter;
+
+    this.ToolList = this.ToolListWithoutFilter.filter(function (el: { ToolId: 
+      { toString: () => string; }; MainLocation: { toString: () => string; }; }){
+      return el.MainLocation.toString().toLowerCase().includes(
+        ToolLocationFilter.toString().trim().toLowerCase()
+      )
+    });
   }
 
 
   refreshTolList(){
-    this.service.getTolList().subscribe(data=>{
-      this.ToolList=data;
+    this.ToolLocationFilter = 'BEGU EUGEN'
+    var ToolLocationFilter = this.ToolLocationFilter;
 
-      this.mainlocation=this.ToolList.MainLocation;
+    this.service.getTolList().subscribe(data=>{
+      this.ToolList=data.filter(function (el: {MainLocation: 
+        { toString: () => string; }; }) { 
+          return el.MainLocation.toString().toLowerCase().includes(
+            ToolLocationFilter.toString().trim().toLowerCase()
+          ) 
+        });
+
+      this.ToolListWithoutFilter=data;
+
     });
 
-    if(this.mainlocation == "Magazie"){
-      this.btntype = "btn-warning";
-    }else{
-      this.btntype = "btn-success";
-    }
   }
 
 }
