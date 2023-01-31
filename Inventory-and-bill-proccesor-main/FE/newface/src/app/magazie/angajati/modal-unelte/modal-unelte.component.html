@@ -3,7 +3,7 @@
         <input type="text" placeholder="căutare" [(ngModel)]="ToolLocationFilter" (keyup)="FilterFn()">
     </div>
     <div class="magazie-table">
-        <h3> În magazie</h3>
+        <h3>În posesia</h3>
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -29,7 +29,7 @@
     </div>
 
     <div class="personal-table">
-        <h3>În posesia</h3>
+        <h3>În magazie</h3>
         <table class="table table-striped">
             <thead>
                 <tr>
@@ -39,7 +39,7 @@
                 </tr>
             </thead>
             <tbody>
-                <tr *ngFor="let dataItem of ToolList"  >
+                <tr *ngFor="let dataItem of ToolListWithoutFilter"  >
       
                     <td>{{dataItem.ToolName}}</td>
                     <td>{{dataItem.MainLocation}}</td>

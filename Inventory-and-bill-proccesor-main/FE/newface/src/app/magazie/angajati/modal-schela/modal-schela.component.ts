@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import {SharedService} from 'src/app/shared.service';
 import { Router } from '@angular/router';
+import { ThisReceiver } from '@angular/compiler';
 
 
 @Component({
@@ -14,11 +15,16 @@ export class ModalSchelaComponent implements OnInit {
   
   ToolList:any=[];
   ToolListWithoutFilter:any=[];
-
-
   ToolLocationFilter:string="";
+  une:any
 
-  une:any;
+  cofMet:boolean=true;
+  cofDoca:boolean=false;
+  Popi:boolean=false;
+  SUsoara:boolean=false;
+  SFatada:boolean=false;
+  Modulara:boolean=false;
+  Mfixe:boolean=false;
 
 
   ngOnInit(): void {
@@ -58,4 +64,34 @@ export class ModalSchelaComponent implements OnInit {
 
   }
 
+  checkmyscafoldingid(){
+    for(let i=1; i<=7; i++){
+      document.getElementById(''+ i)!.style.backgroundColor = '#efefef';
+    }
+  }
+  cofrajmetalic(){
+  this.cofMet=true;
+  this.cofDoca=false;
+  this.Popi=false;
+  this.SUsoara=false;
+  this.SFatada=false;
+  this.Modulara=false; 
+  this.Mfixe=false;
+
+  this.checkmyscafoldingid();
+  document.getElementById("1")!.style.backgroundColor = '#d9d9d9';
+  }
+  
+  cofrajDoca(){
+    this.cofMet=false;
+    this.cofDoca=true;
+    this.Popi=false;
+    this.SUsoara=false;
+    this.SFatada=false;
+    this.Modulara=false;
+    this.Mfixe=false;
+
+    this.checkmyscafoldingid();
+    document.getElementById("2")!.style.backgroundColor = '#d9d9d9';
+    }
 }

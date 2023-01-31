@@ -1,52 +1,45 @@
-<div class="predare">
-    <div class="searchbox">
-        <input type="text" placeholder="căutare" [(ngModel)]="ToolLocationFilter" (keyup)="FilterFn()">
-    </div>
-    <div class="predare-table">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Nume echipament</th>
-                    <th>locatie</th>
-                    <th>Actiune</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr *ngFor="let dataItem of ToolList"  >
-      
-                    <td>{{dataItem.ToolName}}</td>
-                    <td>{{dataItem.MainLocation}}</td>
-                    <td>
-                        <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
-                            Predare
-                         </button> 
-                    </td>
-                    
-      
-            </tbody>
-        </table>
 
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Nume echipament</th>
-                    <th>locatie</th>
-                    <th>Actiune</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr *ngFor="let dataItem of ToolListWithoutFilter"  >
-      
-                    <td>{{dataItem.ToolName}}</td>
-                    <td>{{dataItem.MainLocation}}</td>
-                    <td>
-                        <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
-                            Predare
-                         </button> 
-                    </td>
-                    
-      
-            </tbody>
-        </table>
+    <div class="all-btns">
+        <button id="1" (click)="cofrajmetalic()">Cofraj metalic</button>
+        <button id="2" (click)="cofrajDoca()">Cofraj doka</button>
+        <button id="3">Popi</button>
+        <button id="4">Schela usoara</button>
+        <button id="5">Schela fatada</button>
+        <button id="6">S.F. modulara</button>
+        <button id="7">Mijloace fixe</button>
     </div>
-</div>
+
+    <div class="btns-contents btn1" *ngIf="cofMet">
+        <div class="searchbox">
+            <input type="text" placeholder="căutare" [(ngModel)]="ToolLocationFilter" (keyup)="FilterFn()">
+        </div>
+
+        <div class="schela-table">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nume</th>
+                        <th>Cantitatea</th>
+                        <th>Actiune</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let dataItem of ToolList"  >
+          
+                        <td>{{dataItem.ToolName}}</td>
+                        <td>{{dataItem.MainLocation}}</td>
+                        <td>
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                                Predare
+                             </button> 
+                        </td>
+                        
+          
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+   
+    
+
