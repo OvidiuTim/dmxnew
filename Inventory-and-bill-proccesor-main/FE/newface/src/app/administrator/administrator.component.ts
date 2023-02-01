@@ -1,14 +1,19 @@
-import { Component } from '@angular/core';
+import { Component, OnInit} from '@angular/core';
 import { Router } from '@angular/router';
+import {SharedService} from 'src/app/shared.service';
 
 @Component({
   selector: 'app-administrator',
   templateUrl: './administrator.component.html',
   styleUrls: ['./administrator.component.css']
 })
-export class AdministratorComponent {
+export class AdministratorComponent implements OnInit {
 
-  constructor(private router: Router) { }
+  constructor(private service:SharedService,private router: Router) { }
+
+  ngOnInit(): void {
+    this.router.navigateByUrl('/angajati')
+  }
 
   seeAngajati(){
     this.router.navigateByUrl('/angajati')

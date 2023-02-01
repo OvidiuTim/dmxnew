@@ -14,22 +14,36 @@ export class AngajatiComponent implements OnInit {
   UserList:any=[];
   usr:any;
 
+  usermodaltool:boolean=false;
   allowthischeck:boolean=false;
 
   ngOnInit(): void {
     this.refreshUsrList();
 
     this.allowthischeck = this.service.allowthis
-    console.log(this.service.admin)
-    console.log(this.service.allowthis)
+
   }
 
+
+  closemodals(){
+    this.usermodaltool=false;
+
+  }
   refreshUsrList(){
     this.service.getUsrList().subscribe(data=>{
       this.UserList=data;
        });
+
   }
 
+
+  modalunelte(item: any){
+
+
+    this.usermodaltool=true
+    this.service.selectedUser=item;
+
+  }
 
 
   addClick(){

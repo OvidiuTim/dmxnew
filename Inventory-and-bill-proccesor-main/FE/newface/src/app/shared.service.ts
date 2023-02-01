@@ -12,6 +12,8 @@ export class SharedService {
 
   admin:boolean=false;
   allowthis:boolean=false;
+  selectedUser:any
+
 
     //anagajati api
     getUsrList():Observable<any[]>{
@@ -48,4 +50,22 @@ export class SharedService {
     return this.http.delete(this.APIUrl + '/tool/'+val);
   }
 
+  //istoric api
+  getHisList():Observable<any[]>{
+    return this.http.get<any[]>(this.APIUrl + '/history/');
+  }
+
+  addHistory(val:any){
+    return this.http.post(this.APIUrl + '/history/',val);
+  }
+
+  updateHistory(val:any){
+    return this.http.put(this.APIUrl + '/history/',val);
+  }
+
+
+  deleteHistory(val:any){
+    return this.http.delete(this.APIUrl + '/history/'+val);
+  }
+  
 }

@@ -33,7 +33,7 @@
                     
                 </div>
                 <div class="buttons">
-                    <button type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"><img src="./../../../assets/media/icons/unelte.svg" alt=""> Unelte</button>
+                    <button (click)="modalunelte(dataItem)" type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"><img src="./../../../assets/media/icons/unelte.svg" alt="" > Unelte</button>
                     <button type="button" class="materiale" data-toggle="modal"
                         data-target="#modalMateriale"><img src="./../../../assets/media/icons/materiale.svg" alt="">materiale</button>
                     <button type="button" class="schela" data-toggle="modal" data-target="#modalSchela"><img src="./../../../assets/media/icons/schela.svg" alt="">schela</button>
@@ -46,7 +46,7 @@
     </section>
 
     <!-- Modal Adauga Angajat -->
-    <div class="modal fade" id="addAngajatModal" tabindex="-1" role="dialog" aria-labelledby="modaladdAngajatModal"
+    <div class="modal fade" data-backdrop="static" id="addAngajatModal" tabindex="-1" role="dialog" aria-labelledby="modaladdAngajatModal"
         aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -68,21 +68,21 @@
     </div>
 
     <!-- Modal Unelte -->
-    <div class="modal fade" id="modalUnelte" tabindex="-1" role="dialog" aria-labelledby="modalUnelteLabel"
+    <div class="modal fade" data-backdrop="static" id="modalUnelte" tabindex="-1" role="dialog" aria-labelledby="modalUnelteLabel"
         aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalUnelteLabel"><img src="./../../../assets/media/icons/unelte.svg" alt="">Unelte</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close" data-dismiss="modal" (click)="closemodals()" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
-                    <app-modal-unelte></app-modal-unelte>
+                    <app-modal-unelte *ngIf="usermodaltool"></app-modal-unelte>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
+                    <button type="button" (click)="closemodals()" class="btn btn-secondary" data-dismiss="modal">Închide</button>
                     <button type="button" class="btn btn-primary">Salvează</button>
                 </div>
             </div>
@@ -90,13 +90,13 @@
     </div>
 
     <!-- Modal Materiale -->
-    <div class="modal fade" id="modalMateriale" tabindex="-1" role="dialog" aria-labelledby="modalMaterialeLabel"
+    <div class="modal fade" data-backdrop="static" id="modalMateriale" tabindex="-1" role="dialog" aria-labelledby="modalMaterialeLabel"
         aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalMaterialeLabel"><img src="./../../../assets/media/icons/materiale.svg" alt="">Materiale</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <button type="button" class="close" data-dismiss="modal" (click)="closemodals()" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
@@ -104,7 +104,7 @@
                     <app-modal-materiale></app-modal-materiale>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
+                    <button type="button" class="btn btn-secondary" (click)="closemodals()" data-dismiss="modal">Închide</button>
                     <button type="button" class="btn btn-primary">Salvează</button>
                 </div>
             </div>
@@ -112,7 +112,7 @@
     </div>
 
     <!-- Modal Schela -->
-    <div class="modal fade" id="modalSchela" tabindex="-1" role="dialog" aria-labelledby="modalSchelaLabel"
+    <div class="modal fade" data-backdrop="static" id="modalSchela" tabindex="-1" role="dialog" aria-labelledby="modalSchelaLabel"
         aria-hidden="true">
         <div class="modal-dialog" role="document">
             <div class="modal-content">

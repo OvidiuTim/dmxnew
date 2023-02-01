@@ -2,7 +2,7 @@
     <div class="searchbox">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
         </svg>
-        <input type="text" placeholder="căutare" [(ngModel)]="ToolLocationFilter" (keyup)="FilterFn()">
+        <input type="text" placeholder="căutare" [(ngModel)]="ToolNameFilter" (keyup)="FilterFn()">
     </div>
     <div class="magazie-table">
         <h3>În posesia</h3>
@@ -10,7 +10,6 @@
             <thead>
                 <tr>
                     <th>Nume echipament</th>
-                    <th>Locatie</th>
                     <th>Actiune</th>
                 </tr>
             </thead>
@@ -18,10 +17,9 @@
                 <tr *ngFor="let dataItem of ToolList"  >
       
                     <td>{{dataItem.ToolName}}</td>
-                    <td>{{dataItem.MainLocation}}</td>
                     <td>
-                        <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
-                            Predare
+                        <button type="button" (click)="preluareUnealta(dataItem)" class="btn btn-warning"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                            preluare
                          </button> 
                     </td>
                     
@@ -36,17 +34,17 @@
             <thead>
                 <tr>
                     <th>Nume echipament</th>
-                    <th>Locatie</th>
+
                     <th>Actiune</th>
                 </tr>
             </thead>
             <tbody>
-                <tr *ngFor="let dataItem of ToolListWithoutFilter"  >
+                <tr *ngFor="let dataItem of ToolListmain"  >
       
                     <td>{{dataItem.ToolName}}</td>
-                    <td>{{dataItem.MainLocation}}</td>
+
                     <td>
-                        <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                        <button type="button" (click)="predareUnealta(dataItem)" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
                             Predare
                          </button> 
                     </td>
