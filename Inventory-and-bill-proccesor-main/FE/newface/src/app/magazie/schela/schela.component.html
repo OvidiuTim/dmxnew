@@ -8,4 +8,400 @@
             <h5 class="page-on" (click)="seeSchela()">schela</h5>
         </div>
     </section>
+
+    <section class="pages-content">
+        <div class="all-btns">
+            <button id="1" class="first" (click)="cofrajmetalic()">Cofraj metalic</button>
+            <button id="2" (click)="cofrajDoca()">Cofraj doka</button>
+            <button id="3" (click)="Popibtn()">Popi</button>
+            <button id="4" (click)="Susoara()">Schela usoara</button>
+            <button id="5" (click)="Sfatafa()">Schela fatada</button>
+            <button id="6" (click)="Mdulara()">S.F. modulara</button>
+            <button id="7" class="last" (click)="mfixe()">Mijloace fixe</button>
+        </div>
+
+        <div class="btns-contents btn1" *ngIf="cofMet">
+            <div class="searchbox">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search"
+                    viewBox="0 0 16 16">
+                    <path
+                        d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
+                </svg>
+                <input type="text" placeholder="căutare">
+                <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
+                    data-backdrop="static" data-keyboard="false"><img
+                        src="./../../../assets/media/icons/plus-circle.svg" alt="">
+                    Adauga Schela
+                </button>
+            </div>
+
+            <div class="schela-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Cantitatea</th>
+                            <th>Locatie</th>
+                            <th>Actiune</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+
+                            <td>list</td>
+                            <td>list</td>
+                            <td>list</td>
+                            <td>
+                                <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/edit.svg" alt="">
+                                    editati
+                                </button>
+                                <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/trash.svg" alt="">
+                                    sterge
+                                </button>
+                            </td>
+
+
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <div class="btns-contents btn2" *ngIf="cofDoca">
+            <div class="searchbox">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search"
+                    viewBox="0 0 16 16">
+                    <path
+                        d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
+                </svg>
+                <input type="text" placeholder="căutare">
+                <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
+                    data-backdrop="static" data-keyboard="false"><img
+                        src="./../../../assets/media/icons/plus-circle.svg" alt="">
+                    Adauga Schela
+                </button>
+            </div>
+
+            <div class="schela-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Cantitatea</th>
+                            <th>Locatie</th>
+                            <th>Actiune</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+
+                            <td>list</td>
+                            <td>list</td>
+                            <td>list</td>
+                            <td>
+                                <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/edit.svg" alt="">
+                                    editati
+                                </button>
+                                <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/trash.svg" alt="">
+                                    sterge
+                                </button>
+                            </td>
+
+
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <div class="btns-contents btn3" *ngIf="Popi">
+            <div class="searchbox">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search"
+                    viewBox="0 0 16 16">
+                    <path
+                        d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
+                </svg>
+                <input type="text" placeholder="căutare">
+                <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
+                    data-backdrop="static" data-keyboard="false"><img
+                        src="./../../../assets/media/icons/plus-circle.svg" alt="">
+                    Adauga Schela
+                </button>
+            </div>
+
+            <div class="schela-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Cantitatea</th>
+                            <th>Locatie</th>
+                            <th>Actiune</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+
+                            <td>list</td>
+                            <td>list</td>
+                            <td>list</td>
+                            <td>
+                                <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/edit.svg" alt="">
+                                    editati
+                                </button>
+                                <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/trash.svg" alt="">
+                                    sterge
+                                </button>
+                            </td>
+
+
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <div class="btns-contents btn4" *ngIf="SUsoara">
+            <div class="searchbox">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search"
+                    viewBox="0 0 16 16">
+                    <path
+                        d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
+                </svg>
+                <input type="text" placeholder="căutare">
+                <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
+                    data-backdrop="static" data-keyboard="false"><img
+                        src="./../../../assets/media/icons/plus-circle.svg" alt="">
+                    Adauga Schela
+                </button>
+            </div>
+
+            <div class="schela-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Cantitatea</th>
+                            <th>Locatie</th>
+                            <th>Actiune</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+
+                            <td>list</td>
+                            <td>list</td>
+                            <td>list</td>
+                            <td>
+                                <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/edit.svg" alt="">
+                                    editati
+                                </button>
+                                <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/trash.svg" alt="">
+                                    sterge
+                                </button>
+                            </td>
+
+
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <div class="btns-contents btn5" *ngIf="SFatada">
+            <div class="searchbox">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search"
+                    viewBox="0 0 16 16">
+                    <path
+                        d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
+                </svg>
+                <input type="text" placeholder="căutare">
+                <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
+                    data-backdrop="static" data-keyboard="false"><img
+                        src="./../../../assets/media/icons/plus-circle.svg" alt="">
+                    Adauga Schela
+                </button>
+            </div>
+
+            <div class="schela-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Cantitatea</th>
+                            <th>Locatie</th>
+                            <th>Actiune</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+
+                            <td>list</td>
+                            <td>list</td>
+                            <td>list</td>
+                            <td>
+                                <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/edit.svg" alt="">
+                                    editati
+                                </button>
+                                <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/trash.svg" alt="">
+                                    sterge
+                                </button>
+                            </td>
+
+
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <div class="btns-contents btn6" *ngIf="Modulara">
+            <div class="searchbox">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search"
+                    viewBox="0 0 16 16">
+                    <path
+                        d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
+                </svg>
+                <input type="text" placeholder="căutare">
+                <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
+                    data-backdrop="static" data-keyboard="false"><img
+                        src="./../../../assets/media/icons/plus-circle.svg" alt="">
+                    Adauga Schela
+                </button>
+            </div>
+
+            <div class="schela-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Cantitatea</th>
+                            <th>Locatie</th>
+                            <th>Actiune</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+
+                            <td>list</td>
+                            <td>list</td>
+                            <td>list</td>
+                            <td>
+                                <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/edit.svg" alt="">
+                                    editati
+                                </button>
+                                <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/trash.svg" alt="">
+                                    sterge
+                                </button>
+                            </td>
+
+
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <div class="btns-contents btn7" *ngIf="Mfixe">
+            <div class="searchbox">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search"
+                    viewBox="0 0 16 16">
+                    <path
+                        d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
+                </svg>
+                <input type="text" placeholder="căutare">
+                <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
+                    data-backdrop="static" data-keyboard="false"><img
+                        src="./../../../assets/media/icons/plus-circle.svg" alt="">
+                    Adauga Schela
+                </button>
+            </div>
+
+            <div class="schela-table">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Nume</th>
+                            <th>Cantitatea</th>
+                            <th>Locatie</th>
+                            <th>Actiune</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+
+                            <td>list</td>
+                            <td>list</td>
+                            <td>list</td>
+                            <td>
+                                <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/edit.svg" alt="">
+                                    editati
+                                </button>
+                                <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
+                                    data-toggle="modal" data-target="#GiveToUser"><img
+                                        src="./../../../assets/media/icons/trash.svg" alt="">
+                                    sterge
+                                </button>
+                            </td>
+
+
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Modal Adauga Schela -->
+    <div class="modal fade" id="addAngajatModal" tabindex="-1" role="dialog" aria-labelledby="modaladdAngajatModal"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modaladdAngajatModal"><img src="./../../../assets/media/icons/schela.svg" alt="">Adauga Schela nou</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="">Tip de schela</label>
+                    <input type="tel" readonly style="pointer-events: none;">
+                    <label for="">Nume echipament</label>
+                    <input type="text" placeholder="Nume">
+                    <label for="">Cantitate</label>
+                    <input type="number" placeholder="Introduceti cantitatea">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
+                    <button type="button" class="btn btn-primary">Salvează</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>

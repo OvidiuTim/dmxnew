@@ -11,11 +11,17 @@ export class UnelteComponent implements OnInit {
 
   constructor(private router: Router, private service:SharedService) { }
   
+  NuAcelas:boolean=true;
+  DaAcelas:boolean=false;
+
+
+  startingPoint:string="";
 
   ngOnInit(): void {
-
+    this.startingPoint = '1';
   }
 
+  
   seeMagazie(){
     this.router.navigateByUrl('/magazie')
   }
@@ -30,5 +36,21 @@ export class UnelteComponent implements OnInit {
   }
   seeSchela(){
     this.router.navigateByUrl('/schela')
+  }
+
+
+
+  
+  Nuacelas(){
+    this.NuAcelas=true;
+    this.DaAcelas=false;
+  
+    document.getElementById("1")!.style.backgroundColor = '#d9d9d9';
+  }
+  Daacelas(){
+    this.NuAcelas=false;
+    this.DaAcelas=true;
+  
+    document.getElementById("2")!.style.backgroundColor = '#d9d9d9';
   }
 }

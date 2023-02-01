@@ -67,6 +67,7 @@ export class ModalSchelaComponent implements OnInit {
   checkmyscafoldingid(){
     for(let i=1; i<=7; i++){
       document.getElementById(''+ i)!.style.backgroundColor = '#efefef';
+      document.getElementById(''+ i)!.style.fontWeight = 'normal';
     }
   }
   cofrajmetalic(){
@@ -80,6 +81,7 @@ export class ModalSchelaComponent implements OnInit {
 
   this.checkmyscafoldingid();
   document.getElementById("1")!.style.backgroundColor = '#d9d9d9';
+  document.getElementById("1")!.style.fontWeight = 'bold';
   }
   
   cofrajDoca(){
@@ -93,6 +95,7 @@ export class ModalSchelaComponent implements OnInit {
 
     this.checkmyscafoldingid();
     document.getElementById("2")!.style.backgroundColor = '#d9d9d9';
+    document.getElementById("2")!.style.fontWeight = 'bold';
   }
   
   Popibtn(){
@@ -106,6 +109,7 @@ export class ModalSchelaComponent implements OnInit {
 
     this.checkmyscafoldingid();
     document.getElementById("3")!.style.backgroundColor = '#d9d9d9';
+    document.getElementById("3")!.style.fontWeight = 'bold';
   }
 
   Susoara(){
@@ -119,6 +123,7 @@ export class ModalSchelaComponent implements OnInit {
 
     this.checkmyscafoldingid();
     document.getElementById("4")!.style.backgroundColor = '#d9d9d9';
+    document.getElementById("4")!.style.fontWeight = 'bold';
   }  
 
   Sfatafa(){
@@ -132,6 +137,7 @@ export class ModalSchelaComponent implements OnInit {
 
     this.checkmyscafoldingid();
     document.getElementById("5")!.style.backgroundColor = '#d9d9d9';
+    document.getElementById("5")!.style.fontWeight = 'bold';
   }  
 
   Mdulara(){
@@ -145,6 +151,7 @@ export class ModalSchelaComponent implements OnInit {
 
     this.checkmyscafoldingid();
     document.getElementById("6")!.style.backgroundColor = '#d9d9d9';
+    document.getElementById("6")!.style.fontWeight = 'bold';
   }  
 
   mfixe(){
@@ -158,6 +165,7 @@ export class ModalSchelaComponent implements OnInit {
 
     this.checkmyscafoldingid();
     document.getElementById("7")!.style.backgroundColor = '#d9d9d9';
+    document.getElementById("7")!.style.fontWeight = 'bold';
   }
   
 }

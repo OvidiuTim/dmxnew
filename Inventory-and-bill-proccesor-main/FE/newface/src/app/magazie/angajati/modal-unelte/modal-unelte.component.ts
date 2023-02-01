@@ -129,7 +129,7 @@ export class ModalUnelteComponent implements OnInit {
   // aici preluare unealta/ edit tool main location
 
   preluareUnealta(item: any){
-
+    console.log("preloare")
     this.tol=item;
 
     this.ToolId=this.tol.ToolId;
@@ -157,10 +157,10 @@ export class ModalUnelteComponent implements OnInit {
     };
 
     this.service.updateTool(val).subscribe(res=>{
-    console.log(res.toString());
+    (res.toString());
     });
 
-    this.refreshTolList()
+
     this.GiveRecive = "a preluat"
     this.Pieces=this.tol.Pieces;
     var valo = {HistoryId:this.HistoryId,
@@ -172,13 +172,13 @@ export class ModalUnelteComponent implements OnInit {
       Pieces:this.Pieces
       };
       this.service.addHistory(valo).subscribe(res=>{
-        console.log(res.toString());});
-        console.log("istoric")
+        (res.toString());});
         
+        this.refreshTolList()
   }
   // aici predare unealta/ edit tool main location
   predareUnealta(item: any){
-
+    console.log("predare")
     this.tol=item;
 
     this.ToolId=this.tol.ToolId;
@@ -207,10 +207,9 @@ export class ModalUnelteComponent implements OnInit {
     };
 
     this.service.updateTool(val).subscribe(res=>{
-    console.log(res.toString());
+   (res.toString());
     });
 
-    this.refreshTolList()
 
     this.GiveRecive = "a predat"
     this.Pieces=this.tol.Pieces;
@@ -223,8 +222,9 @@ export class ModalUnelteComponent implements OnInit {
       Pieces:this.Pieces
       };
       this.service.addHistory(valo).subscribe(res=>{
-        console.log(res.toString());});
-        console.log("istoric")
+        (res.toString());});
+    
+        this.refreshTolList()
 
   }
 

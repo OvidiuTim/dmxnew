@@ -18,7 +18,8 @@
             </svg>
             <input type="text" placeholder="căutare">
             <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
-                data-backdrop="static" data-keyboard="false"><img src="./../../../assets/media/icons/plus-circle.svg" alt="">
+                data-backdrop="static" data-keyboard="false"><img src="./../../../assets/media/icons/plus-circle.svg"
+                    alt="">
                 Adauga Materiale
             </button>
         </div>
@@ -31,6 +32,7 @@
                         <th>Serie</th>
                         <th>Nume echipament</th>
                         <th>Numar bucati</th>
+                        <th>Locatie</th>
                         <th>Actiune</th>
                     </tr>
                 </thead>
@@ -39,13 +41,16 @@
                         <td>title</td>
                         <td>title</td>
                         <td>title</td>
+                        <td>title</td>
                         <td>
-                            <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;" data-toggle="modal"
-                                data-target="#GiveToUser"><img src="./../../../assets/media/icons/edit.svg" alt="">
+                            <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
+                                data-toggle="modal" data-target="#GiveToUser"><img
+                                    src="./../../../assets/media/icons/edit.svg" alt="">
                                 editati
                             </button>
-                            <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;" data-toggle="modal"
-                                data-target="#GiveToUser"><img src="./../../../assets/media/icons/trash.svg" alt=""> 
+                            <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
+                                data-toggle="modal" data-target="#GiveToUser"><img
+                                    src="./../../../assets/media/icons/trash.svg" alt="">
                                 sterge
                             </button>
                         </td>
@@ -54,4 +59,31 @@
         </div>
 
     </section>
+
+    <!-- Modal Adauga Materiale -->
+    <div class="modal fade" id="addAngajatModal" tabindex="-1" role="dialog" aria-labelledby="modaladdAngajatModal"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modaladdAngajatModal"><img src="./../../../assets/media/icons/materiale.svg" alt="">Adauga Material nou</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <label for="">Nume material</label>
+                    <input type="text" placeholder="Nume materialului">
+                    <label for="">U.M.</label>
+                    <input type="text" placeholder="Introduceti U.M.">
+                    <label for="">Cantitate</label>
+                    <input type="text" placeholder="0">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
+                    <button type="button" class="btn btn-primary">Salvează</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
