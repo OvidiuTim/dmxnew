@@ -160,21 +160,34 @@ input, select {
     display: flex;
     height: auto;
     justify-content: space-between;
+    position: relative;
 }
-.searchbox input {
+.searchbox svg {
+    position: absolute;
+    left: 10px;
+    top: 30%;
+}
+.searchbox input{
     width: 65%;
-    padding: 5px 10px;
+    padding: 7px;
+    padding-left: 30px;
     color: dimgray;
     outline: none;
 }
 .searchbox input::placeholder {
     font-size: 13px;
 }
-.searchbox .btn {
+.searchbox .btnAdd {
     font: normal normal 13px Arial;
     border-radius: 3px;
     border:none;
     padding: 7px 15px;
+    display: flex;
+    align-items: center;
+}
+.searchbox .btnAdd img {
+    width: 20px;
+    margin-right: 10px;
 }
 /*---------- angajati ----------*/
 .angajati {
@@ -209,15 +222,6 @@ input, select {
     justify-content: space-between;
     text-transform: capitalize;
 }
-/*.nameBtn button{
-    font: normal normal 13px Arial;
-    border-radius: 3px;
-    border:none;
-    padding: 7px;
-    width: min-content;
-    display: flex;
-    align-items:center;
-}*/
 .tag .buttons {
     width: 100%;
     margin-top: 20px;
@@ -326,10 +330,9 @@ input, select {
         padding: 80px 40px;
     }
 /*---------- search box ----------*/
-.searchbox input {
-    width: 80%;
-    padding: 5px 10px;
-    color: dimgray;
-    outline: none;
-}    
+    .searchbox input {
+        width: 80%;
+        color: dimgray;
+        outline: none;
+    }    
 }

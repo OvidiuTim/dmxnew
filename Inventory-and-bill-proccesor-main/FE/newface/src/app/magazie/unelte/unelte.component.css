@@ -14,8 +14,7 @@ del, dfn, em, img, ins, kbd, q, samp,
 small, strong, sub, sup, var,
 b, i,
 dl, dt, dd, ol, ul, li,
-fieldset, form, label, legend,
-table, caption, tbody, tfoot, thead, tr, th, td,
+fieldset, form, label, legend, caption, tfoot, td,
 article, aside, canvas, details, figcaption, figure,
 footer, header, hgroup, menu, nav, section, summary,
 time, mark, audio, video {
@@ -83,11 +82,6 @@ abbr[title], dfn[title] {
     cursor:help;
 }
 
-table {
-    border-collapse:collapse;
-    border-spacing:0;
-}
-
 /* change border colour to suit your needs */
 hr {
     display:block;
@@ -149,6 +143,7 @@ input, select {
 .page-on {
     font-weight: bold;
 }
+
 /*---------- pages content ----------*/
 .pages-content {
     grid-column: 2;
@@ -158,8 +153,67 @@ input, select {
     padding: 0 20px;
 }
 
+/*---------- search box ----------*/
+.searchbox {
+    margin-bottom:40px;
+    width: 100%;
+    display: flex;
+    height: auto;
+    justify-content: space-between;
+    position: relative;
+}
+.searchbox svg {
+    position: absolute;
+    left: 10px;
+    top: 30%;
+}
+.searchbox input{
+    width: 65%;
+    padding: 7px;
+    padding-left: 30px;
+    color: dimgray;
+    outline: none;
+}
+.searchbox input::placeholder {
+    font-size: 13px;
+}
+.searchbox .btnAdd {
+    font: normal normal 13px Arial;
+    border-radius: 3px;
+    border:none;
+    padding: 7px 15px;
+    display: flex;
+    align-items: center;
+}
+.searchbox .btnAdd img {
+    width: 20px;
+    margin-right: 10px;
+}
 
+/*---------- table ----------*/
+.table th{
+    padding: 15px  7px;
+}
 
+.table td{
+    padding: 7px;
+    font-size: 13px;
+}
+.table button{
+    padding: 7px 10px 7px 7px;
+    font-size: 13px;
+    text-transform: capitalize;
+    border-radius: 3px;  
+    display: inline-flex;
+}
+.iconbtn {
+    align-content: center;
+    justify-items: center;
+}
+.iconbtn img  {
+    width: 20px;
+    margin-right: 7px;
+}
 
 
 
@@ -172,4 +226,10 @@ input, select {
     .sidebar {
         padding: 80px 40px;
     }
+/*---------- search box ----------*/
+    .searchbox input {
+        width: 80%;
+        color: dimgray;
+        outline: none;
+    }        
 }

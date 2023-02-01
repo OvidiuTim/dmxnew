@@ -93,5 +93,71 @@ export class ModalSchelaComponent implements OnInit {
 
     this.checkmyscafoldingid();
     document.getElementById("2")!.style.backgroundColor = '#d9d9d9';
-    }
+  }
+  
+  Popibtn(){
+    this.cofMet=false;
+    this.cofDoca=false;
+    this.Popi=true;
+    this.SUsoara=false;
+    this.SFatada=false;
+    this.Modulara=false;
+    this.Mfixe=false;
+
+    this.checkmyscafoldingid();
+    document.getElementById("3")!.style.backgroundColor = '#d9d9d9';
+  }
+
+  Susoara(){
+    this.cofMet=false;
+    this.cofDoca=false;
+    this.Popi=false;
+    this.SUsoara=true;
+    this.SFatada=false;
+    this.Modulara=false;
+    this.Mfixe=false;
+
+    this.checkmyscafoldingid();
+    document.getElementById("4")!.style.backgroundColor = '#d9d9d9';
+  }  
+
+  Sfatafa(){
+    this.cofMet=false;
+    this.cofDoca=false;
+    this.Popi=false;
+    this.SUsoara=false;
+    this.SFatada=true;
+    this.Modulara=false;
+    this.Mfixe=false;
+
+    this.checkmyscafoldingid();
+    document.getElementById("5")!.style.backgroundColor = '#d9d9d9';
+  }  
+
+  Mdulara(){
+    this.cofMet=false;
+    this.cofDoca=false;
+    this.Popi=false;
+    this.SUsoara=false;
+    this.SFatada=false;
+    this.Modulara=true;
+    this.Mfixe=false;
+
+    this.checkmyscafoldingid();
+    document.getElementById("6")!.style.backgroundColor = '#d9d9d9';
+  }  
+
+  mfixe(){
+    this.cofMet=false;
+    this.cofDoca=false;
+    this.Popi=false;
+    this.SUsoara=false;
+    this.SFatada=false;
+    this.Modulara=false;
+    this.Mfixe=true;
+
+    this.checkmyscafoldingid();
+    document.getElementById("7")!.style.backgroundColor = '#d9d9d9';
+  }
+  
 }

@@ -111,7 +111,7 @@ input, select {
     /*background-color: rgba(22, 173, 225, 0.3) ;*/
     background-color: #d9d9d9;
 }
-.all-btns #first {
+.all-btns .first {
     border-radius: 5px 0 0;
 }
 .all-btns .last {
@@ -121,9 +121,17 @@ input, select {
     width: 98%;
     margin: 0 auto;
 }
+.searchbox {
+    position: relative;
+}
+.searchbox svg {
+    position: absolute;
+    left: 10px;
+    top: 30%;
+}
 .searchbox input{
     width: 100%;
-    padding: 7px;
+    padding: 7px 7px 7px 30px;
     color: dimgray;
     outline: none;
 }
@@ -136,7 +144,15 @@ input, select {
     padding-bottom: 30px;
 }
    
-.schela-table  th,.schela-table  td {
+.schela-table  th{
     padding: 15px 7px;
 }
 
+.schela-table  td {
+    padding: 7px;
+    font-size: 13px;
+}
+.schela-table button{
+    padding: 7px;
+    font-size: 13px;
+}

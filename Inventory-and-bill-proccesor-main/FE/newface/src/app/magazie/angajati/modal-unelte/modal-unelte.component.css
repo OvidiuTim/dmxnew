@@ -98,9 +98,18 @@ input, select {
 
 
 /*---------- modal content ----------*/
+.searchbox {
+    position: relative;
+}
+.searchbox svg {
+    position: absolute;
+    left: 10px;
+    top: 30%;
+}
 .searchbox input{
-    width: 100%;
-    padding: 10px;
+    width:100%;
+    padding: 7px;
+    padding-left: 30px;
     color: dimgray;
     outline: none;
 }
@@ -129,8 +138,15 @@ input, select {
     justify-content: center;
 }
    
-.magazie-table th,.magazie-table td , .personal-table th, .personal-table td{
+.magazie-table th, .personal-table th{
     padding: 15px 7px;
 }
-
+.magazie-table td, .personal-table td{
+    padding: 7px;
+    font-size: 13px;
+}
+.magazie-table button, .personal-table button{
+    padding: 7px;
+    font-size: 13px;
+}
 
