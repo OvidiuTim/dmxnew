@@ -147,6 +147,7 @@ input, select {
    
 .schela-table  th{
     padding: 15px 7px;
+    width: 33.3%;
 }
 
 .schela-table  td {
