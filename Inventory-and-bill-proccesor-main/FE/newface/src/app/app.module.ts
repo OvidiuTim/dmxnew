@@ -17,6 +17,9 @@ import { ModalSchelaComponent } from './magazie/angajati/modal-schela/modal-sche
 import { AdministratorComponent } from './administrator/administrator.component';
 import { IstoricComponent } from './administrator/istoric/istoric.component';
 import{SharedService} from './shared.service';
+import { IstoricMaterialeComponent } from './magazie/istoric/istoric-materiale/istoric-materiale.component';
+import { IstoricUnelteComponent } from './magazie/istoric/istoric-unelte/istoric-unelte.component';
+import { IstoricSchelaComponent } from './magazie/istoric/istoric-schela/istoric-schela.component';
 
 @NgModule({
   declarations: [
@@ -32,6 +35,9 @@ import{SharedService} from './shared.service';
     ModalSchelaComponent,
     AdministratorComponent,
     IstoricComponent,
+    IstoricMaterialeComponent,
+    IstoricUnelteComponent,
+    IstoricSchelaComponent,
   ],
   imports: [
     BrowserModule,

@@ -34,7 +34,9 @@ export class SchelaComponent {
   seeSchela(){
     this.router.navigateByUrl('/schela')
   }
-
+  seeIstoric(){
+    this.router.navigateByUrl('/istoric')
+  }
 
   checkmyscafoldingid(){
     for(let i=1; i<=7; i++){

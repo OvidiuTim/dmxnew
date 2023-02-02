@@ -1,0 +1,25 @@
+<body>
+    <section class="sidebar">
+        <h1 (click)="seeMagazie()">Magazie</h1>
+        <div class="pages">
+            <h5 (click)="seeAngajati()">Angajați</h5>
+            <h5 (click)="seeMateriale()">Materiale</h5>
+            <h5 (click)="seeUnelte()">Unelte</h5>
+            <h5 (click)="seeSchela()">schela</h5>
+            <h5 class="page-on" (click)="seeSchela()">Istoric</h5>
+        </div>
+    </section>
+    <section class="pages-content">
+        <div class="buttons">
+            <button class="first"><img src="./../../../assets/media/icons/materiale.svg" alt=""> Istoric Materiale</button>
+            <button><img src="./../../../assets/media/icons/unelte.svg" alt="" >Istoric Unelte</button>
+            <button class="last"><img src="./../../../assets/media/icons/schela.svg" alt="">Istoric Schela</button>
+        </div>
+        <div class="body-materiale">
+        </div>
+        <div class="body-unelte">
+        </div>
+        <div class="body-schela">
+        </div>
+    </section>
+</body>

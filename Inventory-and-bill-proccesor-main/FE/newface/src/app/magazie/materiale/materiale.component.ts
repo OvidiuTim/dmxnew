@@ -25,4 +25,7 @@ export class MaterialeComponent {
   seeSchela(){
     this.router.navigateByUrl('/schela')
   }
+  seeIstoric(){
+    this.router.navigateByUrl('/istoric')
+  }
 }

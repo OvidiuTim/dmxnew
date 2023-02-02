@@ -1,13 +1,14 @@
-import { Component, OnInit} from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import {SharedService} from 'src/app/shared.service';
 
+
 @Component({
-  selector: 'app-angajati',
-  templateUrl: './angajati.component.html',
-  styleUrls: ['./angajati.component.css']
+  selector: 'app-istoric',
+  templateUrl: './istoric.component.html',
+  styleUrls: ['./istoric.component.css']
 })
-export class AngajatiComponent implements OnInit {
+export class IstoricComponent implements OnInit {
 
   constructor(private service:SharedService,private router: Router) { }
     
@@ -80,6 +81,4 @@ export class AngajatiComponent implements OnInit {
   seeIstoric(){
     this.router.navigateByUrl('/istoric')
   }
-
-
 }

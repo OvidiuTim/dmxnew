@@ -37,7 +37,9 @@ export class UnelteComponent implements OnInit {
   seeSchela(){
     this.router.navigateByUrl('/schela')
   }
-
+  seeIstoric(){
+    this.router.navigateByUrl('/istoric')
+  }
 
 
   
