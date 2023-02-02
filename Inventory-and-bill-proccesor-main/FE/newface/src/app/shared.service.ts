@@ -67,5 +67,24 @@ export class SharedService {
   deleteHistory(val:any){
     return this.http.delete(this.APIUrl + '/history/'+val);
   }
-  
+
+    //material api
+    getMatList():Observable<any[]>{
+      return this.http.get<any[]>(this.APIUrl + '/material/');
+    }
+    
+    addMaterial(val:any){
+      return this.http.post(this.APIUrl + '/material/',val);
+    }
+    
+    updateMaterial(val:any){
+      return this.http.put(this.APIUrl + '/material/',val);
+    }
+    
+    
+    deleteMaterial(val:any){
+      return this.http.delete(this.APIUrl + '/material/'+val);
+      }
+
+      
 }
