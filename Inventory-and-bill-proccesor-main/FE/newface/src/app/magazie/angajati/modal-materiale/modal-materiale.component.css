@@ -95,7 +95,10 @@ hr {
 input, select {
     vertical-align:middle;
 }
- 
+.table>:not(caption)>*>* {
+    border-bottom: none;
+}
+
 /*---------- modal content ----------*/
 .searchbox {
     position: relative;
@@ -119,6 +122,7 @@ input, select {
 /*---------- table ----------*/
 .predare-table {
     margin-top: 40px;
+    
 }
 .predare-table th{
     padding:15px 7px;
@@ -127,10 +131,36 @@ input, select {
 .predare-table  td {
     padding: 7px;
     font-size: 13px;
+    margin-bottom: none;
 }
 .predare-table button{
-    padding: 7px;
+    padding: 7px 7px 7px 12px;
     font-size: 13px;
+}
+.row {
+    padding: 7px 40px 7px 0;
+    gap: 20px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    justify-content: end;
+}
+.row h4, .insideth {
+    font-size: 13px;
+    width: fit-content;
+}
+.collapse-row input {
+    font: 13px;
+    padding: 7px 20px ;
+}
+.collapse-row button {
+    width: min-content !important;
+    padding: 7px 20px;
+}
+.col {
+    flex: none ;
+    width: min-content;
 }
 
 /* Sets button text when clicked. Should combine these later with wildcards */

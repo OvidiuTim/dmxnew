@@ -17,7 +17,6 @@ import { ModalSchelaComponent } from './magazie/angajati/modal-schela/modal-sche
 import { AdministratorComponent } from './administrator/administrator.component';
 import { IstoricComponent } from './administrator/istoric/istoric.component';
 import{SharedService} from './shared.service';
-import { ModalAddAngajatComponent } from './magazie/angajati/modal-add-angajat/modal-add-angajat.component';
 
 @NgModule({
   declarations: [
@@ -33,7 +32,6 @@ import { ModalAddAngajatComponent } from './magazie/angajati/modal-add-angajat/m
     ModalSchelaComponent,
     AdministratorComponent,
     IstoricComponent,
-    ModalAddAngajatComponent
   ],
   imports: [
     BrowserModule,
