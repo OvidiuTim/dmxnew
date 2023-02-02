@@ -9,21 +9,35 @@
             <thead>
                 <tr>
                     <th>Nume materiale</th>
-                    <th>Predare</th>
+                    <th>Cantitate</th>
+                    <th>Actiune</th>
                 </tr>
             </thead>
             <tbody>
-                <tr *ngFor="let dataItem of ToolList"  >
-      
+
+            <ng-container *ngFor="let dataItem of ToolList; index as i">
+                <tr>
+                    <th scope="row">{{dataItem.MaterialName}}</th>
                     <td>{{dataItem.MaterialName}}</td>
                     <td>
-                        <button type="button" class="btn btn-warning"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
-                            preluare
-                         </button> 
+                        <button class="btn btn-success" type="button" data-toggle="collapse" [attr.data-target]="'#collapse-' + i" [attr.aria-expanded]="false" [attr.aria-controls] = "'collapse-' + i">Predare</button>
+
                     </td>
-                    
-      
-            </tbody>
+                </tr>
+                <tr>
+                    <td colspan="4" class="collapse-row">
+                        <div [attr.id]="'collapse-' + i" class="container collapse out">
+                            <div class="row">
+                                <div class="col">Min Splash Damage: 25</div> 
+                                <div class="col">Splash Damage: 35</div>
+                                <div class="col">Direct Hit Damage: 60</div>
+                                <div class="col">Ink Consumption: 40%</div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </ng-container>
+         </tbody>
         </table>
     </div>
 </div>

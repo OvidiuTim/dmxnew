@@ -132,3 +132,16 @@ input, select {
     padding: 7px;
     font-size: 13px;
 }
+
+/* Sets button text when clicked. Should combine these later with wildcards */
+#subs-table .btn-primary:before {
+    content:'Click for details';
+}
+#subs-table .btn-primary[aria-expanded="true"]:before {
+    content:'Close Details';
+}
+/* Styling of the collapsible row */
+#subs-table td.collapse-row {
+    border-style: none;
+    padding: 0;
+}
