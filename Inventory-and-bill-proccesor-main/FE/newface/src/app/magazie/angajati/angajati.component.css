@@ -284,6 +284,8 @@ input, select {
 }
 .modal-header {
     padding-bottom: 20px;
+    margin-bottom: 30px;
+    border-bottom: solid 1px #cccccc;
 }
 .modal-header img {
     width: 30px;
