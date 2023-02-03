@@ -11,15 +11,97 @@
     </section>
     <section class="pages-content">
         <div class="buttons">
-            <button class="first"><img src="./../../../assets/media/icons/materiale.svg" alt=""> Istoric Materiale</button>
-            <button><img src="./../../../assets/media/icons/unelte.svg" alt="" >Istoric Unelte</button>
-            <button class="last"><img src="./../../../assets/media/icons/schela.svg" alt="">Istoric Schela</button>
+            <button (click)="istMaterial()" class="first"><img src="./../../../assets/media/icons/materiale.svg" alt=""> Istoric
+                Materiale</button>
+            <button (click)="istUnelte()"><img src="./../../../assets/media/icons/unelte.svg" alt="">Istoric Unelte</button>
+            <button (click)="istSchela()" class="last"><img src="./../../../assets/media/icons/schela.svg" alt="">Istoric Schela</button>
         </div>
-        <div class="body-materiale">
+        
+        <div class="body-materiale" >
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nr. ordine</th>
+                        <th>Nume angajat</th>
+                        <th>Nume material</th>
+                        <th>Cantitate</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <ng-container>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </ng-container>
+                </tbody>
+            </table>
         </div>
-        <div class="body-unelte">
+
+        <div class="body-unelte" >
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nr. ordine</th>
+                        <th>Nume angajat</th>
+                        <th>Nume unealta</th>
+                        <th>Actiune</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <ng-container>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </ng-container>
+                </tbody>
+            </table>
         </div>
-        <div class="body-schela">
+
+        <div class="body-schela" >
+            <div class="all-btns">
+                <button id="1" class="first">Cofraj metalic</button>
+                <button id="2">Cofraj doka</button>
+                <button id="3">Popi</button>
+                <button id="4">Schela usoara</button>
+                <button id="5">Schela fatada</button>
+                <button id="6">S.F. modulara</button>
+                <button id="7" class="last">Mijloace fixe</button>
+            </div>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nr. ordine</th>
+                        <th>Nume angajat</th>
+                        <th>Nume schela</th>
+                        <th>Actiune</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <ng-container>
+                        <tr>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    </ng-container>
+                </tbody>
+            </table>
         </div>
     </section>
 </body>

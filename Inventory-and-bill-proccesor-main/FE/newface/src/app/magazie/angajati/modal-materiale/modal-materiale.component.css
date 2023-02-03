@@ -144,7 +144,7 @@ input, select {
     flex-direction: row;
     align-items: center;
     width: 100%;
-    justify-content: end;
+    justify-content: flex-end;
 }
 .row h4, .insideth {
     font-size: 13px;

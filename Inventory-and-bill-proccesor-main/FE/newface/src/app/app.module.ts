@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { BrowserModule } from '@angular/platform-browser';
 import {HttpClientModule} from '@angular/common/http';
 import {FormsModule,ReactiveFormsModule} from '@angular/forms';
@@ -16,10 +17,8 @@ import { ModalMaterialeComponent } from './magazie/angajati/modal-materiale/moda
 import { ModalSchelaComponent } from './magazie/angajati/modal-schela/modal-schela.component';
 import { AdministratorComponent } from './administrator/administrator.component';
 import { IstoricComponent } from './administrator/istoric/istoric.component';
-import{SharedService} from './shared.service';
+import{ SharedService } from './shared.service';
 import { IstoricMaterialeComponent } from './magazie/istoric/istoric-materiale/istoric-materiale.component';
-import { IstoricUnelteComponent } from './magazie/istoric/istoric-unelte/istoric-unelte.component';
-import { IstoricSchelaComponent } from './magazie/istoric/istoric-schela/istoric-schela.component';
 
 @NgModule({
   declarations: [
@@ -36,17 +35,18 @@ import { IstoricSchelaComponent } from './magazie/istoric/istoric-schela/istoric
     AdministratorComponent,
     IstoricComponent,
     IstoricMaterialeComponent,
-    IstoricUnelteComponent,
-    IstoricSchelaComponent,
   ],
   imports: [
+    CommonModule,
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
     FormsModule,
-    ReactiveFormsModule
+    ReactiveFormsModule,
   ],
+  
   providers: [SharedService],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
+  exports: [],
 })
 export class AppModule { }

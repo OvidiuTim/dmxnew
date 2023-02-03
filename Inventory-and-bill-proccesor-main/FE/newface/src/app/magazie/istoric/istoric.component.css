@@ -182,8 +182,58 @@ input, select {
     margin-right: 10px;
 }
 
+/*---------- table ----------*/
+.table th{
+    padding: 15px  7px;
+    width: 20%;
+}
 
-
+.table td{
+    font-size: 13px;
+}
+.table button{
+    padding: 7px 10px 7px 7px;
+    font-size: 13px;
+    text-transform: capitalize;
+    border-radius: 3px;  
+    display: inline-flex;
+}
+.iconbtn {
+    align-content: center;
+    justify-items: center;
+}
+.iconbtn img  {
+    width: 20px;
+    margin-right: 7px;
+}
+/*---------- schela buttons ----------*/
+.body-schela {
+    margin-top: 40px;
+}
+.all-btns {
+    display: grid;
+    grid-template-columns:repeat(7, 1fr);
+    margin-bottom: 30px;
+    height: 40px;
+}
+.all-btns button {
+    outline: none;
+    border: solid 1px #d9d9d9;
+}
+.all-btns button:hover {
+    /*background-color: rgba(22, 173, 225, 0.3) ;*/
+    background-color: #d9d9d9;
+}
+.all-btns .first {
+    border-radius: 5px 0 0;
+}
+.all-btns .last {
+    border-radius: 0 5px 0 0;
+}
+.btns-contents {
+    width: 98%;
+    margin: 0 auto;
+}
 
 
 
@@ -195,4 +245,11 @@ input, select {
     .sidebar {
         padding: 80px 40px;
     }    
+}
+
+{
+    display:flex;
+    flex-direction:row;
+    gap:20px;
+    
 }

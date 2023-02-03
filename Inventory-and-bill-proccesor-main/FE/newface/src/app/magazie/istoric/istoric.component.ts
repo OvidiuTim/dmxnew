@@ -18,51 +18,18 @@ export class IstoricComponent implements OnInit {
   usermodaltool:boolean=false;
   allowthischeck:boolean=false;
 
+  isMat:boolean=true;
+  isUne:boolean=false;
+  isSch:boolean=false;
+  
+
   ngOnInit(): void {
     this.refreshUsrList();
 
     this.allowthischeck = this.service.allowthis
-
   }
 
-
-  closemodals(){
-    this.usermodaltool=false;
-
-  }
-  refreshUsrList(){
-    this.service.getUsrList().subscribe(data=>{
-      this.UserList=data;
-       });
-
-  }
-
-
-  modalunelte(item: any){
-
-
-    this.usermodaltool=true
-    this.service.selectedUser=item;
-
-  }
-
-
-  addClick(){
-    this.usr={
-      UserId:0,
-      UserSerie:"",
-      UserName:"",
-      UserPin:"",
-      NameAndSerie:"",
-      
-    }
-
-
-  }
-
-
-
-
+/*---------- sidebar links ----------*/
   seeMagazie(){
     this.router.navigateByUrl('/magazie')
   }
@@ -81,4 +48,53 @@ export class IstoricComponent implements OnInit {
   seeIstoric(){
     this.router.navigateByUrl('/istoric')
   }
+
+  closemodals(){
+    this.usermodaltool=false;
+
+  }
+  refreshUsrList(){
+    this.service.getUsrList().subscribe(data=>{
+      this.UserList=data;
+       });
+
+  }
+  modalunelte(item: any){
+
+
+    this.usermodaltool=true
+    this.service.selectedUser=item;
+
+  }
+  addClick(){
+    this.usr={
+      UserId:0,
+      UserSerie:"",
+      UserName:"",
+      UserPin:"",
+      NameAndSerie:"",
+      
+    }
+  }
+
+
+/*---------- istoric buttons ----------*/
+
+istMaterial(){
+  this.isMat=true;
+  this.isUne=false;
+  this.isSch=false;
+}
+istUnelte(){
+  this.isMat=false;
+  this.isUne=true;
+  this.isSch=false;
+}
+istSchela(){
+  this.isMat=false;
+  this.isUne=false;
+  this.isSch=true;
+}
+
+
 }
