@@ -320,8 +320,6 @@ input, select {
 }
 /*---------- adauga angajat modal ----------*/
 .bodyaddangaj {
-    border-top: solid 1px #cccccc;
-    padding-top: 40px;
     width: 100%;
     display: grid;
     grid-template-columns: 150px auto ;
