@@ -19,6 +19,7 @@ import { ModalSchelaComponent } from './magazie/angajati/modal-schela/modal-sche
 import { IstoricMaterialeComponent } from './magazie/istoric/istoric-materiale/istoric-materiale.component';
 
 import{ SharedService } from './shared.service';
+import { HistoryComponent } from './magazie/history/history.component';
 
 
 @NgModule({
@@ -34,6 +35,7 @@ import{ SharedService } from './shared.service';
     ModalMaterialeComponent,
     ModalSchelaComponent,
     IstoricMaterialeComponent,
+    HistoryComponent,
   ],
   imports: [
     CommonModule,

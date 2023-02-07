@@ -25,7 +25,7 @@ export class ModalSchelaComponent implements OnInit {
   SFatada:boolean=false;
   Modulara:boolean=false;
   Mfixe:boolean=false;
-
+  isUne:boolean=false;
 
   ngOnInit(): void {
     
