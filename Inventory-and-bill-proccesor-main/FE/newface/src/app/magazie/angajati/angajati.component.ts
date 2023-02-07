@@ -15,6 +15,7 @@ export class AngajatiComponent implements OnInit {
   usr:any;
 
   usermodaltool:boolean=false;
+  usermodalmaterial:boolean=false;
   allowthischeck:boolean=false;
 
   ngOnInit(): void {
@@ -27,7 +28,7 @@ export class AngajatiComponent implements OnInit {
 
   closemodals(){
     this.usermodaltool=false;
-
+    this.usermodalmaterial=false;
   }
   refreshUsrList(){
     this.service.getUsrList().subscribe(data=>{
@@ -38,9 +39,13 @@ export class AngajatiComponent implements OnInit {
 
 
   modalunelte(item: any){
-
-
     this.usermodaltool=true
+    this.service.selectedUser=item;
+
+  }
+
+  modalmaterial(item: any){
+    this.usermodalmaterial=true
     this.service.selectedUser=item;
 
   }

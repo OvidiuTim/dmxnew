@@ -1,14 +1,27 @@
-import { Component } from '@angular/core';
+import { Component, OnInit} from '@angular/core';
 import { Router } from '@angular/router';
+import {SharedService} from 'src/app/shared.service';
+import { DatePipe } from '@angular/common';
+
 
 @Component({
   selector: 'app-materiale',
   templateUrl: './materiale.component.html',
   styleUrls: ['./materiale.component.css']
 })
-export class MaterialeComponent {
-  
-  constructor(private router: Router) { }
+export class MaterialeComponent implements OnInit {
+
+  constructor(private service:SharedService,private router: Router, private datePipe: DatePipe) { }
+
+
+  ngOnInit(): void {
+    this.refreshMatList();
+    //aduce userul aici
+  }
+
+  ToolList:any=[];
+  ToolListmain:any=[];
+  ToolListWithoutFilter:any=[];
   
   seeMagazie(){
     this.router.navigateByUrl('/magazie')
@@ -27,5 +40,14 @@ export class MaterialeComponent {
   }
   seeIstoric(){
     this.router.navigateByUrl('/istoric')
+  }
+
+  refreshMatList(){
+
+
+    this.service.getMatList().subscribe(data=>{
+      this.ToolList=data;
+      this.ToolListWithoutFilter=data;
+    });
   }
 }

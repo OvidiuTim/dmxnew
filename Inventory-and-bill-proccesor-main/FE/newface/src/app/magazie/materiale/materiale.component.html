@@ -33,16 +33,14 @@
                         <th>Serie</th>
                         <th>Nume echipament</th>
                         <th>Numar bucati</th>
-                        <th>Locatie</th>
                         <th>Actiune</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>title</td>
-                        <td>title</td>
-                        <td>title</td>
-                        <td>title</td>
+                    <tr *ngFor="let dataItem of ToolList">
+                        <td>{{dataItem.MaterialId}}</td>
+                        <td>{{dataItem.MaterialName}}</td>
+                        <td>{{dataItem.Quantity}}</td>
                         <td>
                             <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
                                 data-toggle="modal" data-target="#GiveToUser"><img

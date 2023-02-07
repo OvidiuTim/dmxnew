@@ -44,9 +44,7 @@ import { IstoricMaterialeComponent } from './magazie/istoric/istoric-materiale/i
     FormsModule,
     ReactiveFormsModule,
   ],
-  
   providers: [SharedService],
-  bootstrap: [AppComponent],
-  exports: [],
+  bootstrap: [AppComponent]
 })
 export class AppModule { }

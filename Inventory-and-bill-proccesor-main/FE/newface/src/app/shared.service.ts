@@ -86,5 +86,24 @@ export class SharedService {
       return this.http.delete(this.APIUrl + '/material/'+val);
       }
 
+
+  //consumabile api
+  getConList():Observable<any[]>{
+    return this.http.get<any[]>(this.APIUrl + '/consumable/');
+  }
+
+  addConsumable(val:any){
+    return this.http.post(this.APIUrl + '/consumable/',val);
+  }
+
+  updateConsumable(val:any){
+    return this.http.put(this.APIUrl + '/consumable/',val);
+  }
+
+
+  deleteConsumable(val:any){
+    return this.http.delete(this.APIUrl + '/consumable/'+val);
+  }
+
       
 }

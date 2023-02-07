@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import {SharedService} from 'src/app/shared.service';
 import { Router } from '@angular/router';
+import { interval } from 'rxjs';
 
 @Component({
   selector: 'app-modal-unelte',
@@ -23,6 +24,7 @@ export class ModalUnelteComponent implements OnInit {
   selectedUserSimple : any
   une:any;
 
+  timmer:boolean=false;
 
   //edit location tool pieces
 
@@ -51,9 +53,21 @@ export class ModalUnelteComponent implements OnInit {
 
 
 
-
   }
 
+  wait(){
+    this.timmer=true;
+    setTimeout(() => {
+      this.refreshTolList()
+      this.enough()
+    }, 200);
+}
+
+
+  enough(){
+    this.timmer=false;
+    this.refreshTolList()
+  }
   FilterFn(){
     
     var ToolNameFilter = this.ToolNameFilter;
@@ -129,7 +143,7 @@ export class ModalUnelteComponent implements OnInit {
   // aici preluare unealta/ edit tool main location
 
   preluareUnealta(item: any){
-    console.log("preloare")
+
     this.tol=item;
 
     this.ToolId=this.tol.ToolId;
@@ -161,6 +175,7 @@ export class ModalUnelteComponent implements OnInit {
     });
 
 
+
     this.GiveRecive = "a preluat"
     this.Pieces=this.tol.Pieces;
     var valo = {HistoryId:this.HistoryId,
@@ -174,11 +189,14 @@ export class ModalUnelteComponent implements OnInit {
       this.service.addHistory(valo).subscribe(res=>{
         (res.toString());});
         
-        this.refreshTolList()
+        
+        this.ToolNameFilter=''
+        this.wait()
   }
   // aici predare unealta/ edit tool main location
   predareUnealta(item: any){
-    console.log("predare")
+    this.ToolNameFilter=''
+
     this.tol=item;
 
     this.ToolId=this.tol.ToolId;
@@ -192,7 +210,7 @@ export class ModalUnelteComponent implements OnInit {
     this.Provider=this.tol.Provider
 
 
-       
+    this.refreshTolList()
     var val = {
       ToolId:this.ToolId,
       ToolSerie:this.ToolSerie,
@@ -224,12 +242,13 @@ export class ModalUnelteComponent implements OnInit {
       this.service.addHistory(valo).subscribe(res=>{
         (res.toString());});
     
-        this.refreshTolList()
+        
+        this.wait()
 
   }
 
-  addHistory(){
 
-  }
+
+
 
 }

@@ -35,7 +35,7 @@
                 </div>
                 <div class="buttons">
                     <button (click)="modalunelte(dataItem)" type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"><img src="./../../../assets/media/icons/unelte.svg" alt="" > Unelte</button>
-                    <button type="button" class="materiale" data-toggle="modal"
+                    <button type="button" (click)="modalmaterial(dataItem)" class="materiale" data-toggle="modal"
                         data-target="#modalMateriale"><img src="./../../../assets/media/icons/materiale.svg" alt="">materiale</button>
                     <button type="button" class="schela" data-toggle="modal" data-target="#modalSchela"><img src="./../../../assets/media/icons/schela.svg" alt="">schela</button>
                 </div>
@@ -103,7 +103,7 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <app-modal-materiale></app-modal-materiale>
+                    <app-modal-materiale *ngIf="usermodalmaterial" ></app-modal-materiale>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" (click)="closemodals()" data-dismiss="modal">Închide</button>

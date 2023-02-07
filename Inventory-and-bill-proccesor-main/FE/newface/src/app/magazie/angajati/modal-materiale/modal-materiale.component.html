@@ -18,9 +18,9 @@
             <ng-container *ngFor="let dataItem of ToolList; index as i">
                 <tr>
                     <th class="insideth" scope="row">{{dataItem.MaterialName}}</th>
-                    <td>{{dataItem.MaterialName}}</td>
+                    <td>{{dataItem.Quantity}}</td>
                     <td>
-                        <button class="btn btn-primary" type="button" data-toggle="collapse" [attr.data-target]="'#collapse-' + i" [attr.aria-expanded]="false" [attr.aria-controls] = "'collapse-' + i">Alege <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-arrow-down-short" viewBox="0 0 16 16">
+                        <button (click)="modalunelte(dataItem)" class="btn btn-primary" type="button" data-toggle="collapse" [attr.data-target]="'#collapse-' + i" [attr.aria-expanded]="false" [attr.aria-controls] = "'collapse-' + i">Alege <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-arrow-down-short" viewBox="0 0 16 16">
                             <path fill-rule="evenodd" d="M8 4a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7.5 10.293V4.5A.5.5 0 0 1 8 4z"/>
                           </svg></button>
 
@@ -31,8 +31,8 @@
                         <div [attr.id]="'collapse-' + i" class="container collapse out">
                             <div class="row">
                                 <h4 class="col">Cantitate predata</h4> 
-                                <input type="text" name="" class="col">
-                                <button class="col btn btn-success" type="button" data-toggle="collapse" [attr.data-target]="'#collapse-' + i" [attr.aria-expanded]="false" [attr.aria-controls] = "'collapse-' + i">Predare </button>
+                                <input type="text" name="" [(ngModel)]="RemoveQuantity"   class="col">
+                                <button class="col btn btn-success"(click)="updateToolOne()"  type="button" data-toggle="collapse" [attr.data-target]="'#collapse-' + i" [attr.aria-expanded]="false" [attr.aria-controls] = "'collapse-' + i">Predare </button>
                             </div>
                         </div>
                     </td>
