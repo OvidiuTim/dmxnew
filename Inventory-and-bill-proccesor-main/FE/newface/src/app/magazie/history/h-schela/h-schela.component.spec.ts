@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { IstoricComponent } from './istoric.component';
+import { HSchelaComponent } from './h-schela.component';
 
-describe('IstoricComponent', () => {
-  let component: IstoricComponent;
-  let fixture: ComponentFixture<IstoricComponent>;
+describe('HSchelaComponent', () => {
+  let component: HSchelaComponent;
+  let fixture: ComponentFixture<HSchelaComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ IstoricComponent ]
+      declarations: [ HSchelaComponent ]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(IstoricComponent);
+    fixture = TestBed.createComponent(HSchelaComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

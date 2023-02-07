@@ -14,7 +14,8 @@ del, dfn, em, img, ins, kbd, q, samp,
 small, strong, sub, sup, var,
 b, i,
 dl, dt, dd, ol, ul, li,
-fieldset, form, label, legend, caption, tbody, tfoot, td,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
 article, aside, canvas, details, figcaption, figure,
 footer, header, hgroup, menu, nav, section, summary,
 time, mark, audio, video {
@@ -82,6 +83,10 @@ abbr[title], dfn[title] {
     cursor:help;
 }
 
+table {
+    border-collapse:collapse;
+    border-spacing:0;
+}
 
 /* change border colour to suit your needs */
 hr {
@@ -144,6 +149,7 @@ input, select {
 .page-on {
     font-weight: bold;
 }
+
 /*---------- pages content ----------*/
 .pages-content {
     grid-column: 2;
@@ -151,64 +157,6 @@ input, select {
     max-width: 1120px;
     margin: 80px auto ;
     padding: 0 20px;
-}
-.pages-content .buttons {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 40px;
-}
-.buttons button {
-    width: 100%;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #efefef;
-    border: solid 1px #d9d9d9;
-}
-.buttons button:hover {
-    /*background-color: rgba(22, 173, 225, 0.3) ;*/
-    background-color: #d9d9d9;
-}
-.buttons .first {
-    border-radius: 5px 0 0;
-}
-.buttons .last {
-    border-radius: 0 5px 0 0;
-}
-.pages-content .buttons img {
-    width: 20px;
-    margin-right: 10px;
-}
-
-/*---------- table ----------*/
-.table th{
-    padding: 15px  7px;
-    width: 20%;
-}
-
-.table td{
-    font-size: 13px;
-}
-.table button{
-    padding: 7px 10px 7px 7px;
-    font-size: 13px;
-    text-transform: capitalize;
-    border-radius: 3px;  
-    display: inline-flex;
-}
-.iconbtn {
-    align-content: center;
-    justify-items: center;
-}
-.iconbtn img  {
-    width: 20px;
-    margin-right: 7px;
-}
-/*---------- schela buttons ----------*/
-.body-schela {
-    margin-top: 40px;
 }
 .all-btns {
     display: grid;
@@ -234,6 +182,77 @@ input, select {
     width: 98%;
     margin: 0 auto;
 }
+.searchbox {
+    margin-bottom:40px;
+    width: 100%;
+    display: flex;
+    height: auto;
+    justify-content: space-between;
+    position: relative;
+}
+.searchbox svg {
+    position: absolute;
+    left: 10px;
+    top: 30%;
+}
+.searchbox input{
+    width: 65%;
+    padding: 7px;
+    padding-left: 30px;
+    color: dimgray;
+    outline: none;
+}
+.searchbox input::placeholder {
+    font-size: 13px;
+}
+.searchbox .btnAdd {
+    font: normal normal 13px Arial;
+    border-radius: 3px;
+    border:none;
+    padding: 7px 15px;
+    display: flex;
+    align-items: center;
+}
+.searchbox .btnAdd img {
+    width: 20px;
+    margin-right: 10px;
+}
+
+/*---------- table ----------*/
+.schela-table {
+    margin: 30px 0;
+    padding-bottom: 30px;
+}
+   
+.schela-table  th{
+    padding: 15px 7px;
+    width: 25%;
+    border-bottom: 1px solid #d9d9d9;
+}
+
+.schela-table  td {
+    font-size: 13px;
+}
+.schela-table button{
+    padding: 7px 10px 7px 7px;
+    font-size: 13px;
+    text-transform: capitalize;
+    border-radius: 3px;  
+    display: inline-flex;
+}
+.iconbtn {
+    align-content: center;
+    justify-items: center;
+}
+.iconbtn img  {
+    width: 20px;
+    margin-right: 7px;
+}
+
+
+
+
+
 
 
 
@@ -244,6 +263,11 @@ input, select {
 /*---------- Sidebar ----------*/
     .sidebar {
         padding: 80px 40px;
-    }    
+    }
+/*---------- search box ----------*/
+    .searchbox input {
+        width: 80%;
+        color: dimgray;
+        outline: none;
+    }  
 }
-

@@ -2,11 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 
 @Component({
-  selector: 'app-schela',
-  templateUrl: './schela.component.html',
-  styleUrls: ['./schela.component.css']
+  selector: 'app-h-schela',
+  templateUrl: './h-schela.component.html',
+  styleUrls: ['./h-schela.component.css']
 })
-export class SchelaComponent implements OnInit{
+export class HSchelaComponent implements OnInit{
 
   constructor(private router: Router) { }
 
@@ -21,26 +21,6 @@ export class SchelaComponent implements OnInit{
   SFatada:boolean=false;
   Modulara:boolean=false;
   Mfixe:boolean=false;
-
-
-  seeMagazie(){
-    this.router.navigateByUrl('/magazie')
-  }
-  seeAngajati(){
-    this.router.navigateByUrl('/angajati')
-  }
-  seeMateriale(){
-    this.router.navigateByUrl('/materiale')
-  }
-  seeUnelte(){
-    this.router.navigateByUrl('/unelte')
-  }
-  seeSchela(){
-    this.router.navigateByUrl('/schela')
-  }
-  seeIstoric(){
-    this.router.navigateByUrl('/history')
-  }
 
   checkmyscafoldingid(){
     for(let i=1; i<=7; i++){
@@ -145,5 +125,4 @@ export class SchelaComponent implements OnInit{
     document.getElementById("7")!.style.backgroundColor = '#d9d9d9';
     document.getElementById("7")!.style.fontWeight = 'bold';
   }
-  
 }

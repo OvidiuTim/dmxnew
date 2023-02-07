@@ -83,7 +83,7 @@ export class AngajatiComponent implements OnInit {
     this.router.navigateByUrl('/schela')
   }
   seeIstoric(){
-    this.router.navigateByUrl('/istoric')
+    this.router.navigateByUrl('/history')
   }
 
 

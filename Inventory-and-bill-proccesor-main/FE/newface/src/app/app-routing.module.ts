@@ -3,11 +3,11 @@ import { RouterModule, Routes } from '@angular/router';
 
 import {MagazieComponent} from './magazie/magazie.component';
 import { AngajatiComponent } from './magazie/angajati/angajati.component';
-import { MaterialeComponent } from './magazie/materiale/materiale.component';
+import { MaterialeComponent } from './magazie/materiale/materiale.component'
 import { SchelaComponent } from './magazie/schela/schela.component';
 import { UnelteComponent } from './magazie/unelte/unelte.component';
 import { LoginComponent } from './login/login.component';
-import { IstoricComponent } from './magazie/istoric/istoric.component';
+import { HistoryComponent } from './magazie/history/history.component';
 
 
 const routes: Routes = [
@@ -16,7 +16,7 @@ const routes: Routes = [
   {path:'materiale',component:MaterialeComponent},
   {path:'schela',component:SchelaComponent},
   {path:'unelte',component:UnelteComponent},
-  {path:'istoric',component:IstoricComponent},
+  {path:'history',component:HistoryComponent},
   {path:'',component:LoginComponent},
 ];
 
