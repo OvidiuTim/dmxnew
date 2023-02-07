@@ -27,6 +27,8 @@ export class HistoryComponent implements OnInit {
     this.refreshUsrList();
 
     this.allowthischeck = this.service.allowthis
+
+    console.log("aici")
   }
 
 /*---------- sidebar links ----------*/

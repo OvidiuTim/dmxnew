@@ -1,7 +1,7 @@
 import { Component, OnInit} from '@angular/core';
 import { Router } from '@angular/router';
 import {SharedService} from 'src/app/shared.service';
-import { DatePipe } from '@angular/common';
+
 
 
 @Component({
@@ -11,11 +11,11 @@ import { DatePipe } from '@angular/common';
 })
 export class MaterialeComponent implements OnInit {
 
-  constructor(private service:SharedService,private router: Router, private datePipe: DatePipe) { }
+  constructor(private service:SharedService,private router: Router) { }
 
 
   ngOnInit(): void {
-    this.refreshMatList();
+    
     //aduce userul aici
   }
 
