@@ -32,4 +32,7 @@ export class MagazieComponent implements OnInit {
   seeSchela(){
     this.router.navigateByUrl('/schela')
   }
+  seeIstoric(){
+    this.router.navigateByUrl('/history')
+  }
 }

@@ -249,6 +249,19 @@ input, select {
     margin-right: 7px;
 }
 
+.download-btn {
+    margin-top: 40px;
+}
+.download-btn button {
+    font-size: 13px;
+    background-color: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 3px;
+}
 
 
 
