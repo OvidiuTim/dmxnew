@@ -16,12 +16,22 @@ export class AngajatiComponent implements OnInit {
 
   usermodaltool:boolean=false;
   usermodalmaterial:boolean=false;
+  usermodalschela:boolean=false;
   allowthischeck:boolean=false;
+
+  //variabile angajati
+  UserId!: string;
+  UserName!: string;
+  UserSerie!: string;
+  UserPin!: string;
+  NameAndSerie!: string;
+
 
   ngOnInit(): void {
     this.refreshUsrList();
 
     this.allowthischeck = this.service.allowthis
+
 
   }
 
@@ -29,6 +39,8 @@ export class AngajatiComponent implements OnInit {
   closemodals(){
     this.usermodaltool=false;
     this.usermodalmaterial=false;
+    this.usermodalschela=false;
+    
   }
   refreshUsrList(){
     this.service.getUsrList().subscribe(data=>{
@@ -50,6 +62,11 @@ export class AngajatiComponent implements OnInit {
 
   }
 
+  modalshecla(item: any){
+    this.usermodalschela=true
+    this.service.selectedUser=item;
+
+  }
 
   addClick(){
     this.usr={
@@ -85,6 +102,34 @@ export class AngajatiComponent implements OnInit {
   seeIstoric(){
     this.router.navigateByUrl('/history')
   }
+
+
+  addUser(){
+
+    var val = {UserId:this.UserId,
+              UserSerie:"1",
+              UserPin:"1",
+              UserName:this.UserName,
+              NameAndSerie:"1",};
+    this.service.addUser(val).subscribe(res=>{
+      console.log(res.toString());
+      
+    });
+
+    this.refreshUsrList();
+  }
+
+
+
+  deleteClick(item: { UserId: any; }){
+    if(confirm('Esti sigur?')){
+    this.service.deleteUser(item.UserId).subscribe(data=>{
+      console.log(data.toString());
+      this.refreshUsrList();
+    })
+    }
+}
+
 
 
 }

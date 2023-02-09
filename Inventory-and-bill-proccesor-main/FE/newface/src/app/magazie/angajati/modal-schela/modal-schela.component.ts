@@ -13,10 +13,17 @@ export class ModalSchelaComponent implements OnInit {
 
   constructor(private router: Router, private service:SharedService) { }
   
-  ToolList:any=[];
-  ToolListWithoutFilter:any=[];
-  ToolLocationFilter:string="";
+  CofrajMetList:any=[];
+  CofrajMetListWithoutFilter:any=[];
+  CofrajMetLocationFilter:string="";
+  CofrajMetLocationFilterMagazie:string="";
+  CofrajMetNameFilter:string="";
+  CofrajMetListmain:any=[];
   une:any
+
+  selectedUserSimple : any
+
+
 
   cofMet:boolean=true;
   cofDoca:boolean=false;
@@ -31,38 +38,26 @@ export class ModalSchelaComponent implements OnInit {
     
     this.refreshTolList();
 
+    this.cofrajmetalic()
+
+    //aduce userul aici
+    this.selectedUserSimple = this.service.selectedUser
+    console.log(this.service.selectedUser.UserName)
   }
 
   FilterFn(){
     
-    var ToolLocationFilter = this.ToolLocationFilter;
+    var CofrajMetLocationFilter = this.CofrajMetLocationFilter;
 
-    this.ToolList = this.ToolListWithoutFilter.filter(function (el: { ToolId: 
-      { toString: () => string; }; MainLocation: { toString: () => string; }; }){
-      return el.MainLocation.toString().toLowerCase().includes(
-        ToolLocationFilter.toString().trim().toLowerCase()
+    this.CofrajMetList = this.CofrajMetListWithoutFilter.filter(function (el: { ToolId: 
+      { toString: () => string; }; Location: { toString: () => string; }; }){
+      return el.Location.toString().toLowerCase().includes(
+        CofrajMetLocationFilter.toString().trim().toLowerCase()
       )
     });
   }
 
 
-  refreshTolList(){
-    this.ToolLocationFilter = 'BEGU EUGEN'
-    var ToolLocationFilter = this.ToolLocationFilter;
-
-    this.service.getTolList().subscribe(data=>{
-      this.ToolList=data.filter(function (el: {MainLocation: 
-        { toString: () => string; }; }) { 
-          return el.MainLocation.toString().toLowerCase().includes(
-            ToolLocationFilter.toString().trim().toLowerCase()
-          ) 
-        });
-
-      this.ToolListWithoutFilter=data;
-
-    });
-
-  }
 
   checkmyscafoldingid(){
     for(let i=1; i<=7; i++){
@@ -168,4 +163,73 @@ export class ModalSchelaComponent implements OnInit {
     document.getElementById("7")!.style.fontWeight = 'bold';
   }
   
+
+
+
+  refreshTolList(){
+    this.CofrajMetLocationFilter = ''+ this.selectedUserSimple.UserName
+
+
+    var CofrajMetLocationFilter = this.CofrajMetLocationFilter;
+
+    this.service.getCofMetList().subscribe(data=>{
+      this.CofrajMetList=data.filter(function (el: {Location: 
+        { toString: () => string; }; }) { 
+          return el.Location.toString().toLowerCase().includes(
+            CofrajMetLocationFilter.toString().trim().toLowerCase()
+          ) 
+        });
+
+      this.CofrajMetLocationFilterMagazie = 'Magazie'
+      var CofrajMetLocationFilterMagazie = this.CofrajMetLocationFilterMagazie;
+      this.CofrajMetListmain=data.filter(function (el: {Location: 
+        { toString: () => string; }; }) { 
+          return el.Location.toString().toLowerCase().includes(
+            CofrajMetLocationFilterMagazie.toString().trim().toLowerCase()
+          ) 
+        });
+
+        this.CofrajMetListWithoutFilter=data;
+    });
+  
+  }
+
+  
+
+  CofrajtTipDokaList:any=[];
+  CofrajtTipDokaListFilter:any=[];
+  CofrajtTipDokaLocationFilter:string="";
+  CofrajtTipDokaLocationFilterMagazie:string="";
+  CofrajtTipDokaNameFilter:string="";
+  CofrajtTipDokaListmain:any=[];
+  CofrajtTipDokaListWithoutFilter:any=[];
+  
+
+  refreshTolList2(){
+
+    this.CofrajtTipDokaListFilter = ''+ this.selectedUserSimple.UserName
+
+    var CofrajtTipDokaLocationFilter = this.CofrajtTipDokaLocationFilter;
+
+    this.service.getDokaList().subscribe(data=>{
+      this.CofrajtTipDokaList=data.filter(function (el: {Location: 
+        { toString: () => string; }; }) { 
+          return el.Location.toString().toLowerCase().includes(
+            CofrajtTipDokaLocationFilter.toString().trim().toLowerCase()
+          ) 
+        });
+
+      this.CofrajtTipDokaLocationFilterMagazie = 'Magazie'
+      var CofrajtTipDokaLocationFilterMagazie = this.CofrajtTipDokaLocationFilterMagazie;
+      this.CofrajMetListmain=data.filter(function (el: {Location: 
+        { toString: () => string; }; }) { 
+          return el.Location.toString().toLowerCase().includes(
+            CofrajtTipDokaLocationFilterMagazie.toString().trim().toLowerCase()
+          ) 
+        });
+
+        this.CofrajtTipDokaListWithoutFilter=data;
+    });
+  
+  }
 }

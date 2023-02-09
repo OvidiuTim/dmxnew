@@ -87,23 +87,174 @@ export class SharedService {
       }
 
 
-  //consumabile api
-  getConList():Observable<any[]>{
-    return this.http.get<any[]>(this.APIUrl + '/consumable/');
-  }
+//consumabile api
+getConList():Observable<any[]>{
+  return this.http.get<any[]>(this.APIUrl + '/consumable/');
+}
 
-  addConsumable(val:any){
-    return this.http.post(this.APIUrl + '/consumable/',val);
-  }
+addConsumable(val:any){
+  return this.http.post(this.APIUrl + '/consumable/',val);
+}
 
-  updateConsumable(val:any){
-    return this.http.put(this.APIUrl + '/consumable/',val);
-  }
+updateConsumable(val:any){
+  return this.http.put(this.APIUrl + '/consumable/',val);
+}
 
 
-  deleteConsumable(val:any){
-    return this.http.delete(this.APIUrl + '/consumable/'+val);
-  }
+deleteConsumable(val:any){
+  return this.http.delete(this.APIUrl + '/consumable/'+val);
+}
 
       
+
+
+//cofraj metalic api
+getCofMetList():Observable<any[]>{
+  return this.http.get<any[]>(this.APIUrl + '/cofrajmetalic/');
+}
+
+addCofMet(val:any){
+  return this.http.post(this.APIUrl + '/cofrajmetalic/',val);
+}
+
+updateCofMet(val:any){
+  return this.http.put(this.APIUrl + '/cofrajmetalic/',val);
+}
+
+
+deleteCofMet(val:any){
+  return this.http.delete(this.APIUrl + '/cofrajmetalic/'+val);
+}
+
+
+//cofraj tip doka api
+getDokaList():Observable<any[]>{
+return this.http.get<any[]>(this.APIUrl + '/cofrajtipdoka/');
+}
+
+addDoka(val:any){
+return this.http.post(this.APIUrl + '/cofrajtipdoka/',val);
+}
+
+updateDoka(val:any){
+return this.http.put(this.APIUrl + '/cofrajtipdoka/',val);
+}
+
+
+deleteDoka(val:any){
+return this.http.delete(this.APIUrl + '/cofrajtipdoka/'+val);
+}
+
+
+//popi api
+getpopi():Observable<any[]>{
+return this.http.get<any[]>(this.APIUrl + '/popi/');
+}
+
+addpopi(val:any){
+return this.http.post(this.APIUrl + '/popi/',val);
+}
+
+updatepopi(val:any){
+return this.http.put(this.APIUrl + '/popi/',val);
+}
+
+
+deletepopi(val:any){
+return this.http.delete(this.APIUrl + '/popi/'+val);
+}
+
+//schelausoara api
+getschelausoara():Observable<any[]>{
+return this.http.get<any[]>(this.APIUrl + '/schelausoara/');
+}
+
+addschelausoara(val:any){
+return this.http.post(this.APIUrl + '/schelausoara/',val);
+}
+
+updateschelausoara(val:any){
+return this.http.put(this.APIUrl + '/schelausoara/',val);
+}
+
+
+deleteschelausoara(val:any){
+return this.http.delete(this.APIUrl + '/schelausoara/'+val);
+}
+
+
+//fatada api
+getschelafatada():Observable<any[]>{
+return this.http.get<any[]>(this.APIUrl + '/schelafatada/');
+}
+
+addschelafatada(val:any){
+return this.http.post(this.APIUrl + '/schelafatada/',val);
+}
+
+updateschelafatada(val:any){
+return this.http.put(this.APIUrl + '/schelafatada/',val);
+}
+
+
+deleteschelafatada(val:any){
+return this.http.delete(this.APIUrl + '/schelafatada/'+val);
+}
+
+//s fatada modulara api
+getschelafatadaM():Observable<any[]>{
+return this.http.get<any[]>(this.APIUrl + '/schelafatadamodulara/');
+}
+
+addschelafatadaM(val:any){
+return this.http.post(this.APIUrl + '/schelafatadamodulara/',val);
+}
+
+updateschelafatadaM(val:any){
+return this.http.put(this.APIUrl + '/schelafatadamodulara/',val);
+}
+
+
+deleteschelafatadaM(val:any){
+return this.http.delete(this.APIUrl + '/schelafatadamodulara/'+val);
+}
+
+//s istoric
+getistoricM():Observable<any[]>{
+return this.http.get<any[]>(this.APIUrl + '/istoric_schele/');
+}
+
+addistoricM(val:any){
+return this.http.post(this.APIUrl + '/istoric_schele/',val);
+}
+
+updateistoricM(val:any){
+return this.http.put(this.APIUrl + '/istoric_schele/',val);
+}
+
+
+deleteistoricM(val:any){
+return this.http.delete(this.APIUrl + '/istoric_schele/'+val);
+}
+
+//mijloace api
+getmijloace():Observable<any[]>{
+return this.http.get<any[]>(this.APIUrl + '/mijloacefixe/');
+}
+
+addmijloace(val:any){
+return this.http.post(this.APIUrl + '/mijloacefixe/',val);
+}
+
+updatemijloace(val:any){
+return this.http.put(this.APIUrl + '/mijloacefixe/',val);
+}
+
+
+deleteMijloace(val:any){
+return this.http.delete(this.APIUrl + '/mijloacefixe/'+val);
+}
+
+
+
 }

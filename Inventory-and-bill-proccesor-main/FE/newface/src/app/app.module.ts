@@ -20,6 +20,7 @@ import{ SharedService } from './shared.service';
 import { HistoryComponent } from './magazie/history/history.component';
 import { HSchelaComponent } from './magazie/history/h-schela/h-schela.component';
 
+import {DatePipe} from '@angular/common';
 
 @NgModule({
   declarations: [
@@ -44,7 +45,7 @@ import { HSchelaComponent } from './magazie/history/h-schela/h-schela.component'
     FormsModule,
     ReactiveFormsModule,
   ],
-  providers: [SharedService],
+  providers: [SharedService, DatePipe],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
