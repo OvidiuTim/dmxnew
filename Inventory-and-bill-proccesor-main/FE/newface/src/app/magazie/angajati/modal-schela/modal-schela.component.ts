@@ -35,10 +35,9 @@ export class ModalSchelaComponent implements OnInit {
   isUne:boolean=false;
 
   ngOnInit(): void {
-    
-    this.refreshTolList();
+    this.cofrajmetalic();
 
-    this.cofrajmetalic()
+    this.refreshTolList();
 
     //aduce userul aici
     this.selectedUserSimple = this.service.selectedUser

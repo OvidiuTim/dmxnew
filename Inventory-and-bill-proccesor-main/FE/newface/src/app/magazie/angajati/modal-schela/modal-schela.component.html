@@ -16,7 +16,56 @@
             <input type="text" placeholder="căutare" [(ngModel)]="CofrajMetLocationFilter" (keyup)="FilterFn()">
         </div>
 
-        <div class="schela-table">
+        <div class="magazie-table">
+            <h3>În posesia</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nume echipament</th>
+                        <th>Cantitatea</th>
+                        <th style="width: 30%;">Actiune</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let dataItem of CofrajMetList">
+          
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
+                        <td>
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                                Preluare
+                             </button> 
+                        </td>                       
+          
+                </tbody>
+            </table>
+        </div>
+
+        <div class="personal-table">
+            <h3>În magazie</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                       <th>Nume echipament</th>
+                        <th>Cantitatea</th>
+                        <th style="width: 30%;">Actiune</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let dataItem of CofrajMetList">
+          
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
+                        <td>
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                                Predare
+                             </button> 
+                        </td>                        
+                </tbody>
+            </table>
+        </div>
+
+        <!--<div class="schela-table">
             <table class="table table-striped">
                 <thead>
                     <tr>
@@ -39,7 +88,7 @@
           
                 </tbody>
             </table>
-        </div>
+        </div>-->
 
     </div>
 
@@ -50,17 +99,43 @@
             <input type="text" placeholder="căutare">
         </div>
 
-        <div class="schela-table">
+        <div class="magazie-table">
+            <h3>În posesia</h3>
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Nume</th>
+                        <th>Nume echipament</th>
                         <th>Cantitatea</th>
-                        <th>Actiune</th>
+                        <th style="width: 30%;">Actiune</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let dataItem of CofrajMetList"  >
+                    <tr *ngFor="let dataItem of CofrajMetList">
+          
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
+                        <td>
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                                Preluare
+                             </button> 
+                        </td>                       
+          
+                </tbody>
+            </table>
+        </div>
+
+        <div class="personal-table">
+            <h3>În magazie</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                       <th>Nume echipament</th>
+                        <th>Cantitatea</th>
+                        <th style="width: 30%;">Actiune</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let dataItem of CofrajMetList">
           
                         <td>{{dataItem.CofrajMetalicName}}</td>
                         <td>{{dataItem.Location}}</td>
@@ -68,9 +143,7 @@
                             <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
                                 Predare
                              </button> 
-                        </td>
-                        
-          
+                        </td>                        
                 </tbody>
             </table>
         </div>
@@ -84,27 +157,51 @@
             <input type="text" placeholder="căutare">
         </div>
 
-        <div class="schela-table">
+        <div class="magazie-table">
+            <h3>În posesia</h3>
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Nume</th>
+                        <th>Nume echipament</th>
                         <th>Cantitatea</th>
-                        <th>Actiune</th>
+                        <th style="width: 30%;">Actiune</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let dataItem of CofrajMetList"  >
+                    <tr *ngFor="let dataItem of CofrajMetList">
           
-                        <td>{{dataItem.ToolName}}</td>
-                        <td>{{dataItem.MainLocation}}</td>
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
+                        <td>
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                                Preluare
+                             </button> 
+                        </td>                       
+          
+                </tbody>
+            </table>
+        </div>
+
+        <div class="personal-table">
+            <h3>În magazie</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                       <th>Nume echipament</th>
+                        <th>Cantitatea</th>
+                        <th style="width: 30%;">Actiune</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let dataItem of CofrajMetList">
+          
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
                         <td>
                             <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
                                 Predare
                              </button> 
-                        </td>
-                        
-          
+                        </td>                        
                 </tbody>
             </table>
         </div>
@@ -118,27 +215,51 @@
             <input type="text" placeholder="căutare">
         </div>
 
-        <div class="schela-table">
+        <div class="magazie-table">
+            <h3>În posesia</h3>
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Nume</th>
+                        <th>Nume echipament</th>
                         <th>Cantitatea</th>
-                        <th>Actiune</th>
+                        <th style="width: 30%;">Actiune</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let dataItem of CofrajMetList"  >
+                    <tr *ngFor="let dataItem of CofrajMetList">
           
-                        <td>{{dataItem.ToolName}}</td>
-                        <td>{{dataItem.MainLocation}}</td>
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
+                        <td>
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                                Preluare
+                             </button> 
+                        </td>                       
+          
+                </tbody>
+            </table>
+        </div>
+
+        <div class="personal-table">
+            <h3>În magazie</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                       <th>Nume echipament</th>
+                        <th>Cantitatea</th>
+                        <th style="width: 30%;">Actiune</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let dataItem of CofrajMetList">
+          
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
                         <td>
                             <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
                                 Predare
                              </button> 
-                        </td>
-                        
-          
+                        </td>                        
                 </tbody>
             </table>
         </div>
@@ -152,27 +273,51 @@
             <input type="text" placeholder="căutare">
         </div>
 
-        <div class="schela-table">
+        <div class="magazie-table">
+            <h3>În posesia</h3>
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Nume</th>
+                        <th>Nume echipament</th>
                         <th>Cantitatea</th>
-                        <th>Actiune</th>
+                        <th style="width: 30%;">Actiune</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let dataItem of CofrajMetList"  >
+                    <tr *ngFor="let dataItem of CofrajMetList">
           
-                        <td>{{dataItem.ToolName}}</td>
-                        <td>{{dataItem.MainLocation}}</td>
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
+                        <td>
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                                Preluare
+                             </button> 
+                        </td>                       
+          
+                </tbody>
+            </table>
+        </div>
+
+        <div class="personal-table">
+            <h3>În magazie</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                       <th>Nume echipament</th>
+                        <th>Cantitatea</th>
+                        <th style="width: 30%;">Actiune</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let dataItem of CofrajMetList">
+          
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
                         <td>
                             <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
                                 Predare
                              </button> 
-                        </td>
-                        
-          
+                        </td>                        
                 </tbody>
             </table>
         </div>
@@ -186,27 +331,51 @@
             <input type="text" placeholder="căutare">
         </div>
 
-        <div class="schela-table">
+        <div class="magazie-table">
+            <h3>În posesia</h3>
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Nume</th>
+                        <th>Nume echipament</th>
                         <th>Cantitatea</th>
-                        <th>Actiune</th>
+                        <th style="width: 30%;">Actiune</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let dataItem of CofrajMetList"  >
+                    <tr *ngFor="let dataItem of CofrajMetList">
           
-                        <td>{{dataItem.ToolName}}</td>
-                        <td>{{dataItem.MainLocation}}</td>
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
+                        <td>
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                                Preluare
+                             </button> 
+                        </td>                       
+          
+                </tbody>
+            </table>
+        </div>
+
+        <div class="personal-table">
+            <h3>În magazie</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                       <th>Nume echipament</th>
+                        <th>Cantitatea</th>
+                        <th style="width: 30%;">Actiune</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let dataItem of CofrajMetList">
+          
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
                         <td>
                             <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
                                 Predare
                              </button> 
-                        </td>
-                        
-          
+                        </td>                        
                 </tbody>
             </table>
         </div>
@@ -220,27 +389,51 @@
             <input type="text" placeholder="căutare">
         </div>
 
-        <div class="schela-table">
+        <div class="magazie-table">
+            <h3>În posesia</h3>
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Nume</th>
+                        <th>Nume echipament</th>
                         <th>Cantitatea</th>
-                        <th>Actiune</th>
+                        <th style="width: 30%;">Actiune</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let dataItem of CofrajMetList"  >
+                    <tr *ngFor="let dataItem of CofrajMetList">
           
-                        <td>{{dataItem.ToolName}}</td>
-                        <td>{{dataItem.MainLocation}}</td>
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
+                        <td>
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                                Preluare
+                             </button> 
+                        </td>                       
+          
+                </tbody>
+            </table>
+        </div>
+
+        <div class="personal-table">
+            <h3>În magazie</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                       <th>Nume echipament</th>
+                        <th>Cantitatea</th>
+                        <th style="width: 30%;">Actiune</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let dataItem of CofrajMetList">
+          
+                        <td>{{dataItem.CofrajMetalicName}}</td>
+                        <td>{{dataItem.Location}}</td>
                         <td>
                             <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
                                 Predare
                              </button> 
-                        </td>
-                        
-          
+                        </td>                        
                 </tbody>
             </table>
         </div>

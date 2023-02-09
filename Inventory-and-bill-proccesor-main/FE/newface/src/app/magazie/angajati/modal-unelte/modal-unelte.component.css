@@ -116,7 +116,7 @@ input, select {
 .searchbox input::placeholder {
     font-size: 13px;
 }
-
+/*---------- table ----------*/
 .magazie-table, .personal-table {
     margin: 30px 0;
     padding-bottom: 30px;
