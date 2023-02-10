@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import {SharedService} from 'src/app/shared.service';
 import { Router } from '@angular/router';
 import { interval } from 'rxjs';
+import { DatePipe } from '@angular/common';
 
 @Component({
   selector: 'app-modal-unelte',
@@ -10,7 +11,7 @@ import { interval } from 'rxjs';
 })
 export class ModalUnelteComponent implements OnInit {
 
-  constructor(private router: Router, private service:SharedService) { }
+  constructor(private router: Router, private service:SharedService, private datePipe: DatePipe) { }
   
   ToolList:any=[];
   ToolListmain:any=[];
@@ -51,6 +52,7 @@ export class ModalUnelteComponent implements OnInit {
     //refresh la lista
     this.refreshTolList();
 
+    this.BucketDate = new Date();
 
 
   }
@@ -150,7 +152,7 @@ export class ModalUnelteComponent implements OnInit {
     this.ToolSerie=this.tol.ToolSerie;
     this.ToolName=this.tol.ToolName;
     this.User=this.tol.User;
-    this.DateOfGiving=this.tol.DateOfGiving;
+    this.DateOfGiving = (this.datePipe.transform(this.BucketDate,"yyyy-MM-dd"));
     this.Detail=this.tol.Detail;
     this.Pieces=this.tol.Pieces;
     this.MainLocation='Magazie'
@@ -171,7 +173,7 @@ export class ModalUnelteComponent implements OnInit {
     };
 
     this.service.updateTool(val).subscribe(res=>{
-    (res.toString());
+    console.log(res.toString());
     });
 
 
@@ -187,11 +189,12 @@ export class ModalUnelteComponent implements OnInit {
       Pieces:this.Pieces
       };
       this.service.addHistory(valo).subscribe(res=>{
-        (res.toString());});
+        console.log(res.toString());});
         
         
         this.ToolNameFilter=''
         this.wait()
+        console.log(this.DateOfGiving)
   }
   // aici predare unealta/ edit tool main location
   predareUnealta(item: any){
@@ -203,7 +206,7 @@ export class ModalUnelteComponent implements OnInit {
     this.ToolSerie=this.tol.ToolSerie;
     this.ToolName=this.tol.ToolName;
     this.User=this.tol.User;
-    this.DateOfGiving=this.tol.DateOfGiving;
+    this.DateOfGiving= (this.datePipe.transform(this.BucketDate,"yyyy-MM-dd"));
     this.Detail=this.tol.Detail;
     this.Pieces=this.tol.Pieces;
     this.MainLocation=''+ this.selectedUserSimple.UserName
@@ -225,7 +228,7 @@ export class ModalUnelteComponent implements OnInit {
     };
 
     this.service.updateTool(val).subscribe(res=>{
-   (res.toString());
+   console.log(res.toString());
     });
 
 
@@ -240,7 +243,7 @@ export class ModalUnelteComponent implements OnInit {
       Pieces:this.Pieces
       };
       this.service.addHistory(valo).subscribe(res=>{
-        (res.toString());});
+        console.log(res.toString());});
     
         
         this.wait()

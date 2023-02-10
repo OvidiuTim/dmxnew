@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import {SharedService} from 'src/app/shared.service';
 import { Router } from '@angular/router';
 import { ThisReceiver } from '@angular/compiler';
-
+import { DatePipe } from '@angular/common';
 
 @Component({
   selector: 'app-modal-schela',
@@ -11,8 +11,8 @@ import { ThisReceiver } from '@angular/compiler';
 })
 export class ModalSchelaComponent implements OnInit {
 
-  constructor(private router: Router, private service:SharedService) { }
-  
+  constructor(private router: Router, private service:SharedService, private datePipe: DatePipe) { }
+  HistoryId:string="";
   CofrajMetList:any=[];
   CofrajMetListWithoutFilter:any=[];
   CofrajMetLocationFilter:string="";
@@ -20,9 +20,17 @@ export class ModalSchelaComponent implements OnInit {
   CofrajMetNameFilter:string="";
   CofrajMetListmain:any=[];
   une:any
+  DateOfGiving!:any;
+
 
   selectedUserSimple : any
 
+
+    HistoriesScheleId:string="";
+    SchelaName:string="";
+    UserName:string="";
+    CombustibilCantitate:string="";
+    DateSchela:string="";
 
 
   cofMet:boolean=true;
@@ -34,14 +42,18 @@ export class ModalSchelaComponent implements OnInit {
   Mfixe:boolean=false;
   isUne:boolean=false;
 
+  BucketDate!: Date;
   ngOnInit(): void {
     this.cofrajmetalic();
 
-    this.refreshTolList();
 
     //aduce userul aici
     this.selectedUserSimple = this.service.selectedUser
-    console.log(this.service.selectedUser.UserName)
+
+    this.refreshTolList();
+    this.BucketDate = new Date();
+    this.DateOfGiving= (this.datePipe.transform(this.BucketDate,"yyyy-MM-dd"));
+    console.log(this.DateOfGiving)
   }
 
   FilterFn(){
@@ -166,7 +178,7 @@ export class ModalSchelaComponent implements OnInit {
 
 
   refreshTolList(){
-    this.CofrajMetLocationFilter = ''+ this.selectedUserSimple.UserName
+    this.CofrajMetLocationFilter = this.selectedUserSimple.UserName
 
 
     var CofrajMetLocationFilter = this.CofrajMetLocationFilter;
@@ -193,8 +205,86 @@ export class ModalSchelaComponent implements OnInit {
   
   }
 
+  cfm:any
+
+
+  CofrajMetalicId:string="";
+  CofrajMetalicName:string="";
+  CofrajMetalicCantitate:string="";
+  Location:string="";
+
+  predareCofMet(item: any){
+    this.CofrajMetLocationFilter=''
+
+    this.cfm=item;
+
+    this.CofrajMetalicId=this.cfm.CofrajMetalicId;
+    this.CofrajMetalicName=this.cfm.CofrajMetalicName;
+    this.CofrajMetalicCantitate=this.cfm.CofrajMetalicCantitate;
+    this.Location=this.selectedUserSimple.UserName;
+    
+
+    var val = {
+      CofrajMetalicId:this.CofrajMetalicId,
+      CofrajMetalicName:this.CofrajMetalicName,
+      CofrajMetalicCantitate:this.CofrajMetalicCantitate,
+      Location:this.Location,
+    
+    };
+
+    this.service.updateCofMet(val).subscribe(res=>{
+    console.log(res.toString());
+    });
+
+
+    
+
+    this.refreshTolList()
+
+  }
   
 
+  preluareCofMet(item: any){
+    this.CofrajMetLocationFilter=''
+
+    this.cfm=item;
+
+    this.CofrajMetalicId=this.cfm.CofrajMetalicId;
+    this.CofrajMetalicName=this.cfm.CofrajMetalicName;
+    this.CofrajMetalicCantitate=this.cfm.CofrajMetalicCantitate;
+    this.Location=this.selectedUserSimple.UserName;
+    
+
+    var val = {
+      CofrajMetalicId:this.CofrajMetalicId,
+      CofrajMetalicName:this.CofrajMetalicName,
+      CofrajMetalicCantitate:this.CofrajMetalicCantitate,
+      Location:'Magazie',
+    
+    };
+
+    this.service.updateCofMet(val).subscribe(res=>{
+    console.log(res.toString());
+    });
+
+    this.refreshTolList()
+
+     
+
+    var valo = {HistoryId:this.HistoryId,
+      Tool:this.CofrajMetalicName,
+      User:this.selectedUserSimple.UserName,
+      DateOfGiving:this.DateOfGiving,
+      ToolSerie:"cofrajmetalic",
+      GiveRecive:"a predat",
+      Pieces:"cofrajmetalic"
+      };
+      this.service.addHistory(valo).subscribe(res=>{
+      console.log(res.toString());});
+      console.log(this.DateOfGiving)
+
+  }
+  
   CofrajtTipDokaList:any=[];
   CofrajtTipDokaListFilter:any=[];
   CofrajtTipDokaLocationFilter:string="";
@@ -202,11 +292,16 @@ export class ModalSchelaComponent implements OnInit {
   CofrajtTipDokaNameFilter:string="";
   CofrajtTipDokaListmain:any=[];
   CofrajtTipDokaListWithoutFilter:any=[];
+
+
+  CofrajtTipDokaId:string="";
+  CofrajtTipDokaName:string="";
+  CofrajtTipDokaCantitate:string="";
   
 
   refreshTolList2(){
 
-    this.CofrajtTipDokaListFilter = ''+ this.selectedUserSimple.UserName
+    this.CofrajtTipDokaListFilter = this.selectedUserSimple.UserName
 
     var CofrajtTipDokaLocationFilter = this.CofrajtTipDokaLocationFilter;
 

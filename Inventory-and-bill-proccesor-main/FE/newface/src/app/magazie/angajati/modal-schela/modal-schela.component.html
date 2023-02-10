@@ -32,7 +32,7 @@
                         <td>{{dataItem.CofrajMetalicName}}</td>
                         <td>{{dataItem.Location}}</td>
                         <td>
-                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser" (click)="preluareCofMet(dataItem)">
                                 Preluare
                              </button> 
                         </td>                       
@@ -52,12 +52,12 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr *ngFor="let dataItem of CofrajMetList">
+                    <tr *ngFor="let dataItem of CofrajMetListmain">
           
                         <td>{{dataItem.CofrajMetalicName}}</td>
                         <td>{{dataItem.Location}}</td>
                         <td>
-                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser">
+                            <button type="button" class="btn btn-success"  style="margin: 3px;"  data-toggle="modal" data-target="#GiveToUser" (click)="predareCofMet(dataItem)">
                                 Predare
                              </button> 
                         </td>                        
