@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import {SharedService} from 'src/app/shared.service';
+import { ngxCsv } from 'ngx-csv/ngx-csv';
 
 @Component({
   selector: 'app-history',
@@ -24,7 +25,9 @@ export class HistoryComponent implements OnInit {
 
   ngOnInit(): void {
     this.istMaterial();
+
     this.refreshUsrList();
+    this.refreshHisList();
 
     this.allowthischeck = this.service.allowthis
 
@@ -56,9 +59,9 @@ export class HistoryComponent implements OnInit {
 
   }
   refreshUsrList(){
-    this.service.getUsrList().subscribe(data=>{
-      this.UserList=data;
-       });
+
+
+    this.refreshConsumList()
 
   }
   modalunelte(item: any){
@@ -67,16 +70,6 @@ export class HistoryComponent implements OnInit {
     this.usermodaltool=true
     this.service.selectedUser=item;
 
-  }
-  addClick(){
-    this.usr={
-      UserId:0,
-      UserSerie:"",
-      UserName:"",
-      UserPin:"",
-      NameAndSerie:"",
-      
-    }
   }
 
 
@@ -113,6 +106,41 @@ istSchela(){
   this.checkmyscafoldingid();
   document.getElementById("10")!.style.backgroundColor = '#d9d9d9';
   document.getElementById("10")!.style.fontWeight = 'bold';
+}
+
+histList:any=[];
+
+refreshConsumList(){
+  this.service.getConList().subscribe(data=>{
+    this.histList=data;
+  });
+}
+
+
+histToolList:any=[];
+
+refreshHisList(){
+  this.service.getHisList().subscribe(data=>{
+    this.histToolList=data;
+  });
+}
+
+
+
+downloadhistory(){
+
+  var options = { 
+    fieldSeparator: ',',
+    quoteStrings: '"',
+    decimalseparator: '.',
+    showLabels: true, 
+    showTitle: true,
+    title: 'Report Materiale',
+    useBom: true,
+    headers: [" MaterialId", "MaterialName", "Quantity", "Amount" , "MaterialLocation", "OneUnity", "UnityOfMesurment", "TypeOfUnityOfMesurment"]
+  };
+ 
+  new ngxCsv(this.histToolList, "materiale", options);
 }
 
 

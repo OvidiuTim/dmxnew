@@ -176,7 +176,18 @@ export class ModalSchelaComponent implements OnInit {
   
 
 
+  wait(){
 
+    setTimeout(() => {
+      this.refreshTolList()
+      this.enough()
+    }, 200);
+}
+
+
+enough(){
+  this.refreshTolList()
+}
   refreshTolList(){
     this.CofrajMetLocationFilter = this.selectedUserSimple.UserName
 
@@ -236,11 +247,22 @@ export class ModalSchelaComponent implements OnInit {
     console.log(res.toString());
     });
 
+    var valo = {HistoryId:this.HistoryId,
+      Tool:this.CofrajMetalicName,
+      User:this.Location,
+      DateOfGiving:this.DateOfGiving,
+      ToolSerie:"cofrajmetalic",
+      GiveRecive:"a preluat",
+      Pieces:0
+      };
+      this.service.addHistory(valo).subscribe(res=>{
+      console.log(res.toString());});
 
+      console.log(this.DateOfGiving)
     
 
     this.refreshTolList()
-
+    this.wait()
   }
   
 
@@ -268,19 +290,22 @@ export class ModalSchelaComponent implements OnInit {
     });
 
     this.refreshTolList()
-
+    this.wait()
      
+
+
 
     var valo = {HistoryId:this.HistoryId,
       Tool:this.CofrajMetalicName,
-      User:this.selectedUserSimple.UserName,
+      User:this.Location,
       DateOfGiving:this.DateOfGiving,
       ToolSerie:"cofrajmetalic",
       GiveRecive:"a predat",
-      Pieces:"cofrajmetalic"
+      Pieces:0
       };
       this.service.addHistory(valo).subscribe(res=>{
       console.log(res.toString());});
+
       console.log(this.DateOfGiving)
 
   }

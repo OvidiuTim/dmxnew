@@ -33,22 +33,22 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Nr. ordine</th>
                         <th>Nume angajat</th>
                         <th>Nume material</th>
                         <th>Cantitate</th>
                         <th>Data</th>
+
                     </tr>
                 </thead>
                 <tbody>
 
                     <ng-container>
-                        <tr>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
+                        <tr *ngFor="let dataItem of histList">
+                            <td>{{dataItem.User}}</td>
+                            <td>{{dataItem.Material}}</td>
+                            <td>{{dataItem.MaterialAmount}}</td>
+                            <td>{{dataItem.DateOfGiving}}</td>
+
                         </tr>
                     </ng-container>
                 </tbody>
@@ -57,7 +57,7 @@
         </div>
 
         <div class="body-unelte" *ngIf="isUne">
-            <div class="download-btn"><button type="button" class="btn btn-primary btnAdd"><svg
+            <div class="download-btn"><button type="button" class="btn btn-primary btnAdd" (click)="downloadhistory()" ><svg
                 xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
                 class="bi bi-download" viewBox="0 0 16 16">
                 <path
@@ -70,7 +70,6 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Nr. ordine</th>
                         <th>Nume angajat</th>
                         <th>Nume unealta</th>
                         <th>Actiune</th>
@@ -80,12 +79,11 @@
                 <tbody>
 
                     <ng-container>
-                        <tr>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
-                            <td></td>
+                        <tr *ngFor="let dataItem of histToolList">
+                            <td>{{dataItem.User}} </td>
+                            <td>{{dataItem.Tool}}</td>
+                            <td>{{dataItem.GiveRecive}}</td>
+                            <td>{{dataItem.DateOfGiving}}</td>
                         </tr>
                     </ng-container>
                 </tbody>

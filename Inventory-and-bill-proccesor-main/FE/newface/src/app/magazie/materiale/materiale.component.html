@@ -39,26 +39,30 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Serie</th>
                         <th>Nume echipament</th>
-                        <th>Numar bucati</th>
+                        <th>Serie</th>
+                        <th>Cantitate</th>
                         <th>Actiune</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr *ngFor="let dataItem of ToolList">
-                        <td>{{dataItem.MaterialId}}</td>
                         <td>{{dataItem.MaterialName}}</td>
+                        <td>{{dataItem.TypeOfUnityOfMesurment}}</td>
                         <td>{{dataItem.Quantity}}</td>
                         <td>
+<!-- 
+
                             <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
                                 data-toggle="modal" data-target="#GiveToUser"><img
                                     src="./../../../assets/media/icons/edit.svg" alt="">
                                 editati
                             </button>
+-->
                             <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
                                 data-toggle="modal" data-target="#GiveToUser"><img
-                                    src="./../../../assets/media/icons/trash.svg" alt="">
+                                    src="./../../../assets/media/icons/trash.svg" alt=""
+                                    (click)="deleteClick(dataItem)">
                                 sterge
                             </button>
                         </td>
@@ -81,15 +85,15 @@
                 </div>
                 <div class="modal-body">
                     <label for="">Nume material</label>
-                    <input type="text" placeholder="Nume materialului">
+                    <input type="text" [(ngModel)]="MaterialName" placeholder="Nume materialului">
                     <label for="">U.M.</label>
-                    <input type="text" placeholder="Introduceti U.M.">
+                    <input [(ngModel)]="TypeOfUnityOfMesurment"  type="text" placeholder="Introduceti U.M.">
                     <label for="">Cantitate</label>
-                    <input type="text" placeholder="0">
+                    <input [(ngModel)]="Quantity"  type="text" placeholder="0">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
-                    <button type="button" class="btn btn-primary">Salvează</button>
+                    <button type="button" class="btn btn-primary" (click)="addUser()" >Salvează</button>
                 </div>
             </div>
         </div>

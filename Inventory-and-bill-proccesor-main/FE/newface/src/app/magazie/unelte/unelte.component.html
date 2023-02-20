@@ -46,19 +46,22 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>title</td>
-                        <td>title</td>
-                        <td>title</td>
-                        <td>title</td>
+                    <tr *ngFor="let dataItem of ToolList">
+                        <td>{{dataItem.ToolSerie}}</td>
+                        <td>{{dataItem.ToolName}}</td>
+                        <td>{{dataItem.Pieces}}</td>
+                        <td>{{dataItem.MainLocation}}</td>
                         <td>
+<!-- 
+
                             <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
                                 data-toggle="modal" data-target="#GiveToUser"><img
                                     src="./../../../assets/media/icons/edit.svg" alt="">
                                 editati
                             </button>
+-->
                             <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
-                                data-toggle="modal" data-target="#GiveToUser"><img
+                                data-toggle="modal" data-target="#GiveToUser"  (click)="deleteClick(dataItem)"><img
                                     src="./../../../assets/media/icons/trash.svg" alt="">
                                 sterge
                             </button>
@@ -81,20 +84,18 @@
                     </button>
                 </div>
                 <div class="modal-body">
-                    <label for="">Serie echipament</label>
-                    <input type="text" placeholder="Seria"> 
+                    <label for="" >Serie echipament</label>
+                    <input type="text" placeholder="Seria" [(ngModel)]="ToolSerie"> 
                     <label for="">Nume unealta</label>
-                    <input type="text" placeholder="Numele"> 
-                    <label for="">Producator</label>
-                    <input type="text" placeholder="Componente aditionale">
+                    <input type="text" placeholder="Numele" [(ngModel)]="ToolName"> 
                     <label for="">Bucati</label> 
-                    <input type="number"  [(ngModel)]="startingPoint">
+                    <input type="number"  [(ngModel)]="startingPoint" [(ngModel)]="Pieces">
                 </div>
                 
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
-                    <button type="button" class="btn btn-primary">Salvează</button>
+                    <button type="button" class="btn btn-primary" (click)="addUser()">Salvează</button>
                 </div>
             </div>
         </div>

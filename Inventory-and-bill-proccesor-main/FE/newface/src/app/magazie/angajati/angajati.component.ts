@@ -78,10 +78,22 @@ export class AngajatiComponent implements OnInit {
       
     }
 
-
+    this.refreshUsrList();
   }
 
 
+  wait(){
+
+    setTimeout(() => {
+      this.refreshUsrList()
+      this.enough()
+    }, 200);
+}
+
+
+enough(){
+  this.refreshUsrList()
+}
 
 
   seeMagazie(){
@@ -117,6 +129,7 @@ export class AngajatiComponent implements OnInit {
     });
 
     this.refreshUsrList();
+    this.wait()
   }
 
 
@@ -126,6 +139,7 @@ export class AngajatiComponent implements OnInit {
     this.service.deleteUser(item.UserId).subscribe(data=>{
       console.log(data.toString());
       this.refreshUsrList();
+      this.wait()
     })
     }
 }

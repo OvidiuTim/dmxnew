@@ -97,7 +97,6 @@ export class ModalMaterialeComponent implements OnInit {
       this.MaterialName=this.ListMat.MaterialName;
       this.Quantity=this.ListMat.Quantity;
       this.Amount=this.ListMat.Amount;
-      this.MaterialLocation="1"
       this.Provider=this.ListMat.Provider;
       this.DateOfGiving=this.ListMat.DateOfGiving;
       this.OneUnity=this.ListMat.OneUnity;
