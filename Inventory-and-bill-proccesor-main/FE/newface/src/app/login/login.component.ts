@@ -24,15 +24,20 @@ export class LoginComponent implements OnInit {
   seeMagazie(){
    
 
-    if(this.password == "magazie" && this.username == "magazie"){
-      this.router.navigateByUrl('/magazie');
+    if(
+       this.password == "GrozaVasile" && this.username == "GrozaVasile" 
+    || this.password == "magazieSILVIU" && this.username == "Silviu"
+    || this.password == "MunteanuDan" && this.username == "MunteanuDan"
+    || this.password == "StelaAdministrare" && this.username == "Stela"
+    || this.password == "SERBANDANIEL" && this.username == "SerbanDaniel"){
+
+      this.router.navigateByUrl('/angajati');
       this.service.admin= false;
       this.service.allowthis= true;
+      this.service.username = this.username
     }
-    else if(this.password == "admin" && this.username == "admin"){
-      this.router.navigateByUrl('/magazie');
-      this.service.admin= true;
-      this.service.allowthis= true;
+    else {
+      false;
     }
 
   }

@@ -53,19 +53,20 @@ export class AngajatiComponent implements OnInit {
   modalunelte(item: any){
     this.usermodaltool=true
     this.service.selectedUser=item;
-
+    this.service.selectedUserPin=item.UserPin;
+    
   }
 
   modalmaterial(item: any){
     this.usermodalmaterial=true
     this.service.selectedUser=item;
-
+    this.service.selectedUserPin=item.UserPin;
   }
 
   modalshecla(item: any){
     this.usermodalschela=true
     this.service.selectedUser=item;
-
+    this.service.selectedUserPin=item.UserPin;
   }
 
   addClick(){

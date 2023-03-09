@@ -44,10 +44,16 @@ export class ModalUnelteComponent implements OnInit {
   HistoryId!: string;
   GiveRecive!: string;
 
+  administrator!: string;
   
+  pin!: string;
+  TryPin!: string;
   ngOnInit(): void {
     //aduce userul aici
     this.selectedUserSimple = this.service.selectedUser
+
+    //aduce userul aici
+    this.pin = this.service.selectedUserPin
 
     //refresh la lista
     this.refreshTolList();
@@ -55,6 +61,7 @@ export class ModalUnelteComponent implements OnInit {
     this.BucketDate = new Date();
 
 
+    this.administrator=this.service.username 
   }
 
   wait(){
@@ -64,7 +71,6 @@ export class ModalUnelteComponent implements OnInit {
       this.enough()
     }, 200);
 }
-
 
   enough(){
     this.timmer=false;
@@ -186,7 +192,7 @@ export class ModalUnelteComponent implements OnInit {
       DateOfGiving:this.DateOfGiving,
       ToolSerie:this.ToolSerie,
       GiveRecive:this.GiveRecive,
-      Pieces:this.Pieces
+      Pieces:this.administrator
       };
       this.service.addHistory(valo).subscribe(res=>{
         console.log(res.toString());});
@@ -240,7 +246,7 @@ export class ModalUnelteComponent implements OnInit {
       DateOfGiving:this.DateOfGiving,
       ToolSerie:this.ToolSerie,
       GiveRecive:this.GiveRecive,
-      Pieces:this.Pieces
+      Pieces:this.administrator
       };
       this.service.addHistory(valo).subscribe(res=>{
         console.log(res.toString());});
@@ -251,6 +257,18 @@ export class ModalUnelteComponent implements OnInit {
   }
 
 
+  pingood:boolean=false;
+  pincheck:boolean=true;
+  verificaPin(){
+
+    if(this.TryPin == this.pin){
+      this.pingood=true;
+      this.pincheck=false;
+    }
+    else{
+      alert("pinul este incorect")
+    }
+  }
 
 
 

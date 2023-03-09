@@ -13,6 +13,9 @@ export class SharedService {
   admin:boolean=false;
   allowthis:boolean=false;
   selectedUser:any
+  selectedUserPin:any
+
+  username !: string;
 
 
     //anagajati api
