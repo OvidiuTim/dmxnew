@@ -29,8 +29,7 @@ export class LoginComponent implements OnInit {
     || this.password == "magazieSILVIU" && this.username == "Silviu"
     || this.password == "MunteanuDan" && this.username == "MunteanuDan"
     || this.password == "StelaAdministrare" && this.username == "Stela"
-    || this.password == "SERBANDANIEL" && this.username == "SerbanDaniel"
-    ){
+    || this.password == "SERBANDANIEL" && this.username == "SerbanDaniel"){
 
       this.router.navigateByUrl('/angajati');
       this.service.admin= false;
@@ -39,7 +38,6 @@ export class LoginComponent implements OnInit {
     }
     else {
       false;
-      alert('user or password is wrong')
     }
 
   }
