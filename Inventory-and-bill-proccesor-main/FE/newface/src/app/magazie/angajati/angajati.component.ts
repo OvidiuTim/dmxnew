@@ -1,13 +1,6 @@
 import { Component, OnInit} from '@angular/core';
 import { Router } from '@angular/router';
 import {SharedService} from 'src/app/shared.service';
-import * as pcsc from 'nfc-pcsc';// tslint:disable-line
-
-
-
-const reader = new pcsc.Reader();
-
-// ...rest of your code...
 
 @Component({
   selector: 'app-angajati',
@@ -39,12 +32,6 @@ export class AngajatiComponent implements OnInit {
 
     this.allowthischeck = this.service.allowthis
 
-
-    if ('NDEFReader' in window) {
-      console.log('Web NFC is supported.');
-    } else {
-      console.log('Web NFC is not supported.');
-    }
 
   }
 
