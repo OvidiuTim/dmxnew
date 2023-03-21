@@ -33,8 +33,7 @@ export class AngajatiComponent implements OnInit {
   UserPin!: string;
   NameAndSerie!: string;
 
-  
-  
+
   ngOnInit(): void {
     this.refreshUsrList();
 
@@ -59,9 +58,10 @@ export class AngajatiComponent implements OnInit {
   refreshUsrList(){
     this.service.getUsrList().subscribe(data=>{
       this.UserList=data;
-       });
 
+    });
   }
+  
 
 
   modalunelte(item: any){
