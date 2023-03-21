@@ -1,6 +1,21 @@
 import { Component, OnInit} from '@angular/core';
 import { Router } from '@angular/router';
 import {SharedService} from 'src/app/shared.service';
+import { Reader, Card } from 'nfc-pcsc';
+
+
+const reader = new Reader();
+reader.on('card', card => {
+  card.connect(async () => {
+    const response = await card.transmit(Buffer.from([0xFF, 0xCA, 0x00, 0x00, 0x00]));
+    const data = response.slice(0, -2).toString('utf-8');
+    const [header, type, length, ...payload] = data.split(',');
+    if (header === 'T' && type === 'text') {
+      const message = payload.join(',');
+      // Do something with the message, e.g. display it in a label
+    }
+  });
+});
 
 @Component({
   selector: 'app-angajati',
