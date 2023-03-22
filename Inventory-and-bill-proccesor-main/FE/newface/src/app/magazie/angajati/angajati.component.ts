@@ -1,6 +1,9 @@
 import { Component, OnInit} from '@angular/core';
 import { Router } from '@angular/router';
 import {SharedService} from 'src/app/shared.service';
+import { NfcReaderService } from '../../nfc-reader.service';
+
+
 
 @Component({
   selector: 'app-angajati',
@@ -9,7 +12,7 @@ import {SharedService} from 'src/app/shared.service';
 })
 export class AngajatiComponent implements OnInit {
 
-  constructor(private service:SharedService,private router: Router) { }
+  constructor(private service: SharedService, private router: Router, private nfcReaderService: NfcReaderService) { }
     
   UserList:any=[];
   usr:any;
@@ -25,15 +28,18 @@ export class AngajatiComponent implements OnInit {
   UserSerie!: string;
   UserPin!: string;
   NameAndSerie!: string;
-
+  tagText!: string;
 
   ngOnInit(): void {
     this.refreshUsrList();
 
     this.allowthischeck = this.service.allowthis
 
-
+    this.nfcReaderService.tagText.subscribe((text: string) => {
+      this.tagText = text; });
   }
+
+
 
 
   closemodals(){
@@ -145,7 +151,6 @@ enough(){
     })
     }
 }
-
 
 
 }
