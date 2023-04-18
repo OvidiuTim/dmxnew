@@ -1,3 +1,4 @@
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.parsers import JSONParser
@@ -5,7 +6,10 @@ from django.http.response import JsonResponse
 
 from ToolApp.models import Shed, Unfunctional, Users,Tools,Histories, Materials, Consumables, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes
 from ToolApp.serializers import ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer,ToolSerializer,HistorySerializer, MaterialSerializer, WorkFieldSerializer, CofrajMetalicSerializer, CofrajtTipDokaSerializer, PopiSerializer, SchelaUsoaraSerializer, SchelaFatadaSerializer, SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer
+import nfc
 
+
+    
 # Create your views here.
 #api angajati
 @csrf_exempt
@@ -534,3 +538,29 @@ def mijloacefixeApi(request,id=0):
         mijloacefixe=MijloaceFixes.objects.get(MijloaceFixeId=id)
         mijloacefixe.delete()
         return JsonResponse("Deleted Succeffully!!", safe=False)
+
+        #test nfc reader
+def nfc_tag_view(request):
+    with nfc.ContactlessFrontend('usb') as clf:
+        target = clf.sense(nfc.clf.RemoteTarget('iso14443a'))
+        tag = nfc.tag.activate(clf, target)
+        text_record = tag.ndef.records[0].text
+    return JsonResponse({'text_record': text_record})
+
+def check_nfc_reader(request):
+    readers = nfc.list_devices()
+    has_reader = len(readers) > 0
+
+    return JsonResponse({'has_nfc_reader': has_reader})
+
+    import nfc
+from django.http import JsonResponse
+
+def check_nfc_reader(request):
+    try:
+        with nfc.ContactlessFrontend('usb') as clf:
+            has_reader = True
+    except IOError:
+        has_reader = False
+
+    return JsonResponse({'has_nfc_reader': has_reader})

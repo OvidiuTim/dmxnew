@@ -1,8 +1,13 @@
 from django.urls import re_path as url
 from ToolApp import views
 
+from django.urls import path
+from . import views
 
 urlpatterns=[
+    path('nfc-tag/', views.nfc_tag_view, name='nfc_tag'),
+    path('check-nfc-reader/', views.check_nfc_reader, name='check_nfc_reader'),
+    
     url(r'^user/$',views.userApi),
     url(r'^user/([0-9]+)$',views.userApi),
 

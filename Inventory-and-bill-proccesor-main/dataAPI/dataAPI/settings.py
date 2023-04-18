@@ -39,7 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'ToolApp.apps.ToolappConfig',
-    'rest_framework'
+    'rest_framework',
+    'nfc'
 ]
 
 CORS_ORIGIN_ALLOW_ALL = True
