@@ -1,6 +1,7 @@
 import { Component, OnInit} from '@angular/core';
 import { Router } from '@angular/router';
 import {SharedService} from 'src/app/shared.service';
+import { ViewChild, ElementRef, Renderer2 } from '@angular/core';
 
 @Component({
   selector: 'app-angajati',
@@ -9,8 +10,14 @@ import {SharedService} from 'src/app/shared.service';
 })
 export class AngajatiComponent implements OnInit {
 
-  constructor(private service:SharedService,private router: Router) { }
-    
+  constructor(private service:SharedService,private router: Router, private renderer: Renderer2) { }
+  @ViewChild('myButton', { static: false }) myButton!: ElementRef;    
+  simulateClick() {
+    this.renderer.selectRootElement(this.myButton.nativeElement).click();
+  }
+
+
+
   UserList:any=[];
   usr:any;
 
@@ -19,6 +26,8 @@ export class AngajatiComponent implements OnInit {
   usermodalschela:boolean=false;
   allowthischeck:boolean=false;
 
+
+  searchValue: string = '';
   //variabile angajati
   UserId!: string;
   UserName!: string;
@@ -34,6 +43,7 @@ export class AngajatiComponent implements OnInit {
 
 
   }
+
 
 
   closemodals(){
@@ -55,7 +65,7 @@ export class AngajatiComponent implements OnInit {
     this.usermodaltool=true
     this.service.selectedUser=item;
     this.service.selectedUserPin=item.UserPin;
-    
+    console.log(this.usermodaltool)
   }
 
   modalmaterial(item: any){
@@ -145,6 +155,37 @@ enough(){
     })
     }
 }
+
+
+
+search() {
+  console.log('Search function called with value:', this.searchValue);
+
+  if (this.searchValue === '') {
+    return;
+  }
+
+  const searchValueAsNumber = Number(this.searchValue);
+  let matchingUser;
+
+  for (const user of this.UserList) {
+    console.log('Comparing:', user.UserPin, searchValueAsNumber);
+    if (Number(user.UserPin) === searchValueAsNumber) {
+      matchingUser = user;
+      break;
+    }
+  }
+
+
+  if (matchingUser) {
+    this.modalunelte(matchingUser);
+    this.simulateClick()
+  }
+}
+
+
+
+
 
 
 

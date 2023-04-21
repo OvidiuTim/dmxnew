@@ -16,7 +16,7 @@
         <div class="searchbox">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
             </svg>
-            <input type="text" placeholder="căutare" >
+            <input type="text" placeholder="căutare" [(ngModel)]="searchValue" (keyup)="search()" >
             <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
                 (click)="addClick()" data-backdrop="static" data-keyboard="false"><img src="./../../../assets/media/icons/plus-circle.svg" alt="">
                 Adauga Angajat
@@ -34,8 +34,7 @@
                     
                 </div>
                 <div class="buttons">
-                    <button (click)="modalunelte(dataItem)" type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"><img src="./../../../assets/media/icons/unelte.svg" alt="" > Unelte</button>
-                    <button (click)="modalmaterial(dataItem)" type="button"  class="materiale" data-toggle="modal"
+                    <button #myButton (click)="modalunelte(dataItem)" type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"><img src="./../../../assets/media/icons/unelte.svg" alt="" > Unelte</button>                    <button (click)="modalmaterial(dataItem)" type="button"  class="materiale" data-toggle="modal"
                         data-target="#modalMateriale"><img src="./../../../assets/media/icons/materiale.svg" alt="">materiale</button>
                     <button  (click)="modalshecla(dataItem)" type="button" class="schela" data-toggle="modal" data-target="#modalSchela"  ><img src="./../../../assets/media/icons/schela.svg" alt="">schela</button>
                 </div>
