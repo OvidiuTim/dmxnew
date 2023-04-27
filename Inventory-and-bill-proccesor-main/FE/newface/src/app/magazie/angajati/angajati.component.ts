@@ -157,7 +157,6 @@ enough(){
 }
 
 
-
 search() {
   console.log('Search function called with value:', this.searchValue);
 
