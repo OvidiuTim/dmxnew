@@ -201,7 +201,7 @@ input, select {
 }
 .angajati .tag {
     width: 100%;
-    max-width: 310px;
+    max-width: 230px;
     box-shadow: 5px 5px 5px 5px #cccccc;
     border-radius: 3px;
     padding: 25px 15px;
@@ -355,3 +355,63 @@ input, select {
         outline: none;
     }    
 }
+
+.hamburger-btn {
+    position: fixed;
+    top: 15px;
+    left: 15px;
+    z-index: 1000;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.hamburger-icon {
+    display: inline-block;
+    width: 30px;
+    height: 2px;
+    background: #333;
+    position: relative;
+}
+
+.hamburger-icon::before,
+.hamburger-icon::after {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 2px;
+    background: #333;
+}
+
+.hamburger-icon::before {
+    top: -8px;
+}
+
+.hamburger-icon::after {
+    bottom: -8px;
+}
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: -300px;
+    width: 250px;
+    height: 100%;
+    background-color: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.sidebar.open {
+    left: 0;
+}
+/* ---------- your existing CSS code ---------- */
+
+@media only screen and (max-width: 767px) {
+    .angajati {
+      justify-items: left;
+    }
+
+    .hamburger-btn {
+      z-index: 1001;
+    }
+  }

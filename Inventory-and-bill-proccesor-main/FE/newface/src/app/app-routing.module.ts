@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { ZXingScannerModule } from '@zxing/ngx-scanner';
 
 import {MagazieComponent} from './magazie/magazie.component';
 import { AngajatiComponent } from './magazie/angajati/angajati.component';
@@ -21,8 +22,8 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes)],
+  imports: [RouterModule.forRoot(routes),ZXingScannerModule],
   exports: [RouterModule],
-  
+
 })
 export class AppRoutingModule { }

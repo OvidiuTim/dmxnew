@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { BrowserModule } from '@angular/platform-browser';
 import {HttpClientModule} from '@angular/common/http';
 import {FormsModule,ReactiveFormsModule} from '@angular/forms';
+import { ZXingScannerModule } from '@zxing/ngx-scanner';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -44,6 +45,7 @@ import {DatePipe} from '@angular/common';
     HttpClientModule,
     FormsModule,
     ReactiveFormsModule,
+    ZXingScannerModule
   ],
   providers: [SharedService, DatePipe],
   bootstrap: [AppComponent]

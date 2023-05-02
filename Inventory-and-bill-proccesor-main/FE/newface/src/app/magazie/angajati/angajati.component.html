@@ -1,28 +1,44 @@
 <body>
     <!--- *ngIf="allowthischeck" -->
-    
-    <section class="sidebar">
-        <h1 (click)="seeMagazie()">Magazie</h1>
-        <div class="pages">
-            <h5 class="page-on" (click)="seeAngajati()">Angajați</h5>
-            <h5 (click)="seeMateriale()">Materiale</h5>
-            <h5 (click)="seeUnelte()">Unelte</h5>
-            <h5 (click)="seeSchela()">schela</h5>
-            <h5 (click)="seeIstoric()">Istoric</h5>
-        </div>
-    </section>
+
+<!-- Move the button for toggling the menu outside the sidebar -->
+<button (click)="toggleMenu()" class="hamburger-btn">
+    <span class="hamburger-icon"></span>
+</button>
+
+<!-- Wrap the existing sidebar content with a new nav element -->
+<nav class="sidebar" [ngClass]="{'open': isMenuOpen}">
+    <h1 (click)="seeMagazie()">Magazie</h1>
+    <div class="pages">
+        <h5 class="page-on" (click)="seeAngajati()">Angajați</h5>
+        <h5 (click)="seeMateriale()">Materiale</h5>
+        <h5 (click)="seeUnelte()">Unelte</h5>
+        <h5 (click)="seeSchela()">schela</h5>
+        <h5 (click)="seeIstoric()">Istoric</h5>
+    </div>
+    <p style="display:flex; margin-top: 400px;">Utilizator: {{loginname}}</p>
+</nav>
+
 
     <section class="pages-content">
         <div class="searchbox">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="bi bi-search" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
             </svg>
-            <input type="text" placeholder="căutare" [(ngModel)]="searchValue" (keyup)="search()" >
-            <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
+            <input type="password"  placeholder="căutare" [(ngModel)]="searchValue">
+            <button *ngIf="allowthischeck"type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
                 (click)="addClick()" data-backdrop="static" data-keyboard="false"><img src="./../../../assets/media/icons/plus-circle.svg" alt="">
                 Adauga Angajat
             </button>
+            <button (click)="toggleScanner()" class="btn btn-warning">Scaneaza angajat</button>
         </div>
 
+
+        <!-- angajati.component.html -->
+
+
+<ng-container *ngIf="showScanner">
+    <zxing-scanner [formats]="[qrCodeFormat]" (scanSuccess)="onScanSuccess($event)"></zxing-scanner>
+</ng-container>
 
         <div class="angajati">
             <div class="tag" *ngFor="let dataItem of UserList" >
@@ -34,8 +50,9 @@
                     
                 </div>
                 <div class="buttons">
-                    <button #myButton (click)="modalunelte(dataItem)" type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"><img src="./../../../assets/media/icons/unelte.svg" alt="" > Unelte</button>                    <button (click)="modalmaterial(dataItem)" type="button"  class="materiale" data-toggle="modal"
-                        data-target="#modalMateriale"><img src="./../../../assets/media/icons/materiale.svg" alt="">materiale</button>
+                    <button #userButton (click)="modalunelte(dataItem)" type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"><img src="./../../../assets/media/icons/unelte.svg" alt="" > Unelte</button>
+                    <!-- <button (click)="modalmaterial(dataItem)" type="button"  class="materiale" data-toggle="modal"
+                        data-target="#modalMateriale"><img src="./../../../assets/media/icons/materiale.svg" alt="">materiale</button>-->
                     <button  (click)="modalshecla(dataItem)" type="button" class="schela" data-toggle="modal" data-target="#modalSchela"  ><img src="./../../../assets/media/icons/schela.svg" alt="">schela</button>
                 </div>
                 <button type="button" class="stergebtn btn btn-danger" (click)="deleteClick(dataItem)"> <img src="./../../../assets/media/icons/trash.svg" alt=""  > Sterge</button>
@@ -74,7 +91,7 @@
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="modalUnelteLabel"><img src="./../../../assets/media/icons/unelte.svg" alt="">Unelte</h5>
+                    <h5 class="modal-title" id="modalUnelteLabel"><img src="./../../../assets/media/icons/unelte.svg" alt="">Unelte - {{modalTitluUsername}}</h5>
                     <button type="button" class="close" data-dismiss="modal" (click)="closemodals()" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>

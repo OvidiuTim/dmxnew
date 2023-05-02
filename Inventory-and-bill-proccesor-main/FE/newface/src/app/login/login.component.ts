@@ -26,7 +26,7 @@ export class LoginComponent implements OnInit {
 
     if(
        this.password == "GrozaVasile" && this.username == "GrozaVasile" 
-    || this.password == "magazieSILVIU" && this.username == "Silviu"
+    || this.password == "magazie" && this.username == "magazie2"
     || this.password == "MunteanuDan" && this.username == "MunteanuDan"
     || this.password == "StelaAdministrare" && this.username == "Stela"
     || this.password == "SERBANDANIEL" && this.username == "SerbanDaniel"
