@@ -9,6 +9,13 @@ from toolDMX.serializers import ConsumableSerializer, ShedSerializer, Unfunction
 
 
 
+from django.http import JsonResponse
+
+def nfc_read(request):
+    text = request.GET.get('text', '')
+    # Perform any processing with the 'text' variable here
+    response_data = {'status': 'success', 'message': f'Received text: {text}'}
+    return JsonResponse(response_data)
 
 # Create your views here.
 #api angajati
@@ -565,3 +572,16 @@ def check_nfc_reader(request):
 
     return JsonResponse({'has_nfc_reader': has_reader})
  
+
+def get_employee_data(request):
+    user_pin = request.GET.get('user_pin')
+    try:
+        employee = Users.objects.get(UserPin=user_pin)
+        data = {
+            'id': employee.UserId,
+            'name': employee.UserName,
+            # Add other required fields
+        }
+        return JsonResponse(data)
+    except Users.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)

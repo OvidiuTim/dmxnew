@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import {SharedService} from 'src/app/shared.service';
 import { ViewChild, ElementRef, Renderer2, QueryList } from '@angular/core';
 import { Result, BarcodeFormat } from '@zxing/library';
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-angajati',
@@ -13,7 +14,9 @@ import { Result, BarcodeFormat } from '@zxing/library';
 
 export class AngajatiComponent implements OnInit {
 
-  constructor(private service:SharedService,private router: Router, private renderer: Renderer2) { }
+
+  constructor(private service:SharedService,private router: Router, private http: HttpClient,  private renderer: Renderer2) { }
+    
   @ViewChild('myButton', { static: false }) myButton!: ElementRef;    
   @ViewChildren('userButton') userButtons!: QueryList<ElementRef>;
 
@@ -27,6 +30,7 @@ export class AngajatiComponent implements OnInit {
 
   showScanner = false;
   scannedText = '';
+
   UserList:any=[];
   usr:any;
 
@@ -43,6 +47,14 @@ export class AngajatiComponent implements OnInit {
   UserSerie!: string;
   UserPin!: string;
   NameAndSerie!: string;
+
+  displayEmployeeBox(userPin: string) {
+  this.http.get(`/api/get-employee-data?user_pin=${userPin}`).subscribe((data: any) => {
+    // Use the data to display the employee's "box"
+    // e.g., update the UserList with the received data
+    console.log(data)
+  });
+}
 
 
   loginname!: string;

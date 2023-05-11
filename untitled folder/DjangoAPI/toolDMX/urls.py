@@ -5,6 +5,9 @@ from django.urls import path
 from . import views
 
 urlpatterns=[
+    # url nfc tag
+    path('api/nfc-read/', views.nfc_read, name='nfc_read'),
+
     path('nfc-tag/', views.nfc_tag_view, name='nfc_tag'),
     path('check-nfc-reader/', views.check_nfc_reader, name='check_nfc_reader'),
     

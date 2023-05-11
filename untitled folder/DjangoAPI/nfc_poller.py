@@ -9,21 +9,25 @@ API_ENDPOINT = "http://localhost:8000/api/nfc-read/"
 
 def read_nfc_tag():
     clf = nfc.ContactlessFrontend('usb')
-    target = clf.sense(nfc.clf.RemoteTarget('106A'))
-    
-    if target is None:
-        return None
+    # Create a generic target object for NFC Type A and Type B cards
+    target_a = nfc.clf.RemoteTarget('106A')
+    target_b = nfc.clf.RemoteTarget('106B')
 
-    tag = nfc.tag.activate(clf, target)
-    ndef_data = list(tag.ndef.records)
-
-    text_record = None
-    for record in ndef_data:
-        if isinstance(record, ndef.TextRecord):
-            text_record = record
-            break
-
-    return text_record.text if text_record else None
+    while True:
+        # Poll for a tag with a 1-second timeout
+        target = clf.sense(target_a, target_b, iterations=5, interval=0.2)
+        if target:
+            tag = nfc.tag.activate(clf, target)
+            if tag.ndef and tag.ndef.records:
+                ndef_data = list(tag.ndef.records)
+                text = str(ndef_data[0])
+                clf.close()
+                return text
+            else:
+                print("NDEF data not found on the tag.")
+                clf.close()
+                return None
+        time.sleep(1)
 
 def main():
     while True:
