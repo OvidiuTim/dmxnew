@@ -47,6 +47,7 @@ export class AngajatiComponent implements OnInit {
   UserSerie!: string;
   UserPin!: string;
   NameAndSerie!: string;
+  chipselectat!: string;
 
   displayEmployeeBox(userPin: string) {
   this.http.get(`/api/get-employee-data?user_pin=${userPin}`).subscribe((data: any) => {

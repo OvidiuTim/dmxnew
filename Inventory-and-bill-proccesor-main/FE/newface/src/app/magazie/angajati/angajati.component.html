@@ -23,7 +23,7 @@
     <section class="pages-content">
         <div class="searchbox">
 
-            <button *ngIf="allowthischeck"type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
+            <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
                 (click)="addClick()" data-backdrop="static" data-keyboard="false"><img src="./../../../assets/media/icons/plus-circle.svg" alt="">
                 Adauga Angajat
             </button>
@@ -75,6 +75,21 @@
                     <label for="">Nume angajat</label>
                     <input [(ngModel)]="UserName" type="text" placeholder="Nume si prenume"> 
                 </div>
+                <div class="modal-body bodyaddangaj">
+                    <label for="">Chip angajat</label>
+                    <select [(ngModel)]="chipselectat" class="form-select w-auto" style="margin-top: 5px">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                    </select>
+                </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
                     <button type="button" (click)="addUser()" class="btn btn-primary" data-dismiss="modal" >Salvează</button>
