@@ -16,7 +16,7 @@ export class LoginComponent implements OnInit {
 
 
   ngOnInit(): void {
-    
+
 
 
   }
@@ -25,7 +25,7 @@ export class LoginComponent implements OnInit {
    
 
     if(
-       this.password == "GrozaVasile" && this.username == "GrozaVasile" 
+    this.password == "GrozaVasile" && this.username == "GrozaVasile" 
     || this.password == "admin" && this.username == "admin" 
     || this.password == "magazie" && this.username == "magazie2"
     || this.password == "MunteanuDan" && this.username == "MunteanuDan"
