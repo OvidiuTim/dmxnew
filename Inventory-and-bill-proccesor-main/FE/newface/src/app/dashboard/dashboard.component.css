@@ -1,0 +1,116 @@
+html, .background {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .background {
+    min-height: 100vh;  /* key line! */
+    background: #222831;
+    color: #fff;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    width: 100%;
+    padding: 20px 0px;
+  }
+  
+  .container {
+    max-width: 80%;
+    margin: 0 auto;
+    padding: 20px;
+    background: #31363f;
+    border-radius: 20px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  }
+  
+  h1 {
+    text-align: center;
+    font-size: 2em;
+    margin-bottom: 26px;
+    letter-spacing: 1px;
+  }
+  
+  #activity-log {
+    display: flex;
+    flex-direction: column-reverse; /* Newest on top */
+    gap: 15px;
+  }
+  
+  /* CARD STYLE */
+  .activity-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+    font-size: 1.13em;
+    background: #393e49;
+    transition: box-shadow 0.2s, background 0.2s;
+    border-left: 6px solid #4ecca3;
+    position: relative;
+  }
+  
+  .activity-card.taken {
+    border-left-color: #fc6161;
+    background: linear-gradient(90deg, #3b3547 90%, #fc616130 100%);
+  }
+  
+  .activity-card.returned {
+    border-left-color: #53d373;
+    background: linear-gradient(90deg, #393e49 90%, #53d37330 100%);
+  }
+  
+  .worker {
+    font-weight: bold;
+    font-size: 1.07em;
+    color: #ffd369;
+    min-width: 70px;
+  }
+  
+  .action {
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 5px;
+    text-transform: lowercase;
+    letter-spacing: 0.2px;
+    background: rgba(80, 82, 110, 0.16);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .activity-card.taken .action {
+    color: #fc6161;
+  }
+  .activity-card.returned .action {
+    color: #53d373;
+  }
+  
+  .tool {
+    font-family: inherit;
+    font-size: 1em;
+    color: #b2cdf7;
+    margin-left: 8px;
+    font-weight: 500;
+    min-width: 110px;
+    letter-spacing: 0.2px;
+  }
+  
+  .time {
+    margin-left: auto;
+    font-size: 0.93em;
+    color: #adb5bd;
+    font-style: italic;
+  }
+  
+  .emoji {
+    font-size: 1.1em;
+  }
+  
+  /* Responsive */
+  @media (max-width: 600px) {
+    .container { padding: 7px;     max-width: 100%;}
+    .activity-card { flex-direction: column; align-items: flex-start; font-size: 1em; gap: 2px; }
+    .time { margin-left: 0; }
+  }
+  

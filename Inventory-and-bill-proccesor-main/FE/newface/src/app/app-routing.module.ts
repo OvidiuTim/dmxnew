@@ -9,6 +9,7 @@ import { SchelaComponent } from './magazie/schela/schela.component';
 import { UnelteComponent } from './magazie/unelte/unelte.component';
 import { LoginComponent } from './login/login.component';
 import { HistoryComponent } from './magazie/history/history.component';
+import { DashboardComponent } from './dashboard/dashboard.component';
 
 
 const routes: Routes = [
@@ -18,7 +19,7 @@ const routes: Routes = [
   {path:'schela',component:SchelaComponent},
   {path:'unelte',component:UnelteComponent},
   {path:'history',component:HistoryComponent},
-  {path:'',component:LoginComponent},
+  {path:'',component:DashboardComponent},
 ];
 
 @NgModule({

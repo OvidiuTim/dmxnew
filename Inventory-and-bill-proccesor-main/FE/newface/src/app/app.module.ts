@@ -22,6 +22,7 @@ import { HistoryComponent } from './magazie/history/history.component';
 import { HSchelaComponent } from './magazie/history/h-schela/h-schela.component';
 
 import {DatePipe} from '@angular/common';
+import { DashboardComponent } from './dashboard/dashboard.component';
 
 @NgModule({
   declarations: [
@@ -37,6 +38,7 @@ import {DatePipe} from '@angular/common';
     ModalSchelaComponent,
     HistoryComponent,
     HSchelaComponent,
+    DashboardComponent,
   ],
   imports: [
     CommonModule,

@@ -1,0 +1,25 @@
+<div class="background">
+    <div class="container">
+      <h1>Monitor Activitate Magazie</h1>
+      <div id="activity-log">
+        <div 
+          *ngFor="let item of histToolList.slice().reverse()" 
+          class="activity-card" 
+          [ngClass]="{'taken': item.GiveRecive === 'a luat', 'returned': item.GiveRecive === 'a adus'}">
+          
+          <span class="worker">{{ item.User }}</span>
+          
+          <span class="action">
+            {{ item.GiveRecive }}
+            <span class="emoji">
+              {{ item.GiveRecive === 'a luat' ? '🔧' : (item.GiveRecive === 'a adus' ? '↩️' : '') }}
+            </span>
+          </span>
+          
+          <span class="tool">{{ item.Tool }}</span>
+          <span class="time">{{ item.DateOfGiving | date:'HH:mm' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
