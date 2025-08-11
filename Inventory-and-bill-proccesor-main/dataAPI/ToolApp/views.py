@@ -7,7 +7,7 @@ from django.http.response import JsonResponse
 from ToolApp.models import Shed, Unfunctional, Users,Tools,Histories, Materials, Consumables, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes
 from ToolApp.serializers import ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer,ToolSerializer,HistorySerializer, MaterialSerializer, WorkFieldSerializer, CofrajMetalicSerializer, CofrajtTipDokaSerializer, PopiSerializer, SchelaUsoaraSerializer, SchelaFatadaSerializer, SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer
 import nfc
-
+import json
 
     
 # Create your views here.
@@ -564,3 +564,24 @@ def check_nfc_reader(request):
         has_reader = False
 
     return JsonResponse({'has_nfc_reader': has_reader})
+
+
+
+@csrf_exempt
+def rfid_entry_exit(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            event = data.get("event")
+            print(f"RFID event primit: {event}")  # Poți pune aici orice acțiune vrei
+            
+            # Exemplu: poți salva în istoric, să loghezi, să notifici, etc.
+            # if event == "intrare":
+            #     ...fa ceva
+            # elif event == "iesire":
+            #     ...altceva
+
+            return JsonResponse({"status": "ok", "received": event})
+        except Exception as e:
+            return JsonResponse({"status": "error", "msg": str(e)}, status=400)
+    return JsonResponse({"msg": "Only POST allowed"}, status=405)

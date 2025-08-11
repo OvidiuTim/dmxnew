@@ -3,6 +3,7 @@ from ToolApp import views
 
 from django.urls import path
 from . import views
+from .views import rfid_entry_exit
 
 urlpatterns=[
     path('nfc-tag/', views.nfc_tag_view, name='nfc_tag'),
@@ -62,4 +63,6 @@ urlpatterns=[
 
     url(r'^istoric_schele/$',views.istoricschelaApi),
     url(r'^istoric_schele/([0-9]+)$',views.istoricschelaApi),
+
+    path('rfid/entry/', rfid_entry_exit), 
 ] 

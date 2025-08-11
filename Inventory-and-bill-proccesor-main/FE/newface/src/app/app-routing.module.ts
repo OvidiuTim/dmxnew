@@ -10,6 +10,7 @@ import { UnelteComponent } from './magazie/unelte/unelte.component';
 import { LoginComponent } from './login/login.component';
 import { HistoryComponent } from './magazie/history/history.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
+import { ShelfsComponent } from './shelfs/shelfs.component';
 
 
 const routes: Routes = [
@@ -20,6 +21,7 @@ const routes: Routes = [
   {path:'unelte',component:UnelteComponent},
   {path:'history',component:HistoryComponent},
   {path:'',component:DashboardComponent},
+  {path:'rafturi',component:ShelfsComponent},
 ];
 
 @NgModule({

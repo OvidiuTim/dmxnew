@@ -23,6 +23,7 @@ import { HSchelaComponent } from './magazie/history/h-schela/h-schela.component'
 
 import {DatePipe} from '@angular/common';
 import { DashboardComponent } from './dashboard/dashboard.component';
+import { ShelfsComponent } from './shelfs/shelfs.component';
 
 @NgModule({
   declarations: [
@@ -39,6 +40,7 @@ import { DashboardComponent } from './dashboard/dashboard.component';
     HistoryComponent,
     HSchelaComponent,
     DashboardComponent,
+    ShelfsComponent,
   ],
   imports: [
     CommonModule,
