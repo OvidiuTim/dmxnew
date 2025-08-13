@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, HostListener } from '@angular/core';
 
 @Component({
   selector: 'app-shelfs',
@@ -6,22 +6,24 @@ import { Component } from '@angular/core';
   styleUrls: ['./shelfs.component.css']
 })
 export class ShelfsComponent {
-  openShelves: boolean[] = [];
+  menuOpen = false;
 
-ngOnInit() {
-  this.openShelves = this.shelves.map(() => false); // All closed by default
-}
+  toggleMenu() { this.menuOpen = !this.menuOpen; }
+  closeMenu() { this.menuOpen = false; }
 
-toggleShelf(i: number) {
-  this.openShelves[i] = !this.openShelves[i];
-}
+  // Close menu when clicking outside of navbar content (on main area)
+  closeMenuOnOutsideClick(event: MouseEvent) {
+    // no-op here; the (click) on main already calls this, but keep for future guards
+    // If needed, inspect event.target to avoid closing on inner clicks.
+  }
 
-  shelves = [
-    { boxes: ['Etaj 1', 'Etaj 2', 'Etaj 3'] },
-    { boxes: ['Etaj 4', 'Etaj 5'] },
-    { boxes: ['Etaj 6', 'Etaj 7', 'Etaj 8', 'Etaj 9'] },
-    { boxes: ['Etaj 10'] },
-    { boxes: ['Etaj 11', 'Etaj 12', 'Etaj 13'] },
-    { boxes: ['Etaj 14', 'Etaj 15'] }
-  ];
+  // Close on ESC
+  @HostListener('document:keydown.escape')
+  onEsc() { this.closeMenu(); }
+
+  // Optional: auto-close if window resized to desktop
+  @HostListener('window:resize', ['$event'])
+  onResize() {
+    if (window.innerWidth > 768 && this.menuOpen) this.closeMenu();
+  }
 }

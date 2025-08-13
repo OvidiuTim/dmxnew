@@ -1,66 +1,45 @@
-<div class="shelving-unit">
-    <div class="shelf" *ngFor="let shelf of shelves; let i = index">
-        <div class="shelf-label">Raft {{ i + 1 }}</div>
-        <div class="shelf-items">
-            <div class="box" *ngFor="let box of shelf.boxes">{{ box }}</div>
-        </div>
+<header class="navbar">
+    <div class="brand">DMX CONSTRUCTION</div>
+  
+    <!-- Burger on mobile -->
+    <button
+      class="burger"
+      (click)="toggleMenu()"
+      [attr.aria-expanded]="menuOpen"
+      aria-controls="main-nav"
+      aria-label="Deschide meniul"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  
+    <nav id="main-nav" class="nav" [class.open]="menuOpen">
+      <a href="#" (click)="closeMenu()">Angajați</a>
+      <a href="#" class="active" (click)="closeMenu()">Rafturi</a>
+      <a href="#" (click)="closeMenu()">Unelte</a>
+      <a href="#" (click)="closeMenu()">Schela</a>
+      <a href="#" (click)="closeMenu()">Istoric</a>
+    </nav>
+  </header>
+  
+  <main class="page" (click)="closeMenuOnOutsideClick($event)">
+    <!-- Buton stânga -->
+    <button class="arrow left">&#8249;</button>
+  
+    <div class="container">
+      <button class="raft">Raftul 1</button>
+      <button class="raft">Raftul 2</button>
+      <button class="raft">Raftul 3</button>
+      <button class="raft">Raftul 4</button>
+      <button class="raft">Raftul 5</button>
+      <button class="raft">Raftul 6</button>
     </div>
-</div>
-
-
-<div class="shelving-unit">
-    <div class="shelf" *ngFor="let shelf of shelves; let i = index">
-        <div class="shelf-label">Raft {{ i + 1 }}</div>
-        <div class="shelf-items">
-
-        </div>
-    </div>
-</div>
-<div class="shelving-unit">
-    <div class="shelf" *ngFor="let shelf of shelves; let i = index">
-        <div class="shelf-label">Raft {{ i + 1 }}</div>
-        <div class="shelf-items">
-
-        </div>
-    </div>
-</div>
-<div class="shelving-unit">
-    <div class="shelf" *ngFor="let shelf of shelves; let i = index">
-        <div class="shelf-label">Raft {{ i + 1 }}</div>
-        <div class="shelf-items">
-
-        </div>
-    </div>
-</div>
-<div class="shelving-unit">
-    <div class="shelf" *ngFor="let shelf of shelves; let i = index">
-        <div class="shelf-label">Raft {{ i + 1 }}</div>
-        <div class="shelf-items">
-
-        </div>
-    </div>
-</div>
-<div class="shelving-unit">
-    <div class="shelf" *ngFor="let shelf of shelves; let i = index">
-        <div class="shelf-label">Raft {{ i + 1 }}</div>
-        <div class="shelf-items">
-
-        </div>
-    </div>
-</div>
-<div class="shelving-unit">
-    <div class="shelf" *ngFor="let shelf of shelves; let i = index">
-        <div class="shelf-label">Raft {{ i + 1 }}</div>
-        <div class="shelf-items">
-
-        </div>
-    </div>
-</div>
-<div class="shelving-unit">
-    <div class="shelf" *ngFor="let shelf of shelves; let i = index">
-        <div class="shelf-label">Raft {{ i + 1 }}</div>
-        <div class="shelf-items">
-
-        </div>
-    </div>
-</div>
+  
+    <!-- Buton dreapta -->
+    <button class="arrow right">&#8250;</button>
+  </main>
+  
+  <!-- Backdrop on mobile when menu is open -->
+  <div class="backdrop" *ngIf="menuOpen" (click)="closeMenu()"></div>
+  
