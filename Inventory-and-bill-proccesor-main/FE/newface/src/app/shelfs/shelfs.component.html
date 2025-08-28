@@ -1,29 +1,6 @@
-<header class="navbar">
-    <div class="brand">DMX CONSTRUCTION</div>
+<app-navbar></app-navbar>
   
-    <!-- Burger on mobile -->
-    <button
-      class="burger"
-      (click)="toggleMenu()"
-      [attr.aria-expanded]="menuOpen"
-      aria-controls="main-nav"
-      aria-label="Deschide meniul"
-    >
-      <span></span>
-      <span></span>
-      <span></span>
-    </button>
-  
-    <nav id="main-nav" class="nav" [class.open]="menuOpen">
-      <a href="#" (click)="closeMenu()">Angajați</a>
-      <a href="#" class="active" (click)="closeMenu()">Rafturi</a>
-      <a href="#" (click)="closeMenu()">Unelte</a>
-      <a href="#" (click)="closeMenu()">Schela</a>
-      <a href="#" (click)="closeMenu()">Istoric</a>
-    </nav>
-  </header>
-  
-  <main class="page" (click)="closeMenuOnOutsideClick($event)">
+  <main class="page">
     <!-- Buton stânga -->
     <button class="arrow left">&#8249;</button>
   <h1></h1>
@@ -40,6 +17,5 @@
     <button class="arrow right">&#8250;</button>
   </main>
   
-  <!-- Backdrop on mobile when menu is open -->
-  <div class="backdrop" *ngIf="menuOpen" (click)="closeMenu()"></div>
+
   

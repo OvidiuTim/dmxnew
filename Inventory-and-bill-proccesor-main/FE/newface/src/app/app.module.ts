@@ -24,6 +24,7 @@ import { HSchelaComponent } from './magazie/history/h-schela/h-schela.component'
 import {DatePipe} from '@angular/common';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { ShelfsComponent } from './shelfs/shelfs.component';
+import { NavbarComponent } from './navbar/navbar.component';
 
 @NgModule({
   declarations: [
@@ -41,6 +42,7 @@ import { ShelfsComponent } from './shelfs/shelfs.component';
     HSchelaComponent,
     DashboardComponent,
     ShelfsComponent,
+    NavbarComponent,
   ],
   imports: [
     CommonModule,

@@ -1,0 +1,29 @@
+<header class="navbar">
+    <div class="brand">{{ brand }}</div>
+  
+    <!-- Burger on mobile -->
+    <button
+      class="burger"
+      (click)="toggleMenu()"
+      [attr.aria-expanded]="menuOpen"
+      aria-controls="main-nav"
+      aria-label="Deschide meniul"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+  
+    <nav id="main-nav" class="nav" [ngClass]="{ open: menuOpen }">
+      <a *ngFor="let l of links"
+         [href]="l.path || '#'"
+         [ngClass]="{ active: l.active }"
+         (click)="onLinkClick(l, $event)">
+        {{ l.label }}
+      </a>
+    </nav>
+  </header>
+  
+  <!-- Backdrop on mobile when menu is open -->
+  <div class="backdrop" *ngIf="menuOpen" (click)="closeMenu()"></div>
+  
