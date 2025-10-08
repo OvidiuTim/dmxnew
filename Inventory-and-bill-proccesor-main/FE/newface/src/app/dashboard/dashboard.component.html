@@ -1,25 +1,37 @@
 <div class="background">
-    <div class="container">
-      <h1>Monitor Activitate Magazie</h1>
-      <div id="activity-log">
-        <div 
-          *ngFor="let item of histToolList.slice().reverse()" 
-          class="activity-card" 
-          [ngClass]="{'taken': item.GiveRecive === 'a luat', 'returned': item.GiveRecive === 'a adus'}">
-          
-          <span class="worker">{{ item.User }}</span>
-          
-          <span class="action">
-            {{ item.GiveRecive }}
-            <span class="emoji">
-              {{ item.GiveRecive === 'a luat' ? '🔧' : (item.GiveRecive === 'a adus' ? '↩️' : '') }}
-            </span>
+  <div class="container">
+    <h1>Monitor Activitate Magazie</h1>
+
+    <!-- Pager -->
+    <div class="pager">
+      <button (click)="prevPage()" [disabled]="currentPage === 1">‹ Anterior</button>
+      <span>Pagina {{ currentPage }} / {{ totalPages || 1 }}</span>
+      <button (click)="nextPage()" [disabled]="currentPage === totalPages || totalPages === 0">Următor ›</button>
+    </div>
+
+    <div id="activity-log">
+      <div
+        *ngFor="let item of pagedHistory"
+        class="activity-card"
+        [ngClass]="{ 'taken': item.isOut, 'returned': !item.isOut }"
+      >
+        <span class="worker">{{ item.displayUser }}</span>
+
+        <span class="action">
+          {{ item.displayAction }}
+          <span class="emoji">
+            {{ item.isOut ? '🔧' : '↩️' }}
           </span>
-          
-          <span class="tool">{{ item.Tool }}</span>
-          <span class="time">{{ item.DateOfGiving | date:'HH:mm' }}</span>
-        </div>
+        </span>
+
+        <span class="tool">{{ item.displayTool }}</span>
+
+        <span class="qty" *ngIf="item.quantity && item.quantity > 1">
+          ×{{ item.quantity }}
+        </span>
+
+        <span class="time">{{ item.timestamp | date:'HH:mm · dd.MM' }}</span>
       </div>
     </div>
   </div>
-  
+</div>

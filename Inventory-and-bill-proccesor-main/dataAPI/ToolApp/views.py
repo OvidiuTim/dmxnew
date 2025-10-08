@@ -1,13 +1,38 @@
-from django.http import HttpResponse
-from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.parsers import JSONParser
 from django.http.response import JsonResponse
+from rest_framework.parsers import JSONParser
+from django.db.models import Max, OuterRef, Subquery
 
-from ToolApp.models import Shed, Unfunctional, Users,Tools,Histories, Materials, Consumables, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes
-from ToolApp.serializers import ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer,ToolSerializer,HistorySerializer, MaterialSerializer, WorkFieldSerializer, CofrajMetalicSerializer, CofrajtTipDokaSerializer, PopiSerializer, SchelaUsoaraSerializer, SchelaFatadaSerializer, SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer
-import nfc
+from ToolApp.models import (
+    Shed, Unfunctional, Users, Tools, Histories, Materials, Consumables, WorkField,
+    CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas,
+    Combustibils, HistorieScheles, MijloaceFixes
+)
+from ToolApp.serializers import (
+    ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, ToolSerializer,
+    HistorySerializer, MaterialSerializer, WorkFieldSerializer, CofrajMetalicSerializer,
+    CofrajtTipDokaSerializer, PopiSerializer, SchelaUsoaraSerializer, SchelaFatadaSerializer,
+    SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer
+)
+
 import json
+
+# NFC (safe import)
+try:
+    import nfc  # nfcpy
+except Exception:
+    nfc = None
+
+@csrf_exempt
+def check_nfc_reader(request):
+    if nfc is None:
+        return JsonResponse({'has_nfc_reader': False, 'error': 'nfcpy not installed'})
+    try:
+        with nfc.ContactlessFrontend('usb'):
+            return JsonResponse({'has_nfc_reader': True})
+    except Exception:
+        return JsonResponse({'has_nfc_reader': False})
+
 
     
 # Create your views here.
@@ -73,33 +98,43 @@ def toolApi(request,id=0):
 
 #api istoric
 @csrf_exempt
-def historyApi(request,id=0):
-    if request.method=='GET':
-        histories = Histories.objects.all()
-        histories_serializer = HistorySerializer(histories, many=True)
-        return JsonResponse(histories_serializer.data, safe=False)
+def historyApi(request, id=0):
+    if request.method == 'GET':
+        histories = Histories.objects.all()  # ordering e în Meta: ['-timestamp']
+        ser = HistorySerializer(histories, many=True)
+        return JsonResponse(ser.data, safe=False)
 
-    elif request.method=='POST':
-        history_data=JSONParser().parse(request)
-        history_serializer = HistorySerializer(data=history_data)
-        if history_serializer.is_valid():
-            history_serializer.save()
-            return JsonResponse("Added Successfully!!" , safe=False)
-        return JsonResponse("Failed to Add.",safe=False)
-    
-    elif request.method=='PUT':
-        history_data = JSONParser().parse(request)
-        history=Histories.objects.get(HistoryId=history_data['HistoryId'])
-        history_serializer=HistorySerializer(history,data=history_data)
-        if history_serializer.is_valid():
-            history_serializer.save()
-            return JsonResponse("Updated Successfully!!", safe=False)
-        return JsonResponse("Failed to Update.", safe=False)
+    elif request.method == 'POST':
+        payload = JSONParser().parse(request)
+        ser = HistorySerializer(data=payload)
+        if ser.is_valid():
+            # validări "soft" (nu permitem două OUT la rând)
+            tool = ser.validated_data['tool_fk']
+            last = Histories.objects.filter(tool_fk=tool).order_by('-timestamp').first()
+            direction = ser.validated_data.get('direction', 'OUT')
+            if direction == 'OUT' and last and last.direction == 'OUT':
+                return JsonResponse({"error": "Unealta este deja predată (OUT)."}, status=400)
+            if direction == 'IN' and (not last or last.direction != 'OUT'):
+                return JsonResponse({"error": "Nu poți face IN fără un OUT activ."}, status=400)
 
-    elif request.method=='DELETE':
-        history=Histories.objects.get(HistoryId=id)
+            obj = ser.save()
+            return JsonResponse(HistorySerializer(obj).data, safe=False)
+        return JsonResponse(ser.errors, status=400, safe=False)
+
+    elif request.method == 'PUT':
+        data = JSONParser().parse(request)
+        history = Histories.objects.get(HistoryId=data['HistoryId'])
+        ser = HistorySerializer(history, data=data, partial=True)
+        if ser.is_valid():
+            return JsonResponse(HistorySerializer(ser.save()).data, safe=False)
+        return JsonResponse(ser.errors, status=400, safe=False)
+
+    elif request.method == 'DELETE':
+        history = Histories.objects.get(HistoryId=id)
         history.delete()
-        return JsonResponse("Deleted Succeffully!!", safe=False)
+        return JsonResponse("Deleted Successfully!!", safe=False)
+
+
 
 #api materiale
 @csrf_exempt
@@ -547,41 +582,186 @@ def nfc_tag_view(request):
         text_record = tag.ndef.records[0].text
     return JsonResponse({'text_record': text_record})
 
-def check_nfc_reader(request):
-    readers = nfc.list_devices()
-    has_reader = len(readers) > 0
 
-    return JsonResponse({'has_nfc_reader': has_reader})
-
-    import nfc
 from django.http import JsonResponse
-
-def check_nfc_reader(request):
-    try:
-        with nfc.ContactlessFrontend('usb') as clf:
-            has_reader = True
-    except IOError:
-        has_reader = False
-
-    return JsonResponse({'has_nfc_reader': has_reader})
-
-
 
 @csrf_exempt
 def rfid_entry_exit(request):
     if request.method == "POST":
         try:
-            data = json.loads(request.body)
+            data = json.loads(request.body or "{}")
             event = data.get("event")
-            print(f"RFID event primit: {event}")  # Poți pune aici orice acțiune vrei
-            
-            # Exemplu: poți salva în istoric, să loghezi, să notifici, etc.
-            # if event == "intrare":
-            #     ...fa ceva
-            # elif event == "iesire":
-            #     ...altceva
-
+            # aici poți face mapare către issue/return dacă vrei
             return JsonResponse({"status": "ok", "received": event})
         except Exception as e:
             return JsonResponse({"status": "error", "msg": str(e)}, status=400)
     return JsonResponse({"msg": "Only POST allowed"}, status=405)
+
+
+
+
+@csrf_exempt
+def issue_tool(request):
+    if request.method != 'POST':
+        return JsonResponse({"msg": "Only POST allowed"}, status=405)
+    data = JSONParser().parse(request)
+    # forțăm OUT
+    data = {**data, "direction": "OUT"}
+    ser = HistorySerializer(data=data)
+    if ser.is_valid():
+        tool = ser.validated_data['tool_fk']
+        last = Histories.objects.filter(tool_fk=tool).order_by('-timestamp').first()
+        if last and last.direction == 'OUT':
+            return JsonResponse({"error": "Unealta este deja predată (OUT)."}, status=400)
+        obj = ser.save()
+        return JsonResponse(HistorySerializer(obj).data, safe=False)
+    return JsonResponse(ser.errors, status=400, safe=False)
+
+
+@csrf_exempt
+def return_tool(request):
+    if request.method != 'POST':
+        return JsonResponse({"msg": "Only POST allowed"}, status=405)
+    data = JSONParser().parse(request)
+    data = {**data, "direction": "IN"}
+    ser = HistorySerializer(data=data)
+    if ser.is_valid():
+        tool = ser.validated_data['tool_fk']
+        last = Histories.objects.filter(tool_fk=tool).order_by('-timestamp').first()
+        if not last or last.direction != 'OUT':
+            return JsonResponse({"error": "Unealta nu este în OUT; nu poți face IN."}, status=400)
+        obj = ser.save()
+        return JsonResponse(HistorySerializer(obj).data, safe=False)
+    return JsonResponse(ser.errors, status=400, safe=False)
+
+
+
+@csrf_exempt
+def tools_status(request):
+    if request.method != 'GET':
+        return JsonResponse({"msg": "Only GET allowed"}, status=405)
+
+    data = []
+    tools = Tools.objects.all()
+    for t in tools:
+        last = Histories.objects.filter(tool_fk=t).order_by('-timestamp').first()
+        state = "IN"
+        holder = None
+        ts = None
+        if last:
+            ts = last.timestamp.isoformat()
+            if last.direction == "OUT":
+                state = "OUT"
+                if last.user_fk:
+                    holder = {
+                        "UserId": last.user_fk.UserId,
+                        "UserName": last.user_fk.UserName,
+                        "UserSerie": last.user_fk.UserSerie,
+                    }
+        data.append({
+            "ToolId": t.ToolId,
+            "ToolSerie": t.ToolSerie,
+            "ToolName": t.ToolName,
+            "status": state,
+            "last_movement_at": ts,
+            "holder": holder
+        })
+    return JsonResponse(data, safe=False)
+
+
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.utils import timezone
+from django.db import transaction
+import json
+
+from ToolApp.models import Users, Tools, Histories, PresenceEvent
+from ToolApp.serializers import HistorySerializer
+
+@csrf_exempt
+def sensor_event(request):
+    """
+    Webhook chemat de Raspberry:
+    - enter:  { "type":"enter",  "user_serie":"USR-001" }
+    - exit:   { "type":"exit",   "user_serie":"USR-001" }
+    - tool_out: { "type":"tool_out", "user_serie":"USR-001", "tool_serie":"TL-123", "quantity":1 }
+    - tool_in:  { "type":"tool_in",  "user_serie":"USR-001", "tool_serie":"TL-123", "quantity":1 }
+    Răspunde cu mesaj pentru dashboard: "{user} a intrat în magazie" / "{user} a preluat/predat {unealta}"
+    """
+    if request.method != 'POST':
+        return JsonResponse({"msg": "Only POST allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+        ev_type = (data.get("type") or "").lower()
+        user_serie = (data.get("user_serie") or "").strip()
+        tool_serie = (data.get("tool_serie") or "").strip() if data.get("tool_serie") else None
+        qty = int(data.get("quantity") or 1)
+        note = data.get("note") or "RFID/Senzor"
+
+        if not user_serie:
+            return JsonResponse({"error": "user_serie este obligatoriu"}, status=400)
+
+        try:
+            user = Users.objects.get(UserSerie=user_serie)
+        except Users.DoesNotExist:
+            return JsonResponse({"error": f"User cu seria '{user_serie}' nu există"}, status=404)
+
+        # --- 1) Prezență: intrare / ieșire ---
+        if ev_type in ("enter", "exit"):
+            kind = PresenceEvent.Kind.ENTER if ev_type == "enter" else PresenceEvent.Kind.EXIT
+            PresenceEvent.objects.create(user_fk=user, kind=kind, timestamp=timezone.now())
+
+            msg = f"{user.UserName} a intrat în magazie" if ev_type == "enter" else f"{user.UserName} a ieșit din magazie"
+            # payload minimal pentru UI (dacă vrei să-l pui în același feed cu istoricul)
+            display = {
+                "User": user.UserName,
+                "Tool": "",
+                "GiveRecive": "intrare" if ev_type == "enter" else "ieșire",
+                "DateOfGiving": timezone.localtime().date().isoformat(),
+                "timestamp": timezone.localtime().isoformat()
+            }
+            return JsonResponse({"ok": True, "message": msg, "display": display})
+
+        # --- 2) Mișcări de unelte: OUT / IN ---
+        if ev_type not in ("tool_out", "tool_in"):
+            return JsonResponse({"error": "type necunoscut. Folosește: enter | exit | tool_out | tool_in"}, status=400)
+
+        if not tool_serie:
+            return JsonResponse({"error": "tool_serie este obligatoriu pentru tool_out/tool_in"}, status=400)
+
+        try:
+            tool = Tools.objects.get(ToolSerie=tool_serie)
+        except Tools.DoesNotExist:
+            return JsonResponse({"error": f"Unealtă cu seria '{tool_serie}' nu există"}, status=404)
+
+        direction = "OUT" if ev_type == "tool_out" else "IN"
+
+        with transaction.atomic():
+            # Validări față de ultima mișcare
+            last = Histories.objects.filter(tool_fk=tool).order_by('-timestamp').select_for_update().first()
+            if direction == "OUT" and last and last.direction == "OUT":
+                return JsonResponse({"error": "Unealta este deja în afara magaziei (OUT)."}, status=409)
+            if direction == "IN" and (not last or last.direction != "OUT"):
+                return JsonResponse({"error": "Nu poți face IN fără un OUT activ."}, status=409)
+
+            # Folosim serializerul ca să ne completeze și legacy fields
+            payload = {
+                "user_serie": user_serie,
+                "tool_serie": tool_serie,
+                "direction": direction,
+                "quantity": max(qty, 1),
+                "note": note,
+            }
+            ser = HistorySerializer(data=payload)
+            if not ser.is_valid():
+                return JsonResponse(ser.errors, status=400, safe=False)
+
+            obj = ser.save()  # creează Histories + umple legacy (User/Tool/GiveRecive etc.)
+
+        msg = f"{user.UserName} a {'preluat' if direction=='OUT' else 'predat'} {tool.ToolName}"
+        return JsonResponse({"ok": True, "message": msg, "history": HistorySerializer(obj).data})
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

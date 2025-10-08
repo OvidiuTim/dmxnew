@@ -4,33 +4,86 @@ from django.db import models
 class Users(models.Model):
     UserId = models.AutoField(primary_key=True)
     UserName = models.CharField(max_length=100)
-    UserSerie = models.CharField(max_length=100)
+    UserSerie = models.CharField(max_length=100, unique=True, db_index=True)  # ← UNIC + index
     UserPin = models.CharField(max_length=100)
-    NameAndSerie= models.CharField(max_length=100, null=True)
+    NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.UserName} ({self.UserSerie})"
+
 
 
 class Tools(models.Model):
     ToolId = models.AutoField(primary_key=True)
-    ToolSerie= models.CharField(max_length=100)
+    ToolSerie = models.CharField(max_length=100, unique=True, db_index=True)  # ← UNIC + index
     ToolName = models.CharField(max_length=100)
-    User = models.CharField(max_length=100)
-    DateOfGiving = models.DateField()
-    Detail = models.CharField(max_length=500, null=True)
-    Pieces = models.IntegerField(null=True)
-    MainLocation = models.CharField(max_length=500, null=True)
-    Provider = models.CharField(max_length=500, null=True)
+
+    # (opțional) deconectează câmpurile care dublau istoricul (le poți păstra provizoriu):
+    User = models.CharField(max_length=100, blank=True, null=True)            # legacy
+    DateOfGiving = models.DateField(blank=True, null=True)                    # legacy
+
+    Detail = models.CharField(max_length=500, null=True, blank=True)
+    Pieces = models.IntegerField(null=True, blank=True)  # pentru seturi (ex: trusă cu 5 buc)
+    MainLocation = models.CharField(max_length=500, null=True, blank=True)
+    Provider = models.CharField(max_length=500, null=True, blank=True)
+
+    # (opțional) tag RFID/NFC
+    RfidTag = models.CharField(max_length=128, null=True, blank=True, unique=True)
+class Users(models.Model):
+    UserId = models.AutoField(primary_key=True)
+    UserName = models.CharField(max_length=100)
+    UserSerie = models.CharField(max_length=100, unique=True, db_index=True)  # ← UNIC + index
+    UserPin = models.CharField(max_length=100)
+    NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.UserName} ({self.UserSerie})"
+
     
 
+
+from django.utils import timezone
 
 class Histories(models.Model):
+    class Movement(models.TextChoices):
+        OUT = "OUT", "Predare (ieșire)"
+        IN  = "IN",  "Returnare (intrare)"
+        ADJ = "ADJ", "Ajustare"
+
     HistoryId = models.AutoField(primary_key=True)
-    User = models.CharField(max_length=100)
-    Tool = models.CharField(max_length=100)
-    DateOfGiving = models.DateField()
-    ToolSerie= models.CharField(max_length=100, null=True)
-    GiveRecive = models.CharField(max_length=100, null=True)
-    Pieces = models.FloatField(null=True)
-    
+
+    # NOI — legături solide
+    user_fk  = models.ForeignKey('Users', on_delete=models.PROTECT, null=True, blank=True, related_name='tool_movements')
+    tool_fk  = models.ForeignKey('Tools', on_delete=models.PROTECT, null=True, blank=True, related_name='movements')
+
+    # NOI — cine a operat înregistrarea (magazionerul / șeful de șantier)
+    issued_by = models.ForeignKey('Users', on_delete=models.PROTECT, null=True, blank=True, related_name='issued_tool_movements')
+
+    # NOI — moment exact
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+
+    # NOI — tip mișcare controlat
+    direction = models.CharField(max_length=8, choices=Movement.choices, default=Movement.OUT)
+
+    # NOI — cantitate pentru seturi / consumabile; pentru unelte individuale = 1
+    quantity = models.IntegerField(default=1)
+
+    # Legacy (le păstrăm deocamdată pentru compatibilitate, dar nu le mai folosim în cod nou)
+    User = models.CharField(max_length=100, null=True, blank=True)
+    Tool = models.CharField(max_length=100, null=True, blank=True)
+    DateOfGiving = models.DateField(null=True, blank=True)
+    ToolSerie = models.CharField(max_length=100, null=True, blank=True)
+    GiveRecive = models.CharField(max_length=100, null=True, blank=True)  # ← va fi înlocuit de `direction`
+    Pieces = models.FloatField(null=True, blank=True)
+
+    note = models.CharField(max_length=500, null=True, blank=True)
+
+    class Meta:
+        ordering = ['-timestamp']  # cele mai noi primele
+        indexes = [
+            models.Index(fields=['timestamp']),
+        ]
+
 
 
 class Materials(models.Model):
@@ -153,3 +206,17 @@ class HistorieScheles(models.Model):
     Directie = models.CharField(max_length=500, null=True)
 
     
+from django.utils import timezone
+
+class PresenceEvent(models.Model):
+    class Kind(models.TextChoices):
+        ENTER = "ENTER", "Intrare"
+        EXIT  = "EXIT",  "Ieșire"
+
+    id = models.AutoField(primary_key=True)
+    user_fk = models.ForeignKey('Users', on_delete=models.PROTECT, related_name='presence_events')
+    timestamp = models.DateTimeField(default=timezone.now, db_index=True)
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+
+    class Meta:
+        ordering = ['-timestamp']
