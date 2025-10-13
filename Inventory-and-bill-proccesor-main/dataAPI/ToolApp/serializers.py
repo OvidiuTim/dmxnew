@@ -34,180 +34,133 @@ class ToolSerializer(serializers.ModelSerializer):
 
 
 # -------------------- HISTORIES --------------------
-class HistorySerializer(serializers.ModelSerializer):
-    # Read-only nested info (frumos în răspuns)
-    user = UserSerializer(source="user_fk", read_only=True)
-    tool = ToolSerializer(source="tool_fk", read_only=True)
+# serializers.py
+from rest_framework import serializers
+from django.utils import timezone
+from ToolApp.models import Histories, Users, Tools
 
-    # Scriere alternativă pe serie sau ID (write-only)
+class HistorySerializer(serializers.ModelSerializer):
+    # input pe serii (nu pe ID/FK)
     user_serie = serializers.CharField(write_only=True, required=False, allow_blank=True)
     tool_serie = serializers.CharField(write_only=True, required=False, allow_blank=True)
     issued_by_serie = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    # câmpuri read-only utile în răspuns
+    user = serializers.SerializerMethodField(read_only=True)
+    tool = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Histories
         fields = (
             "HistoryId",
-
-            # NOI (model nou)
-            "user_fk",
-            "tool_fk",
-            "issued_by",
             "timestamp",
             "direction",
             "quantity",
             "note",
-
-            # extra read-only pentru răspuns
-            "user",
-            "tool",
-
-            # scriere alternativă (serie/ID)
-            "user_serie",
-            "tool_serie",
-            "issued_by_serie",
-
-            # Legacy (le expunem în continuare pentru UI vechi)
-            "User",
-            "Tool",
-            "DateOfGiving",
-            "ToolSerie",
-            "GiveRecive",
-            "Pieces",
+            "user_fk", "tool_fk", "issued_by",
+            "user", "tool",
+            # input pe serie:
+            "user_serie", "tool_serie", "issued_by_serie",
+            # legacy (read-only pt UI vechi)
+            "User", "Tool", "DateOfGiving", "ToolSerie", "GiveRecive", "Pieces",
         )
         read_only_fields = (
-            # legacy le completăm în create/update, dar nu le cerem la input
+            "HistoryId", "timestamp", "user", "tool",
             "User", "Tool", "DateOfGiving", "ToolSerie", "GiveRecive", "Pieces",
-            # timestamp de obicei vine din default
         )
 
-    # ---------- rezolvare entități ----------
-    @staticmethod
-    def _resolve_user(value):
-        if value is None or value == "":
-            return None
-        # accept ID numeric (UserId) sau UserSerie
-        if str(value).isdigit():
-            try:
-                return Users.objects.get(pk=int(value))
-            except Users.DoesNotExist:
-                raise serializers.ValidationError(f"User cu ID={value} nu există.")
-        try:
-            return Users.objects.get(UserSerie=value)
-        except Users.DoesNotExist:
-            raise serializers.ValidationError(f"User cu seria '{value}' nu există.")
+    def get_user(self, obj):
+        if obj.user_fk:
+            return {
+                "UserId": obj.user_fk.UserId,
+                "UserName": obj.user_fk.UserName,
+                "UserSerie": obj.user_fk.UserSerie,
+            }
+        return None
 
-    @staticmethod
-    def _resolve_tool(value):
-        if value is None or value == "":
-            return None
-        # accept ID numeric (ToolId) sau ToolSerie
-        if str(value).isdigit():
-            try:
-                return Tools.objects.get(pk=int(value))
-            except Tools.DoesNotExist:
-                raise serializers.ValidationError(f"Unealtă cu ID={value} nu există.")
-        try:
-            return Tools.objects.get(ToolSerie=value)
-        except Tools.DoesNotExist:
-            raise serializers.ValidationError(f"Unealtă cu seria '{value}' nu există.")
+    def get_tool(self, obj):
+        if obj.tool_fk:
+            return {
+                "ToolId": obj.tool_fk.ToolId,
+                "ToolName": obj.tool_fk.ToolName,
+                "ToolSerie": obj.tool_fk.ToolSerie,
+            }
+        return None
 
-    # ---------- validare & mapare input ----------
     def validate(self, attrs):
-        data = self.initial_data or {}
+        # combin ce a venit brut cu attrs ca să pot citi *serie* și să setez FK-urile
+        data = {**getattr(self, "initial_data", {}), **attrs}
 
-        # Mapare legacy → nou (direction)
-        if not attrs.get("direction") and data.get("GiveRecive"):
-            gr = str(data.get("GiveRecive")).strip().upper()
-            if gr.startswith(("OUT", "GIVE", "PRED")):
-                attrs["direction"] = "OUT"
-            elif gr.startswith(("IN", "RET", "INTR")):
-                attrs["direction"] = "IN"
-            else:
-                attrs["direction"] = "ADJ"
-
-        # Mapare legacy → nou (quantity)
-        if not attrs.get("quantity") and data.get("Pieces") not in (None, ""):
-            try:
-                attrs["quantity"] = int(float(data.get("Pieces")))
-            except Exception:
-                attrs["quantity"] = 1
-        attrs.setdefault("quantity", 1)
-
-        # timestamp dacă vrei să permiți override din payload (altfel e default)
-        if not attrs.get("timestamp") and data.get("DateOfGiving"):
-            # folosim începutul zilei respective ca timestamp
-            try:
-                # Dacă ajunge aici un string "YYYY-MM-DD"
-                dt = timezone.datetime.fromisoformat(str(data["DateOfGiving"]))
-                if dt.tzinfo is None:
-                    dt = timezone.make_aware(dt, timezone.get_current_timezone())
-                attrs["timestamp"] = dt
-            except Exception:
-                # lăsăm default-ul modelului
-                pass
-
-        # Rezolvare FK-uri din *serie* sau ID, dacă nu sunt deja setate
-        if not attrs.get("tool_fk") and data.get("tool_serie"):
-            attrs["tool_fk"] = self._resolve_tool(data.get("tool_serie"))
-        if not attrs.get("user_fk") and data.get("user_serie"):
-            attrs["user_fk"] = self._resolve_user(data.get("user_serie"))
-        if not attrs.get("issued_by") and data.get("issued_by_serie"):
-            attrs["issued_by"] = self._resolve_user(data.get("issued_by_serie"))
-
-        # Validări minime
-        if not attrs.get("tool_fk"):
-            raise serializers.ValidationError("tool_fk sau tool_serie este obligatoriu.")
+        # mapăm SERIE → FK (user)
         if not attrs.get("user_fk"):
-            raise serializers.ValidationError("user_fk sau user_serie este obligatoriu.")
+            us = (data.get("user_serie") or "").strip()
+            if us:
+                try:
+                    attrs["user_fk"] = Users.objects.get(UserSerie=us)
+                except Users.DoesNotExist:
+                    raise serializers.ValidationError({"user_serie": f"User cu seria '{us}' nu există."})
 
-        # direction default OUT
-        attrs.setdefault("direction", "OUT")
+        # mapăm SERIE → FK (tool)
+        if not attrs.get("tool_fk"):
+            ts = (data.get("tool_serie") or "").strip()
+            if ts:
+                try:
+                    attrs["tool_fk"] = Tools.objects.get(ToolSerie=ts)
+                except Tools.DoesNotExist:
+                    raise serializers.ValidationError({"tool_serie": f"Unealtă cu seria '{ts}' nu există."})
+
+        # mapăm SERIE → FK (issued_by)
+        if not attrs.get("issued_by"):
+            ibs = (data.get("issued_by_serie") or "").strip()
+            if ibs:
+                try:
+                    attrs["issued_by"] = Users.objects.get(UserSerie=ibs)
+                except Users.DoesNotExist:
+                    raise serializers.ValidationError({"issued_by_serie": f"User (issued_by) cu seria '{ibs}' nu există."})
+
+        # quantity implicit
+        attrs["quantity"] = int(attrs.get("quantity", 1) or 1)
+
+        # direcție validă
+        d = (attrs.get("direction") or "").upper()
+        if d not in ("OUT", "IN", "ADJ"):
+            raise serializers.ValidationError({"direction": "Valori permise: OUT / IN / ADJ"})
+        attrs["direction"] = d
 
         return attrs
 
-    # ---------- create/update: menținem compatibilitatea cu legacy ----------
-    def _fill_legacy_fields(self, instance):
-        """
-        Completează câmpurile legacy din instanță pe baza noilor câmpuri,
-        ca UI-ul vechi să continue să vadă informațiile.
-        """
-        # User, Tool, ToolSerie, GiveRecive, Pieces, DateOfGiving
-        if instance.user_fk and not instance.User:
-            instance.User = instance.user_fk.UserName
-        if instance.tool_fk:
-            if not instance.Tool:
-                instance.Tool = instance.tool_fk.ToolName
-            if not instance.ToolSerie:
-                instance.ToolSerie = instance.tool_fk.ToolSerie
-
-        # Mapare direction -> GiveRecive
-        if not instance.GiveRecive and instance.direction:
-            instance.GiveRecive = instance.direction
-
-        # quantity -> Pieces
-        if instance.Pieces in (None, ""):
-            instance.Pieces = float(instance.quantity or 1)
-
-        # timestamp -> DateOfGiving (doar data)
-        try:
-            if not instance.DateOfGiving and instance.timestamp:
-                instance.DateOfGiving = instance.timestamp.date()
-        except Exception:
-            pass
-
-        instance.save(update_fields=["User", "Tool", "ToolSerie", "GiveRecive", "Pieces", "DateOfGiving"])
+    # utilitar: elimină câmpurile virtuale înainte de create/update
+    def _strip_virtual(self, d: dict):
+        d.pop("user_serie", None)
+        d.pop("tool_serie", None)
+        d.pop("issued_by_serie", None)
+        return d
 
     def create(self, validated_data):
-        obj = super().create(validated_data)
-        # completează câmpurile legacy pentru compatibilitate cu UI existent
-        self._fill_legacy_fields(obj)
+        vd = self._strip_virtual(validated_data.copy())
+        obj = Histories.objects.create(**vd)
+
+        # --- completez câmpurile legacy pt compat cu UI existent ---
+        obj.User = obj.user_fk.UserName if obj.user_fk else None
+        obj.Tool = obj.tool_fk.ToolName if obj.tool_fk else None
+        obj.ToolSerie = obj.tool_fk.ToolSerie if obj.tool_fk else None
+        obj.DateOfGiving = timezone.localtime(obj.timestamp).date()
+        obj.GiveRecive = (
+            "a luat" if obj.direction == "OUT"
+            else "a adus" if obj.direction == "IN"
+            else "ajustare"
+        )
+        obj.Pieces = float(obj.quantity or 1)
+        obj.save(update_fields=["User", "Tool", "ToolSerie", "DateOfGiving", "GiveRecive", "Pieces"])
         return obj
 
     def update(self, instance, validated_data):
-        obj = super().update(instance, validated_data)
-        self._fill_legacy_fields(obj)
-        return obj
+        vd = self._strip_virtual(validated_data.copy())
+        return super().update(instance, vd)
+
+
+
+
 
 
 # -------------------- MATERIALS --------------------

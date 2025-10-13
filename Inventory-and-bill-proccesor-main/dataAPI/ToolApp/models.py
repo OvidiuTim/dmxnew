@@ -1,16 +1,6 @@
 from django.db import models
 
-# Create your models here.
-class Users(models.Model):
-    UserId = models.AutoField(primary_key=True)
-    UserName = models.CharField(max_length=100)
-    UserSerie = models.CharField(max_length=100, unique=True, db_index=True)  # ← UNIC + index
-    UserPin = models.CharField(max_length=100)
-    NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
-
-    def __str__(self):
-        return f"{self.UserName} ({self.UserSerie})"
-
+# Create your models here
 
 
 class Tools(models.Model):
