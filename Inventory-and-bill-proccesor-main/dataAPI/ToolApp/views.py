@@ -790,6 +790,20 @@ def _fmt_hms(seconds: int):
     s = seconds % 60
     return f"{h:02d}:{m:02d}:{s:02d}"
 
+
+# Config rapid — schimbă după programul tău
+PONTAJ_SHIFT_END_HOUR = 18   # 18:00 ora locală = sfârșitul zilei
+PONTAJ_MAX_SHIFT_HOURS = 14  # limită de siguranță (cap durată sesiune)
+
+from datetime import datetime, timedelta
+
+def workday_close_dt(local_day):
+    """Ora de închidere a zilei (tz-aware) pentru o dată locală."""
+    tz = timezone.get_current_timezone()
+    naive = datetime(local_day.year, local_day.month, local_day.day, PONTAJ_SHIFT_END_HOUR, 0, 0)
+    return timezone.make_aware(naive, tz)
+
+
 @csrf_exempt
 def nfc_scan(request):
     if request.method != "POST":
@@ -829,16 +843,68 @@ def nfc_scan(request):
                      .first())
 
         if open_sess:
-            # EXIT: close session
-            open_sess.out_time = now
+            # Dacă sesiunea e dintr-o zi anterioară, o închidem retroactiv la ora de sfârșit a zilei,
+            # apoi tratăm scanarea curentă ca un nou ENTER.
+            if open_sess.work_date < today:
+                close_at = workday_close_dt(open_sess.work_date)
+                now = timezone.now()
+                if close_at > now:
+                    close_at = now  # safety
+
+                # Cap la MAX_SHIFT ca să nu înregistrăm 30h din greșeală
+                max_close = open_sess.in_time + timedelta(hours=PONTAJ_MAX_SHIFT_HOURS)
+                if close_at > max_close:
+                    close_at = max_close
+
+                open_sess.out_time = close_at
+                open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
+                open_sess.source = (open_sess.source or '') + '|auto'
+                open_sess.save()
+
+                PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=close_at)
+
+                # deschidem sesiune nouă pentru scanarea de acum
+                enter_now = timezone.now()
+                new_sess = AttendanceSession.objects.create(
+                    user_fk=user,
+                    work_date=today,
+                    in_time=enter_now,
+                    source="nfc"
+                )
+                PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=enter_now)
+
+                msg = (f"AUTO-CLOSE {user.UserName} zi anterioară @ {localtime(close_at).strftime('%H:%M:%S')} "
+                       f"(durata: {_fmt_hms(open_sess.duration_seconds)}) + ENTER @ {localtime(enter_now).strftime('%H:%M:%S')}")
+                print(f"[PONTAJ] {msg}")
+                logger.info(msg)
+
+                return JsonResponse({
+                    "ok": True,
+                    "state": "ENTER",
+                    "auto_closed_previous": {
+                        "work_date": str(open_sess.work_date),
+                        "closed_at": localtime(close_at).isoformat(),
+                        "duration_hms": _fmt_hms(open_sess.duration_seconds),
+                        "session_id": open_sess.id,
+                    },
+                    "user": {"id": user.UserId, "name": user.UserName},
+                    "session": {
+                        "work_date": str(new_sess.work_date),
+                        "in_time": localtime(new_sess.in_time).isoformat(),
+                    },
+                    "received": data
+                })
+
+            # altfel (aceeași zi): închidere normală acum
+            open_sess.out_time = timezone.now()
             open_sess.duration_seconds = max(
                 0, int((open_sess.out_time - open_sess.in_time).total_seconds())
             )
             open_sess.save()
 
-            PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=now)
+            PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=open_sess.out_time)
 
-            msg = (f"EXIT {user.UserName} @ {localtime(now).strftime('%H:%M:%S')} "
+            msg = (f"EXIT {user.UserName} @ {localtime(open_sess.out_time).strftime('%H:%M:%S')} "
                    f"(durata: {_fmt_hms(open_sess.duration_seconds)})")
             print(f"[PONTAJ] {msg}")
             logger.info(msg)
