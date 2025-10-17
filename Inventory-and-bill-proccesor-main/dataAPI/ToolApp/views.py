@@ -765,3 +765,35 @@ def sensor_event(request):
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+
+# app/views.py
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.utils import timezone
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+@csrf_exempt
+def nfc_scan(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    uid = data.get("uid")
+    content = data.get("content")
+    tag_type = data.get("tag_type")
+
+    # Print to server console/log
+    print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} content={content}")
+    logger.info("NFC scan: %s", data)
+
+    # If you want to persist to DB, see 2.3 below
+    return JsonResponse({"ok": True, "received": data})

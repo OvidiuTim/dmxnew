@@ -1,6 +1,6 @@
 from django.urls import path, re_path as url
 from ToolApp import views
-
+from .views import nfc_scan
 urlpatterns = [
     # --- NFC / RFID ---
     path('nfc-tag/', views.nfc_tag_view, name='nfc_tag'),             # dacă îl folosești
@@ -65,4 +65,6 @@ urlpatterns = [
     url(r'^istoric_schele/([0-9]+)$', views.istoricschelaApi),
 
     path('sensor/event/', views.sensor_event),  # ← endpoint pentru Raspberry
+    
+    path("api/nfc/scan/", nfc_scan, name="nfc_scan"), #nfc scan
 ]
