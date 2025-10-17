@@ -25,6 +25,7 @@ import {DatePipe} from '@angular/common';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { ShelfsComponent } from './shelfs/shelfs.component';
 import { NavbarComponent } from './navbar/navbar.component';
+import { PontajComponent } from './pontaj/pontaj.component';
 
 @NgModule({
   declarations: [
@@ -43,6 +44,7 @@ import { NavbarComponent } from './navbar/navbar.component';
     DashboardComponent,
     ShelfsComponent,
     NavbarComponent,
+    PontajComponent,
   ],
   imports: [
     CommonModule,

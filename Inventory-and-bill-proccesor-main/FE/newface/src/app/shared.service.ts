@@ -258,6 +258,24 @@ deleteMijloace(val:any){
 return this.http.delete(this.APIUrl + '/mijloacefixe/'+val);
 }
 
+// --- Pontaj API ---
+
+/** Raport pe o zi: /api/pontaj/day/?date=YYYY-MM-DD  (dacă nu dai date, folosește azi) */
+getAttendanceDay(date?: string){
+  const url = `${this.APIUrl}/api/pontaj/day/` + (date ? `?date=${date}` : '');
+  return this.http.get<any>(url);
+}
+
+/** Cine e IN acum: /api/pontaj/present/ */
+getAttendancePresent(){
+  return this.http.get<any>(`${this.APIUrl}/api/pontaj/present/`);
+}
+
+/** Sumar pe interval: /api/pontaj/range/?start=YYYY-MM-DD&end=YYYY-MM-DD */
+getAttendanceRange(start: string, end: string){
+  const url = `${this.APIUrl}/api/pontaj/range/?start=${start}&end=${end}`;
+  return this.http.get<any>(url);
+}
 
 
 }

@@ -1,0 +1,77 @@
+<div class="wrap">
+  <!-- Header bar -->
+  <div class="bar">
+    <div class="date">
+      <span class="weekday">{{ displayDate }}</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn" (click)="togglePicker()">Alege ziua</button>
+      <button class="btn ghost" (click)="refresh()" aria-label="Reîmprospătează">Reîmprospătează</button>
+      <input
+        *ngIf="showDatePicker"
+        class="date-input"
+        type="date"
+        [max]="todayISO()"
+        [value]="selectedDate"
+        (change)="onDatePicked($event)"
+      />
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="badge">Total angajați: {{ totalUsers }}</div>
+    <div class="badge live">În lucru acum: {{ presentNow }}</div>
+    <div class="badge date-badge">Zi: {{ selectedDate }}</div>
+  </div>
+
+  <!-- Loading / Error -->
+  <div class="state" *ngIf="loading">Se încarcă…</div>
+  <div class="state error" *ngIf="error">{{ error }}</div>
+
+  <!-- List -->
+  <div class="list" *ngIf="!loading && !error">
+    <div class="card" *ngFor="let r of rows; trackBy: trackByUser">
+      <div class="card-head">
+        <div class="who">
+          <div class="name">{{ r.UserName }}</div>
+          <div class="meta">
+            <span>Prima intrare: <b>{{ r.first_in ? (r.first_in | date:'HH:mm:ss') : '—' }}</b></span>
+            <span>Ultima ieșire: <b>{{ r.last_out ? (r.last_out | date:'HH:mm:ss') : '—' }}</b></span>
+          </div>
+        </div>
+        <div class="totals">
+          <span class="total">{{ durataOre(r.total_hms) }}</span>
+          <span [class]="statusChipClass(r.status)">{{ r.status }}</span>
+        </div>
+      </div>
+
+      <!-- sessions table -->
+      <div class="sess">
+        <div class="sess-head">
+          <div>Intrare</div>
+          <div>Ieșire</div>
+          <div>Durată</div>
+        </div>
+        <div class="sess-row" *ngIf="r.sessions.length === 0">
+          <div class="muted">—</div>
+          <div class="muted">—</div>
+          <div class="muted">0:00 ore</div>
+        </div>
+        <div class="sess-row" *ngFor="let s of r.sessions">
+          <div>{{ hm(s.in_time) }}</div>
+          <div>
+            <ng-container *ngIf="s.out_time; else openTag">
+              {{ hm(s.out_time) }}
+            </ng-container>
+            <ng-template #openTag>
+              <span class="open">deschis</span>
+            </ng-template>
+          </div>
+          <div>{{ durataOre(s.duration_hms) }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

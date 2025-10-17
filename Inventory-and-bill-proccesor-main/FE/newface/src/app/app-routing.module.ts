@@ -11,7 +11,7 @@ import { LoginComponent } from './login/login.component';
 import { HistoryComponent } from './magazie/history/history.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { ShelfsComponent } from './shelfs/shelfs.component';
-
+import { PontajComponent } from './pontaj/pontaj.component';
 
 const routes: Routes = [
   {path:'magazie',component:MagazieComponent},
@@ -22,6 +22,7 @@ const routes: Routes = [
   {path:'history',component:HistoryComponent},
   {path:'',component:DashboardComponent},
   {path:'rafturi',component:ShelfsComponent},
+  {path:'pontaj',component:PontajComponent},
 ];
 
 @NgModule({
