@@ -1,5 +1,8 @@
 from django.db import models
-
+# ToolApp/models.py
+from django.db import models
+from django.utils import timezone
+from django.utils.timezone import localdate
 # Create your models here
 
 
@@ -19,15 +22,22 @@ class Tools(models.Model):
 
     # (opțional) tag RFID/NFC
     RfidTag = models.CharField(max_length=128, null=True, blank=True, unique=True)
+
 class Users(models.Model):
     UserId = models.AutoField(primary_key=True)
     UserName = models.CharField(max_length=100)
-    UserSerie = models.CharField(max_length=100, unique=True, db_index=True)  # ← UNIC + index
+    UserSerie = models.CharField(max_length=100, unique=True, db_index=True)
     UserPin = models.CharField(max_length=100)
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['UserPin']),
+            models.Index(fields=['UserSerie']),
+        ]
 
     
 
@@ -210,3 +220,28 @@ class PresenceEvent(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
+
+        
+        
+        
+
+
+class AttendanceSession(models.Model):
+    id = models.AutoField(primary_key=True)
+    user_fk = models.ForeignKey('Users', on_delete=models.PROTECT, related_name='attendance_sessions')
+    # we pin the workday by local date at IN time
+    work_date = models.DateField(default=localdate, db_index=True)
+    in_time   = models.DateTimeField(default=timezone.now, db_index=True)
+    out_time  = models.DateTimeField(null=True, blank=True, db_index=True)
+    duration_seconds = models.IntegerField(default=0)  # auto-filled on exit
+    source = models.CharField(max_length=32, default="nfc")  # nfc/manual/etc.
+
+    class Meta:
+        ordering = ['-in_time']
+        indexes = [
+            models.Index(fields=['work_date', 'user_fk']),
+            models.Index(fields=['user_fk', 'out_time']),
+        ]
+
+    def __str__(self):
+        return f"{self.user_fk.UserName} {self.work_date} {self.in_time:%H:%M}→{self.out_time:%H:%M if self.out_time else '…'}"

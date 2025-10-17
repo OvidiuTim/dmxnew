@@ -768,14 +768,27 @@ def sensor_event(request):
 
 
 
-# app/views.py
+# app/views.py (replace your nfc_scan with this)
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.utils import timezone
-import json
-import logging
+from django.utils.timezone import localtime, localdate
+from django.db import transaction
+import json, logging, math
+
+from ToolApp.models import Users, PresenceEvent, AttendanceSession
 
 logger = logging.getLogger(__name__)
+
+_last_seen = {}
+_DEBOUNCE_SEC = 0.7  # server-side debounce
+
+def _fmt_hms(seconds: int):
+    seconds = max(0, int(seconds))
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    return f"{h:02d}:{m:02d}:{s:02d}"
 
 @csrf_exempt
 def nfc_scan(request):
@@ -787,13 +800,290 @@ def nfc_scan(request):
     except json.JSONDecodeError:
         return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    uid = data.get("uid")
-    content = data.get("content")
-    tag_type = data.get("tag_type")
+    uid = str(data.get("uid") or "").upper().strip()
+    tag_type = str(data.get("tag_type") or "").strip()
+    content = str(data.get("content") or "").strip()  # PIN from tag
 
-    # Print to server console/log
-    print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} content={content}")
-    logger.info("NFC scan: %s", data)
+    # Debounce identical scans
+    now_ts = timezone.now().timestamp()
+    key = (uid, content)
+    if key in _last_seen and (now_ts - _last_seen[key]) < _DEBOUNCE_SEC:
+        return JsonResponse({"ok": True, "debounced": True})
+    _last_seen[key] = now_ts
 
-    # If you want to persist to DB, see 2.3 below
-    return JsonResponse({"ok": True, "received": data})
+    # 1) Identify user by PIN content
+    user = Users.objects.filter(UserPin=content).first()
+    if not user:
+        print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned={content} -> no user match")
+        return JsonResponse({"ok": True, "match": None, "received": data})
+
+    now = timezone.now()
+    today = localdate()
+
+    with transaction.atomic():
+        # 2) Check for an open session
+        open_sess = (AttendanceSession.objects
+                     .select_for_update()
+                     .filter(user_fk=user, out_time__isnull=True)
+                     .order_by('-in_time')
+                     .first())
+
+        if open_sess:
+            # EXIT: close session
+            open_sess.out_time = now
+            open_sess.duration_seconds = max(
+                0, int((open_sess.out_time - open_sess.in_time).total_seconds())
+            )
+            open_sess.save()
+
+            PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=now)
+
+            msg = (f"EXIT {user.UserName} @ {localtime(now).strftime('%H:%M:%S')} "
+                   f"(durata: {_fmt_hms(open_sess.duration_seconds)})")
+            print(f"[PONTAJ] {msg}")
+            logger.info(msg)
+
+            return JsonResponse({
+                "ok": True,
+                "state": "EXIT",
+                "user": {"id": user.UserId, "name": user.UserName},
+                "session": {
+                    "work_date": str(open_sess.work_date),
+                    "in_time": localtime(open_sess.in_time).isoformat(),
+                    "out_time": localtime(open_sess.out_time).isoformat(),
+                    "duration_hms": _fmt_hms(open_sess.duration_seconds),
+                },
+                "received": data
+            })
+
+        else:
+            # ENTER: open session
+            sess = AttendanceSession.objects.create(
+                user_fk=user,
+                work_date=today,
+                in_time=now,
+                source="nfc"
+            )
+            PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=now)
+
+            msg = f"ENTER {user.UserName} @ {localtime(now).strftime('%H:%M:%S')}"
+            print(f"[PONTAJ] {msg}")
+            logger.info(msg)
+
+            return JsonResponse({
+                "ok": True,
+                "state": "ENTER",
+                "user": {"id": user.UserId, "name": user.UserName},
+                "session": {
+                    "work_date": str(sess.work_date),
+                    "in_time": localtime(sess.in_time).isoformat(),
+                },
+                "received": data
+            })
+
+
+# app/views.py
+from django.db.models import Sum, Min, Max
+from django.utils.timezone import localdate
+
+@csrf_exempt
+def attendance_today(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    today = localdate()
+    qs = (AttendanceSession.objects
+          .filter(work_date=today)
+          .values("user_fk__UserId", "user_fk__UserName")
+          .annotate(first_in=Min("in_time"),
+                    last_out=Max("out_time"),
+                    total_seconds=Sum("duration_seconds"))
+          .order_by("user_fk__UserName"))
+
+    rows = []
+    for row in qs:
+        total = int(row.get("total_seconds") or 0)
+        rows.append({
+            "UserId": row["user_fk__UserId"],
+            "UserName": row["user_fk__UserName"],
+            "first_in": localtime(row["first_in"]).strftime("%H:%M:%S") if row["first_in"] else None,
+            "last_out": localtime(row["last_out"]).strftime("%H:%M:%S") if row["last_out"] else None,
+            "total_hms": _fmt_hms(total),
+        })
+    return JsonResponse({"date": str(today), "rows": rows})
+
+
+
+# --- PONTAJ API ---
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.utils import timezone
+from django.utils.timezone import localtime, localdate
+from datetime import date, datetime
+from django.db.models import Sum, Min, Max
+from ToolApp.models import Users, AttendanceSession
+
+def _fmt_hms(seconds: int) -> str:
+    seconds = max(0, int(seconds or 0))
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+def _parse_iso_date(s: str) -> date:
+    try:
+        return date.fromisoformat(s)
+    except Exception:
+        return localdate()
+
+@csrf_exempt
+def attendance_day(request):
+    """GET /api/pontaj/day/?date=YYYY-MM-DD
+       Returnează pentru ziua cerută lista de angajați cu sesiunile lor (in/out) și totalul pe zi."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    day = _parse_iso_date(request.GET.get("date") or str(localdate()))
+
+    # Tragem toate sesiunile din ziua respectivă
+    qs = (AttendanceSession.objects
+          .filter(work_date=day)
+          .select_related("user_fk")
+          .order_by("user_fk__UserName", "in_time"))
+
+    rows_by_user = {}
+    for s in qs:
+        u = s.user_fk
+        key = u.UserId
+        if key not in rows_by_user:
+            rows_by_user[key] = {
+                "UserId": u.UserId,
+                "UserName": u.UserName,
+                "sessions": [],
+                "first_in": None,
+                "last_out": None,
+                "total_seconds": 0,
+                "status": "OUT",
+            }
+
+        in_local  = localtime(s.in_time) if s.in_time else None
+        out_local = localtime(s.out_time) if s.out_time else None
+        if s.out_time is None:
+            # sesiune deschisă -> calculez durata curentă live
+            dur = int((timezone.now() - s.in_time).total_seconds())
+            rows_by_user[key]["status"] = "IN"
+        else:
+            dur = s.duration_seconds or int((s.out_time - s.in_time).total_seconds())
+        rows_by_user[key]["total_seconds"] += max(0, dur)
+
+        rows_by_user[key]["sessions"].append({
+            "in_time":  in_local.strftime("%H:%M:%S") if in_local else None,
+            "out_time": out_local.strftime("%H:%M:%S") if out_local else None,
+            "duration_hms": _fmt_hms(dur),
+            "open": (s.out_time is None),
+            "session_id": s.id,
+        })
+
+        # first_in & last_out
+        if in_local:
+            if (rows_by_user[key]["first_in"] is None or
+                in_local < datetime.fromisoformat(rows_by_user[key]["first_in"])):
+                rows_by_user[key]["first_in"] = in_local.isoformat()
+        if out_local:
+            if (rows_by_user[key]["last_out"] is None or
+                out_local > datetime.fromisoformat(rows_by_user[key]["last_out"])):
+                rows_by_user[key]["last_out"] = out_local.isoformat()
+
+    # transform în listă și formatez totalul
+    rows = []
+    for user_id, row in rows_by_user.items():
+        rows.append({
+            "UserId": row["UserId"],
+            "UserName": row["UserName"],
+            "first_in": row["first_in"],
+            "last_out": row["last_out"],
+            "total_hms": _fmt_hms(row["total_seconds"]),
+            "status": row["status"],
+            "sessions": row["sessions"],
+        })
+
+    # sortez alfabetic (frontend-friendly)
+    rows.sort(key=lambda r: r["UserName"].lower())
+
+    return JsonResponse({
+        "date": str(day),
+        "rows": rows
+    }, safe=False)
+
+
+@csrf_exempt
+def attendance_present(request):
+    """GET /api/pontaj/present/
+       Cine este IN acum (sesiuni deschise), cu ora intrării și durata curentă."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    open_qs = (AttendanceSession.objects
+               .filter(out_time__isnull=True)
+               .select_related("user_fk")
+               .order_by("in_time"))
+
+    now = timezone.now()
+    data = []
+    for s in open_qs:
+        u = s.user_fk
+        in_local = localtime(s.in_time)
+        dur = int((now - s.in_time).total_seconds())
+        data.append({
+            "UserId": u.UserId,
+            "UserName": u.UserName,
+            "work_date": str(s.work_date),
+            "in_time": in_local.strftime("%H:%M:%S"),
+            "duration_hms": _fmt_hms(dur),
+            "session_id": s.id,
+        })
+
+    return JsonResponse({"now": localtime(now).isoformat(), "present": data})
+
+
+@csrf_exempt
+def attendance_range(request):
+    """GET /api/pontaj/range/?start=YYYY-MM-DD&end=YYYY-MM-DD
+       Sumar pe utilizator și pe zi: first_in, last_out, total."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    start = _parse_iso_date(request.GET.get("start") or str(localdate()))
+    end   = _parse_iso_date(request.GET.get("end")   or str(localdate()))
+
+    if end < start:
+        start, end = end, start
+
+    # Agregare per (user, work_date)
+    qs = (AttendanceSession.objects
+          .filter(work_date__range=(start, end))
+          .values("user_fk__UserId", "user_fk__UserName", "work_date")
+          .annotate(
+              first_in=Min("in_time"),
+              last_out=Max("out_time"),
+              total_seconds=Sum("duration_seconds"),
+          )
+          .order_by("user_fk__UserName", "work_date"))
+
+    # Modelăm răspunsul: users -> listă de zile
+    users = {}
+    for r in qs:
+        uid = r["user_fk__UserId"]
+        uname = r["user_fk__UserName"]
+        if uid not in users:
+            users[uid] = {"UserId": uid, "UserName": uname, "days": []}
+
+        users[uid]["days"].append({
+            "date": str(r["work_date"]),
+            "first_in": localtime(r["first_in"]).strftime("%H:%M:%S") if r["first_in"] else None,
+            "last_out": localtime(r["last_out"]).strftime("%H:%M:%S") if r["last_out"] else None,
+            "total_hms": _fmt_hms(r["total_seconds"]),
+        })
+
+    result = list(sorted(users.values(), key=lambda x: x["UserName"].lower()))
+    return JsonResponse({"start": str(start), "end": str(end), "users": result})
