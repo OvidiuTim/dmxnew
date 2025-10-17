@@ -12,6 +12,7 @@ import { HistoryComponent } from './magazie/history/history.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
 import { ShelfsComponent } from './shelfs/shelfs.component';
 import { PontajComponent } from './pontaj/pontaj.component';
+import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 
 const routes: Routes = [
   {path:'magazie',component:MagazieComponent},
@@ -23,6 +24,7 @@ const routes: Routes = [
   {path:'',component:DashboardComponent},
   {path:'rafturi',component:ShelfsComponent},
   {path:'pontaj',component:PontajComponent},
+  {path:'pontaj/user/:id',component:UserpontatComponent},
 ];
 
 @NgModule({

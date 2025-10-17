@@ -1046,20 +1046,105 @@ def attendance_present(request):
     return JsonResponse({"now": localtime(now).isoformat(), "present": data})
 
 
+from django.db.models import Sum, Min, Max
+from datetime import timedelta
+
 @csrf_exempt
 def attendance_range(request):
-    """GET /api/pontaj/range/?start=YYYY-MM-DD&end=YYYY-MM-DD
-       Sumar pe utilizator și pe zi: first_in, last_out, total."""
+    """GET /api/pontaj/range/?start=YYYY-MM-DD&end=YYYY-MM-DD[&user_id=ID]
+       - fără user_id: sumar per (user, zi) ca înainte
+       - cu user_id: pentru utilizatorul cerut, trimite pe fiecare zi lista de sesiuni + total/număr intrări/ieșiri
+    """
     if request.method != "GET":
         return JsonResponse({"error": "Only GET allowed"}, status=405)
 
     start = _parse_iso_date(request.GET.get("start") or str(localdate()))
     end   = _parse_iso_date(request.GET.get("end")   or str(localdate()))
-
     if end < start:
         start, end = end, start
 
-    # Agregare per (user, work_date)
+    user_id = request.GET.get("user_id")
+
+    # --- varianta detaliată pentru un singur user ---
+    if user_id:
+        try:
+            user = Users.objects.get(UserId=user_id)
+        except Users.DoesNotExist:
+            return JsonResponse({"start": str(start), "end": str(end), "users": []})
+
+        qs = (AttendanceSession.objects
+              .filter(user_fk=user, work_date__range=(start, end))
+              .order_by("in_time"))
+
+        # grupăm pe zile
+        from collections import OrderedDict
+        days = OrderedDict()
+        cur = start
+        while cur <= end:
+            days[cur] = {
+                "date": str(cur),
+                "first_in": None,
+                "last_out": None,
+                "total_seconds": 0,
+                "entries": 0,
+                "exits": 0,
+                "sessions": [],   # fiecare: {in_time, out_time, duration_hms, open, session_id}
+            }
+            cur += timedelta(days=1)
+
+        now = timezone.now()
+        for s in qs:
+            bucket = days.get(s.work_date)
+            if not bucket:
+                continue
+            in_local = localtime(s.in_time)
+            out_local = localtime(s.out_time) if s.out_time else None
+            # durată (live dacă e deschisă)
+            dur = s.duration_seconds if s.out_time else int((now - s.in_time).total_seconds())
+            dur = max(0, int(dur))
+
+            bucket["sessions"].append({
+                "in_time":  in_local.strftime("%H:%M:%S"),
+                "out_time": out_local.strftime("%H:%M:%S") if out_local else None,
+                "duration_hms": _fmt_hms(dur),
+                "open": (s.out_time is None),
+                "session_id": s.id,
+            })
+            bucket["entries"] += 1
+            if s.out_time:
+                bucket["exits"] += 1
+            bucket["total_seconds"] += dur
+
+            # first_in / last_out
+            if not bucket["first_in"] or in_local.isoformat() < bucket["first_in"]:
+                bucket["first_in"] = in_local.isoformat()
+            if out_local and (not bucket["last_out"] or out_local.isoformat() > bucket["last_out"]):
+                bucket["last_out"] = out_local.isoformat()
+
+        # finalizez răspunsul
+        day_list = []
+        for d in days.values():
+            day_list.append({
+                "date": d["date"],
+                "first_in": d["first_in"],
+                "last_out": d["last_out"],
+                "total_hms": _fmt_hms(d["total_seconds"]),
+                "entries": d["entries"],
+                "exits": d["exits"],
+                "sessions": d["sessions"],
+            })
+
+        return JsonResponse({
+            "start": str(start),
+            "end": str(end),
+            "users": [{
+                "UserId": user.UserId,
+                "UserName": user.UserName,
+                "days": day_list
+            }]
+        })
+
+    # --- fallback: comportamentul vechi, agregat pe toți userii ---
     qs = (AttendanceSession.objects
           .filter(work_date__range=(start, end))
           .values("user_fk__UserId", "user_fk__UserName", "work_date")
@@ -1070,14 +1155,12 @@ def attendance_range(request):
           )
           .order_by("user_fk__UserName", "work_date"))
 
-    # Modelăm răspunsul: users -> listă de zile
     users = {}
     for r in qs:
         uid = r["user_fk__UserId"]
         uname = r["user_fk__UserName"]
         if uid not in users:
             users[uid] = {"UserId": uid, "UserName": uname, "days": []}
-
         users[uid]["days"].append({
             "date": str(r["work_date"]),
             "first_in": localtime(r["first_in"]).strftime("%H:%M:%S") if r["first_in"] else None,

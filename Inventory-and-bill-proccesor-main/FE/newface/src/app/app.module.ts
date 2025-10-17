@@ -26,6 +26,7 @@ import { DashboardComponent } from './dashboard/dashboard.component';
 import { ShelfsComponent } from './shelfs/shelfs.component';
 import { NavbarComponent } from './navbar/navbar.component';
 import { PontajComponent } from './pontaj/pontaj.component';
+import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 
 @NgModule({
   declarations: [
@@ -45,6 +46,7 @@ import { PontajComponent } from './pontaj/pontaj.component';
     ShelfsComponent,
     NavbarComponent,
     PontajComponent,
+    UserpontatComponent,
   ],
   imports: [
     CommonModule,

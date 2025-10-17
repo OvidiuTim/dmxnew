@@ -277,5 +277,10 @@ getAttendanceRange(start: string, end: string){
   return this.http.get<any>(url);
 }
 
+/** Sumar pe interval pentru un user: /api/pontaj/range/?start=YYYY-MM-DD&end=YYYY-MM-DD&user_id=ID */
+getAttendanceRangeForUser(start: string, end: string, userId: number){
+  const url = `${this.APIUrl}/api/pontaj/range/?start=${start}&end=${end}&user_id=${userId}`;
+  return this.http.get<any>(url);
+}
 
 }

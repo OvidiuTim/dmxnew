@@ -1,0 +1,54 @@
+<div class="wrap">
+  <div class="bar">
+    <div class="title">
+      <a routerLink="/pontaj" class="back">← Înapoi</a>
+      <h2>{{ userName || 'Utilizator' }}</h2>
+    </div>
+    <div class="picker">
+      <label>Luna</label>
+      <input type="month" [value]="selectedMonth" (change)="onMonthChange($event)">
+    </div>
+  </div>
+
+  <div class="summary">
+    <div class="badge">Perioadă: {{ startISO }} → {{ endISO }}</div>
+    <div class="badge strong">Total lună: {{ durataOre(monthTotal) }}</div>
+  </div>
+
+  <div class="state" *ngIf="loading">Se încarcă…</div>
+  <div class="state error" *ngIf="error">{{ error }}</div>
+
+  <div class="table" *ngIf="!loading && !error">
+    <div class="thead">
+      <div>Zi</div>
+      <div>Sesiuni (Intrare → Ieșire)</div>
+      <div>Total zi</div>
+      <div>#Intrări / #Ieșiri</div>
+    </div>
+
+    <div class="row" *ngFor="let d of days">
+      <div class="cell date">
+        <div class="d1">{{ d.date | date:'dd MMM' }}</div>
+        <div class="d2">{{ d.date | date:'EEEE' }}</div>
+      </div>
+
+      <div class="cell sess-col">
+        <div class="sess-row" *ngIf="d.sessions.length === 0">
+          <span class="muted">—</span>
+        </div>
+        <div class="sess-row" *ngFor="let s of d.sessions">
+          <div class="in">{{ hm(s.in_time) }}</div>
+          <div class="arrow">→</div>
+          <div class="out">
+            <ng-container *ngIf="s.out_time; else openTag">{{ hm(s.out_time) }}</ng-container>
+            <ng-template #openTag><span class="open">deschis</span></ng-template>
+          </div>
+          <div class="dur">{{ durataOre(s.duration_hms) }}</div>
+        </div>
+      </div>
+
+      <div class="cell total">{{ durataOre(d.total_hms) }}</div>
+      <div class="cell counts">{{ d.entries }} / {{ d.exits }}</div>
+    </div>
+  </div>
+</div>
