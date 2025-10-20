@@ -2,6 +2,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http.response import JsonResponse
 from rest_framework.parsers import JSONParser
 from django.db.models import Max, OuterRef, Subquery
+from django.http import StreamingHttpResponse
+from threading import Lock
+from queue import Queue, Empty
+from collections import deque
+import json
+import csv, io
 
 from ToolApp.models import (
     Shed, Unfunctional, Users, Tools, Histories, Materials, Consumables, WorkField,
@@ -773,6 +779,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localtime, localdate
+    
 from django.db import transaction
 import json, logging, math
 
@@ -860,6 +867,12 @@ def nfc_scan(request):
                 open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
                 open_sess.source = (open_sess.source or '') + '|auto'
                 open_sess.save()
+                _publish("auto_close", user, close_at, {
+                    "closed_at_hm": localtime(close_at).strftime("%H:%M"),
+                    "duration_hms": _fmt_hms(open_sess.duration_seconds),
+                    "work_date": str(open_sess.work_date),
+                })
+
 
                 PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=close_at)
 
@@ -871,6 +884,7 @@ def nfc_scan(request):
                     in_time=enter_now,
                     source="nfc"
                 )
+                _publish("enter", user, enter_now)
                 PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=enter_now)
 
                 msg = (f"AUTO-CLOSE {user.UserName} zi anterioară @ {localtime(close_at).strftime('%H:%M:%S')} "
@@ -901,6 +915,9 @@ def nfc_scan(request):
                 0, int((open_sess.out_time - open_sess.in_time).total_seconds())
             )
             open_sess.save()
+            _publish("exit", user, open_sess.out_time, {
+                "duration_hms": _fmt_hms(open_sess.duration_seconds)
+            })
 
             PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=open_sess.out_time)
 
@@ -931,6 +948,7 @@ def nfc_scan(request):
                 source="nfc"
             )
             PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=now)
+            _publish("enter", user, now)
 
             msg = f"ENTER {user.UserName} @ {localtime(now).strftime('%H:%M:%S')}"
             print(f"[PONTAJ] {msg}")
@@ -946,6 +964,10 @@ def nfc_scan(request):
                 },
                 "received": data
             })
+            
+            
+
+
 
 
 # app/views.py
@@ -1236,3 +1258,88 @@ def attendance_range(request):
 
     result = list(sorted(users.values(), key=lambda x: x["UserName"].lower()))
     return JsonResponse({"start": str(start), "end": str(end), "users": result})
+
+
+
+
+from django.shortcuts import render
+
+def monitor_pontaj_page(request):
+    # template-ul tău e ToolApp/templates/ToolApp/monitor_pontaj.html
+    return render(request, "ToolApp/monitor_pontaj.html")
+
+
+# --- SSE broker minimal pentru monitor pontaj ---
+class SseBroker:
+    def __init__(self):
+        self._lock = Lock()
+        self._subs = set()               # Set[Queue[str]]
+        self._recent = deque(maxlen=200) # (id, raw_msg)
+        self._next_id = 1
+
+    def publish(self, event_type: str, payload: dict):
+        ev_id = self._next_id
+        self._next_id += 1
+        body = json.dumps(payload, ensure_ascii=False)
+        raw = f"id: {ev_id}\nevent: {event_type}\ndata: {body}\n\n"
+        self._recent.append((ev_id, raw))
+        with self._lock:
+            for q in list(self._subs):
+                try:
+                    q.put_nowait(raw)
+                except Exception:
+                    pass
+
+    def subscribe(self, last_id: int | None = None):
+        q: Queue[str] = Queue()
+        with self._lock:
+            self._subs.add(q)
+
+        def stream():
+            try:
+                # replay după Last-Event-ID
+                if last_id is not None:
+                    for ev_id, raw in list(self._recent):
+                        if ev_id > last_id:
+                            yield raw
+                # buclă principală, cu ping keep-alive
+                from queue import Empty as QEmpty
+                while True:
+                    try:
+                        raw = q.get(timeout=15)
+                        yield raw
+                    except QEmpty:
+                        yield "event: ping\ndata: {}\n\n"
+            finally:
+                with self._lock:
+                    self._subs.discard(q)
+
+        return stream()
+
+sse = SseBroker()
+from django.utils.timezone import localtime
+
+def _publish(kind: str, user, when=None, extra: dict | None = None):
+    sse.publish(kind, {
+        "user_id": user.UserId,
+        "user_name": user.UserName,
+        "at": localtime(when).strftime("%H:%M:%S") if when else "",
+        **(extra or {})
+    })
+
+
+@csrf_exempt
+def pontaj_stream(request):
+    """SSE: /api/pontaj/stream/"""
+    last_id = None
+    lei = request.META.get("HTTP_LAST_EVENT_ID")
+    if lei:
+        try:
+            last_id = int(lei)
+        except Exception:
+            last_id = None
+
+    resp = StreamingHttpResponse(sse.subscribe(last_id), content_type="text/event-stream")
+    resp["Cache-Control"] = "no-cache"
+    resp["X-Accel-Buffering"] = "no"
+    return resp

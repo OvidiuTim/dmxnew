@@ -1,0 +1,67 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <title>Monitor pontaj</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="{% static 'ToolApp/pontaj_monitor.css' %}" rel="stylesheet">
+</head>
+<body>
+  <main class="wrap">
+    <header class="bar">
+      <h1>Monitor pontaj</h1>
+      <div class="status">
+        <span class="dot" id="sseDot" title="Status conexiune"></span>
+        <span class="lbl">live</span>
+      </div>
+    </header>
+
+    <section id="feed" class="feed" aria-live="polite"></section>
+  </main>
+
+  <!-- JS minimal, în pagină: ascultă /api/pontaj/stream/ și adaugă carduri -->
+  <script>
+    (function () {
+      const feed = document.getElementById('feed');
+      const dot  = document.getElementById('sseDot');
+
+      function addCard(kind, name, at) {
+        const el = document.createElement('div');
+        el.className = 'card ' + (kind === 'enter' ? 'enter' : 'exit');
+        el.innerHTML = `
+          <div class="title">${kind === 'enter' ? 'A ajuns' : 'A plecat'}</div>
+          <div class="name">${name || 'Angajat'}</div>
+          <div class="time">${at || ''}</div>
+        `;
+        feed.prepend(el);
+        // păstrăm max 24 carduri
+        while (feed.children.length > 24) feed.removeChild(feed.lastElementChild);
+        requestAnimationFrame(() => el.classList.add('show'));
+      }
+
+      function connect() {
+        const es = new EventSource('/api/pontaj/stream/');
+        es.onopen  = () => dot.classList.add('ok');
+        es.onerror = () => dot.classList.remove('ok');
+
+        es.addEventListener('enter', (ev) => {
+          const d = JSON.parse(ev.data);
+          addCard('enter', d.user_name, d.at);
+        });
+        es.addEventListener('exit', (ev) => {
+          const d = JSON.parse(ev.data);
+          addCard('exit', d.user_name, d.at);
+        });
+        // opțional: dacă trimiți 'auto_close', o tratăm ca plecare
+        es.addEventListener('auto_close', (ev) => {
+          const d = JSON.parse(ev.data);
+          addCard('exit', d.user_name, d.at || d.closed_at_hm);
+        });
+      }
+
+      connect();
+    })();
+  </script>
+</body>
+</html>

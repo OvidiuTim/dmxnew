@@ -1,6 +1,9 @@
 from django.urls import path, re_path as url
 from ToolApp import views
 from .views import nfc_scan, attendance_today, attendance_day, attendance_present, attendance_range
+from .views import monitor_pontaj_page, pontaj_stream
+
+
 urlpatterns = [
     # --- NFC / RFID ---
     path('nfc-tag/', views.nfc_tag_view, name='nfc_tag'),             # dacă îl folosești
@@ -76,4 +79,12 @@ urlpatterns = [
     
     
     path("api/pontaj/today/", attendance_today, name="attendance_today"),
+    
+    
+    
+    
+    
+    # Monitor Pontaj Page
+    path('pontaj/monitor/', monitor_pontaj_page, name='monitor_pontaj'),
+    path('api/pontaj/stream/', pontaj_stream, name='pontaj_stream'),
 ]

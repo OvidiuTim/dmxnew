@@ -1,0 +1,108 @@
+:root{
+  --bg:#0f1117;
+  --panel:#151824;
+  --border:#23273a;
+
+  --green1:#0b1a15;
+  --green2:#0b3d2e;
+  --greenBorder:#164235;
+  --greenText:#b7e7c6;
+
+  --red1:#1a1211;
+  --red2:#3d1b15;
+  --redBorder:#5a2a22;
+  --redText:#f6c8b7;
+
+  --text:#e9eef4;
+}
+
+*{ box-sizing:border-box; }
+html,body{
+  height:100%;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+.wrap{
+  max-width:1400px;           /* mai lat */
+  margin:24px auto;
+  padding:0 20px;
+}
+
+.bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:16px;
+}
+.bar h1{
+  font-size:22px;
+  letter-spacing:.2px;
+  opacity:.95;
+  margin:0;
+}
+
+.status{ display:flex; align-items:center; gap:8px; opacity:.9; }
+.dot{
+  width:10px; height:10px; border-radius:50%;
+  background:#9a2626; box-shadow:0 0 0 3px rgba(154,38,38,.15);
+  transition:.25s;
+}
+.dot.ok{ background:#2d9f41; box-shadow:0 0 0 3px rgba(45,159,65,.15); }
+.lbl{ font-size:12px; text-transform:uppercase; letter-spacing:.12em; opacity:.8; }
+
+/* === feed pe o singură coloană, carduri late === */
+.feed{
+  display:grid;
+  gap:18px;
+  grid-template-columns: 1fr; /* una sub alta */
+}
+
+/* cardul standard */
+.card{
+  width:100%;
+  border:1px solid var(--border);
+  background:var(--panel);
+  border-radius:20px;
+  padding:20px 18px;
+
+  transform: translateY(6px);
+  opacity:0;
+  transition: transform .25s ease, opacity .25s ease, box-shadow .3s, border-color .3s;
+  box-shadow:0 10px 24px rgba(0,0,0,.28);
+}
+.card.show{ transform: translateY(0); opacity:1; }
+
+/* variantele enter/exit */
+.card.enter{
+  background:linear-gradient(180deg, var(--green1), var(--green2));
+  border-color:var(--greenBorder);
+  color:var(--greenText);
+}
+.card.exit{
+  background:linear-gradient(180deg, var(--red1), var(--red2));
+  border-color:var(--redBorder);
+  color:var(--redText);
+}
+
+/* tipografie în card */
+.title{
+  font-size:13px;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  opacity:.85;
+  margin-bottom:6px;
+}
+.name{
+  font-size:32px;           /* mai mare */
+  font-weight:800;
+  line-height:1.1;
+}
+.time{
+  font-size:16px;           /* mai mare */
+  opacity:.9;
+  margin-top:8px;
+}
