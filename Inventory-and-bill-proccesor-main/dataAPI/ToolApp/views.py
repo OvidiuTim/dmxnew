@@ -72,6 +72,105 @@ def userApi(request,id=0):
         user.delete()
         return JsonResponse("Deleted Succeffully!!", safe=False)
 
+# --- BULK USERS: import JSON sau CSV ---
+@csrf_exempt
+def users_bulk(request):
+    """
+    POST /api/users/bulk/
+    - Acceptă:
+        a) JSON: [ { "UserName":"...", "UserSerie":"...", "UserPin":"..." }, ... ]
+           (sau { "rows":[...] })
+        b) CSV (Content-Type: text/csv) cu headere: UserName,UserSerie,UserPin
+    Returnează: { "created": N }
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+    ctype = (request.META.get("CONTENT_TYPE") or "").lower()
+    body  = request.body.decode("utf-8", "ignore")
+
+    items = []
+    try:
+        if "text/csv" in ctype or body.lstrip().startswith("UserName"):
+            # CSV
+            reader = csv.DictReader(io.StringIO(body))
+            for r in reader:
+                items.append({
+                    "UserName": r.get("UserName") or r.get("name"),
+                    "UserSerie": r.get("UserSerie") or r.get("serie"),
+                    "UserPin":   r.get("UserPin")   or r.get("pin"),
+                })
+        else:
+            # JSON
+            data = json.loads(body or "[]")
+            if isinstance(data, dict) and "rows" in data:
+                data = data["rows"]
+            if not isinstance(data, list):
+                return JsonResponse({"error": "Body trebuie să fie listă JSON sau CSV"}, status=400)
+            for r in data:
+                items.append({
+                    "UserName": r.get("UserName") or r.get("name"),
+                    "UserSerie": r.get("UserSerie") or r.get("serie"),
+                    "UserPin":   r.get("UserPin")   or r.get("pin"),
+                })
+    except Exception as e:
+        return JsonResponse({"error": f"Parsare eșuată: {e}"}, status=400)
+
+    if not items:
+        return JsonResponse({"error": "Nu am găsit rânduri de import"}, status=400)
+
+    ser = UserSerializer(data=items, many=True)
+    if not ser.is_valid():
+        return JsonResponse({"errors": ser.errors}, status=400, safe=False)
+
+    objs = ser.save()
+    return JsonResponse({"created": len(objs)})
+    
+
+# --- PURGE USERS: șterge toți utilizatorii (cu confirmare) ---
+@csrf_exempt
+def users_purge(request):
+    """
+    DELETE /api/users/purge/?confirm=DELETE_ALL_USERS
+    (sau POST cu { "confirm":"DELETE_ALL_USERS" })
+    Opțional: &cascade=1 -> golește și pontajul (PresenceEvent/AttendanceSession)
+    """
+    if request.method not in ("DELETE", "POST"):
+        return JsonResponse({"error": "Only DELETE or POST allowed"}, status=405)
+
+    try:
+        body = json.loads(request.body or "{}")
+    except Exception:
+        body = {}
+
+    confirm = request.GET.get("confirm") or body.get("confirm")
+    if confirm != "DELETE_ALL_USERS":
+        return JsonResponse(
+            {"error": "Confirmare lipsă", "hint": "trimite confirm=DELETE_ALL_USERS"},
+            status=400,
+        )
+
+    cascade = (request.GET.get("cascade") or body.get("cascade"))
+    cascade = str(cascade).lower() in ("1", "true", "yes", "on")
+
+    # dacă vrei să golești și pontajul:
+    if cascade:
+        from ToolApp.models import AttendanceSession, PresenceEvent  # import local ca să evităm dubluri
+        AttendanceSession.objects.all().delete()
+        PresenceEvent.objects.all().delete()
+
+    Users.objects.all().delete()
+    return JsonResponse({"ok": True})
+
+
+
+
+
+
+
+
+
+
 #api unelte
 @csrf_exempt
 def toolApi(request,id=0):

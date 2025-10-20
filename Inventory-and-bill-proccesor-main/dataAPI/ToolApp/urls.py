@@ -87,4 +87,7 @@ urlpatterns = [
     # Monitor Pontaj Page
     path('pontaj/monitor/', monitor_pontaj_page, name='monitor_pontaj'),
     path('api/pontaj/stream/', pontaj_stream, name='pontaj_stream'),
+    
+    path('api/users/bulk/',  views.users_bulk),
+    path('api/users/purge/', views.users_purge),
 ]
