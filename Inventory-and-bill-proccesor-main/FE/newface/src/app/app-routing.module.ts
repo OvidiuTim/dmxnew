@@ -15,16 +15,19 @@ import { PontajComponent } from './pontaj/pontaj.component';
 import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 
 const routes: Routes = [
+  { path: '', component: PontajComponent, pathMatch: 'full' },
   {path:'magazie',component:MagazieComponent},
   {path:'angajati',component:AngajatiComponent},
   {path:'materiale',component:MaterialeComponent},
   {path:'schela',component:SchelaComponent},
   {path:'unelte',component:UnelteComponent},
   {path:'history',component:HistoryComponent},
-  {path:'',component:DashboardComponent},
   {path:'rafturi',component:ShelfsComponent},
   {path:'pontaj',component:PontajComponent},
-  {path:'pontaj/user/:id',component:UserpontatComponent},
+
+  { path: 'dashboard', component: DashboardComponent },
+  { path: 'user/:id', component: UserpontatComponent },
+  { path: '**', redirectTo: '' }
 ];
 
 @NgModule({
