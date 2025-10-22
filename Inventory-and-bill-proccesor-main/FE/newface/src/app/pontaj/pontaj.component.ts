@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { SharedService } from '../shared.service';
 import { forkJoin } from 'rxjs';
+import { Router } from '@angular/router';
+
 
 interface SessionRow {
   in_time: string | null;     // "HH:MM:SS"
@@ -37,11 +39,16 @@ export class PontajComponent implements OnInit {
   totalUsers = 0;
   presentNow = 0;
 
-  constructor(private api: SharedService) {}
+  constructor(private api: SharedService, private router: Router) {}
 
   ngOnInit(): void {
     this.loadDay();
   }
+
+seeAngajat(id: number) {
+  this.router.navigate(['/user', id]);            // corect
+  // sau: this.router.navigateByUrl(`/pontaj/user/${id}`); // tot OK, dar nu e nevoie de /pontaj
+}
 
   loadDay(): void {
     this.loading = true;

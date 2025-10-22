@@ -42,7 +42,7 @@
           </div>
         </div>
         <div class="totals">
-            <a class="btn small" [routerLink]="['/pontaj/user', r.UserId]">Detalii</a>
+         <a class="btn small" href (click)="seeAngajat(r.UserId); $event.preventDefault()">Detalii</a> 
           <span class="total">{{ durataOre(r.total_hms) }}</span>
           <span [class]="statusChipClass(r.status)">{{ r.status }}</span>
         </div>
