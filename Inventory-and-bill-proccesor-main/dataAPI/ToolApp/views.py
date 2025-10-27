@@ -899,6 +899,7 @@ def workday_close_dt(local_day):
 
 
 
+# --- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
 @csrf_exempt
 def nfc_scan(request):
     if request.method != "POST":
@@ -1005,6 +1006,10 @@ def nfc_scan(request):
                 })
 
             # aceeași zi -> EXIT la 'when'
+            # NEW: dacă am primit ws, îl considerăm „locația finală” a zilei/sesiunii
+            if ws:
+                open_sess.worksite = ws
+
             open_sess.out_time = when
             open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
             open_sess.save()
@@ -1027,7 +1032,7 @@ def nfc_scan(request):
                     "in_time": localtime(open_sess.in_time).isoformat(),
                     "out_time": localtime(open_sess.out_time).isoformat(),
                     "duration_hms": _fmt_hms(open_sess.duration_seconds),
-                    "worksite": open_sess.worksite,
+                    "worksite": open_sess.worksite,  # va reflecta ws dacă a venit în payload
                 },
                 "received": data,
                 "ts_used": "client" if client_when else "server"
@@ -1059,8 +1064,7 @@ def nfc_scan(request):
             "received": data,
             "ts_used": "client" if client_when else "server"
         })
-         
-            
+      
 
 
 
@@ -1119,6 +1123,7 @@ def _parse_iso_date(s: str) -> date:
     except Exception:
         return localdate()
 
+# --- ATTENDANCE DAY: adaugă day_worksite = ultimul worksite nenul din zi ---
 @csrf_exempt
 def attendance_day(request):
     """GET /api/pontaj/day/?date=YYYY-MM-DD"""
@@ -1145,6 +1150,7 @@ def attendance_day(request):
                 "last_out": None,
                 "total_seconds": 0,
                 "status": "OUT",
+                "day_worksite": None,  # NEW
             }
 
         in_local  = localtime(s.in_time) if s.in_time else None
@@ -1162,8 +1168,12 @@ def attendance_day(request):
             "duration_hms": _fmt_hms(dur),
             "open": (s.out_time is None),
             "session_id": s.id,
-            "worksite": s.worksite,  # NEW
+            "worksite": s.worksite,
         })
+
+        # NEW: ultima valoare nenulă rămâne ca „site al zilei”
+        if s.worksite:
+            rows_by_user[key]["day_worksite"] = s.worksite
 
         if in_local:
             if (rows_by_user[key]["first_in"] is None or
@@ -1184,6 +1194,7 @@ def attendance_day(request):
             "total_hms": _fmt_hms(row["total_seconds"]),
             "status": row["status"],
             "sessions": row["sessions"],
+            "day_worksite": row["day_worksite"],  # NEW
         })
 
     rows.sort(key=lambda r: r["UserName"].lower())
@@ -1222,6 +1233,8 @@ def attendance_present(request):
 from django.db.models import Sum, Min, Max
 from datetime import timedelta
 
+
+# --- ATTENDANCE RANGE (user_id): adaugă day_worksite în fiecare zi ---
 @csrf_exempt
 def attendance_range(request):
     """GET /api/pontaj/range/?start=YYYY-MM-DD&end=YYYY-MM-DD[&user_id=ID]"""
@@ -1256,7 +1269,8 @@ def attendance_range(request):
                 "total_seconds": 0,
                 "entries": 0,
                 "exits": 0,
-                "sessions": [],  # {in_time, out_time, duration_hms, open, session_id, worksite}
+                "sessions": [],   # {in_time, out_time, duration_hms, open, session_id, worksite}
+                "day_worksite": None,  # NEW
             }
             cur += timedelta(days=1)
 
@@ -1276,12 +1290,16 @@ def attendance_range(request):
                 "duration_hms": _fmt_hms(dur),
                 "open": (s.out_time is None),
                 "session_id": s.id,
-                "worksite": s.worksite,  # NEW
+                "worksite": s.worksite,
             })
             bucket["entries"] += 1
             if s.out_time:
                 bucket["exits"] += 1
             bucket["total_seconds"] += dur
+
+            # NEW: ultima valoare nenulă devine locația zilei
+            if s.worksite:
+                bucket["day_worksite"] = s.worksite
 
             if not bucket["first_in"] or in_local.isoformat() < bucket["first_in"]:
                 bucket["first_in"] = in_local.isoformat()
@@ -1298,6 +1316,7 @@ def attendance_range(request):
                 "entries": d["entries"],
                 "exits": d["exits"],
                 "sessions": d["sessions"],
+                "day_worksite": d["day_worksite"],  # NEW
             })
 
         return JsonResponse({
@@ -1310,7 +1329,7 @@ def attendance_range(request):
             }]
         })
 
-    # agregat pe toți userii (fără detalii per sesiune)
+    # (agregatul fără user_id rămâne neschimbat)
     qs = (AttendanceSession.objects
           .filter(work_date__range=(start, end))
           .values("user_fk__UserId", "user_fk__UserName", "work_date")

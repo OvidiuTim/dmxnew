@@ -21,6 +21,7 @@
   <div class="table" *ngIf="!loading && !error">
     <div class="thead">
       <div>Zi</div>
+      <div>Locație (zi)</div>
       <div>Sesiuni (Intrare → Ieșire)</div>
       <div>Total zi</div>
       <div>#Intrări / #Ieșiri</div>
@@ -30,6 +31,13 @@
       <div class="cell date">
         <div class="d1">{{ d.date | date:'dd MMM' }}</div>
         <div class="d2">{{ d.date | date:'EEEE' }}</div>
+      </div>
+
+      <div class="cell site-day"> <!-- ADĂUGAT -->
+        <ng-container *ngIf="d.day_worksite; else noSite">
+          <span class="chip">{{ d.day_worksite }}</span>
+        </ng-container>
+        <ng-template #noSite><span class="muted">—</span></ng-template>
       </div>
 
       <div class="cell sess-col">
@@ -47,12 +55,12 @@
           <div class="site" *ngIf="s.worksite">
             <span class="chip">{{ s.worksite }}</span>
           </div>
-
         </div>
       </div>
 
       <div class="cell total">{{ durataOre(d.total_hms) }}</div>
       <div class="cell counts">{{ d.entries }} / {{ d.exits }}</div>
     </div>
+
   </div>
 </div>

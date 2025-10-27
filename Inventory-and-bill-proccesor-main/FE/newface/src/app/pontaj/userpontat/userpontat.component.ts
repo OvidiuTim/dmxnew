@@ -12,17 +12,19 @@ interface SessionRow {
   duration_hms: string;
   open: boolean;
   session_id: number;
-  worksite?: string | null; // NEW
+  worksite?: string | null; // deja OK
 }
 interface DayRow {
-  date: string;              // YYYY-MM-DD
-  first_in: string | null;   // ISO sau null
-  last_out: string | null;   // ISO sau null
-  total_hms: string;         // "HH:MM:SS"
+  date: string;
+  first_in: string | null;
+  last_out: string | null;
+  total_hms: string;
   entries: number;
   exits: number;
   sessions: SessionRow[];
+  day_worksite?: string | null; // deja OK
 }
+
 
 @Component({
   selector: 'app-userpontat',
@@ -30,7 +32,7 @@ interface DayRow {
   styleUrls: ['./userpontat.component.css']
 })
 export class UserpontatComponent implements OnInit {
-   userId!: number;
+  userId!: number;
   userName: string | null = null;
 
   selectedMonth = this.monthNow(); // "YYYY-MM"
@@ -43,7 +45,7 @@ export class UserpontatComponent implements OnInit {
   days: DayRow[] = [];
   monthTotal = '00:00:00';
 
-  constructor(private route: ActivatedRoute, private api: SharedService) {}
+  constructor(private route: ActivatedRoute, private api: SharedService) { }
 
   ngOnInit(): void {
     this.userId = Number(this.route.snapshot.paramMap.get('id'));
@@ -53,13 +55,13 @@ export class UserpontatComponent implements OnInit {
 
   monthNow(): string {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
   computeBounds(): void {
     const [y, m] = this.selectedMonth.split('-').map(Number);
-    const end   = new Date(y, m, 0).getDate();
-    this.startISO = `${y}-${String(m).padStart(2,'0')}-01`;
-    this.endISO   = `${y}-${String(m).padStart(2,'0')}-${String(end).padStart(2,'0')}`;
+    const end = new Date(y, m, 0).getDate();
+    this.startISO = `${y}-${String(m).padStart(2, '0')}-01`;
+    this.endISO = `${y}-${String(m).padStart(2, '0')}-${String(end).padStart(2, '0')}`;
   }
   onMonthChange(evt: Event): void {
     const val = (evt.target as HTMLInputElement).value;
@@ -114,10 +116,16 @@ export class UserpontatComponent implements OnInit {
     const [y, m] = this.selectedMonth.split('-').map(Number);
     const lastDay = new Date(y, m, 0).getDate();
     for (let d = 1; d <= lastDay; d++) {
-      const date = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const date = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       res.push({
-        date, first_in: null, last_out: null, total_hms: '00:00:00',
-        entries: 0, exits: 0, sessions: []
+        date,
+        first_in: null,
+        last_out: null,
+        total_hms: '00:00:00',
+        entries: 0,
+        exits: 0,
+        sessions: [],
+        day_worksite: null, // ADĂUGAT
       });
     }
     return res;
@@ -131,16 +139,16 @@ export class UserpontatComponent implements OnInit {
   hmsToSec(hms: string): number {
     if (!hms) return 0;
     const [h, m, s] = hms.split(':').map(x => parseInt(x || '0', 10));
-    return (h*3600) + (m*60) + (s || 0);
+    return (h * 3600) + (m * 60) + (s || 0);
   }
   secToHms(sec: number): string {
     sec = Math.max(0, Math.floor(sec));
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
     const s = sec % 60;
-    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 
-  hm(t: string | null){ return t ? t.substring(0,5) : '—'; }
-  durataOre(hms: string){ const [h,m]= (hms||'00:00:00').split(':'); return `${parseInt(h,10)}:${m} ore`; }
+  hm(t: string | null) { return t ? t.substring(0, 5) : '—'; }
+  durataOre(hms: string) { const [h, m] = (hms || '00:00:00').split(':'); return `${parseInt(h, 10)}:${m} ore`; }
 }
