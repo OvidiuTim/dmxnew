@@ -218,30 +218,33 @@ class PresenceEvent(models.Model):
     timestamp = models.DateTimeField(default=timezone.now, db_index=True)
     kind = models.CharField(max_length=8, choices=Kind.choices)
 
+    # NEW
+    worksite = models.CharField(max_length=100, null=True, blank=True, db_index=True)
+
     class Meta:
         ordering = ['-timestamp']
-
         
         
         
 
 
+# --- ADD: in AttendanceSession ---
 class AttendanceSession(models.Model):
     id = models.AutoField(primary_key=True)
     user_fk = models.ForeignKey('Users', on_delete=models.PROTECT, related_name='attendance_sessions')
-    # we pin the workday by local date at IN time
     work_date = models.DateField(default=localdate, db_index=True)
     in_time   = models.DateTimeField(default=timezone.now, db_index=True)
     out_time  = models.DateTimeField(null=True, blank=True, db_index=True)
-    duration_seconds = models.IntegerField(default=0)  # auto-filled on exit
-    source = models.CharField(max_length=32, default="nfc")  # nfc/manual/etc.
+    duration_seconds = models.IntegerField(default=0)
+    source = models.CharField(max_length=32, default="nfc")
+
+    # NEW
+    worksite = models.CharField(max_length=100, null=True, blank=True, db_index=True)
 
     class Meta:
         ordering = ['-in_time']
         indexes = [
             models.Index(fields=['work_date', 'user_fk']),
             models.Index(fields=['user_fk', 'out_time']),
+            models.Index(fields=['worksite', 'work_date']),  # NEW (util pt. filtre)
         ]
-
-    def __str__(self):
-        return f"{self.user_fk.UserName} {self.work_date} {self.in_time:%H:%M}→{self.out_time:%H:%M if self.out_time else '…'}"

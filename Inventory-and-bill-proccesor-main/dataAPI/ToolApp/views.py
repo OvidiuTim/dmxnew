@@ -786,14 +786,6 @@ from ToolApp.serializers import HistorySerializer
 
 @csrf_exempt
 def sensor_event(request):
-    """
-    Webhook chemat de Raspberry:
-    - enter:  { "type":"enter",  "user_serie":"USR-001" }
-    - exit:   { "type":"exit",   "user_serie":"USR-001" }
-    - tool_out: { "type":"tool_out", "user_serie":"USR-001", "tool_serie":"TL-123", "quantity":1 }
-    - tool_in:  { "type":"tool_in",  "user_serie":"USR-001", "tool_serie":"TL-123", "quantity":1 }
-    Răspunde cu mesaj pentru dashboard: "{user} a intrat în magazie" / "{user} a preluat/predat {unealta}"
-    """
     if request.method != 'POST':
         return JsonResponse({"msg": "Only POST allowed"}, status=405)
 
@@ -804,6 +796,7 @@ def sensor_event(request):
         tool_serie = (data.get("tool_serie") or "").strip() if data.get("tool_serie") else None
         qty = int(data.get("quantity") or 1)
         note = data.get("note") or "RFID/Senzor"
+        ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip() or None
 
         if not user_serie:
             return JsonResponse({"error": "user_serie este obligatoriu"}, status=400)
@@ -813,23 +806,20 @@ def sensor_event(request):
         except Users.DoesNotExist:
             return JsonResponse({"error": f"User cu seria '{user_serie}' nu există"}, status=404)
 
-        # --- 1) Prezență: intrare / ieșire ---
         if ev_type in ("enter", "exit"):
             kind = PresenceEvent.Kind.ENTER if ev_type == "enter" else PresenceEvent.Kind.EXIT
-            PresenceEvent.objects.create(user_fk=user, kind=kind, timestamp=timezone.now())
-
+            PresenceEvent.objects.create(user_fk=user, kind=kind, timestamp=timezone.now(), worksite=ws)
             msg = f"{user.UserName} a intrat în magazie" if ev_type == "enter" else f"{user.UserName} a ieșit din magazie"
-            # payload minimal pentru UI (dacă vrei să-l pui în același feed cu istoricul)
             display = {
                 "User": user.UserName,
                 "Tool": "",
                 "GiveRecive": "intrare" if ev_type == "enter" else "ieșire",
                 "DateOfGiving": timezone.localtime().date().isoformat(),
-                "timestamp": timezone.localtime().isoformat()
+                "timestamp": timezone.localtime().isoformat(),
+                "worksite": ws,
             }
             return JsonResponse({"ok": True, "message": msg, "display": display})
 
-        # --- 2) Mișcări de unelte: OUT / IN ---
         if ev_type not in ("tool_out", "tool_in"):
             return JsonResponse({"error": "type necunoscut. Folosește: enter | exit | tool_out | tool_in"}, status=400)
 
@@ -844,14 +834,12 @@ def sensor_event(request):
         direction = "OUT" if ev_type == "tool_out" else "IN"
 
         with transaction.atomic():
-            # Validări față de ultima mișcare
             last = Histories.objects.filter(tool_fk=tool).order_by('-timestamp').select_for_update().first()
             if direction == "OUT" and last and last.direction == "OUT":
                 return JsonResponse({"error": "Unealta este deja în afara magaziei (OUT)."}, status=409)
             if direction == "IN" and (not last or last.direction != "OUT"):
                 return JsonResponse({"error": "Nu poți face IN fără un OUT activ."}, status=409)
 
-            # Folosim serializerul ca să ne completeze și legacy fields
             payload = {
                 "user_serie": user_serie,
                 "tool_serie": tool_serie,
@@ -863,7 +851,7 @@ def sensor_event(request):
             if not ser.is_valid():
                 return JsonResponse(ser.errors, status=400, safe=False)
 
-            obj = ser.save()  # creează Histories + umple legacy (User/Tool/GiveRecive etc.)
+            obj = ser.save()
 
         msg = f"{user.UserName} a {'preluat' if direction=='OUT' else 'predat'} {tool.ToolName}"
         return JsonResponse({"ok": True, "message": msg, "history": HistorySerializer(obj).data})
@@ -910,6 +898,7 @@ def workday_close_dt(local_day):
     return timezone.make_aware(naive, tz)
 
 
+
 @csrf_exempt
 def nfc_scan(request):
     if request.method != "POST":
@@ -922,26 +911,32 @@ def nfc_scan(request):
 
     uid = str(data.get("uid") or "").upper().strip()
     tag_type = str(data.get("tag_type") or "").strip()
-    content = str(data.get("content") or "").strip()  # PIN from tag
+    content = str(data.get("content") or "").strip()  # PIN de pe tag
 
-    # Debounce identical scans
+    # Folosim timestamp-ul clientului dacă e valid, altfel now()
+    client_when = _parse_client_ts(data.get("timestamp"))
+    when = client_when or timezone.now()
+    # Acceptăm mai multe chei: worksite/site/santier
+    ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip() or None
+
+    # Debounce identic (server-side)
     now_ts = timezone.now().timestamp()
     key = (uid, content)
     if key in _last_seen and (now_ts - _last_seen[key]) < _DEBOUNCE_SEC:
         return JsonResponse({"ok": True, "debounced": True})
     _last_seen[key] = now_ts
 
-    # 1) Identify user by PIN content
+    # 1) Identific user după PIN
     user = Users.objects.filter(UserPin=content).first()
     if not user:
         print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned={content} -> no user match")
         return JsonResponse({"ok": True, "match": None, "received": data})
 
-    now = timezone.now()
-    today = localdate()
+    # work_date derivat din 'when', nu din 'now'
+    today = localdate(when)
 
+    from datetime import timedelta
     with transaction.atomic():
-        # 2) Check for an open session
         open_sess = (AttendanceSession.objects
                      .select_for_update()
                      .filter(user_fk=user, out_time__isnull=True)
@@ -949,15 +944,12 @@ def nfc_scan(request):
                      .first())
 
         if open_sess:
-            # Dacă sesiunea e dintr-o zi anterioară, o închidem retroactiv la ora de sfârșit a zilei,
-            # apoi tratăm scanarea curentă ca un nou ENTER.
+            # dacă sesiunea e din altă zi, o închidem la ora de închidere a zilei anterioare
             if open_sess.work_date < today:
                 close_at = workday_close_dt(open_sess.work_date)
-                now = timezone.now()
-                if close_at > now:
-                    close_at = now  # safety
+                if close_at > when:
+                    close_at = when
 
-                # Cap la MAX_SHIFT ca să nu înregistrăm 30h din greșeală
                 max_close = open_sess.in_time + timedelta(hours=PONTAJ_MAX_SHIFT_HOURS)
                 if close_at > max_close:
                     close_at = max_close
@@ -966,30 +958,31 @@ def nfc_scan(request):
                 open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
                 open_sess.source = (open_sess.source or '') + '|auto'
                 open_sess.save()
+
                 _publish("auto_close", user, close_at, {
                     "closed_at_hm": localtime(close_at).strftime("%H:%M"),
                     "duration_hms": _fmt_hms(open_sess.duration_seconds),
                     "work_date": str(open_sess.work_date),
+                    "worksite": open_sess.worksite,
                 })
+                PresenceEvent.objects.create(
+                    user_fk=user, kind=PresenceEvent.Kind.EXIT,
+                    timestamp=close_at, worksite=open_sess.worksite
+                )
 
-
-                PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=close_at)
-
-                # deschidem sesiune nouă pentru scanarea de acum
-                enter_now = timezone.now()
+                # deschidem sesiune nouă la 'when', cu worksite curent (ws)
                 new_sess = AttendanceSession.objects.create(
                     user_fk=user,
                     work_date=today,
-                    in_time=enter_now,
-                    source="nfc"
+                    in_time=when,
+                    source="nfc",
+                    worksite=ws
                 )
-                _publish("enter", user, enter_now)
-                PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=enter_now)
-
-                msg = (f"AUTO-CLOSE {user.UserName} zi anterioară @ {localtime(close_at).strftime('%H:%M:%S')} "
-                       f"(durata: {_fmt_hms(open_sess.duration_seconds)}) + ENTER @ {localtime(enter_now).strftime('%H:%M:%S')}")
-                print(f"[PONTAJ] {msg}")
-                logger.info(msg)
+                _publish("enter", user, when, {"worksite": ws})
+                PresenceEvent.objects.create(
+                    user_fk=user, kind=PresenceEvent.Kind.ENTER,
+                    timestamp=when, worksite=ws
+                )
 
                 return JsonResponse({
                     "ok": True,
@@ -999,31 +992,31 @@ def nfc_scan(request):
                         "closed_at": localtime(close_at).isoformat(),
                         "duration_hms": _fmt_hms(open_sess.duration_seconds),
                         "session_id": open_sess.id,
+                        "worksite": open_sess.worksite,
                     },
                     "user": {"id": user.UserId, "name": user.UserName},
                     "session": {
                         "work_date": str(new_sess.work_date),
                         "in_time": localtime(new_sess.in_time).isoformat(),
+                        "worksite": ws,
                     },
-                    "received": data
+                    "received": data,
+                    "ts_used": "client" if client_when else "server"
                 })
 
-            # altfel (aceeași zi): închidere normală acum
-            open_sess.out_time = timezone.now()
-            open_sess.duration_seconds = max(
-                0, int((open_sess.out_time - open_sess.in_time).total_seconds())
-            )
+            # aceeași zi -> EXIT la 'when'
+            open_sess.out_time = when
+            open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
             open_sess.save()
+
             _publish("exit", user, open_sess.out_time, {
-                "duration_hms": _fmt_hms(open_sess.duration_seconds)
+                "duration_hms": _fmt_hms(open_sess.duration_seconds),
+                "worksite": open_sess.worksite,
             })
-
-            PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=open_sess.out_time)
-
-            msg = (f"EXIT {user.UserName} @ {localtime(open_sess.out_time).strftime('%H:%M:%S')} "
-                   f"(durata: {_fmt_hms(open_sess.duration_seconds)})")
-            print(f"[PONTAJ] {msg}")
-            logger.info(msg)
+            PresenceEvent.objects.create(
+                user_fk=user, kind=PresenceEvent.Kind.EXIT,
+                timestamp=open_sess.out_time, worksite=open_sess.worksite
+            )
 
             return JsonResponse({
                 "ok": True,
@@ -1034,36 +1027,39 @@ def nfc_scan(request):
                     "in_time": localtime(open_sess.in_time).isoformat(),
                     "out_time": localtime(open_sess.out_time).isoformat(),
                     "duration_hms": _fmt_hms(open_sess.duration_seconds),
+                    "worksite": open_sess.worksite,
                 },
-                "received": data
+                "received": data,
+                "ts_used": "client" if client_when else "server"
             })
 
-        else:
-            # ENTER: open session
-            sess = AttendanceSession.objects.create(
-                user_fk=user,
-                work_date=today,
-                in_time=now,
-                source="nfc"
-            )
-            PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=now)
-            _publish("enter", user, now)
+        # ENTER: sesiune nouă la 'when' cu worksite
+        sess = AttendanceSession.objects.create(
+            user_fk=user,
+            work_date=today,
+            in_time=when,
+            source="nfc",
+            worksite=ws
+        )
+        PresenceEvent.objects.create(
+            user_fk=user, kind=PresenceEvent.Kind.ENTER,
+            timestamp=when, worksite=ws
+        )
+        _publish("enter", user, when, {"worksite": ws})
 
-            msg = f"ENTER {user.UserName} @ {localtime(now).strftime('%H:%M:%S')}"
-            print(f"[PONTAJ] {msg}")
-            logger.info(msg)
-
-            return JsonResponse({
-                "ok": True,
-                "state": "ENTER",
-                "user": {"id": user.UserId, "name": user.UserName},
-                "session": {
-                    "work_date": str(sess.work_date),
-                    "in_time": localtime(sess.in_time).isoformat(),
-                },
-                "received": data
-            })
-            
+        return JsonResponse({
+            "ok": True,
+            "state": "ENTER",
+            "user": {"id": user.UserId, "name": user.UserName},
+            "session": {
+                "work_date": str(sess.work_date),
+                "in_time": localtime(sess.in_time).isoformat(),
+                "worksite": ws,
+            },
+            "received": data,
+            "ts_used": "client" if client_when else "server"
+        })
+         
             
 
 
@@ -1125,14 +1121,12 @@ def _parse_iso_date(s: str) -> date:
 
 @csrf_exempt
 def attendance_day(request):
-    """GET /api/pontaj/day/?date=YYYY-MM-DD
-       Returnează pentru ziua cerută lista de angajați cu sesiunile lor (in/out) și totalul pe zi."""
+    """GET /api/pontaj/day/?date=YYYY-MM-DD"""
     if request.method != "GET":
         return JsonResponse({"error": "Only GET allowed"}, status=405)
 
     day = _parse_iso_date(request.GET.get("date") or str(localdate()))
 
-    # Tragem toate sesiunile din ziua respectivă
     qs = (AttendanceSession.objects
           .filter(work_date=day)
           .select_related("user_fk")
@@ -1156,7 +1150,6 @@ def attendance_day(request):
         in_local  = localtime(s.in_time) if s.in_time else None
         out_local = localtime(s.out_time) if s.out_time else None
         if s.out_time is None:
-            # sesiune deschisă -> calculez durata curentă live
             dur = int((timezone.now() - s.in_time).total_seconds())
             rows_by_user[key]["status"] = "IN"
         else:
@@ -1169,9 +1162,9 @@ def attendance_day(request):
             "duration_hms": _fmt_hms(dur),
             "open": (s.out_time is None),
             "session_id": s.id,
+            "worksite": s.worksite,  # NEW
         })
 
-        # first_in & last_out
         if in_local:
             if (rows_by_user[key]["first_in"] is None or
                 in_local < datetime.fromisoformat(rows_by_user[key]["first_in"])):
@@ -1181,9 +1174,8 @@ def attendance_day(request):
                 out_local > datetime.fromisoformat(rows_by_user[key]["last_out"])):
                 rows_by_user[key]["last_out"] = out_local.isoformat()
 
-    # transform în listă și formatez totalul
     rows = []
-    for user_id, row in rows_by_user.items():
+    for _, row in rows_by_user.items():
         rows.append({
             "UserId": row["UserId"],
             "UserName": row["UserName"],
@@ -1194,19 +1186,12 @@ def attendance_day(request):
             "sessions": row["sessions"],
         })
 
-    # sortez alfabetic (frontend-friendly)
     rows.sort(key=lambda r: r["UserName"].lower())
-
-    return JsonResponse({
-        "date": str(day),
-        "rows": rows
-    }, safe=False)
+    return JsonResponse({"date": str(day), "rows": rows}, safe=False)
 
 
 @csrf_exempt
 def attendance_present(request):
-    """GET /api/pontaj/present/
-       Cine este IN acum (sesiuni deschise), cu ora intrării și durata curentă."""
     if request.method != "GET":
         return JsonResponse({"error": "Only GET allowed"}, status=405)
 
@@ -1228,6 +1213,7 @@ def attendance_present(request):
             "in_time": in_local.strftime("%H:%M:%S"),
             "duration_hms": _fmt_hms(dur),
             "session_id": s.id,
+            "worksite": s.worksite,  # NEW
         })
 
     return JsonResponse({"now": localtime(now).isoformat(), "present": data})
@@ -1238,10 +1224,7 @@ from datetime import timedelta
 
 @csrf_exempt
 def attendance_range(request):
-    """GET /api/pontaj/range/?start=YYYY-MM-DD&end=YYYY-MM-DD[&user_id=ID]
-       - fără user_id: sumar per (user, zi) ca înainte
-       - cu user_id: pentru utilizatorul cerut, trimite pe fiecare zi lista de sesiuni + total/număr intrări/ieșiri
-    """
+    """GET /api/pontaj/range/?start=YYYY-MM-DD&end=YYYY-MM-DD[&user_id=ID]"""
     if request.method != "GET":
         return JsonResponse({"error": "Only GET allowed"}, status=405)
 
@@ -1252,7 +1235,6 @@ def attendance_range(request):
 
     user_id = request.GET.get("user_id")
 
-    # --- varianta detaliată pentru un singur user ---
     if user_id:
         try:
             user = Users.objects.get(UserId=user_id)
@@ -1263,7 +1245,6 @@ def attendance_range(request):
               .filter(user_fk=user, work_date__range=(start, end))
               .order_by("in_time"))
 
-        # grupăm pe zile
         from collections import OrderedDict
         days = OrderedDict()
         cur = start
@@ -1275,7 +1256,7 @@ def attendance_range(request):
                 "total_seconds": 0,
                 "entries": 0,
                 "exits": 0,
-                "sessions": [],   # fiecare: {in_time, out_time, duration_hms, open, session_id}
+                "sessions": [],  # {in_time, out_time, duration_hms, open, session_id, worksite}
             }
             cur += timedelta(days=1)
 
@@ -1286,7 +1267,6 @@ def attendance_range(request):
                 continue
             in_local = localtime(s.in_time)
             out_local = localtime(s.out_time) if s.out_time else None
-            # durată (live dacă e deschisă)
             dur = s.duration_seconds if s.out_time else int((now - s.in_time).total_seconds())
             dur = max(0, int(dur))
 
@@ -1296,19 +1276,18 @@ def attendance_range(request):
                 "duration_hms": _fmt_hms(dur),
                 "open": (s.out_time is None),
                 "session_id": s.id,
+                "worksite": s.worksite,  # NEW
             })
             bucket["entries"] += 1
             if s.out_time:
                 bucket["exits"] += 1
             bucket["total_seconds"] += dur
 
-            # first_in / last_out
             if not bucket["first_in"] or in_local.isoformat() < bucket["first_in"]:
                 bucket["first_in"] = in_local.isoformat()
             if out_local and (not bucket["last_out"] or out_local.isoformat() > bucket["last_out"]):
                 bucket["last_out"] = out_local.isoformat()
 
-        # finalizez răspunsul
         day_list = []
         for d in days.values():
             day_list.append({
@@ -1331,7 +1310,7 @@ def attendance_range(request):
             }]
         })
 
-    # --- fallback: comportamentul vechi, agregat pe toți userii ---
+    # agregat pe toți userii (fără detalii per sesiune)
     qs = (AttendanceSession.objects
           .filter(work_date__range=(start, end))
           .values("user_fk__UserId", "user_fk__UserName", "work_date")
@@ -1344,8 +1323,7 @@ def attendance_range(request):
 
     users = {}
     for r in qs:
-        uid = r["user_fk__UserId"]
-        uname = r["user_fk__UserName"]
+        uid = r["user_fk__UserId"]; uname = r["user_fk__UserName"]
         if uid not in users:
             users[uid] = {"UserId": uid, "UserName": uname, "days": []}
         users[uid]["days"].append({
@@ -1442,3 +1420,24 @@ def pontaj_stream(request):
     resp["Cache-Control"] = "no-cache"
     resp["X-Accel-Buffering"] = "no"
     return resp
+
+
+
+from datetime import datetime
+from django.utils import timezone
+
+def _parse_client_ts(ts_str: str) -> datetime | None:
+    """
+    Acceptă ISO 8601 cu 'Z' sau cu offset (+02:00). Dacă e naiv, îl tratăm ca UTC.
+    Returnează tz-aware în timezone curent.
+    """
+    if not ts_str:
+        return None
+    try:
+        ts_norm = ts_str.strip().replace('Z', '+00:00')
+        dt = datetime.fromisoformat(ts_norm)
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.utc)
+        return dt.astimezone(timezone.get_current_timezone())
+    except Exception:
+        return None
