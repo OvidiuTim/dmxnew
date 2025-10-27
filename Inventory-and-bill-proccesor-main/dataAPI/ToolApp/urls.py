@@ -100,4 +100,5 @@ urlpatterns = [
 
     path('api/istoric_schele/', views.istoricschelaApi),
     path('api/istoric_schele/<int:id>', views.istoricschelaApi),
+    path('api/pontaj/force_close_1730/', views.attendance_force_close_1730),
 ]

@@ -41,6 +41,23 @@ def check_nfc_reader(request):
 
 
     
+# --- AUTO CLOSE CONFIG ---
+AUTO_CLOSE_HOUR = 17
+AUTO_CLOSE_MIN  = 30
+AUTO_CLOSE_SOURCE_TAG = "|auto1730"
+PONTAJ_MAX_SHIFT_HOURS = 14  # deja îl ai, îl folosim pentru cap durată
+
+from datetime import datetime, timedelta
+from django.db import transaction
+
+def _day_time_dt(local_day, hour, minute):
+    tz = timezone.get_current_timezone()
+    naive = datetime(local_day.year, local_day.month, local_day.day, hour, minute, 0)
+    return timezone.make_aware(naive, tz)
+
+
+
+
 # Create your views here.
 #api angajati
 @csrf_exempt
@@ -1460,3 +1477,81 @@ def _parse_client_ts(ts_str: str) -> datetime | None:
         return dt.astimezone(timezone.get_current_timezone())
     except Exception:
         return None
+
+
+def close_open_sessions_for_day_at_1730(target_day):
+    """
+    Închide toate sesiunile cu out_time NULL pentru 'target_day' la 17:30 (ora locală).
+    Durata e plafonată și nu devine negativă.
+    Creează și PresenceEvent(EXIT). Trimite SSE (dacă există _publish).
+    Returnează: numărul de sesiuni închise.
+    """
+    from ToolApp.models import AttendanceSession, PresenceEvent  # import local ca să evit cicluri
+    close_at = _day_time_dt(target_day, AUTO_CLOSE_HOUR, AUTO_CLOSE_MIN)
+    now = timezone.now()
+    # nu setăm niciodată o oră în viitor
+    if close_at > now:
+        close_at = now
+
+    count = 0
+    with transaction.atomic():
+        qs = (AttendanceSession.objects
+              .select_for_update()
+              .filter(work_date=target_day, out_time__isnull=True)
+              .order_by('in_time'))
+        for s in qs:
+            # out = max(in_time, 17:30) ca să evităm durată negativă
+            out_dt = max(s.in_time, close_at)
+            # plafon de siguranță
+            max_close = s.in_time + timedelta(hours=PONTAJ_MAX_SHIFT_HOURS)
+            if out_dt > max_close:
+                out_dt = max_close
+
+            s.out_time = out_dt
+            s.duration_seconds = max(0, int((s.out_time - s.in_time).total_seconds()))
+            s.source = (s.source or '') + AUTO_CLOSE_SOURCE_TAG
+            s.save()
+
+            # PresenceEvent EXIT
+            PresenceEvent.objects.create(
+                user_fk=s.user_fk,
+                kind=PresenceEvent.Kind.EXIT,
+                timestamp=out_dt,
+                worksite=s.worksite
+            )
+
+            # SSE (best effort)
+            try:
+                _publish("auto_1730", s.user_fk, out_dt, {
+                    "work_date": str(s.work_date),
+                    "duration_hms": _fmt_hms(s.duration_seconds),
+                    "worksite": s.worksite,
+                })
+            except Exception:
+                pass
+
+            count += 1
+    return count
+
+
+@csrf_exempt
+def attendance_force_close_1730(request):
+    """
+    GET /api/pontaj/force_close_1730/?date=YYYY-MM-DD
+    Dacă lipsește data -> folosește azi (localdate()).
+    """
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    d_str = request.GET.get("date")
+    if d_str:
+        try:
+            from datetime import date as _date
+            target_day = _date.fromisoformat(d_str)
+        except Exception:
+            return JsonResponse({"error": "date invalid (YYYY-MM-DD)"}, status=400)
+    else:
+        target_day = localdate()
+
+    closed = close_open_sessions_for_day_at_1730(target_day)
+    return JsonResponse({"ok": True, "date": str(target_day), "closed_sessions": closed})
