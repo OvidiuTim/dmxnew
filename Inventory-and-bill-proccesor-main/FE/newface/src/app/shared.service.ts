@@ -86,14 +86,20 @@ export class SharedService {
   deleteMijloace(id: any)              { return this.http.delete(`${this.API}/mijloacefixe/${id}`); }
 
   // --- Pontaj ---
-  getAttendanceDay(date?: string)      { return this.http.get(`${this.API}/pontaj/day/`,     { params: date ? { date } : {} }); }
+getAttendanceDay(date?: string) {
+  // era this.http.get(`${this.API}/pontaj/day/`, ...)
+  return this.http.get<any>(`${this.API}/pontaj/day/`, { params: date ? { date } : {} });
+}
+
   getAttendancePresent()               { return this.http.get(`${this.API}/pontaj/present/`); }
   getAttendanceRange(start: string, end: string) {
     return this.http.get(`${this.API}/pontaj/range/`, { params: { start, end } });
   }
-  getAttendanceRangeForUser(start: string, end: string, userId: number) {
-    return this.http.get(`${this.API}/pontaj/range/`, { params: { start, end, user_id: userId } });
-  }
+getAttendanceRangeForUser(start: string, end: string, userId: number) {
+  // era this.http.get(`${this.API}/pontaj/range/`, ...)
+  return this.http.get<any>(`${this.API}/pontaj/range/`, { params: { start, end, user_id: userId } });
+}
+
 
   // SSE (dacă îl folosești în FE)
   readonly pontajStreamUrl = `${this.API}/pontaj/stream/`;

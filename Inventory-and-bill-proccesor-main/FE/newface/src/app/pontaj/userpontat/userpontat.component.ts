@@ -12,6 +12,7 @@ interface SessionRow {
   duration_hms: string;
   open: boolean;
   session_id: number;
+  worksite?: string | null; // NEW
 }
 interface DayRow {
   date: string;              // YYYY-MM-DD

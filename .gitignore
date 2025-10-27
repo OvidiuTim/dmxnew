@@ -17,3 +17,7 @@ Inventory-and-bill-proccesor-main/FE/**/dist/
 
 # build prod copiat pe server
 angular/
+
+
+
+shared.service.ts
