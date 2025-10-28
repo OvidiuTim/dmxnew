@@ -147,6 +147,86 @@ def users_bulk(request):
     objs = ser.save()
     return JsonResponse({"created": len(objs)})
     
+# --- BULK USERS: UPDATE (PUT JSON list) ---
+@csrf_exempt
+def users_bulk_update(request):
+    """
+    PUT /api/users/bulk_update/[?create_if_missing=1][&dry_run=1]
+    Body (JSON): listă sau { "rows": [...] } cu obiecte user.
+    Identificare per rând (în ordinea asta): UserId | UserSerie | UserPin.
+    Exemplu rând: { "UserId": 12, "UserName": "..." , "hourly_rate": 27.5 }
+    """
+    if request.method != "PUT":
+        return JsonResponse({"error": "Only PUT allowed"}, status=405)
+
+    create_if_missing = str(request.GET.get("create_if_missing", "0")).lower() in ("1","true","yes","on")
+    dry_run = str(request.GET.get("dry_run", "0")).lower() in ("1","true","yes","on")
+
+    # parse body
+    try:
+        body = request.body.decode("utf-8", "ignore")
+        data = json.loads(body or "[]")
+        if isinstance(data, dict) and "rows" in data:
+            data = data["rows"]
+        if not isinstance(data, list):
+            return JsonResponse({"error": "Body trebuie să fie listă JSON sau {rows:[...]}"}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": f"JSON invalid: {e}"}, status=400)
+
+    updated = created = errors = 0
+    results = []
+
+    for idx, row in enumerate(data, start=1):
+        # cheie de căutare: UserId | UserSerie | UserPin
+        lookup = None
+        if row.get("UserId") not in (None, ""):
+            lookup = {"UserId": row.get("UserId")}
+        elif row.get("UserSerie"):
+            lookup = {"UserSerie": row.get("UserSerie")}
+        elif row.get("UserPin"):
+            lookup = {"UserPin": row.get("UserPin")}
+        else:
+            errors += 1
+            results.append({"row": idx, "error": "Lipsește cheie de identificare (UserId sau UserSerie sau UserPin)."})
+            continue
+
+        try:
+            inst = Users.objects.get(**lookup)
+            ser = UserSerializer(inst, data=row, partial=True)
+            if ser.is_valid():
+                if not dry_run:
+                    ser.save()
+                updated += 1
+                results.append({"row": idx, "action": "updated", "UserId": ser.instance.UserId})
+            else:
+                errors += 1
+                results.append({"row": idx, "error": ser.errors})
+        except Users.DoesNotExist:
+            if not create_if_missing:
+                errors += 1
+                results.append({"row": idx, "error": "user not found", "lookup": lookup})
+                continue
+            ser = UserSerializer(data=row)
+            if ser.is_valid():
+                if not dry_run:
+                    obj = ser.save()
+                    uid = obj.UserId
+                else:
+                    uid = None
+                created += 1
+                results.append({"row": idx, "action": "created", "UserId": uid})
+            else:
+                errors += 1
+                results.append({"row": idx, "error": ser.errors})
+
+    return JsonResponse({
+        "updated": updated,
+        "created": created,
+        "errors": errors,
+        "dry_run": dry_run,
+        "results": results
+    })
+
 
 # --- PURGE USERS: șterge toți utilizatorii (cu confirmare) ---
 @csrf_exempt
