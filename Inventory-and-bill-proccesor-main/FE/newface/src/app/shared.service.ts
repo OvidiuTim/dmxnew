@@ -103,4 +103,15 @@ getAttendanceRangeForUser(start: string, end: string, userId: number) {
 
   // SSE (dacă îl folosești în FE)
   readonly pontajStreamUrl = `${this.API}/pontaj/stream/`;
+
+
+getPayDay(userId: number, isoDate: string) {
+  return this.http.get<any>(`${this.API}/pay/day/`, { params: { user_id: userId, date: isoDate }});
 }
+getPayMonth(userId: number, ym: string) {
+  return this.http.get<any>(`${this.API}/pay/month/`, { params: { user_id: userId, month: ym }});
+}
+
+}
+
+

@@ -10,10 +10,18 @@
     </div>
   </div>
 
-  <div class="summary">
-    <div class="badge">Perioadă: {{ startISO }} → {{ endISO }}</div>
-    <div class="badge strong">Total lună: {{ durataOre(monthTotal) }}</div>
+<div class="summary">
+  <div class="badge">Perioadă: {{ startISO }} → {{ endISO }}</div>
+  <div class="badge">Total ore lună: {{ durataOre(monthTotal) }}</div>
+  <div class="badge strong">
+    Salariu lună: 
+    <ng-container *ngIf="monthSalary !== null; else noPay">
+      {{ monthSalary | number:'1.2-2' }} lei
+    </ng-container>
+    <ng-template #noPay>—</ng-template>
   </div>
+</div>
+
 
   <div class="state" *ngIf="loading">Se încarcă…</div>
   <div class="state error" *ngIf="error">{{ error }}</div>

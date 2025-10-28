@@ -12,7 +12,7 @@ import csv, io
 from ToolApp.models import (
     Shed, Unfunctional, Users, Tools, Histories, Materials, Consumables, WorkField,
     CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas,
-    Combustibils, HistorieScheles, MijloaceFixes
+    Combustibils, HistorieScheles, MijloaceFixes,DailyPay
 )
 from ToolApp.serializers import (
     ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, ToolSerializer,
@@ -20,6 +20,10 @@ from ToolApp.serializers import (
     CofrajtTipDokaSerializer, PopiSerializer, SchelaUsoaraSerializer, SchelaFatadaSerializer,
     SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer
 )
+
+from decimal import Decimal, ROUND_HALF_UP
+from django.db.models import Sum
+
 
 import json
 
@@ -1030,6 +1034,7 @@ def nfc_scan(request):
             open_sess.out_time = when
             open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
             open_sess.save()
+            recompute_daily_pay(user, open_sess.work_date)
 
             _publish("exit", user, open_sess.out_time, {
                 "duration_hms": _fmt_hms(open_sess.duration_seconds),
@@ -1555,3 +1560,98 @@ def attendance_force_close_1730(request):
 
     closed = close_open_sessions_for_day_at_1730(target_day)
     return JsonResponse({"ok": True, "date": str(target_day), "closed_sessions": closed})
+
+
+
+def recompute_daily_pay(user, day):
+    """
+    Recalculează totalul pe zi (secunde) din AttendanceSession și salvează snapshot-ul de plată.
+    """
+    agg = (AttendanceSession.objects
+           .filter(user_fk=user, work_date=day, out_time__isnull=False)
+           .aggregate(total=Sum('duration_seconds')))
+    total_seconds = int(agg['total'] or 0)
+    rate = user.hourly_rate or Decimal('0.00')
+    hours = (Decimal(total_seconds) / Decimal(3600)).quantize(Decimal('0.0001'))  # precizie internă
+    day_pay = (rate * hours).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    obj, _ = DailyPay.objects.get_or_create(user_fk=user, work_date=day, defaults={
+        'total_seconds': total_seconds,
+        'hourly_rate_snapshot': rate,
+        'day_pay': day_pay,
+    })
+    if _ is False:
+        obj.total_seconds = total_seconds
+        obj.hourly_rate_snapshot = rate
+        obj.day_pay = day_pay
+        obj.save()
+    return obj
+
+
+
+# --- API: /api/pay/day și /api/pay/month ---
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.utils.timezone import localdate
+from django.db.models import Sum
+from decimal import Decimal
+
+@csrf_exempt
+def pay_day(request):
+    """GET /api/pay/day/?user_id=ID&date=YYYY-MM-DD"""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+    try:
+        user_id = int(request.GET.get("user_id"))
+        user = Users.objects.get(UserId=user_id)
+    except Exception:
+        return JsonResponse({"error": "user not found"}, status=404)
+
+    from datetime import date as _date
+    day_str = request.GET.get("date")
+    day = _date.fromisoformat(day_str) if day_str else localdate()
+
+    obj = recompute_daily_pay(user, day)  # asigură snapshot up-to-date
+    return JsonResponse({
+        "user_id": user.UserId,
+        "date": str(day),
+        "hourly_rate": str(obj.hourly_rate_snapshot),
+        "total_seconds": obj.total_seconds,
+        "day_pay": str(obj.day_pay)
+    })
+
+@csrf_exempt
+def pay_month(request):
+    """GET /api/pay/month/?user_id=ID&month=YYYY-MM"""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+    try:
+        user_id = int(request.GET.get("user_id"))
+        user = Users.objects.get(UserId=user_id)
+    except Exception:
+        return JsonResponse({"error": "user not found"}, status=404)
+
+    month = (request.GET.get("month") or str(localdate())[:7])  # "YYYY-MM"
+    y, m = month.split("-"); y = int(y); m = int(m)
+
+    from datetime import date as _date
+    from calendar import monthrange
+    last_day = monthrange(y, m)[1]
+    start = _date(y, m, 1); end = _date(y, m, last_day)
+
+    # Recalculează snapshot-urile pentru toate zilele cu sesiuni închise în lună
+    days = (AttendanceSession.objects
+            .filter(user_fk=user, work_date__range=(start, end), out_time__isnull=False)
+            .values_list('work_date', flat=True).distinct())
+    for d in days:
+        recompute_daily_pay(user, d)
+
+    total = (DailyPay.objects
+             .filter(user_fk=user, work_date__range=(start, end))
+             .aggregate(s=Sum('day_pay'))['s'] or Decimal('0.00'))
+
+    return JsonResponse({
+        "user_id": user.UserId,
+        "month": f"{y:04d}-{m:02d}",
+        "month_total": str(total)
+    })

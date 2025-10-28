@@ -4,7 +4,7 @@ from django.utils import timezone
 from ToolApp.models import (
     Consumables, Materials, MijloaceFixes, Shed, Tools, Histories, Unfunctional,
     Users, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras,
-    SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles
+    SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles,DailyPay
 )
 
 
@@ -12,7 +12,7 @@ from ToolApp.models import (
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = ("UserId", "UserName", "UserSerie", "UserPin", "NameAndSerie")
+        fields = ("UserId", "UserName", "UserSerie", "UserPin", "NameAndSerie","hourly_rate")
 
 
 # -------------------- TOOLS --------------------
@@ -304,3 +304,13 @@ class MijloaceFixeSerializer(serializers.ModelSerializer):
     class Meta:
         model = MijloaceFixes
         fields = ("MijloaceFixeId", "MijloaceFixeName", "MijloaceFixeCantitate", "Location")
+
+
+
+# nou:
+class DailyPaySerializer(serializers.ModelSerializer):
+    UserId = serializers.IntegerField(source='user_fk.UserId', read_only=True)
+    UserName = serializers.CharField(source='user_fk.UserName', read_only=True)
+    class Meta:
+        model = DailyPay
+        fields = ('UserId','UserName','work_date','total_seconds','hourly_rate_snapshot','day_pay')

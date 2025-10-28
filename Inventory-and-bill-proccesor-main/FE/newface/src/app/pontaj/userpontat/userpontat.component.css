@@ -91,3 +91,38 @@ h2 { margin:0; font-size:18px; }
   .date .d2 { display:none; }
   .sess-row { grid-template-columns: 56px 14px 56px 1fr; }
 }
+
+
+/* === ADD TO THE END === */
+
+/* 5 columns (Zi • Locație zi • Sesiuni • Total zi • #Intrări/#Ieșiri) */
+.table .thead, .table .row {
+  grid-template-columns: 160px 150px 1fr 120px 120px;
+}
+
+/* Summary – mic polish la aliniere */
+.summary .badge { display:inline-flex; align-items:center; gap:6px; }
+
+/* Sesiuni: rezervă coloană pentru “site” în aceeași linie cu durata */
+.sess-col .sess-row { grid-template-columns: 64px 16px 64px 1fr auto; }
+.sess-row .dur { text-align:right; }
+.sess-row .site { grid-column: 5; justify-self:end; }
+
+/* Chip-uri (pilioare) pentru locații */
+.chip {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:3px 8px; border-radius:999px;
+  background:#0e1218; border:1px solid #28303a;
+  color:#d7dee9; font-size:12px; line-height:1; white-space:nowrap;
+}
+.site-day .chip { background:#102012; border-color:#1c3422; color:#b7e9c2; }  /* chip din coloana “Locație (zi)” */
+.sess-row .chip { background:#11141b; border-color:#2b3040; color:#d0d7e6; }   /* chip pe fiecare sesiune */
+.chip:hover { border-color:#3a4356; }
+
+/* Responsive */
+@media (max-width:640px){
+  .table .thead, .table .row { grid-template-columns: 1fr 1fr 1fr; }
+  .site-day, .counts { display:none; }            /* ascunde coloane mai puțin critice pe ecrane mici */
+  .sess-col .sess-row { grid-template-columns: 56px 14px 56px 1fr; }
+  .sess-row .site { display:none; }               /* ascunde chip-ul per sesiune pe mobil îngust */
+}

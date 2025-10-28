@@ -29,7 +29,7 @@ class Users(models.Model):
     UserSerie = models.CharField(max_length=100, unique=True, db_index=True)
     UserPin = models.CharField(max_length=100)
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
-
+    hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=0)  # lei/oră
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
 
@@ -248,3 +248,25 @@ class AttendanceSession(models.Model):
             models.Index(fields=['user_fk', 'out_time']),
             models.Index(fields=['worksite', 'work_date']),  # NEW (util pt. filtre)
         ]
+
+
+
+# --- nou: snapshot zilnic de plată
+from decimal import Decimal
+
+class DailyPay(models.Model):
+    id = models.AutoField(primary_key=True)
+    user_fk = models.ForeignKey('Users', on_delete=models.PROTECT, related_name='daily_pays')
+    work_date = models.DateField(db_index=True)
+    total_seconds = models.IntegerField(default=0)  # totalul închiderilor din zi (secunde)
+    hourly_rate_snapshot = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0.00'))
+    day_pay = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))  # lei
+
+    class Meta:
+        unique_together = [('user_fk', 'work_date')]
+        indexes = [
+            models.Index(fields=['user_fk', 'work_date']),
+        ]
+
+    def __str__(self):
+        return f"{self.work_date} - {self.user_fk} = {self.day_pay} lei"

@@ -44,13 +44,14 @@ export class UserpontatComponent implements OnInit {
 
   days: DayRow[] = [];
   monthTotal = '00:00:00';
-
+  monthSalary: number | null = null;  // lei
   constructor(private route: ActivatedRoute, private api: SharedService) { }
 
   ngOnInit(): void {
     this.userId = Number(this.route.snapshot.paramMap.get('id'));
     this.computeBounds();
     this.load();
+    this.refreshMonthSalary();
   }
 
   monthNow(): string {
@@ -69,6 +70,7 @@ export class UserpontatComponent implements OnInit {
     this.selectedMonth = val;
     this.computeBounds();
     this.load();
+    this.refreshMonthSalary();
   }
 
   load(): void {
@@ -136,6 +138,19 @@ export class UserpontatComponent implements OnInit {
     for (const r of rows) total += this.hmsToSec(r.total_hms);
     return this.secToHms(total);
   }
+private refreshMonthSalary(): void {
+  // selectedMonth e deja "YYYY-MM"
+  this.api.getPayMonth(this.userId, this.selectedMonth).subscribe({
+    next: (res) => {
+      this.monthSalary = parseFloat(res?.month_total ?? '0');
+    },
+    error: () => {
+      this.monthSalary = null;
+    }
+  });
+}
+
+
   hmsToSec(hms: string): number {
     if (!hms) return 0;
     const [h, m, s] = hms.split(':').map(x => parseInt(x || '0', 10));
