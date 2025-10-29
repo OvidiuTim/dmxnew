@@ -237,8 +237,6 @@ class AttendanceSession(models.Model):
     out_time  = models.DateTimeField(null=True, blank=True, db_index=True)
     duration_seconds = models.IntegerField(default=0)
     source = models.CharField(max_length=32, default="nfc")
-
-    # NEW
     worksite = models.CharField(max_length=100, null=True, blank=True, db_index=True)
 
     class Meta:

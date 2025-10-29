@@ -1,67 +1,155 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="ro">
+
 <head>
   <meta charset="utf-8">
   <title>Monitor pontaj</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="{% static 'ToolApp/pontaj_monitor.css' %}" rel="stylesheet">
 </head>
+
 <body>
   <main class="wrap">
     <header class="bar">
       <h1>Monitor pontaj</h1>
-      <div class="status">
-        <span class="dot" id="sseDot" title="Status conexiune"></span>
-        <span class="lbl">live</span>
+
+      <div class="top-right">
+        <nav class="sites" id="sites"></nav>
+
+        <div class="status">
+          <span class="dot" id="sseDot" title="Status conexiune"></span>
+          <span class="lbl">live</span>
+        </div>
       </div>
     </header>
+
 
     <section id="feed" class="feed" aria-live="polite"></section>
   </main>
 
   <!-- JS minimal, în pagină: ascultă /api/pontaj/stream/ și adaugă carduri -->
-  <script>
-    (function () {
-      const feed = document.getElementById('feed');
-      const dot  = document.getElementById('sseDot');
+<script>
+  (function () {
+    const feed = document.getElementById('feed');
+    const dot  = document.getElementById('sseDot');
+    const sitesWrap = document.getElementById('sites');
 
-      function addCard(kind, name, at) {
-        const el = document.createElement('div');
-        el.className = 'card ' + (kind === 'enter' ? 'enter' : 'exit');
-        el.innerHTML = `
-          <div class="title">${kind === 'enter' ? 'A ajuns' : 'A plecat'}</div>
-          <div class="name">${name || 'Angajat'}</div>
-          <div class="time">${at || ''}</div>
-        `;
-        feed.prepend(el);
-        // păstrăm max 24 carduri
-        while (feed.children.length > 24) feed.removeChild(feed.lastElementChild);
-        requestAnimationFrame(() => el.classList.add('show'));
-      }
+    let selectedSite = localStorage.getItem('monitor_site') || '*';
+    const knownSites = new Set(); // valori unice de worksite ('' = fara locatie)
 
-      function connect() {
-        const es = new EventSource('/api/pontaj/stream/');
-        es.onopen  = () => dot.classList.add('ok');
-        es.onerror = () => dot.classList.remove('ok');
+    // ---------- UI: butoane filtre ----------
+    function buildAllButton() {
+      const b = document.createElement('button');
+      b.className = 'site-btn';
+      b.dataset.site = '*';
+      b.textContent = 'Toate';
+      b.addEventListener('click', () => selectSite('*'));
+      sitesWrap.appendChild(b);
+    }
 
-        es.addEventListener('enter', (ev) => {
-          const d = JSON.parse(ev.data);
-          addCard('enter', d.user_name, d.at);
-        });
-        es.addEventListener('exit', (ev) => {
-          const d = JSON.parse(ev.data);
-          addCard('exit', d.user_name, d.at);
-        });
-        // opțional: dacă trimiți 'auto_close', o tratăm ca plecare
-        es.addEventListener('auto_close', (ev) => {
-          const d = JSON.parse(ev.data);
-          addCard('exit', d.user_name, d.at || d.closed_at_hm);
-        });
-      }
+    function labelFor(site) {
+      return site && site.trim() ? site : 'Fără locație';
+    }
 
-      connect();
-    })();
-  </script>
+    function ensureSiteButton(siteRaw) {
+      const key = (siteRaw || '').trim(); // '' pentru null/undefined
+      if (knownSites.has(key)) return;
+      knownSites.add(key);
+
+      const b = document.createElement('button');
+      b.className = 'site-btn';
+      b.dataset.site = key;
+      b.title = labelFor(key);
+      b.innerHTML = `<span class="site-btn-text">${labelFor(key)}</span>`;
+      b.addEventListener('click', () => selectSite(key));
+      sitesWrap.appendChild(b);
+      updateActive();
+    }
+
+    function selectSite(val) {
+      selectedSite = val;
+      localStorage.setItem('monitor_site', selectedSite);
+      updateActive();
+      applyFilter();
+    }
+
+    function updateActive() {
+      Array.from(sitesWrap.querySelectorAll('.site-btn')).forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.site === selectedSite);
+      });
+    }
+
+    function applyFilter() {
+      Array.from(feed.children).forEach(card => {
+        const site = (card.dataset.site || '').trim();
+        const show = (selectedSite === '*') || (site === selectedSite);
+        card.style.display = show ? '' : 'none';
+      });
+    }
+
+    // ---------- CARD ----------
+    function addCard(kind, name, at, siteRaw) {
+      const site = (siteRaw || '').trim();
+      const el = document.createElement('div');
+      el.className = 'card ' + (kind === 'enter' ? 'enter' : 'exit');
+      el.dataset.site = site;
+
+      el.innerHTML = `
+        <div class="title">${kind === 'enter' ? 'A ajuns' : 'A plecat'}</div>
+        <div class="name">${name || 'Angajat'}</div>
+        <div class="meta">
+          <span class="time">${at || ''}</span>
+          <span class="site-chip">${labelFor(site)}</span>
+        </div>
+      `;
+
+      feed.prepend(el);
+      while (feed.children.length > 24) feed.removeChild(feed.lastElementChild);
+      requestAnimationFrame(() => el.classList.add('show'));
+
+      // asigură buton pentru worksite
+      ensureSiteButton(site);
+      // aplică filtrul curent
+      applyFilter();
+    }
+
+    // ---------- SSE ----------
+    function connect() {
+      buildAllButton();        // "Toate"
+      updateActive();          // marchează activul
+      const es = new EventSource('/api/pontaj/stream/');
+
+      es.onopen  = () => dot.classList.add('ok');
+      es.onerror = () => dot.classList.remove('ok');
+
+      es.addEventListener('enter', (ev) => {
+        const d = JSON.parse(ev.data);
+        addCard('enter', d.user_name, d.at, d.worksite);
+      });
+      es.addEventListener('exit', (ev) => {
+        const d = JSON.parse(ev.data);
+        addCard('exit', d.user_name, d.at, d.worksite);
+      });
+      // auto_close (EXIT forțat pe zi anterioară)
+      es.addEventListener('auto_close', (ev) => {
+        const d = JSON.parse(ev.data);
+        addCard('exit', d.user_name, d.at || d.closed_at_hm, d.worksite);
+      });
+      // auto_1730 (închiderea la 17:30)
+      es.addEventListener('auto_1730', (ev) => {
+        const d = JSON.parse(ev.data);
+        addCard('exit', d.user_name, d.at || d.closed_at_hm, d.worksite);
+      });
+    }
+
+    connect();
+  })();
+</script>
+
+
+
+
 </body>
+
 </html>

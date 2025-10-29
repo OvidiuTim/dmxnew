@@ -106,3 +106,99 @@ html,body{
   opacity:.9;
   margin-top:8px;
 }
+
+
+
+/* ====== FILTRE WORKSITE (butoniere sus) ====== */
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sites {
+  display: flex;
+  flex-wrap: wrap;          /* se împachetează pe 2-3 rânduri dacă sunt multe */
+  gap: 8px;
+  max-width: 860px;         /* ajustează după preferință */
+}
+
+:root {
+  --sitew: 160px;           /* lățime fixă, toate butoanele la fel */
+  --siteh: 52px;            /* înălțime fixă */
+}
+
+.site-btn {
+  width: var(--sitew);
+  height: var(--siteh);
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #121522;
+  color: var(--text);
+  cursor: pointer;
+  display: flex;            /* centru vertical & orizontal */
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transition: transform .12s ease, border-color .2s, background .2s, box-shadow .2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  overflow: hidden;         /* ascunde textul în exces */
+}
+
+.site-btn:hover {
+  transform: translateY(-1px);
+  border-color: #2e3550;
+  background: #141834;
+}
+
+.site-btn.active {
+  background: #1b2450;
+  border-color: #3a4c9b;
+  box-shadow: 0 6px 16px rgba(24,38,96,.35);
+}
+
+/* text flexibil în buton: 1-2 rânduri, tăiat elegant */
+.site-btn .site-btn-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;    /* max 2 rânduri */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.15;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+
+/* badge cu worksite pe card */
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.site-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: .2px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12);
+}
+
+/* enter/exit moștenesc culorile; chip-ul să rămână lizibil */
+.card.enter .site-chip { color: var(--greenText); }
+.card.exit  .site-chip { color: var(--redText);  }
+
+/* Responsivitate */
+@media (max-width: 860px) {
+  .sites { max-width: 100%; }
+  :root { --sitew: 140px; --siteh: 52px; }
+}
+
+@media (max-width: 560px) {
+  :root { --sitew: 120px; --siteh: 48px; }
+}
