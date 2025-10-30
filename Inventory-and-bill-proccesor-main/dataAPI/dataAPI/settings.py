@@ -14,7 +14,18 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+import os
+from dotenv import load_dotenv
 
+# încarcă variabilele din .env în os.environ
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+# pune și în settings, dacă vrei să le accesezi via settings.PONTAJ_PASSWORD
+PONTAJ_PASSWORD = (
+    os.getenv("PONTAJ_PASSWORD")
+    or os.getenv("PONTAJ_LOGIN_PASSWORD")
+    or ""
+)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/

@@ -19,3 +19,6 @@ Inventory-and-bill-proccesor-main/FE/**/dist/
 angular/
 
 
+
+# Secrets
+Inventory-and-bill-proccesor-main/dataAPI/.env

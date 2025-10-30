@@ -1764,8 +1764,12 @@ def _check_token(token: str) -> bool:
         return False
 
 def _expected_password():
-    # setează în server: export PONTAJ_PASSWORD="parola-ta"
-    return os.environ.get("PONTAJ_PASSWORD") or getattr(settings, "PONTAJ_PASSWORD", "")
+    return (
+        os.environ.get("PONTAJ_PASSWORD")
+        or os.environ.get("PONTAJ_LOGIN_PASSWORD")
+        or getattr(settings, "PONTAJ_PASSWORD", "")
+        or getattr(settings, "PONTAJ_LOGIN_PASSWORD", "")
+    )
 
 @csrf_exempt
 def auth_login(request):
