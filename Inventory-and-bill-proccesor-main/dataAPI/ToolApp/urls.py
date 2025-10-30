@@ -105,4 +105,7 @@ urlpatterns = [
     path('api/pay/day/', views.pay_day, name='pay_day'),
     path('api/pay/month/', views.pay_month, name='pay_month'),
     path('api/users/bulk_update/', views.users_bulk_update),
+
+    path('api/auth/login/', views.auth_login),
+    path('api/auth/verify/', views.auth_verify),
 ]

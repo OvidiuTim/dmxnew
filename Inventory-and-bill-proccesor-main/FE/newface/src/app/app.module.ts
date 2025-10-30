@@ -28,6 +28,9 @@ import { NavbarComponent } from './navbar/navbar.component';
 import { PontajComponent } from './pontaj/pontaj.component';
 import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { AuthInterceptor } from './auth/auth.interceptor';
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -57,7 +60,7 @@ import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
     ReactiveFormsModule,
     ZXingScannerModule
   ],
-  providers: [SharedService, DatePipe],
+  providers: [SharedService, DatePipe,{ provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true } ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }

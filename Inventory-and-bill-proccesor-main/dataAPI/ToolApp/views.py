@@ -1735,3 +1735,81 @@ def pay_month(request):
         "month": f"{y:04d}-{m:02d}",
         "month_total": str(total)
     })
+
+
+# === AUTH SIMPLU PENTRU ANGULAR ===
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.conf import settings
+from django.core import signing
+import os, hmac, json
+
+TOKEN_SALT = "pontaj-auth"
+TOKEN_AGE = 24 * 3600  # 24h
+
+def _make_token():
+    # payload minim; e suficient să fie semnat + timestamp
+    payload = {"k": "pontaj", "v": 1}
+    return signing.dumps(payload, salt=TOKEN_SALT)
+
+def _check_token(token: str) -> bool:
+    if not token:
+        return False
+    try:
+        data = signing.loads(token, salt=TOKEN_SALT, max_age=TOKEN_AGE)
+        return data.get("k") == "pontaj"
+    except signing.SignatureExpired:
+        return False
+    except signing.BadSignature:
+        return False
+
+def _expected_password():
+    # setează în server: export PONTAJ_PASSWORD="parola-ta"
+    return os.environ.get("PONTAJ_PASSWORD") or getattr(settings, "PONTAJ_PASSWORD", "")
+
+@csrf_exempt
+def auth_login(request):
+    """POST /api/auth/login/  body: { "password": "..." }"""
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    got = str(data.get("password") or "")
+    exp = _expected_password()
+    if not exp:
+        return JsonResponse({"error": "Server not configured (PONTAJ_PASSWORD missing)"}, status=500)
+
+    if hmac.compare_digest(got, exp):
+        tok = _make_token()
+        resp = JsonResponse({"token": tok, "expires_in": TOKEN_AGE})
+        # Cookie util dacă vrei să-l citești în backend ulterior
+        resp.set_cookie("ptj", tok, max_age=TOKEN_AGE, httponly=True, samesite="Lax", secure=True)
+        return resp
+    return JsonResponse({"error": "Invalid password"}, status=401)
+
+@csrf_exempt
+def auth_verify(request):
+    """POST /api/auth/verify/  body: { "token": "..." }  (sau folosește cookie 'ptj')"""
+    tok = None
+    # 1) Authorization: Bearer xxx
+    auth = request.META.get("HTTP_AUTHORIZATION") or ""
+    if auth.lower().startswith("bearer "):
+        tok = auth[7:].strip()
+    # 2) body
+    if not tok and request.method == "POST":
+        try:
+            body = json.loads(request.body or "{}")
+            tok = body.get("token")
+        except Exception:
+            tok = None
+    # 3) cookie
+    if not tok:
+        tok = request.COOKIES.get("ptj")
+
+    ok = _check_token(tok or "")
+    if ok:
+        return JsonResponse({"ok": True})
+    return JsonResponse({"ok": False}, status=401)
