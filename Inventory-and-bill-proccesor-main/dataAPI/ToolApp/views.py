@@ -1076,7 +1076,7 @@ def nfc_scan(request):
                 new_sess = AttendanceSession.objects.create(
                     user_fk=user,
                     work_date=today,
-                    in_time=when,
+                    in_time=apply_enter_grace(when),
                     source="nfc",
                     worksite=ws
                 )
@@ -1111,7 +1111,7 @@ def nfc_scan(request):
             if ws:
                 open_sess.worksite = ws
 
-            open_sess.out_time = when
+            open_sess.out_time = apply_exit_grace(when)
             open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
             open_sess.save()
             recompute_daily_pay(user, open_sess.work_date)
@@ -1144,7 +1144,7 @@ def nfc_scan(request):
         sess = AttendanceSession.objects.create(
             user_fk=user,
             work_date=today,
-            in_time=when,
+            in_time=apply_enter_grace(when),
             source="nfc",
             worksite=ws
         )
@@ -1572,7 +1572,7 @@ def close_open_sessions_for_day_at_1730(target_day):
     Returnează: numărul de sesiuni închise.
     """
     from ToolApp.models import AttendanceSession, PresenceEvent  # import local ca să evit cicluri
-    close_at = _day_time_dt(target_day, AUTO_CLOSE_HOUR, AUTO_CLOSE_MIN)
+    _, close_at = schedule_bounds_for_day(target_day)
     now = timezone.now()
     # nu setăm niciodată o oră în viitor
     if close_at > now:
@@ -1817,3 +1817,58 @@ def auth_verify(request):
     if ok:
         return JsonResponse({"ok": True})
     return JsonResponse({"ok": False}, status=401)
+
+
+
+# === PONTAJ: program + leeway ===
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.utils.timezone import localdate
+
+GRACE_MINUTES = 10  # leeway ±10 min
+
+def schedule_bounds_for_day(day):
+    """
+    Returnează (start_dt, end_dt) tz-aware pentru ziua 'day'.
+    Luni–Vineri: 07:30–17:30
+    Sâmbătă:     07:30–14:00
+    Duminică:    fără reguli speciale -> tratăm ca Luni–Vineri (dacă nu dorești, schimbă aici)
+    """
+    wd = day.weekday()  # 0=Mon ... 6=Sun
+    start_h, start_m = 7, 30
+    if wd == 5:  # Saturday
+        end_h, end_m = 14, 0
+    else:        # Mon–Fri (+ Sun dacă vrei altfel modifică aici)
+        end_h, end_m = 17, 30
+
+    tz = timezone.get_current_timezone()
+    start = timezone.make_aware(datetime(day.year, day.month, day.day, start_h, start_m), tz)
+    end   = timezone.make_aware(datetime(day.year, day.month, day.day, end_h, end_m), tz)
+    return start, end
+
+def apply_enter_grace(ts):
+    """
+    Dacă intrarea e între [start, start+10min], o rotunjim la start (ex: 07:35 -> 07:30).
+    Altfel păstrăm ora reală.
+    """
+    day = localdate(ts)
+    start, _ = schedule_bounds_for_day(day)
+    if start <= ts <= start + timedelta(minutes=GRACE_MINUTES):
+        return start
+    return ts
+
+def apply_exit_grace(ts):
+    """
+    Dacă ieșirea e între [end-10min, end], o rotunjim la end (ex: 17:25 -> 17:30).
+    Altfel păstrăm ora reală.
+    """
+    day = localdate(ts)
+    _, end = schedule_bounds_for_day(day)
+    if end - timedelta(minutes=GRACE_MINUTES) <= ts <= end:
+        return end
+    return ts
+
+def workday_close_dt(local_day):
+    """Închidere automată la ora de final a zilei (folosește programul de mai sus)."""
+    _, end = schedule_bounds_for_day(local_day)
+    return end
