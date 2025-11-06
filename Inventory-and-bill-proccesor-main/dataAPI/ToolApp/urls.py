@@ -46,7 +46,7 @@ urlpatterns = [
     path('pontaj/monitor/', monitor_pontaj_page, name='monitor_pontaj'),
 
         # Pagina alba
-    path('pontaj/monitor/white',monitor_pontaj_page_white, name='monitor_pontaj_white'),
+    path('pontaj/monitor/white/', monitor_pontaj_page_white, name='monitor_pontaj_white'),
 
     # Bulk users
     path('api/users/bulk/',  views.users_bulk),
