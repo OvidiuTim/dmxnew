@@ -1872,3 +1872,9 @@ def workday_close_dt(local_day):
     """Închidere automată la ora de final a zilei (folosește programul de mai sus)."""
     _, end = schedule_bounds_for_day(local_day)
     return end
+
+
+
+def monitor_pontaj_page_white(request):
+    # template-ul tău e ToolApp/templates/ToolApp/monitor_pontaj.html
+    return render(request, "ToolApp/monitor_pontaj_white.html")

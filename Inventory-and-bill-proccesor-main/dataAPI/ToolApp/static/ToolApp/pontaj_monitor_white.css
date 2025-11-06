@@ -1,0 +1,82 @@
+/* ===== HIGH CONTRAST LIGHT (pentru ecrane cu reflexii) ===== */
+body.light {
+  --bg:#ffffff;
+  --panel:#ffffff;
+  --border:#000000;      /* linii groase, negre */
+  --text:#000000;
+
+  /* accente puternice, lizibile la soare */
+  --greenBorder:#1a7f37; /* verde inchis */
+  --redBorder:#c62828;   /* rosu inchis */
+}
+
+body.light { background:#fff; color:#000; }
+
+body.light .wrap { max-width: 1500px; }
+body.light .bar h1 { font-size:26px; letter-spacing:.1px; }
+
+/* status dot clar */
+body.light .dot{ background:#c62828; box-shadow:0 0 0 4px rgba(198,40,40,.25); }
+body.light .dot.ok{ background:#1a7f37; box-shadow:0 0 0 4px rgba(26,127,55,.25); }
+
+/* UN SINGUR RAND – card lat, fara umbre */
+body.light .feed{ grid-template-columns: 1fr; gap:16px; }
+body.light .card{
+  background:#fff;
+  border:2px solid #000;     /* linii groase */
+  box-shadow:none;           /* umbre = contrast fals pe sticlă */
+  border-radius:16px;
+  padding:22px 20px;
+}
+
+/* marcaj vizual tare pe stânga, în loc de gradient */
+body.light .card.enter  { border-left:14px solid var(--greenBorder); }
+body.light .card.exit   { border-left:14px solid var(--redBorder);  }
+
+/* tipografie mare, grea */
+body.light .title{
+  font-size:16px;
+  font-weight:800;
+  opacity:1;
+}
+body.light .name{
+  font-size:44px;
+  font-weight:900;
+  line-height:1.05;
+  letter-spacing:.2px;
+}
+body.light .time{
+  font-size:22px;
+  font-weight:700;
+  margin-top:6px;
+  opacity:1;
+}
+
+/* chip simplu, extrem de lizibil */
+body.light .site-chip{
+  background:#000;
+  color:#fff;
+  border:2px solid #000;
+  font-weight:800;
+}
+
+/* butoane de filtre – mari, negre pe alb */
+:root { --sitew: 180px; --siteh: 56px; }
+body.light .site-btn{
+  width:var(--sitew); height:var(--siteh);
+  background:#fff; color:#000;
+  border:2px solid #000;
+  box-shadow:none;
+  font-weight:800;
+}
+body.light .site-btn.active{
+  background:#000; color:#fff;
+  border-color:#000;
+}
+body.light .site-btn:hover{ transform:none; }
+
+/* media – pe ecrane mici totul rămâne foarte mare */
+@media (max-width: 860px){
+  body.light .name{ font-size:38px; }
+  body.light .time{ font-size:20px; }
+}

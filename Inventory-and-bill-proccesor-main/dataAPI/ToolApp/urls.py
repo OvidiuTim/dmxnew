@@ -2,7 +2,7 @@ from django.urls import path, re_path as url
 from ToolApp import views
 from .views import (
     nfc_scan, attendance_today, attendance_day, attendance_present, attendance_range,
-    monitor_pontaj_page, pontaj_stream
+    monitor_pontaj_page, monitor_pontaj_page_white, pontaj_stream
 )
 
 urlpatterns = [
@@ -44,6 +44,9 @@ urlpatterns = [
 
     # Pagina monitor
     path('pontaj/monitor/', monitor_pontaj_page, name='monitor_pontaj'),
+
+        # Pagina alba
+    path('pontaj/monitor/white',monitor_pontaj_page_white, name='monitor_pontaj_white'),
 
     # Bulk users
     path('api/users/bulk/',  views.users_bulk),
