@@ -22,3 +22,5 @@ angular/
 
 # Secrets
 Inventory-and-bill-proccesor-main/dataAPI/.env
+Inventory-and-bill-proccesor-main/FE/newface/proxy.conf.json
+Inventory-and-bill-proccesor-main/FE/newface/angular.json
