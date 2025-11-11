@@ -2084,3 +2084,159 @@ def attendance_day_delete(request):
     return JsonResponse({"ok": True})
 
 
+# --- PONTAJ: UPDATE / DELETE sesiune + DELETE zi ---
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.utils import timezone
+from django.db import transaction
+from datetime import date as _date
+
+@csrf_exempt
+def attendance_session_update(request):
+    """
+    POST /api/pontaj/session/update/
+    Body: { "session_id": 123, "in":"07:45", "out":"17:10", "worksite":"Bloc E", "apply_grace": false }
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    sid = data.get("session_id")
+    if not sid:
+        return JsonResponse({"error": "session_id required"}, status=400)
+
+    try:
+        with transaction.atomic():
+            s = AttendanceSession.objects.select_for_update().get(id=sid)
+            day = s.work_date
+
+            # Folosim helperul deja definit in fișier: _parse_hm_or_iso_for_day
+            in_dt  = _parse_hm_or_iso_for_day(day, data.get("in"))  if data.get("in")  else s.in_time
+            out_dt = _parse_hm_or_iso_for_day(day, data.get("out")) if data.get("out") else s.out_time
+            if out_dt and out_dt < in_dt:
+                return JsonResponse({"error": "out < in"}, status=400)
+
+            if str(data.get("apply_grace","0")).lower() in ("1","true","yes","on"):
+                in_dt  = apply_enter_grace(in_dt)
+                if out_dt:
+                    out_dt = apply_exit_grace(out_dt)
+
+            s.in_time = in_dt
+            s.out_time = out_dt
+            s.worksite = data.get("worksite") or s.worksite
+            s.duration_seconds = max(0, int((out_dt - in_dt).total_seconds())) if out_dt else None
+            s.source = (s.source or "") + "|manual_edit"
+            s.save()
+
+            if out_dt:
+                recompute_daily_pay(s.user_fk, day)
+
+        return JsonResponse({"ok": True, "session_id": sid})
+    except AttendanceSession.DoesNotExist:
+        return JsonResponse({"error": "session not found"}, status=404)
+
+
+@csrf_exempt
+def attendance_session_delete(request):
+    """
+    POST /api/pontaj/session/delete/
+    Body: { "session_id": 123, "rewrite_presence": true }
+    Șterge o singură sesiune și recalculează plata pe zi.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    sid = data.get("session_id")
+    if not sid:
+        return JsonResponse({"error": "session_id required"}, status=400)
+
+    rewrite_presence = str(data.get("rewrite_presence","1")).lower() in ("1","true","yes","on")
+
+    try:
+        with transaction.atomic():
+            s = AttendanceSession.objects.select_for_update().get(id=sid)
+            user = s.user_fk
+            day  = s.work_date
+            in_t  = s.in_time
+            out_t = s.out_time
+
+            s.delete()
+
+            # Opțional: curăț evenimentele ENTER/EXIT cu timestamp fix pe in/out-ul sesiunii
+            if rewrite_presence:
+                if in_t:
+                    PresenceEvent.objects.filter(user_fk=user, timestamp=in_t).delete()
+                if out_t:
+                    PresenceEvent.objects.filter(user_fk=user, timestamp=out_t).delete()
+
+            # Recalc salariu pe zi (dacă mai există alte sesiuni cu out_time setat)
+            recompute_daily_pay(user, day)
+
+        return JsonResponse({"ok": True, "deleted_session_id": sid, "date": str(day)})
+    except AttendanceSession.DoesNotExist:
+        return JsonResponse({"error": "session not found"}, status=404)
+
+
+@csrf_exempt
+def attendance_day_delete(request):
+    """
+    DELETE /api/pontaj/day/delete/?user_id=ID&date=YYYY-MM-DD[&rewrite_presence=1]
+    sau
+    POST   /api/pontaj/day/delete/  body: { "user_id":ID, "date":"YYYY-MM-DD", "rewrite_presence":true }
+    Golește toate sesiunile utilizatorului în ziua respectivă.
+    """
+    method = request.method
+    if method not in ("DELETE", "POST"):
+        return JsonResponse({"error": "Only DELETE or POST allowed"}, status=405)
+
+    if method == "DELETE":
+        user_id = request.GET.get("user_id")
+        d_str   = request.GET.get("date")
+        rewrite_presence = str(request.GET.get("rewrite_presence","1")).lower() in ("1","true","yes","on")
+    else:
+        try:
+            body = json.loads(request.body or "{}")
+        except Exception:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        user_id = body.get("user_id")
+        d_str   = body.get("date")
+        rewrite_presence = str(body.get("rewrite_presence","1")).lower() in ("1","true","yes","on")
+
+    # Validare parametri
+    try:
+        user_id = int(user_id)
+        user = Users.objects.get(UserId=user_id)
+    except Exception:
+        return JsonResponse({"error": "user not found"}, status=404)
+
+    try:
+        day = _date.fromisoformat(d_str)
+    except Exception:
+        return JsonResponse({"error": "Invalid 'date' (YYYY-MM-DD)"}, status=400)
+
+    with transaction.atomic():
+        qs = AttendanceSession.objects.select_for_update().filter(user_fk=user, work_date=day)
+        deleted = qs.count()
+        qs.delete()
+
+        if rewrite_presence:
+            PresenceEvent.objects.filter(user_fk=user, timestamp__date=day).delete()
+
+        # Șterg snapshot-ul DailyPay (dacă există). Alternativ ai putea seta 0.
+        try:
+            obj = DailyPay.objects.get(user_fk=user, work_date=day)
+            obj.delete()
+        except DailyPay.DoesNotExist:
+            pass
+
+    return JsonResponse({"ok": True, "date": str(day), "deleted_sessions": deleted})
