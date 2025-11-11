@@ -1,18 +1,29 @@
-from django.views.decorators.csrf import csrf_exempt
-from django.http.response import JsonResponse
-from rest_framework.parsers import JSONParser
-from django.db.models import Max, OuterRef, Subquery
-from django.http import StreamingHttpResponse
+# --- Standard library ---
+import csv, io
+import json, logging, math
 from threading import Lock
 from queue import Queue, Empty
 from collections import deque
-import json
-import csv, io
+from datetime import datetime, timedelta, date as _date
+from decimal import Decimal, ROUND_HALF_UP
 
+# --- Third-party ---
+from rest_framework.parsers import JSONParser
+
+# --- Django ---
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse, StreamingHttpResponse, HttpResponseNotAllowed, HttpResponseBadRequest
+from django.utils import timezone
+from django.utils.timezone import localtime, localdate
+from django.db import transaction
+from django.db.models import Sum, Min, Max, OuterRef, Subquery
+
+# --- App (ToolApp) ---
 from ToolApp.models import (
-    Shed, Unfunctional, Users, Tools, Histories, Materials, Consumables, WorkField,
-    CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas, SchelaFatadaModularas,
-    Combustibils, HistorieScheles, MijloaceFixes,DailyPay
+    Users, AttendanceSession, PresenceEvent, Tools, Histories,
+    Shed, Unfunctional, Materials, Consumables, WorkField,
+    CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas,
+    SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay
 )
 from ToolApp.serializers import (
     ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, ToolSerializer,
@@ -21,17 +32,12 @@ from ToolApp.serializers import (
     SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer
 )
 
-from decimal import Decimal, ROUND_HALF_UP
-from django.db.models import Sum
-
-
-import json
-
-# NFC (safe import)
+# --- NFC (safe import) ---
 try:
     import nfc  # nfcpy
 except Exception:
     nfc = None
+
 
 @csrf_exempt
 def check_nfc_reader(request):
@@ -51,8 +57,6 @@ AUTO_CLOSE_MIN  = 30
 AUTO_CLOSE_SOURCE_TAG = "|auto1730"
 PONTAJ_MAX_SHIFT_HOURS = 14  # deja îl ai, îl folosim pentru cap durată
 
-from datetime import datetime, timedelta
-from django.db import transaction
 
 def _day_time_dt(local_day, hour, minute):
     tz = timezone.get_current_timezone()
@@ -789,7 +793,7 @@ def nfc_tag_view(request):
     return JsonResponse({'text_record': text_record})
 
 
-from django.http import JsonResponse
+
 
 @csrf_exempt
 def rfid_entry_exit(request):
@@ -876,14 +880,7 @@ def tools_status(request):
 
 
 
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from django.utils import timezone
-from django.db import transaction
-import json
 
-from ToolApp.models import Users, Tools, Histories, PresenceEvent
-from ToolApp.serializers import HistorySerializer
 
 @csrf_exempt
 def sensor_event(request):
@@ -962,16 +959,7 @@ def sensor_event(request):
 
 
 
-# app/views.py (replace your nfc_scan with this)
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from django.utils import timezone
-from django.utils.timezone import localtime, localdate
-    
-from django.db import transaction
-import json, logging, math
 
-from ToolApp.models import Users, PresenceEvent, AttendanceSession
 
 logger = logging.getLogger(__name__)
 
@@ -990,7 +978,7 @@ def _fmt_hms(seconds: int):
 PONTAJ_SHIFT_END_HOUR = 18   # 18:00 ora locală = sfârșitul zilei
 PONTAJ_MAX_SHIFT_HOURS = 14  # limită de siguranță (cap durată sesiune)
 
-from datetime import datetime, timedelta
+
 
 def workday_close_dt(local_day):
     """Ora de închidere a zilei (tz-aware) pentru o dată locală."""
@@ -1171,10 +1159,6 @@ def nfc_scan(request):
 
 
 
-# app/views.py
-from django.db.models import Sum, Min, Max
-from django.utils.timezone import localdate
-
 @csrf_exempt
 def attendance_today(request):
     if request.method != "GET":
@@ -1332,8 +1316,7 @@ def attendance_present(request):
     return JsonResponse({"now": localtime(now).isoformat(), "present": data})
 
 
-from django.db.models import Sum, Min, Max
-from datetime import timedelta
+
 
 
 # --- ATTENDANCE RANGE (user_id): adaugă day_worksite în fiecare zi ---
@@ -1878,3 +1861,226 @@ def workday_close_dt(local_day):
 def monitor_pontaj_page_white(request):
     # template-ul tău e ToolApp/templates/ToolApp/monitor_pontaj.html
     return render(request, "ToolApp/monitor_pontaj_white.html")
+
+
+
+
+def _parse_hm_for_day(day: _date, hm: str):
+    hh, mm = map(int, str(hm).strip().split(':')[:2])
+    tz = timezone.get_current_timezone()
+    return timezone.make_aware(datetime(day.year, day.month, day.day, hh, mm, 0), tz)
+
+def _fmt_hms(sec: int) -> str:
+    sec = max(0, int(sec or 0))
+    h = sec // 3600; m = (sec % 3600) // 60; s = sec % 60
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+def recompute_daily_pay(user, day):
+    from decimal import Decimal, ROUND_HALF_UP
+    from ToolApp.models import DailyPay
+    agg = (AttendanceSession.objects
+           .filter(user_fk=user, work_date=day, out_time__isnull=False)
+           .aggregate(total=Sum('duration_seconds')))
+    total_seconds = int(agg['total'] or 0)
+    rate = user.hourly_rate or Decimal('0.00')
+    hours = (Decimal(total_seconds) / Decimal(3600))
+    day_pay = (rate * hours).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    obj, created = DailyPay.objects.get_or_create(
+        user_fk=user, work_date=day,
+        defaults={'total_seconds': total_seconds, 'hourly_rate_snapshot': rate, 'day_pay': day_pay}
+    )
+    if not created:
+        obj.total_seconds = total_seconds
+        obj.hourly_rate_snapshot = rate
+        obj.day_pay = day_pay
+        obj.save()
+    return obj
+
+@csrf_exempt
+def attendance_edit_day(request):
+    """
+    POST /api/pontaj/day/edit/
+    {
+      "user_id": 53 | "user_pin": "2882" | "user_serie":"AA11",
+      "date": "YYYY-MM-DD",
+      "sessions": [
+        {"in": "07:30", "out": "12:00", "worksite":"Bloc A"},
+        {"in": "12:30", "out": "17:10", "worksite":"Bloc F"}
+      ],
+      "replace": true,
+      "rewrite_presence": true,
+      "apply_grace": false
+    }
+    """
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return HttpResponseBadRequest("Invalid JSON")
+
+    # user by id/serie/pin
+    user = None
+    if data.get("user_id"):
+        user = Users.objects.filter(UserId=data["user_id"]).first()
+    elif data.get("user_pin"):
+        user = Users.objects.filter(UserPin=str(data["user_pin"])).first()
+    elif data.get("user_serie"):
+        user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
+    if not user:
+        return JsonResponse({"error":"user not found"}, status=404)
+
+    # day
+    try:
+        day = _date.fromisoformat(str(data.get("date")))
+    except Exception:
+        return HttpResponseBadRequest("Bad 'date' (YYYY-MM-DD)")
+
+    sessions = data.get("sessions") or []
+    if not isinstance(sessions, list) or not sessions:
+        return HttpResponseBadRequest("Provide non-empty 'sessions' list")
+
+    replace = str(data.get("replace", "1")).lower() in ("1","true","yes","on")
+    rewrite_presence = str(data.get("rewrite_presence","1")).lower() in ("1","true","yes","on")
+    apply_grace = str(data.get("apply_grace","0")).lower() in ("1","true","yes","on")
+
+    # build, validate, order, non-overlap
+    new_items = []
+    try:
+        for s in sessions:
+            inn = s.get("in") or s.get("in_time")
+            out = s.get("out") or s.get("out_time")
+            if not inn or not out:
+                return HttpResponseBadRequest("Each session needs both 'in' and 'out'")
+            in_dt  = _parse_hm_for_day(day, inn)
+            out_dt = _parse_hm_for_day(day, out)
+            if out_dt <= in_dt:
+                return HttpResponseBadRequest("A session has out <= in")
+            if apply_grace:
+                in_dt  = in_dt   # aici poți aplica rotunjiri dacă ai helperii tăi
+                out_dt = out_dt
+            ws = (s.get("worksite") or "").strip() or None
+            new_items.append((in_dt, out_dt, ws))
+    except Exception as e:
+        return HttpResponseBadRequest(f"Invalid HH:MM in sessions ({e})")
+
+    new_items.sort(key=lambda t: t[0])
+    for i in range(1, len(new_items)):
+        if new_items[i][0] < new_items[i-1][1]:
+            return HttpResponseBadRequest("Overlapping sessions")
+
+    # commit
+    with transaction.atomic():
+        if replace:
+            AttendanceSession.objects.filter(user_fk=user, work_date=day).delete()
+            if rewrite_presence:
+                PresenceEvent.objects.filter(user_fk=user, timestamp__date=day).delete()
+
+        created = []
+        for in_dt, out_dt, ws in new_items:
+            dur = int((out_dt - in_dt).total_seconds())
+            s = AttendanceSession.objects.create(
+                user_fk=user, work_date=day,
+                in_time=in_dt, out_time=out_dt,
+                duration_seconds=max(0, dur),
+                source="manual_edit",
+                worksite=ws
+            )
+            created.append(s)
+            if rewrite_presence:
+                PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=in_dt, worksite=ws)
+                PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT,  timestamp=out_dt, worksite=ws)
+
+        recompute_daily_pay(user, day)
+
+    first_in = min(c.in_time for c in created)
+    last_out = max(c.out_time for c in created)
+    total = sum(int(c.duration_seconds or 0) for c in created)
+
+    return JsonResponse({
+        "ok": True,
+        "user": {"UserId": user.UserId, "UserName": user.UserName},
+        "date": str(day),
+        "first_in":  localtime(first_in).isoformat(),
+        "last_out":  localtime(last_out).isoformat(),
+        "total_hms": _fmt_hms(total),
+        "sessions": [{
+            "session_id": s.id,
+            "in_time": localtime(s.in_time).isoformat(),
+            "out_time": localtime(s.out_time).isoformat(),
+            "duration_hms": _fmt_hms(s.duration_seconds or 0),
+            "worksite": s.worksite
+        } for s in created]
+    })
+
+
+
+@csrf_exempt
+def attendance_session_delete(request):
+    """
+    POST /api/pontaj/session/delete/
+    { "session_id": 123 }
+    """
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    try:
+        data = json.loads(request.body or "{}")
+        sid = int(data.get("session_id") or 0)
+    except Exception:
+        return HttpResponseBadRequest("Invalid body")
+    if not sid:
+        return HttpResponseBadRequest("session_id required")
+
+    try:
+        with transaction.atomic():
+            s = AttendanceSession.objects.select_for_update().get(id=sid)
+            user = s.user_fk; day = s.work_date
+            # șterge prezențele din acea zi (opțional: poți restrânge la intervalul sesiunii)
+            PresenceEvent.objects.filter(user_fk=user, timestamp__date=day).delete()
+            s.delete()
+            # recalc
+            recompute_daily_pay(user, day)
+        return JsonResponse({"ok": True})
+    except AttendanceSession.DoesNotExist:
+        return JsonResponse({"error":"session not found"}, status=404)
+
+
+
+@csrf_exempt
+def attendance_day_delete(request):
+    """
+    DELETE /api/pontaj/day/
+    Body:
+    { "user_id": 53 | "user_pin":"2882" | "user_serie":"AA11", "date":"YYYY-MM-DD" }
+    """
+    if request.method != "DELETE":
+        return HttpResponseNotAllowed(["DELETE"])
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return HttpResponseBadRequest("Invalid JSON")
+
+    user = None
+    if data.get("user_id"):
+        user = Users.objects.filter(UserId=data["user_id"]).first()
+    elif data.get("user_pin"):
+        user = Users.objects.filter(UserPin=str(data["user_pin"])).first()
+    elif data.get("user_serie"):
+        user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
+    if not user:
+        return JsonResponse({"error":"user not found"}, status=404)
+
+    try:
+        day = _date.fromisoformat(str(data.get("date")))
+    except Exception:
+        return HttpResponseBadRequest("Bad 'date'")
+
+    with transaction.atomic():
+        AttendanceSession.objects.filter(user_fk=user, work_date=day).delete()
+        PresenceEvent.objects.filter(user_fk=user, timestamp__date=day).delete()
+        recompute_daily_pay(user, day)
+
+    return JsonResponse({"ok": True})
+
+

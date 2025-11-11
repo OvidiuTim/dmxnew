@@ -10,18 +10,17 @@
     </div>
   </div>
 
-<div class="summary">
-  <div class="badge">Perioadă: {{ startISO }} → {{ endISO }}</div>
-  <div class="badge">Total ore lună: {{ durataOre(monthTotal) }}</div>
-  <div class="badge strong">
-    Salariu lună: 
-    <ng-container *ngIf="monthSalary !== null; else noPay">
-      {{ monthSalary | number:'1.2-2' }} lei
-    </ng-container>
-    <ng-template #noPay>—</ng-template>
+  <div class="summary">
+    <div class="badge">Perioadă: {{ startISO }} → {{ endISO }}</div>
+    <div class="badge">Total ore lună: {{ durataOre(monthTotal) }}</div>
+    <div class="badge strong">
+      Salariu lună:
+      <ng-container *ngIf="monthSalary !== null; else noPay">
+        {{ monthSalary | number:'1.2-2' }} lei
+      </ng-container>
+      <ng-template #noPay>—</ng-template>
+    </div>
   </div>
-</div>
-
 
   <div class="state" *ngIf="loading">Se încarcă…</div>
   <div class="state error" *ngIf="error">{{ error }}</div>
@@ -33,25 +32,30 @@
       <div>Sesiuni (Intrare → Ieșire)</div>
       <div>Total zi</div>
       <div>#Intrări / #Ieșiri</div>
+      <div>Acțiuni</div>
     </div>
 
     <div class="row" *ngFor="let d of days">
+      <!-- Zi -->
       <div class="cell date">
         <div class="d1">{{ d.date | date:'dd MMM' }}</div>
         <div class="d2">{{ d.date | date:'EEEE' }}</div>
       </div>
 
-      <div class="cell site-day"> <!-- ADĂUGAT -->
+      <!-- Locație (zi) -->
+      <div class="cell site-day">
         <ng-container *ngIf="d.day_worksite; else noSite">
           <span class="chip">{{ d.day_worksite }}</span>
         </ng-container>
         <ng-template #noSite><span class="muted">—</span></ng-template>
       </div>
 
+      <!-- Sesiuni -->
       <div class="cell sess-col">
         <div class="sess-row" *ngIf="d.sessions.length === 0">
           <span class="muted">—</span>
         </div>
+
         <div class="sess-row" *ngFor="let s of d.sessions">
           <div class="in">{{ hm(s.in_time) }}</div>
           <div class="arrow">→</div>
@@ -61,12 +65,97 @@
           </div>
           <div class="dur">{{ durataOre(s.duration_hms) }}</div>
 
+          <!-- Site + buton ștergere sesiune -->
+          <div class="site">
+            <span class="chip" *ngIf="s.worksite">{{ s.worksite }}</span>
+            <button
+              class="btn danger"
+              *ngIf="s.session_id"
+              style="margin-left:8px"
+              title="Șterge această sesiune"
+              (click)="deleteSingleSession(s)">
+              Șterge
+            </button>
+          </div>
         </div>
       </div>
 
+      <!-- Total / Counts -->
       <div class="cell total">{{ durataOre(d.total_hms) }}</div>
       <div class="cell counts">{{ d.entries }} / {{ d.exits }}</div>
-    </div>
 
+      <!-- Acțiuni -->
+      <div class="cell actions">
+        <button class="btn" (click)="openEditor(d)">Editează</button>
+        <button class="btn danger" (click)="clearDayConfirm(d)">Șterge</button>
+      </div>
+
+      <!-- Editor in-line -->
+      <div class="editor" *ngIf="editingDate === d.date">
+        <div class="editor-bar">
+          <div class="modes">
+            <button class="tab" [class.active]="mode==='sessions'" (click)="mode='sessions'">Sesiuni</button>
+            <button class="tab" [class.active]="mode==='total'" (click)="mode='total'">Total (rapid)</button>
+          </div>
+          <div class="spacer"></div>
+          <button class="btn secondary" (click)="cancelEditor()">Anulează</button>
+        </div>
+
+        <!-- MOD: SESSIUNI -->
+        <div *ngIf="mode==='sessions'" class="form-grid">
+          <p class="full hint">Editează intrarea, ieșirea și șantierul. Poți adăuga/șterge rânduri.</p>
+
+          <div class="sess-edit-row" *ngFor="let s of sessForm; let i = index">
+            <div>
+              <label>Intrare</label>
+              <input type="text" placeholder="07:30" [(ngModel)]="s.in">
+            </div>
+            <div>
+              <label>Ieșire</label>
+              <input type="text" placeholder="17:30" [(ngModel)]="s.out">
+            </div>
+            <div>
+              <label>Locație</label>
+              <input type="text" placeholder="ex: Bloc F" [(ngModel)]="s.worksite">
+            </div>
+            <div class="row-actions">
+              <button class="btn danger" (click)="removeSessionRow(i)" *ngIf="sessForm.length>1" title="Șterge rândul">−</button>
+            </div>
+          </div>
+
+          <div class="full">
+            <button class="btn secondary" (click)="addSessionRow()">+ Adaugă sesiune</button>
+          </div>
+
+          <div class="full actions-right">
+            <button class="btn" [disabled]="saving" (click)="saveSessions(d)">Salvează sesiunile</button>
+          </div>
+        </div>
+
+        <!-- MOD: TOTAL (fallback rapid) -->
+        <div *ngIf="mode==='total'" class="form-grid">
+          <label>Total HH:MM</label>
+          <input type="text" placeholder="07:30" [(ngModel)]="form.totalHms">
+
+          <label>Anchor</label>
+          <select [(ngModel)]="form.anchor">
+            <option value="start">la începutul programului</option>
+            <option value="end">la sfârșitul programului</option>
+            <option value="custom">custom (ora de start)</option>
+          </select>
+
+          <label *ngIf="form.anchor==='custom'">Custom start (HH:MM)</label>
+          <input *ngIf="form.anchor==='custom'" type="text" placeholder="08:00" [(ngModel)]="form.customStart">
+
+          <label>Locație (opțional)</label>
+          <input type="text" placeholder="ex: Bloc A" [(ngModel)]="form.worksite">
+
+          <div class="full actions-right">
+            <button class="btn" [disabled]="saving" (click)="saveTotal(d)">Salvează totalul</button>
+          </div>
+        </div>
+      </div>
+      <!-- /editor -->
+    </div>
   </div>
 </div>

@@ -1,8 +1,21 @@
 from django.urls import path, re_path as url
 from ToolApp import views
 from .views import (
-    nfc_scan, attendance_today, attendance_day, attendance_present, attendance_range,
-    monitor_pontaj_page, monitor_pontaj_page_white, pontaj_stream
+    # Pontaj - editare prin sesiuni (nou)
+    attendance_edit_day,
+    attendance_session_update,
+    attendance_session_delete,   # NEW
+    attendance_day_delete,       # NEW
+
+    # Pontaj - listări / monitor
+    nfc_scan,
+    attendance_today,
+    attendance_day,
+    attendance_present,
+    attendance_range,
+    monitor_pontaj_page,
+    monitor_pontaj_page_white,
+    pontaj_stream,
 )
 
 urlpatterns = [
@@ -36,7 +49,7 @@ urlpatterns = [
 
     # --- Pontaj (existente cu /api/) ---
     path('api/nfc/scan/', nfc_scan, name='nfc_scan'),
-    path('api/pontaj/day/', attendance_day, name='attendance_day'),
+    path('api/pontaj/day/', attendance_day, name='attendance_day'),              # GET day aggregate
     path('api/pontaj/present/', attendance_present, name='attendance_present'),
     path('api/pontaj/range/', attendance_range, name='attendance_range'),
     path('api/pontaj/today/', attendance_today, name='attendance_today'),
@@ -44,8 +57,6 @@ urlpatterns = [
 
     # Pagina monitor
     path('pontaj/monitor/', monitor_pontaj_page, name='monitor_pontaj'),
-
-        # Pagina alba
     path('pontaj/monitor/white/', monitor_pontaj_page_white, name='monitor_pontaj_white'),
 
     # Bulk users
@@ -103,6 +114,7 @@ urlpatterns = [
 
     path('api/istoric_schele/', views.istoricschelaApi),
     path('api/istoric_schele/<int:id>', views.istoricschelaApi),
+
     path('api/pontaj/force_close_1730/', views.attendance_force_close_1730),
 
     path('api/pay/day/', views.pay_day, name='pay_day'),
@@ -111,4 +123,10 @@ urlpatterns = [
 
     path('api/auth/login/', views.auth_login),
     path('api/auth/verify/', views.auth_verify),
+
+    # --- PONTAJ: editare manuală pe sesiuni (nou) ---
+    path('api/pontaj/day/edit/', attendance_edit_day, name='attendance_edit_day'),                 # POST (replace cu sesiuni)
+    path('api/pontaj/session/update/', attendance_session_update, name='attendance_session_update'),  # POST (patch punctual)
+    path('api/pontaj/session/delete/', attendance_session_delete, name='attendance_session_delete'),  # POST (delete by id)
+    path('api/pontaj/day/delete/', attendance_day_delete, name='attendance_day_delete'),             # DELETE (golește ziua)
 ]

@@ -2,29 +2,33 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { SharedService } from '../../shared.service';
 
-
-
-
-
 interface SessionRow {
   in_time: string | null;
   out_time: string | null;
   duration_hms: string;
   open: boolean;
   session_id: number;
-  worksite?: string | null; // deja OK
+  worksite?: string | null;
 }
 interface DayRow {
-  date: string;
-  first_in: string | null;
-  last_out: string | null;
-  total_hms: string;
+  date: string;                 // "YYYY-MM-DD"
+  first_in: string | null;      // ISO local time
+  last_out: string | null;      // ISO local time
+  total_hms: string;            // "HH:MM:SS"
   entries: number;
   exits: number;
   sessions: SessionRow[];
-  day_worksite?: string | null; // deja OK
+  day_worksite?: string | null; // ultimul worksite nenul
 }
 
+type EditMode = 'sessions' | 'total';
+
+type SessEditRow = {
+  session_id?: number;          // prezent pentru rândurile existente
+  in: string;                   // "HH:MM"
+  out: string;                  // "HH:MM"
+  worksite?: string;            // opțional
+};
 
 @Component({
   selector: 'app-userpontat',
@@ -40,12 +44,29 @@ export class UserpontatComponent implements OnInit {
   endISO = '';
 
   loading = false;
+  saving = false;
   error: string | null = null;
 
   days: DayRow[] = [];
   monthTotal = '00:00:00';
   monthSalary: number | null = null;  // lei
-  constructor(private route: ActivatedRoute, private api: SharedService) { }
+
+  // === Editor state ===
+  editingDate: string | null = null;  // "YYYY-MM-DD"
+  mode: EditMode = 'sessions';        // default pe Sesiuni
+
+  // Form TOTAL (păstrat pentru fallback / compat)
+  form = {
+    totalHms: '',                             // "HH:MM"
+    anchor: 'start' as 'start' | 'end' | 'custom',
+    customStart: '',                          // "HH:MM" when anchor === 'custom'
+    worksite: ''                              // opțional
+  };
+
+  // Form SESIUNI
+  sessForm: SessEditRow[] = [{ in: '', out: '', worksite: '' }];
+
+  constructor(private route: ActivatedRoute, private api: SharedService) {}
 
   ngOnInit(): void {
     this.userId = Number(this.route.snapshot.paramMap.get('id'));
@@ -54,16 +75,19 @@ export class UserpontatComponent implements OnInit {
     this.refreshMonthSalary();
   }
 
+  // ===== Helpers - calendar / formatting =====
   monthNow(): string {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
+
   computeBounds(): void {
     const [y, m] = this.selectedMonth.split('-').map(Number);
     const end = new Date(y, m, 0).getDate();
     this.startISO = `${y}-${String(m).padStart(2, '0')}-01`;
     this.endISO = `${y}-${String(m).padStart(2, '0')}-${String(end).padStart(2, '0')}`;
   }
+
   onMonthChange(evt: Event): void {
     const val = (evt.target as HTMLInputElement).value;
     if (!val) return;
@@ -78,33 +102,27 @@ export class UserpontatComponent implements OnInit {
     this.api.getAttendanceRangeForUser(this.startISO, this.endISO, this.userId).subscribe({
       next: (res) => {
         const user = (res?.users || [])[0];
-        // fallback nume
         if (user) this.userName = user.UserName;
 
-        // construiesc calendarul întreg al lunii
         const blank = this.makeBlankCalendar();
         const map = new Map<string, DayRow>();
         if (user?.days) {
           for (const d of user.days as DayRow[]) map.set(d.date, d);
         }
-        const merged: DayRow[] = blank.map(dr => {
-          const hit = map.get(dr.date);
-          if (hit) return hit;
-          return dr;
-        });
+        const merged: DayRow[] = blank.map(dr => map.get(dr.date) ?? dr);
 
         this.days = merged;
         this.monthTotal = this.sumMonth(merged);
         this.loading = false;
       },
-      error: (err) => {
+      error: (err: any) => {
         this.error = 'Nu pot încărca pontajul utilizatorului.';
         this.loading = false;
         console.error(err);
       }
     });
 
-    // nume fallback dacă API-ul nu-l include
+    // fallback nume
     if (!this.userName) {
       this.api.getUsrList().subscribe(list => {
         const u = list.find((x: any) => x.UserId === this.userId);
@@ -127,7 +145,7 @@ export class UserpontatComponent implements OnInit {
         entries: 0,
         exits: 0,
         sessions: [],
-        day_worksite: null, // ADĂUGAT
+        day_worksite: null,
       });
     }
     return res;
@@ -138,19 +156,19 @@ export class UserpontatComponent implements OnInit {
     for (const r of rows) total += this.hmsToSec(r.total_hms);
     return this.secToHms(total);
   }
-private refreshMonthSalary(): void {
-  // selectedMonth e deja "YYYY-MM"
-  this.api.getPayMonth(this.userId, this.selectedMonth).subscribe({
-    next: (res) => {
-      this.monthSalary = parseFloat(res?.month_total ?? '0');
-    },
-    error: () => {
-      this.monthSalary = null;
-    }
-  });
-}
 
+  private refreshMonthSalary(): void {
+    this.api.getPayMonth(this.userId, this.selectedMonth).subscribe({
+      next: (res) => {
+        this.monthSalary = parseFloat(res?.month_total ?? '0');
+      },
+      error: () => {
+        this.monthSalary = null;
+      }
+    });
+  }
 
+  // ===== Formatting used in template =====
   hmsToSec(hms: string): number {
     if (!hms) return 0;
     const [h, m, s] = hms.split(':').map(x => parseInt(x || '0', 10));
@@ -163,7 +181,221 @@ private refreshMonthSalary(): void {
     const s = sec % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
-
   hm(t: string | null) { return t ? t.substring(0, 5) : '—'; }
   durataOre(hms: string) { const [h, m] = (hms || '00:00:00').split(':'); return `${parseInt(h, 10)}:${m} ore`; }
+
+  // ===== Editor actions =====
+  openEditor(day: DayRow): void {
+    this.editingDate = day.date;
+    this.mode = 'sessions'; // implicit
+
+    // Prefill TOTAL (compat fallback)
+    this.form.totalHms = this.toHHMM(day.total_hms);
+    this.form.anchor = 'start';
+    this.form.customStart = '';
+    this.form.worksite = day.day_worksite ?? '';
+
+    // Prefill SESSIONS (păstrăm id-urile pentru delete rapid)
+    this.sessForm = (day.sessions?.length ? day.sessions : [])
+      .map<SessEditRow>(s => ({
+        session_id: s.session_id,
+        in: this.hm(s.in_time),
+        out: s.out_time ? this.hm(s.out_time) : '',
+        worksite: s.worksite || ''
+      }));
+    if (!this.sessForm.length) this.sessForm = [{ in: '', out: '', worksite: '' }];
+  }
+
+  cancelEditor(): void {
+    this.editingDate = null;
+    this.saving = false;
+  }
+
+  addSessionRow(): void {
+    this.sessForm.push({ in: '', out: '', worksite: '' });
+  }
+
+  removeSessionRow(i: number): void {
+    if (this.sessForm.length > 1) this.sessForm.splice(i, 1);
+  }
+
+  // Ștergere rapidă a unei sesiuni existente (din listarea zilei)
+  deleteSingleSession(row: SessionRow): void {
+    if (!row.session_id) return;
+    if (!confirm('Ștergi această sesiune?')) return;
+
+    this.saving = true;
+    // necesită SharedService.deleteSession(sessionId)
+    (this.api as any).deleteSession(row.session_id).subscribe({
+      next: () => {
+        this.saving = false;
+        this.load();
+        this.refreshMonthSalary();
+      },
+      error: (err: any) => {
+        this.saving = false;
+        alert('Eroare la ștergerea sesiunii.');
+        console.error(err);
+      }
+    });
+  }
+
+  clearDayConfirm(day: DayRow): void {
+    if (!confirm(`Ștergi toate sesiunile pentru ${day.date}?`)) return;
+    this.saving = true;
+    this.api.deleteDay(this.userId, day.date).subscribe({
+      next: () => {
+        this.saving = false;
+        this.editingDate = null;
+        this.load();
+        this.refreshMonthSalary();
+      },
+      error: (err: any) => {
+        this.saving = false;
+        alert('Eroare la ștergere zi.');
+        console.error(err);
+      }
+    });
+  }
+
+  // ===== Save TOTAL (păstrat pentru compat; dacă endpointul nu există, face POST sesiune unică) =====
+  saveTotal(day: DayRow): void {
+    if (!this.validHHMM(this.form.totalHms)) {
+      alert('Total invalid. Folosește format HH:MM (ex: 07:30).');
+      return;
+    }
+    if (this.form.anchor === 'custom' && !this.validHHMM(this.form.customStart)) {
+      alert('Custom start invalid (HH:MM).');
+      return;
+    }
+
+    this.saving = true;
+
+    this.api.editDayTotal(
+      this.userId,
+      day.date,
+      this.form.totalHms,
+      {
+        anchor: this.form.anchor,
+        worksite: this.form.worksite?.trim() || undefined,
+        customStart: this.form.anchor === 'custom' ? this.form.customStart : undefined
+      }
+    ).subscribe({
+      next: () => {
+        this.saving = false;
+        this.editingDate = null;
+        this.load();
+        this.refreshMonthSalary();
+      },
+      error: (err: any) => {
+        // ----- Fallback: dacă endpointul nu există sau nu permite metoda, creez 1 sesiune și trimit la /pontaj/day/edit/
+        if (err?.status === 404 || err?.status === 405) {
+          const totalMin = this.toMinutes(this.form.totalHms);
+          let startHHMM = '08:00';
+          let endHHMM = '17:00';
+
+          if (this.form.anchor === 'custom' && this.form.customStart) {
+            startHHMM = this.form.customStart;
+            endHHMM = this.addMinutesHHMM(startHHMM, totalMin);
+          } else if (this.form.anchor === 'start') {
+            startHHMM = day.first_in ? this.hm(day.first_in) : '08:00';
+            endHHMM = this.addMinutesHHMM(startHHMM, totalMin);
+          } else { // 'end'
+            endHHMM = day.last_out ? this.hm(day.last_out) : '17:00';
+            startHHMM = this.addMinutesHHMM(endHHMM, -totalMin);
+          }
+
+          const sessionsPayload = [{
+            in: startHHMM,
+            out: endHHMM,
+            worksite: this.form.worksite?.trim() || undefined
+          }];
+
+          this.api.editDaySessions(this.userId, day.date, sessionsPayload, { replace: true, rewrite_presence: true })
+            .subscribe({
+              next: () => {
+                this.saving = false;
+                this.editingDate = null;
+                this.load();
+                this.refreshMonthSalary();
+              },
+              error: (e2: any) => {
+                this.saving = false;
+                alert('Eroare la salvarea totalului (fallback).');
+                console.error(e2);
+              }
+            });
+        } else {
+          this.saving = false;
+          alert('Eroare la salvarea totalului.');
+          console.error(err);
+        }
+      }
+    });
+  }
+
+  // ===== Save SESSIONS (POST /day/edit cu replace=true) =====
+  saveSessions(day: DayRow): void {
+    if (!this.sessForm.length) {
+      alert('Adaugă cel puțin o sesiune.');
+      return;
+    }
+    for (const r of this.sessForm) {
+      if (!this.validHHMM(r.in) || !this.validHHMM(r.out)) {
+        alert('Ore invalid format (HH:MM).');
+        return;
+      }
+      const mi = this.toMinutes(r.in);
+      const mo = this.toMinutes(r.out);
+      if (mo <= mi) {
+        alert('Ora de ieșire trebuie să fie după ora de intrare.');
+        return;
+      }
+    }
+
+    const payload = this.sessForm.map(r => ({
+      in: r.in,
+      out: r.out,
+      worksite: r.worksite?.trim() || undefined
+    }));
+
+    this.saving = true;
+    this.api.editDaySessions(this.userId, day.date, payload, { replace: true, rewrite_presence: true }).subscribe({
+      next: () => {
+        this.saving = false;
+        this.editingDate = null;
+        this.load();
+        this.refreshMonthSalary();
+      },
+      error: (err: any) => {
+        this.saving = false;
+        alert('Eroare la salvarea sesiunilor.');
+        console.error(err);
+      }
+    });
+  }
+
+  // ===== Small utils =====
+  private validHHMM(s: string): boolean {
+    return /^[0-2]?\d:[0-5]\d$/.test(s);
+  }
+
+  private toMinutes(hhmm: string): number {
+    const [h, m] = hhmm.split(':').map(n => parseInt(n, 10));
+    return h * 60 + m;
+  }
+
+  private toHHMM(hms: string): string {
+    if (!hms) return '00:00';
+    const [h, m] = hms.split(':');
+    return `${h ?? '00'}:${m ?? '00'}`;
+  }
+
+  private addMinutesHHMM(hhmm: string, minutes: number): string {
+    const total = this.toMinutes(hhmm) + minutes;
+    const t = Math.max(0, total);
+    const h = Math.floor(t / 60);
+    const m = t % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  }
 }

@@ -1,6 +1,7 @@
 :host { display:block; }
 .wrap {
-  max-width: 900px;
+  width: 90%;
+  max-width: 4000px;
   margin: 24px auto;
   padding: 0 16px;
   color: #e7e7e7;
@@ -52,7 +53,7 @@ h2 { margin:0; font-size:18px; }
 
 
 :host { display:block; }
-.wrap { max-width: 900px; margin:24px auto; padding:0 16px; color:#e7e7e7; }
+.wrap { max-width: 4000px; margin:24px auto; padding:0 16px; color:#e7e7e7; }
 
 /* Bar / Summary (din versiunea anterioară) */
 .bar { display:flex; align-items:center; justify-content:space-between;
@@ -126,3 +127,71 @@ h2 { margin:0; font-size:18px; }
   .sess-col .sess-row { grid-template-columns: 56px 14px 56px 1fr; }
   .sess-row .site { display:none; }               /* ascunde chip-ul per sesiune pe mobil îngust */
 }
+
+
+
+/* Butoane */
+.btn {
+  background:#1a2130; border:1px solid #2d3750; color:#e7e7e7;
+  padding:6px 10px; border-radius:10px; cursor:pointer; font-size:12px;
+}
+.btn:hover { border-color:#3b4a6c; }
+.btn.secondary { background:#101419; border-color:#2a2f3a; }
+.btn.danger { background:#2a1414; border-color:#5a2a2a; color:#ffbcbc; }
+.btn:disabled { opacity:.6; cursor:not-allowed; }
+
+.cell.actions { display:flex; gap:8px; align-items:center; }
+
+/* Editor in-line */
+.editor {
+  grid-column: 1 / -1;
+  background:#0e1117; border-top:1px dashed #2a2f3a; padding:14px;
+}
+.editor-bar { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.editor-bar .modes { display:flex; gap:6px; }
+.tab {
+  background:#0f131a; border:1px solid #2a3040; color:#cfd7e6;
+  padding:6px 10px; border-radius:999px; cursor:pointer; font-size:12px;
+}
+.tab.active { background:#122032; border-color:#2e4a72; color:#dff0ff; }
+.editor .spacer { flex:1; }
+
+.form-grid {
+  display:grid; grid-template-columns: 180px 1fr; gap:10px 12px; align-items:center;
+}
+.form-grid select{
+  width: min-content !important;
+}
+.form-grid input, .form-grid select {
+  background:#0f1116; color:#e7e7e7; border:1px solid #2b2b2f; padding:7px 9px; border-radius:8px; width: 160px;
+}
+
+.form-grid label{
+  background:#0f1116; color:#e7e7e7; 
+}
+.form-grid p{
+  color:#ffffff;
+}
+.form-grid .full { grid-column: 1 / -1; }
+.actions-right { display:flex; justify-content:flex-end; gap:8px; }
+
+.sess-edit-row {
+  grid-column: 1;
+  display:grid; 
+  grid-template-columns: 170px 170px 1fr 80px; 
+  row-gap:15px !important;
+  align-items:end;
+}
+.sess-edit-row .row-actions { display:flex; justify-content:flex-end; }
+.hint { opacity:.75; font-size:13px; }
+
+/* Responsive */
+@media (max-width:640px){
+  .thead, .row { grid-template-columns: 1fr 1fr 1fr; }
+  .site-day, .counts, .actions { display:none; }
+  .editor { padding:12px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .sess-edit-row { grid-template-columns: 1fr 1fr; }
+}
+
+

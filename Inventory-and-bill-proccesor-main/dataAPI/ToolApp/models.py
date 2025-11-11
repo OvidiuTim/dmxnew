@@ -30,6 +30,7 @@ class Users(models.Model):
     UserPin = models.CharField(max_length=100)
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=0)  # lei/oră
+    Company = models.CharField(max_length=100, null=True, blank=True)
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
 
@@ -268,3 +269,39 @@ class DailyPay(models.Model):
 
     def __str__(self):
         return f"{self.work_date} - {self.user_fk} = {self.day_pay} lei"
+    
+
+# --- ABSENCE / LIPSĂ ZI DE LUCRU ---
+from decimal import Decimal
+class DayLeave(models.Model):
+    class Reason(models.TextChoices):
+        CO  = "CO",  "Concediu odihnă"
+        CM  = "CM",  "Concediu medical"
+        ALT = "ALT", "Alt motiv"
+
+    id = models.AutoField(primary_key=True)
+    user_fk = models.ForeignKey('Users', on_delete=models.PROTECT, related_name='day_leaves')
+    work_date = models.DateField(db_index=True)
+    reason = models.CharField(max_length=8, choices=Reason.choices, default=Reason.CO, db_index=True)
+
+    # ore "pontate" pentru ziua respectivă (poți pune 8.0, 4.0 etc.)
+    hours_credit = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    # multiplicator (ex: 1.00 pt CO, 0.75 pt anumite CM)
+    multiplier = models.DecimalField(max_digits=4, decimal_places=2, default=Decimal('1.00'))
+
+    # snapshot ca să nu se schimbe retroactiv dacă modifici tariful ulterior
+    hourly_rate_snapshot = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0.00'))
+    pay_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+
+    note = models.CharField(max_length=300, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('user_fk', 'work_date')]  # 1 înregistrare/zi/utilizator
+        indexes = [
+            models.Index(fields=['user_fk', 'work_date']),
+            models.Index(fields=['reason']),
+        ]
+
+    def __str__(self):
+        return f"{self.work_date} {self.user_fk} {self.reason} = {self.pay_amount}"
