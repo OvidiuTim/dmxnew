@@ -161,10 +161,11 @@ clearDay(userId: number, dateISO: string) {
 
 // Șterge toată ziua
 deleteDay(userId: number, date: string) {
-  return this.http.request('DELETE', `${this.API}/pontaj/day/`, {
+  return this.http.request('DELETE', `${this.API}/pontaj/day/delete/`, {
     body: { user_id: userId, date }
   });
 }
+
 
 
   // SSE (dacă îl folosești în FE)
@@ -177,6 +178,14 @@ getPayDay(userId: number, isoDate: string) {
 getPayMonth(userId: number, ym: string) {
   return this.http.get<any>(`${this.API}/pay/month/`, { params: { user_id: userId, month: ym }});
 }
+
+deleteSession(sessionId: number) {
+  return this.http.post<any>(`${this.API}/pontaj/session/delete/`, { session_id: sessionId });
+}
+
+
+
+
 
 }
 

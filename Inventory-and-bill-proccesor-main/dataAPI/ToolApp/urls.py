@@ -16,6 +16,9 @@ from .views import (
     monitor_pontaj_page,
     monitor_pontaj_page_white,
     pontaj_stream,
+    leave_upsert, 
+    leave_get, 
+    leave_delete,
 )
 
 urlpatterns = [
@@ -129,4 +132,7 @@ urlpatterns = [
     path('api/pontaj/session/update/', attendance_session_update, name='attendance_session_update'),  # POST (patch punctual)
     path('api/pontaj/session/delete/', attendance_session_delete, name='attendance_session_delete'),  # POST (delete by id)
     path('api/pontaj/day/delete/', attendance_day_delete, name='attendance_day_delete'),             # DELETE (golește ziua)
+    path('api/leave/upsert/', leave_upsert),
+    path('api/leave/get/', leave_get),
+    path('api/leave/delete/', leave_delete),
 ]

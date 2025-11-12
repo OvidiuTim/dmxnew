@@ -272,36 +272,30 @@ class DailyPay(models.Model):
     
 
 # --- ABSENCE / LIPSĂ ZI DE LUCRU ---
+# ToolApp/models.py
 from decimal import Decimal
-class DayLeave(models.Model):
+
+class LeaveDay(models.Model):
     class Reason(models.TextChoices):
         CO  = "CO",  "Concediu odihnă"
         CM  = "CM",  "Concediu medical"
         ALT = "ALT", "Alt motiv"
 
     id = models.AutoField(primary_key=True)
-    user_fk = models.ForeignKey('Users', on_delete=models.PROTECT, related_name='day_leaves')
+    user_fk = models.ForeignKey('Users', on_delete=models.PROTECT, related_name='leaves')
     work_date = models.DateField(db_index=True)
-    reason = models.CharField(max_length=8, choices=Reason.choices, default=Reason.CO, db_index=True)
-
-    # ore "pontate" pentru ziua respectivă (poți pune 8.0, 4.0 etc.)
-    hours_credit = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
-    # multiplicator (ex: 1.00 pt CO, 0.75 pt anumite CM)
-    multiplier = models.DecimalField(max_digits=4, decimal_places=2, default=Decimal('1.00'))
-
-    # snapshot ca să nu se schimbe retroactiv dacă modifici tariful ulterior
+    reason = models.CharField(max_length=8, choices=Reason.choices)
+    hours = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('8.00'))      # ex. 8.00 ore
+    multiplier = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('1.00')) # ex. 0.75 pt. CM
     hourly_rate_snapshot = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0.00'))
     pay_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
-
-    note = models.CharField(max_length=300, null=True, blank=True)
+    note = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = [('user_fk', 'work_date')]  # 1 înregistrare/zi/utilizator
-        indexes = [
-            models.Index(fields=['user_fk', 'work_date']),
-            models.Index(fields=['reason']),
-        ]
+        unique_together = [('user_fk', 'work_date')]
+        indexes = [models.Index(fields=['user_fk', 'work_date'])]
 
     def __str__(self):
-        return f"{self.work_date} {self.user_fk} {self.reason} = {self.pay_amount}"
+        return f"{self.work_date} - {self.user_fk} - {self.get_reason_display()} {self.hours}h x{self.multiplier}"

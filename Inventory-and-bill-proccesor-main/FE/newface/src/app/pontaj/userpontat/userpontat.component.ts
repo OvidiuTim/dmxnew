@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { SharedService } from '../../shared.service';
+import { HttpClient } from '@angular/common/http';
 
 interface SessionRow {
   in_time: string | null;
@@ -10,6 +11,12 @@ interface SessionRow {
   session_id: number;
   worksite?: string | null;
 }
+interface LeaveCell {
+  reason: 'CO' | 'CM' | 'ALT' | string;
+  hours: string;        // din API
+  multiplier: string;   // din API
+}
+
 interface DayRow {
   date: string;                 // "YYYY-MM-DD"
   first_in: string | null;      // ISO local time
@@ -19,9 +26,10 @@ interface DayRow {
   exits: number;
   sessions: SessionRow[];
   day_worksite?: string | null; // ultimul worksite nenul
+  leave?: LeaveCell | null;     // concediu/absență (opțional)
 }
 
-type EditMode = 'sessions' | 'total';
+type EditMode = 'sessions' | 'leave';
 
 type SessEditRow = {
   session_id?: number;          // prezent pentru rândurile existente
@@ -53,20 +61,40 @@ export class UserpontatComponent implements OnInit {
 
   // === Editor state ===
   editingDate: string | null = null;  // "YYYY-MM-DD"
-  mode: EditMode = 'sessions';        // default pe Sesiuni
+  mode: EditMode = 'sessions';        // default
 
-  // Form TOTAL (păstrat pentru fallback / compat)
+  // Form TOTAL (păstrat în cod, dar UI nu mai folosește tab-ul "total")
   form = {
-    totalHms: '',                             // "HH:MM"
+    totalHms: '',
     anchor: 'start' as 'start' | 'end' | 'custom',
-    customStart: '',                          // "HH:MM" when anchor === 'custom'
-    worksite: ''                              // opțional
+    customStart: '',
+    worksite: ''
   };
 
   // Form SESIUNI
   sessForm: SessEditRow[] = [{ in: '', out: '', worksite: '' }];
 
-  constructor(private route: ActivatedRoute, private api: SharedService) {}
+  // Form LIPSA ZI DE LUCRU
+  leaveForm = {
+    reason: 'CO' as 'CO' | 'CM' | 'ALT',
+    hours: 8 as number,
+    rate: 0 as number,                 // doar pentru calcul UI (serverul poate ignora)
+    multiplierEnabled: false,
+    multiplier: 1 as number
+  };
+
+  // Mapare denumiri concedii + formatter ore
+  mapLeave: Record<string, string> = {
+    CO: 'Concediu odihnă',
+    CM: 'Concediu medical',
+    ALT: 'Absență'
+  };
+
+  constructor(
+    private route: ActivatedRoute,
+    private api: SharedService,
+    private http: HttpClient
+  ) {}
 
   ngOnInit(): void {
     this.userId = Number(this.route.snapshot.paramMap.get('id'));
@@ -146,6 +174,7 @@ export class UserpontatComponent implements OnInit {
         exits: 0,
         sessions: [],
         day_worksite: null,
+        leave: null
       });
     }
     return res;
@@ -184,18 +213,25 @@ export class UserpontatComponent implements OnInit {
   hm(t: string | null) { return t ? t.substring(0, 5) : '—'; }
   durataOre(hms: string) { const [h, m] = (hms || '00:00:00').split(':'); return `${parseInt(h, 10)}:${m} ore`; }
 
+  fmtLeaveHours(h: string): string {
+    const n = parseFloat(h);
+    if (isNaN(n)) return h;
+    const clean = (Math.round(n * 100) / 100).toString().replace(/\.00?$/, '');
+    return `${clean}h`;
+  }
+
   // ===== Editor actions =====
   openEditor(day: DayRow): void {
     this.editingDate = day.date;
     this.mode = 'sessions'; // implicit
 
-    // Prefill TOTAL (compat fallback)
+    // Prefill TOTAL (compat)
     this.form.totalHms = this.toHHMM(day.total_hms);
     this.form.anchor = 'start';
     this.form.customStart = '';
     this.form.worksite = day.day_worksite ?? '';
 
-    // Prefill SESSIONS (păstrăm id-urile pentru delete rapid)
+    // Prefill SESSIUNI
     this.sessForm = (day.sessions?.length ? day.sessions : [])
       .map<SessEditRow>(s => ({
         session_id: s.session_id,
@@ -204,6 +240,24 @@ export class UserpontatComponent implements OnInit {
         worksite: s.worksite || ''
       }));
     if (!this.sessForm.length) this.sessForm = [{ in: '', out: '', worksite: '' }];
+
+    // Prefill LEAVE dacă există
+    if (day.leave) {
+      const mh = parseFloat(day.leave.hours || '0');
+      const mm = parseFloat(day.leave.multiplier || '1') || 1;
+      this.leaveForm.reason = (['CO','CM','ALT'].includes(day.leave.reason) ? day.leave.reason : 'ALT') as any;
+      this.leaveForm.hours = isNaN(mh) ? 0 : mh;
+      this.leaveForm.multiplierEnabled = mm !== 1;
+      this.leaveForm.multiplier = mm || 1;
+      // rate rămâne ce ai folosit anterior în UI (nu vine din API)
+    } else {
+      // reset pe default
+      this.leaveForm.reason = 'CO';
+      this.leaveForm.hours = 8;
+      this.leaveForm.multiplierEnabled = false;
+      this.leaveForm.multiplier = 1;
+      // rate păstrăm ultima valoare introdusă de operator
+    }
   }
 
   cancelEditor(): void {
@@ -225,8 +279,7 @@ export class UserpontatComponent implements OnInit {
     if (!confirm('Ștergi această sesiune?')) return;
 
     this.saving = true;
-    // necesită SharedService.deleteSession(sessionId)
-    (this.api as any).deleteSession(row.session_id).subscribe({
+    this.http.post('/api/pontaj/session/delete/', { session_id: row.session_id }).subscribe({
       next: () => {
         this.saving = false;
         this.load();
@@ -258,7 +311,7 @@ export class UserpontatComponent implements OnInit {
     });
   }
 
-  // ===== Save TOTAL (păstrat pentru compat; dacă endpointul nu există, face POST sesiune unică) =====
+  // ===== Save TOTAL (în cod pentru compat; UI nu-l expune) =====
   saveTotal(day: DayRow): void {
     if (!this.validHHMM(this.form.totalHms)) {
       alert('Total invalid. Folosește format HH:MM (ex: 07:30).');
@@ -288,7 +341,6 @@ export class UserpontatComponent implements OnInit {
         this.refreshMonthSalary();
       },
       error: (err: any) => {
-        // ----- Fallback: dacă endpointul nu există sau nu permite metoda, creez 1 sesiune și trimit la /pontaj/day/edit/
         if (err?.status === 404 || err?.status === 405) {
           const totalMin = this.toMinutes(this.form.totalHms);
           let startHHMM = '08:00';
@@ -370,6 +422,68 @@ export class UserpontatComponent implements OnInit {
       error: (err: any) => {
         this.saving = false;
         alert('Eroare la salvarea sesiunilor.');
+        console.error(err);
+      }
+    });
+  }
+
+  // ===== Leave (absență cu plată / fără) =====
+  leaveComputedTotal(): number {
+    const mult = this.leaveForm.multiplierEnabled ? (this.leaveForm.multiplier || 1) : 1;
+    const hours = this.leaveForm.hours || 0;
+    const rate = this.leaveForm.rate || 0;
+    return +(hours * rate * mult).toFixed(2);
+  }
+
+  saveLeave(day: DayRow): void {
+    if (!this.leaveForm.hours || this.leaveForm.hours < 0) {
+      alert('Setează orele pontate pentru ziua lipsă.');
+      return;
+    }
+    if (this.leaveForm.multiplierEnabled && this.leaveForm.multiplier < 0) {
+      alert('Multiplicator invalid.');
+      return;
+    }
+
+    const body = {
+      user_id: this.userId,
+      date: day.date,
+      reason: this.leaveForm.reason,
+      hours: this.leaveForm.hours, // serverul așteaptă string/number
+      multiplier: this.leaveForm.multiplierEnabled ? this.leaveForm.multiplier : 1
+      // rate-ul e doar pentru UI, dacă vrei să-l salvezi ca override, putem adăuga câmp în API
+    };
+
+    this.saving = true;
+    this.http.post('/api/leave/upsert/', body).subscribe({
+      next: () => {
+        this.saving = false;
+        this.editingDate = null;
+        this.load();
+        this.refreshMonthSalary();
+      },
+      error: (err: any) => {
+        this.saving = false;
+        alert('Eroare la salvarea absenței.');
+        console.error(err);
+      }
+    });
+  }
+
+  deleteLeave(day: DayRow): void {
+    if (!confirm('Ștergi marcajul de lipsă pentru această zi?')) return;
+
+    this.saving = true;
+    this.http.request('DELETE', '/api/leave/delete/', { body: { user_id: this.userId, date: day.date } }).subscribe({
+      next: () => {
+        this.saving = false;
+        this.editingDate = null;
+        this.load();
+        this.refreshMonthSalary();
+      },
+      error: (err: any) => {
+        this.saving = false;
+        alert('Eroare la ștergerea absenței.');
         console.error(err);
       }
     });

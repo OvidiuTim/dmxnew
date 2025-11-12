@@ -23,14 +23,53 @@ from ToolApp.models import (
     Users, AttendanceSession, PresenceEvent, Tools, Histories,
     Shed, Unfunctional, Materials, Consumables, WorkField,
     CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas,
-    SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay
+    SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay, LeaveDay
 )
 from ToolApp.serializers import (
     ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, ToolSerializer,
     HistorySerializer, MaterialSerializer, WorkFieldSerializer, CofrajMetalicSerializer,
     CofrajtTipDokaSerializer, PopiSerializer, SchelaUsoaraSerializer, SchelaFatadaSerializer,
-    SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer
+    SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer, 
 )
+# --- API: /api/pay/day și /api/pay/month ---
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.utils.timezone import localdate
+from django.db.models import Sum
+from decimal import Decimal
+# --- PONTAJ API ---
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.utils import timezone
+from django.utils.timezone import localtime, localdate
+from datetime import date, datetime
+from django.db.models import Sum, Min, Max
+from ToolApp.models import Users, AttendanceSession
+
+from datetime import datetime
+from django.utils import timezone
+
+# === AUTH SIMPLU PENTRU ANGULAR ===
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.conf import settings
+from django.core import signing
+import os, hmac, json
+
+# === PONTAJ: program + leeway ===
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.utils.timezone import localdate
+
+
+
+# --- PONTAJ: UPDATE / DELETE sesiune + DELETE zi ---
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.utils import timezone
+from django.db import transaction
+from datetime import date as _date
 
 # --- NFC (safe import) ---
 try:
@@ -1187,14 +1226,7 @@ def attendance_today(request):
 
 
 
-# --- PONTAJ API ---
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from django.utils import timezone
-from django.utils.timezone import localtime, localdate
-from datetime import date, datetime
-from django.db.models import Sum, Min, Max
-from ToolApp.models import Users, AttendanceSession
+
 
 def _fmt_hms(seconds: int) -> str:
     seconds = max(0, int(seconds or 0))
@@ -1218,6 +1250,9 @@ def attendance_day(request):
 
     day = _parse_iso_date(request.GET.get("date") or str(localdate()))
 
+    # NEW: map pentru concedii pe zi
+    leaves_map = {x.user_fk_id: x for x in LeaveDay.objects.filter(work_date=day)}
+
     qs = (AttendanceSession.objects
           .filter(work_date=day)
           .select_related("user_fk")
@@ -1236,7 +1271,7 @@ def attendance_day(request):
                 "last_out": None,
                 "total_seconds": 0,
                 "status": "OUT",
-                "day_worksite": None,  # NEW
+                "day_worksite": None,
             }
 
         in_local  = localtime(s.in_time) if s.in_time else None
@@ -1257,7 +1292,7 @@ def attendance_day(request):
             "worksite": s.worksite,
         })
 
-        # NEW: ultima valoare nenulă rămâne ca „site al zilei”
+        # ultima locație nenulă devine site-ul zilei
         if s.worksite:
             rows_by_user[key]["day_worksite"] = s.worksite
 
@@ -1272,6 +1307,7 @@ def attendance_day(request):
 
     rows = []
     for _, row in rows_by_user.items():
+        ld = leaves_map.get(row["UserId"])
         rows.append({
             "UserId": row["UserId"],
             "UserName": row["UserName"],
@@ -1280,7 +1316,11 @@ def attendance_day(request):
             "total_hms": _fmt_hms(row["total_seconds"]),
             "status": row["status"],
             "sessions": row["sessions"],
-            "day_worksite": row["day_worksite"],  # NEW
+            "day_worksite": row["day_worksite"],
+            "leave": (
+                {"reason": ld.reason, "hours": str(ld.hours), "multiplier": str(ld.multiplier)}
+                if ld else None
+            ),
         })
 
     rows.sort(key=lambda r: r["UserName"].lower())
@@ -1354,8 +1394,8 @@ def attendance_range(request):
                 "total_seconds": 0,
                 "entries": 0,
                 "exits": 0,
-                "sessions": [],   # {in_time, out_time, duration_hms, open, session_id, worksite}
-                "day_worksite": None,  # NEW
+                "sessions": [],
+                "day_worksite": None,
             }
             cur += timedelta(days=1)
 
@@ -1382,7 +1422,6 @@ def attendance_range(request):
                 bucket["exits"] += 1
             bucket["total_seconds"] += dur
 
-            # NEW: ultima valoare nenulă devine locația zilei
             if s.worksite:
                 bucket["day_worksite"] = s.worksite
 
@@ -1391,8 +1430,15 @@ def attendance_range(request):
             if out_local and (not bucket["last_out"] or out_local.isoformat() > bucket["last_out"]):
                 bucket["last_out"] = out_local.isoformat()
 
+        # NEW: map pentru concedii în interval
+        leave_by_date = {
+            x.work_date: x
+            for x in LeaveDay.objects.filter(user_fk=user, work_date__range=(start, end))
+        }
+
         day_list = []
         for d in days.values():
+            ld = leave_by_date.get(_date.fromisoformat(d["date"]))
             day_list.append({
                 "date": d["date"],
                 "first_in": d["first_in"],
@@ -1401,7 +1447,11 @@ def attendance_range(request):
                 "entries": d["entries"],
                 "exits": d["exits"],
                 "sessions": d["sessions"],
-                "day_worksite": d["day_worksite"],  # NEW
+                "day_worksite": d["day_worksite"],
+                "leave": (
+                    {"reason": ld.reason, "hours": str(ld.hours), "multiplier": str(ld.multiplier)}
+                    if ld else None
+                ),
             })
 
         return JsonResponse({
@@ -1414,7 +1464,7 @@ def attendance_range(request):
             }]
         })
 
-    # (agregatul fără user_id rămâne neschimbat)
+    # agregat fără user_id – rămâne ca înainte
     qs = (AttendanceSession.objects
           .filter(work_date__range=(start, end))
           .values("user_fk__UserId", "user_fk__UserName", "work_date")
@@ -1439,7 +1489,6 @@ def attendance_range(request):
 
     result = list(sorted(users.values(), key=lambda x: x["UserName"].lower()))
     return JsonResponse({"start": str(start), "end": str(end), "users": result})
-
 
 
 
@@ -1527,8 +1576,7 @@ def pontaj_stream(request):
 
 
 
-from datetime import datetime
-from django.utils import timezone
+
 
 def _parse_client_ts(ts_str: str) -> datetime | None:
     """
@@ -1626,38 +1674,181 @@ def attendance_force_close_1730(request):
 
 
 
-def recompute_daily_pay(user, day):
+@csrf_exempt
+def leave_upsert(request):
     """
-    Recalculează totalul pe zi (secunde) din AttendanceSession și salvează snapshot-ul de plată.
+    POST /api/leave/upsert/
+    Body:
+    {
+      "user_id" | "user_pin" | "user_serie",
+      "date": "YYYY-MM-DD",
+      "reason": "CO"|"CM"|"ALT",
+      "hours": 8,
+      "hourly_rate": 25.0,   # opțional; default = Users.hourly_rate
+      "multiplier": 1.0,     # ex. 0.75 pt. CM
+      "note": "text"
+    }
     """
-    agg = (AttendanceSession.objects
-           .filter(user_fk=user, work_date=day, out_time__isnull=False)
-           .aggregate(total=Sum('duration_seconds')))
-    total_seconds = int(agg['total'] or 0)
-    rate = user.hourly_rate or Decimal('0.00')
-    hours = (Decimal(total_seconds) / Decimal(3600)).quantize(Decimal('0.0001'))  # precizie internă
-    day_pay = (rate * hours).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
-    obj, _ = DailyPay.objects.get_or_create(user_fk=user, work_date=day, defaults={
-        'total_seconds': total_seconds,
-        'hourly_rate_snapshot': rate,
-        'day_pay': day_pay,
+    # user lookup
+    user = None
+    if data.get("user_id"):
+        user = Users.objects.filter(UserId=data["user_id"]).first()
+    elif data.get("user_pin"):
+        user = Users.objects.filter(UserPin=str(data["user_pin"])).first()
+    elif data.get("user_serie"):
+        user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
+    if not user:
+        return JsonResponse({"error":"user not found"}, status=404)
+
+    # date
+    try:
+        d = _date.fromisoformat(str(data.get("date")))
+    except Exception:
+        return JsonResponse({"error":"Bad 'date' (YYYY-MM-DD)"}, status=400)
+
+    reason = (data.get("reason") or "CO").upper()
+    if reason not in ("CO","CM","ALT"):
+        return JsonResponse({"error":"reason must be CO|CM|ALT"}, status=400)
+
+    from decimal import Decimal, ROUND_HALF_UP
+    hours = Decimal(str(data.get("hours") or "8.00"))
+    multiplier = Decimal(str(data.get("multiplier") or "1.00"))
+    rate = Decimal(str(data.get("hourly_rate"))) if data.get("hourly_rate") not in (None, "") else (user.hourly_rate or Decimal('0.00'))
+
+    pay = (rate * hours * multiplier).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    obj, _ = LeaveDay.objects.get_or_create(user_fk=user, work_date=d, defaults={
+        "reason": reason, "hours": hours, "multiplier": multiplier,
+        "hourly_rate_snapshot": rate, "pay_amount": pay, "note": data.get("note") or ""
     })
-    if _ is False:
-        obj.total_seconds = total_seconds
-        obj.hourly_rate_snapshot = rate
-        obj.day_pay = day_pay
-        obj.save()
-    return obj
+    # update dacă exista
+    obj.reason = reason
+    obj.hours = hours
+    obj.multiplier = multiplier
+    obj.hourly_rate_snapshot = rate
+    obj.pay_amount = pay
+    if data.get("note") is not None:
+        obj.note = data.get("note") or ""
+    obj.save()
+
+    snap = recompute_daily_pay(user, d)
+
+    return JsonResponse({
+        "ok": True,
+        "user_id": user.UserId,
+        "date": str(d),
+        "leave": {
+            "reason": obj.reason,
+            "hours": str(obj.hours),
+            "multiplier": str(obj.multiplier),
+            "hourly_rate": str(obj.hourly_rate_snapshot),
+            "pay": str(obj.pay_amount),
+            "note": obj.note or ""
+        },
+        "pay_snapshot": {
+            "total_seconds": snap.total_seconds,   # doar ore reale
+            "day_pay": str(snap.day_pay)
+        }
+    })
+
+@csrf_exempt
+def leave_get(request):
+    """
+    GET /api/leave/get/?user_id=ID&date=YYYY-MM-DD
+    GET /api/leave/get/?user_id=ID&start=YYYY-MM-DD&end=YYYY-MM-DD
+    """
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    try:
+        user = Users.objects.get(UserId=int(request.GET.get("user_id")))
+    except Exception:
+        return JsonResponse({"error":"user not found"}, status=404)
+
+    if request.GET.get("date"):
+        try:
+            d = _date.fromisoformat(request.GET.get("date"))
+        except Exception:
+            return JsonResponse({"error":"Bad 'date'"}, status=400)
+        ld = LeaveDay.objects.filter(user_fk=user, work_date=d).first()
+        if not ld:
+            return JsonResponse({"user_id": user.UserId, "date": str(d), "leave": None, "hourly_rate": str(user.hourly_rate or "0.00")})
+        return JsonResponse({
+            "user_id": user.UserId,
+            "date": str(d),
+            "leave": {
+                "reason": ld.reason,
+                "hours": str(ld.hours),
+                "multiplier": str(ld.multiplier),
+                "hourly_rate": str(ld.hourly_rate_snapshot),
+                "pay": str(ld.pay_amount),
+                "note": ld.note or ""
+            },
+            "hourly_rate": str(user.hourly_rate or "0.00")
+        })
+
+    # range
+    try:
+        start = _date.fromisoformat(request.GET.get("start"))
+        end   = _date.fromisoformat(request.GET.get("end"))
+        if end < start:
+            start, end = end, start
+    except Exception:
+        return JsonResponse({"error":"Provide date or start&end"}, status=400)
+
+    qs = LeaveDay.objects.filter(user_fk=user, work_date__range=(start, end)).order_by("work_date")
+    rows = [{
+        "date": str(x.work_date),
+        "reason": x.reason,
+        "hours": str(x.hours),
+        "multiplier": str(x.multiplier),
+        "hourly_rate": str(x.hourly_rate_snapshot),
+        "pay": str(x.pay_amount),
+        "note": x.note or ""
+    } for x in qs]
+    return JsonResponse({"user_id": user.UserId, "start": str(start), "end": str(end), "rows": rows})
+
+@csrf_exempt
+def leave_delete(request):
+    """
+    POST /api/leave/delete/
+    Body: { "user_id"| "user_pin"|"user_serie", "date":"YYYY-MM-DD" }
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error":"Invalid JSON"}, status=400)
+
+    user = None
+    if data.get("user_id"):
+        user = Users.objects.filter(UserId=data["user_id"]).first()
+    elif data.get("user_pin"):
+        user = Users.objects.filter(UserPin=str(data["user_pin"])).first()
+    elif data.get("user_serie"):
+        user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
+    if not user:
+        return JsonResponse({"error":"user not found"}, status=404)
+
+    try:
+        d = _date.fromisoformat(str(data.get("date")))
+    except Exception:
+        return JsonResponse({"error":"Bad 'date'"}, status=400)
+
+    LeaveDay.objects.filter(user_fk=user, work_date=d).delete()
+    snap = recompute_daily_pay(user, d)
+    return JsonResponse({"ok": True, "date": str(d), "pay_snapshot": {"total_seconds": snap.total_seconds, "day_pay": str(snap.day_pay)}})
 
 
 
-# --- API: /api/pay/day și /api/pay/month ---
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from django.utils.timezone import localdate
-from django.db.models import Sum
-from decimal import Decimal
 
 @csrf_exempt
 def pay_day(request):
@@ -1670,18 +1861,37 @@ def pay_day(request):
     except Exception:
         return JsonResponse({"error": "user not found"}, status=404)
 
-    from datetime import date as _date
     day_str = request.GET.get("date")
     day = _date.fromisoformat(day_str) if day_str else localdate()
 
-    obj = recompute_daily_pay(user, day)  # asigură snapshot up-to-date
+    # Asigură snapshot up-to-date (în implementarea ta, recompute_daily_pay poate include și concediul)
+    obj = recompute_daily_pay(user, day)
+
+    # Breakdown
+    work_seconds = (AttendanceSession.objects
+                    .filter(user_fk=user, work_date=day, out_time__isnull=False)
+                    .aggregate(total=Sum('duration_seconds'))['total'] or 0)
+
+    leave_qs = LeaveDay.objects.filter(user_fk=user, work_date=day)
+    leave_hours = sum([float(x.hours) for x in leave_qs]) if leave_qs else 0.0
+    leave_pay = sum([float(x.pay_amount) for x in leave_qs]) if leave_qs else 0.0
+    last_reason = leave_qs.first().reason if leave_qs else None
+
     return JsonResponse({
         "user_id": user.UserId,
         "date": str(day),
         "hourly_rate": str(obj.hourly_rate_snapshot),
-        "total_seconds": obj.total_seconds,
-        "day_pay": str(obj.day_pay)
+        "total_seconds": work_seconds,           # doar sesiuni reale
+        "day_pay": str(obj.day_pay),             # include și concediul dacă recompute_daily_pay îl adună
+        "breakdown": {
+            "work_hours": round(work_seconds/3600, 2),
+            "leave_hours": leave_hours,
+            "leave_pay": round(leave_pay, 2),
+            "leave_reason": last_reason
+        }
     })
+
+
 
 @csrf_exempt
 def pay_month(request):
@@ -1697,16 +1907,23 @@ def pay_month(request):
     month = (request.GET.get("month") or str(localdate())[:7])  # "YYYY-MM"
     y, m = month.split("-"); y = int(y); m = int(m)
 
-    from datetime import date as _date
     from calendar import monthrange
     last_day = monthrange(y, m)[1]
     start = _date(y, m, 1); end = _date(y, m, last_day)
 
-    # Recalculează snapshot-urile pentru toate zilele cu sesiuni închise în lună
-    days = (AttendanceSession.objects
-            .filter(user_fk=user, work_date__range=(start, end), out_time__isnull=False)
-            .values_list('work_date', flat=True).distinct())
-    for d in days:
+    # zile cu sesiuni închise
+    days_s = set(AttendanceSession.objects
+                 .filter(user_fk=user, work_date__range=(start, end), out_time__isnull=False)
+                 .values_list('work_date', flat=True).distinct())
+
+    # zile cu concediu (fără să conteze dacă au sesiuni)
+    days_l = set(LeaveDay.objects
+                 .filter(user_fk=user, work_date__range=(start, end))
+                 .values_list('work_date', flat=True).distinct())
+
+    # unire: recalculăm snapshot-ul pentru toate zilele
+    all_days = days_s | days_l
+    for d in all_days:
         recompute_daily_pay(user, d)
 
     total = (DailyPay.objects
@@ -1720,12 +1937,7 @@ def pay_month(request):
     })
 
 
-# === AUTH SIMPLU PENTRU ANGULAR ===
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from django.conf import settings
-from django.core import signing
-import os, hmac, json
+
 
 TOKEN_SALT = "pontaj-auth"
 TOKEN_AGE = 24 * 3600  # 24h
@@ -1803,10 +2015,7 @@ def auth_verify(request):
 
 
 
-# === PONTAJ: program + leeway ===
-from datetime import datetime, timedelta
-from django.utils import timezone
-from django.utils.timezone import localdate
+
 
 GRACE_MINUTES = 10  # leeway ±10 min
 
@@ -2075,6 +2284,8 @@ def attendance_day_delete(request):
         day = _date.fromisoformat(str(data.get("date")))
     except Exception:
         return HttpResponseBadRequest("Bad 'date'")
+    leaves_map = {x.user_fk_id: x for x in LeaveDay.objects.filter(work_date=day)}
+
 
     with transaction.atomic():
         AttendanceSession.objects.filter(user_fk=user, work_date=day).delete()
@@ -2084,13 +2295,6 @@ def attendance_day_delete(request):
     return JsonResponse({"ok": True})
 
 
-# --- PONTAJ: UPDATE / DELETE sesiune + DELETE zi ---
-
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from django.utils import timezone
-from django.db import transaction
-from datetime import date as _date
 
 @csrf_exempt
 def attendance_session_update(request):
