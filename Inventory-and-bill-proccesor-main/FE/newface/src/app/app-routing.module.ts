@@ -13,6 +13,7 @@ import { DashboardComponent } from './dashboard/dashboard.component';
 import { ShelfsComponent } from './shelfs/shelfs.component';
 import { PontajComponent } from './pontaj/pontaj.component';
 import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
+import { RapoarteComponent } from './pontaj/rapoarte/rapoarte.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -25,6 +26,9 @@ const routes: Routes = [
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj', component: PontajComponent, canActivate: [AuthGuard] },
+
+  // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
+  { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard] },
 
   // Pagina utilizator protejată (/pontaj/user/:id)
   { path: 'user/:id', component: UserpontatComponent, canActivate: [AuthGuard] },

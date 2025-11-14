@@ -135,4 +135,6 @@ urlpatterns = [
     path('api/leave/upsert/', leave_upsert),
     path('api/leave/get/', leave_get),
     path('api/leave/delete/', leave_delete),
+    
+    path('api/pontaj/excel/', views.generate_excel, name='pontaj_excel'),
 ]

@@ -151,5 +151,10 @@ seeAngajat(id: number) {
       'ABSENT': 'chip absent'
     }[status];
   }
+
+
+  goToReports(): void {
+    this.router.navigate(['/pontaj/rapoarte']);
+  }
 }
 

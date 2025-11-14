@@ -1,0 +1,76 @@
+<div class="rapoarte-wrap">
+  <h1 class="page-title">Rapoarte pontaj</h1>
+
+  <!-- SECTION 1: RAPORT PE DATĂ (gri) -->
+  <section class="section section-gray">
+    <h2 class="section-title">Raport pe dată</h2>
+    <p class="section-desc">
+      Alege o zi și deschide pontajul detaliat pentru toți angajații.
+    </p>
+
+    <div class="row">
+      <label class="field">
+        <span>Data</span>
+        <input
+          type="date"
+          [(ngModel)]="selectedDay"
+          [max]="todayISO()"
+        />
+      </label>
+
+      <button class="btn primary" type="button" (click)="openDayReport()">
+        Deschide pontaj
+      </button>
+    </div>
+  </section>
+
+  <!-- SECTION 2: RAPORT PE FIRMĂ + LUNĂ -->
+  <section class="section">
+    <h2 class="section-title">Raport pe firmă și lună</h2>
+    <p class="section-desc">
+      Alege firma și luna pentru a genera fișierul Excel de pontaj.
+    </p>
+
+    <!-- 1. Alege firma -->
+    <div class="subsection">
+      <div class="sub-title">1. Alege firma</div>
+      <div class="company-buttons">
+        <button
+          *ngFor="let c of companies"
+          type="button"
+          class="chip-btn"
+          [class.active]="c === selectedCompany"
+          (click)="selectCompany(c)"
+        >
+          {{ c }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. Alege luna -->
+    <div class="subsection">
+      <div class="sub-title">2. Alege luna</div>
+      <label class="field">
+        <span>Lună</span>
+        <input
+          type="month"
+          [(ngModel)]="selectedMonth"
+        />
+      </label>
+    </div>
+
+    <!-- 3. Generează raport -->
+    <div class="actions-row">
+      <button
+        class="btn primary"
+        type="button"
+        [disabled]="!canGenerateCompanyReport()"
+        (click)="generateCompanyExcel()"
+      >
+        {{ loadingExcel ? 'Se generează…' : 'Generează raport Excel' }}
+      </button>
+    </div>
+
+    <p class="error" *ngIf="error">{{ error }}</p>
+  </section>
+</div>

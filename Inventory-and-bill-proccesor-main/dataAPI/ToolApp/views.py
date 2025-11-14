@@ -2455,21 +2455,18 @@ def attendance_day_delete(request):
 HEADER_FONT = Font(bold=True, size=14)
 CENTER = Alignment(horizontal="center", vertical="center")
 
+
 @csrf_exempt
 def generate_excel(request):
     """
-    Generează Excel de pontaj pentru TOȚI angajații, pentru o lună.
-    - citește din AttendanceSession (nu din WorkedHours)
-    - fiecare angajat are rândurile:
-        - row_hours: ore lucrate pe zile
-        - row_sites: sub ele, "T" dacă în ziua respectivă a lucrat
-    - Zilele de DUMINICĂ sunt sărite (ca în proiectul vechi).
-    
-    Body (POST JSON), variante acceptate:
-      { "month": "2025-11" }                -> luna noiembrie 2025
-      { "month": "11", "year": 2025 }       -> luna 11 / 2025
-      { "month": 11, "year": 2025 }         -> idem
-      { "month": "Ianuarie", "year": 2025 } -> mapare pe 1
+    Generează Excel de pontaj pentru o lună, opțional filtrat pe firmă.
+
+    Body (POST JSON) – exemple:
+      { "month": "2025-11" }
+      { "month": 11, "year": 2025 }
+      { "month": "Noiembrie", "year": 2025 }
+      { "month": 11, "year": 2025, "company": "VB-ROM" }
+      { "month": 11, "year": 2025, "companyName": "VB-ROM" }
     """
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method. Use POST."}, status=400)
@@ -2481,6 +2478,9 @@ def generate_excel(request):
 
     month_val = data.get("month")
     year_val = data.get("year")
+    # acceptăm și "company" și "companyName", ca în vechiul proiect
+    company_name = (data.get("company") or data.get("companyName") or "").strip()
+
     if not month_val:
         return JsonResponse({
             "error": "Field 'month' is required. Exemple: '2025-11', 11, 'Noiembrie'"
@@ -2516,7 +2516,6 @@ def generate_excel(request):
             if mv_lower in month_map:
                 month_idx = month_map[mv_lower]
                 year = int(year_val or now_year)
-                # eticheta frumoasă, ex: "Noiembrie 2025"
                 label_month = f"{mv.capitalize()} {year}"
             else:
                 # poate e "11"
@@ -2545,39 +2544,141 @@ def generate_excel(request):
     start_day = _date(year, month_idx, 1)
     end_day   = _date(year, month_idx, days_in_month)
 
-    # --- toți angajații ---
-    users_qs = Users.objects.all().order_by("UserName")
-    if not users_qs.exists():
-        return JsonResponse({"error": "Nu există utilizatori în baza de date"}, status=400)
+    # --- toți angajații din DB, apoi filtrăm manual pe firmă ---
+    all_users_qs = Users.objects.all().order_by("UserName")
+    all_users = list(all_users_qs)
 
-    # per_user[UserId] = { "user":obj, "per_day": {1: sec, 2: sec, ...} }
+    if company_name:
+        filtered_users = []
+        for u in all_users:
+            comp_val = getattr(u, "Company", None)
+            if not comp_val:
+                continue
+            if str(comp_val).strip().lower() == company_name.lower():
+                filtered_users.append(u)
+        users_list = filtered_users
+    else:
+        users_list = all_users
+
+    if not users_list:
+        return JsonResponse({
+            "error": f"Nu există utilizatori pentru compania '{company_name}'" if company_name
+                     else "Nu există utilizatori în baza de date"
+        }, status=400)
+
+    # per_user[UserId] = {
+    #   "user": obj,
+    #   "per_day_seconds": {1: sec, 2: sec, ...},
+    #   "per_day_site":    {1: 'Bloc A', 2: 'Bloc B2', ...},
+    #   "per_day_leave":   {1: {"code": "CO", "hours": 8}, ...}
+    # }
     per_user: dict[int, dict] = {}
-    for u in users_qs:
+    for u in users_list:
         per_user[u.UserId] = {
             "user": u,
-            "per_day": {day: 0 for day in range(1, days_in_month + 1)}
+            "per_day_seconds": {day: 0 for day in range(1, days_in_month + 1)},
+            "per_day_site":    {day: None for day in range(1, days_in_month + 1)},
+            "per_day_leave":   {day: None for day in range(1, days_in_month + 1)},
         }
 
-    # --- sesiuni din luna respectivă ---
-    sessions_qs = (AttendanceSession.objects
-                   .filter(work_date__range=(start_day, end_day))
-                   .select_related("user_fk"))
+    # --- funcție de mapare a șantierului la cod (T-A, T-B2 etc.) ---
+    def _site_label(raw_ws):
+        if not raw_ws:
+            return None
+        text = str(raw_ws).strip()
+        if not text:
+            return None
+        low = text.lower()
+        # Exemple: "Bloc A", "Bloc B2", "Bloc A - ceva"
+        if low.startswith("bloc "):
+            suffix = text[5:].strip()         # după "Bloc "
+            suffix = suffix.split()[0] or ""  # doar primul token (A, B2, etc.)
+            if suffix:
+                return f"T-{suffix}"
+            return "T"
+        # orice altă denumire: T-<text>
+        return f"T-{text}"
+
+    # --- funcție de mapare LeaveDay -> cod (CO, CM, ALT etc.) ---
+    def _leave_code_from_lv(lv) -> str | None:
+        raw = getattr(lv, "reason", None) or getattr(lv, "leave_type", None)
+        if not raw:
+            return None
+        t = str(raw).strip()
+        if not t:
+            return None
+
+        up = t.upper()
+        if up in ("CO", "CM", "ALT"):
+            return up
+
+        low = t.lower()
+        if "odihn" in low:      # Concediu odihnă
+            return "CO"
+        if "medic" in low or "boal" in low:  # Concediu medical
+            return "CM"
+        return None
+
+    # --- sesiuni din luna respectivă (PENTRU TOȚI), dar ignorăm userii din alte firme ---
+    sessions_qs = (
+        AttendanceSession.objects
+        .filter(work_date__range=(start_day, end_day))
+        .select_related("user_fk")
+        .order_by("user_fk__UserName", "work_date", "in_time")
+    )
 
     for s in sessions_qs:
         user = s.user_fk
         uid = user.UserId
+
+        # nu adăugăm useri noi aici; dacă nu e în per_user => altă firmă
         if uid not in per_user:
-            per_user[uid] = {
-                "user": user,
-                "per_day": {day: 0 for day in range(1, days_in_month + 1)}
-            }
+            continue
+
         day = s.work_date.day
+        if not (1 <= day <= days_in_month):
+            continue
+
         dur = s.duration_seconds
         if dur is None and s.in_time and s.out_time:
             dur = int((s.out_time - s.in_time).total_seconds())
         dur = int(dur or 0)
-        if 1 <= day <= days_in_month:
-            per_user[uid]["per_day"][day] += max(0, dur)
+
+        per_user[uid]["per_day_seconds"][day] += max(0, dur)
+
+        # ultima locație nenulă din zi câștigă
+        if s.worksite:
+            per_user[uid]["per_day_site"][day] = s.worksite
+
+    # --- concedii / absențe din LeaveDay pentru luna respectivă ---
+    leaves_qs = (
+        LeaveDay.objects
+        .filter(work_date__range=(start_day, end_day), user_fk__in=users_list)
+        .select_related("user_fk")
+        .order_by("user_fk__UserName", "work_date")
+    )
+
+    for lv in leaves_qs:
+        user = lv.user_fk
+        uid = user.UserId
+        if uid not in per_user:
+            continue
+
+        day = lv.work_date.day
+        if not (1 <= day <= days_in_month):
+            continue
+
+        code = _leave_code_from_lv(lv)
+        raw_hours = getattr(lv, "hours", 0)  # Decimal / int / float
+        try:
+            hours = float(raw_hours or 0)
+        except Exception:
+            hours = 0.0
+
+        per_user[uid]["per_day_leave"][day] = {
+            "code": code,
+            "hours": hours,
+        }
 
     # --- Template Excel ---
     template_path = os.path.join(os.path.dirname(__file__), "..", "media", "model_xcel_pontaj.xlsx")
@@ -2588,7 +2689,10 @@ def generate_excel(request):
     ws = wb.active
 
     # Header info
-    ws["B6"].value = data.get("title") or "Pontaj angajați – toți muncitorii"
+    if company_name:
+        ws["B6"].value = company_name
+    else:
+        ws["B6"].value = data.get("title") or "Pontaj angajați – toți muncitorii"
     ws["A5"].value = label_month
 
     # Header zile (rând 8, de la coloana D)
@@ -2602,38 +2706,56 @@ def generate_excel(request):
 
     # Rânduri per angajat
     start_row = 9
-    row_increment = 3  # ca în proiectul vechi: ore, (un rând gol), șantier
+    row_increment = 3  # ore, (rând gol), șantiere
 
-    # sortăm după nume ca să fie frumos
+    # sortăm după nume
     sorted_users = sorted(per_user.values(), key=lambda x: x["user"].UserName.lower())
 
     for idx, payload in enumerate(sorted_users):
         user = payload["user"]
-        per_day = payload["per_day"]
+        per_day_seconds = payload["per_day_seconds"]
+        per_day_site    = payload["per_day_site"]
+        per_day_leave   = payload["per_day_leave"]
 
         row_hours = start_row + (idx * row_increment)
-        row_sites = row_hours + 2
+        row_sites = row_hours + 2  # aici merg codurile T-A, T-B2, CO, CM etc.
 
         # numele muncitorului în col B
         ws[f"B{row_hours}"].value = user.UserName
 
         for day in range(1, days_in_month + 1):
             day_date = _date(year, month_idx, day)
-            # sarim Duminica (weekday() == 6)
-            if day_date.weekday() == 6:
+            col_letter = get_column_letter(start_column + day - 1)
+
+            leave_info = per_day_leave.get(day)
+
+            # Duminica o sărim doar dacă NU există concediu
+            if day_date.weekday() == 6 and not leave_info:
                 continue
 
-            seconds = per_day.get(day, 0)
+            # 1) Concediu are prioritate față de orele reale
+            if leave_info:
+                leave_hours = leave_info.get("hours") or 0.0
+                leave_code  = leave_info.get("code")
+
+                if leave_hours > 0:
+                    ws[f"{col_letter}{row_hours}"].value = float(leave_hours)
+                if leave_code:
+                    ws[f"{col_letter}{row_sites}"].value = leave_code
+                continue
+
+            # 2) Fără concediu, folosim orele din AttendanceSession
+            seconds = per_day_seconds.get(day, 0)
             if seconds <= 0:
                 continue
 
             hours = round(seconds / 3600.0, 2)  # ore cu 2 zecimale
-            col_letter = get_column_letter(start_column + day - 1)
-
-            # ore lucrate
             ws[f"{col_letter}{row_hours}"].value = float(hours)
-            # santier - TEMPORAR punem "T"
-            ws[f"{col_letter}{row_sites}"].value = "T"
+
+            raw_ws = per_day_site.get(day)
+            label_ws = _site_label(raw_ws)
+            if label_ws:
+                ws[f"{col_letter}{row_sites}"].value = label_ws
 
     # --- trimitem fișierul la download ---
     excel_buffer = io.BytesIO()
@@ -2641,7 +2763,12 @@ def generate_excel(request):
     wb.close()
     excel_buffer.seek(0)
 
-    filename = f"pontaj_{year:04d}-{month_idx:02d}.xlsx"
+    if company_name:
+        safe_company = company_name.replace(" ", "_")
+        filename = f"pontaj_{safe_company}_{year:04d}-{month_idx:02d}.xlsx"
+    else:
+        filename = f"pontaj_{year:04d}-{month_idx:02d}.xlsx"
+
     resp = HttpResponse(
         excel_buffer.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

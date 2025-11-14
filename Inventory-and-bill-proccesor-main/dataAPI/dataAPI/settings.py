@@ -36,7 +36,7 @@ SECRET_KEY = 'django-insecure-npqmmmqf84+vci&!^p0qpc8mi2oxjn91wr88zk8v)%bli2pj&s
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True   # temporar ca să vezi erorile
 
-ALLOWED_HOSTS = ["178.128.194.197","magazie.dmxconstruction.ro","www.magazie.dmxconstruction.ro","127.0.0.1"]
+ALLOWED_HOSTS = ["178.128.194.197","magazie.dmxconstruction.ro","www.magazie.dmxconstruction.ro","127.0.0.1","localhost"]
 
 INSTALLED_APPS = [
     'django.contrib.admin','django.contrib.auth','django.contrib.contenttypes',

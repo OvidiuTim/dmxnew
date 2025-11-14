@@ -7,7 +7,7 @@
 
     <div class="actions">
       <button class="btn" (click)="togglePicker()">Alege ziua</button>
-      <button class="btn ghost" (click)="refresh()" aria-label="Reîmprospătează">Reîmprospătează</button>
+      <button class="btn ghost" (click)="goToReports()">Rapoarte</button>
       <input
         *ngIf="showDatePicker"
         class="date-input"
@@ -18,6 +18,8 @@
       />
     </div>
   </div>
+
+
 
   <!-- Summary -->
   <div class="summary">

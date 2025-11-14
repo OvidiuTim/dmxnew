@@ -12,7 +12,16 @@ from ToolApp.models import (
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = ("UserId", "UserName", "UserSerie", "UserPin", "NameAndSerie","hourly_rate")
+        fields = (
+            "UserId",
+            "UserName",
+            "UserSerie",
+            "UserPin",
+            "NameAndSerie",
+            "hourly_rate",
+            "Company",      # <<–– ADĂUGAT
+        )
+
 
 
 # -------------------- TOOLS --------------------
