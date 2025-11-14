@@ -62,6 +62,11 @@ from django.utils import timezone
 from django.utils.timezone import localdate
 
 
+from django.http import HttpResponse
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment, Font
+
 
 # --- PONTAJ: UPDATE / DELETE sesiune + DELETE zi ---
 
@@ -2444,3 +2449,202 @@ def attendance_day_delete(request):
             pass
 
     return JsonResponse({"ok": True, "date": str(day), "deleted_sessions": deleted})
+
+
+
+HEADER_FONT = Font(bold=True, size=14)
+CENTER = Alignment(horizontal="center", vertical="center")
+
+@csrf_exempt
+def generate_excel(request):
+    """
+    Generează Excel de pontaj pentru TOȚI angajații, pentru o lună.
+    - citește din AttendanceSession (nu din WorkedHours)
+    - fiecare angajat are rândurile:
+        - row_hours: ore lucrate pe zile
+        - row_sites: sub ele, "T" dacă în ziua respectivă a lucrat
+    - Zilele de DUMINICĂ sunt sărite (ca în proiectul vechi).
+    
+    Body (POST JSON), variante acceptate:
+      { "month": "2025-11" }                -> luna noiembrie 2025
+      { "month": "11", "year": 2025 }       -> luna 11 / 2025
+      { "month": 11, "year": 2025 }         -> idem
+      { "month": "Ianuarie", "year": 2025 } -> mapare pe 1
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method. Use POST."}, status=400)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception as e:
+        return JsonResponse({"error": f"Invalid JSON: {e}"}, status=400)
+
+    month_val = data.get("month")
+    year_val = data.get("year")
+    if not month_val:
+        return JsonResponse({
+            "error": "Field 'month' is required. Exemple: '2025-11', 11, 'Noiembrie'"
+        }, status=400)
+
+    # --- Parse month/year ---
+    month_map = {
+        "ianuarie": 1, "februarie": 2, "martie": 3, "aprilie": 4,
+        "mai": 5, "iunie": 6, "iulie": 7, "august": 8,
+        "septembrie": 9, "octombrie": 10, "noiembrie": 11, "decembrie": 12,
+    }
+    now_year = datetime.now().year
+
+    month_idx = None
+    year = None
+    label_month = None   # ce scriem în A5
+
+    if isinstance(month_val, str):
+        mv = month_val.strip()
+        # format "YYYY-MM"
+        if "-" in mv:
+            parts = mv.split("-")
+            if len(parts) != 2:
+                return JsonResponse({"error": "month 'YYYY-MM' trebuie să aibă exact 2 părți"}, status=400)
+            try:
+                year = int(parts[0])
+                month_idx = int(parts[1])
+                label_month = f"{year:04d}-{month_idx:02d}"
+            except Exception:
+                return JsonResponse({"error": "Nu pot parsa month='YYYY-MM'"}, status=400)
+        else:
+            mv_lower = mv.lower()
+            if mv_lower in month_map:
+                month_idx = month_map[mv_lower]
+                year = int(year_val or now_year)
+                # eticheta frumoasă, ex: "Noiembrie 2025"
+                label_month = f"{mv.capitalize()} {year}"
+            else:
+                # poate e "11"
+                try:
+                    month_idx = int(mv)
+                    year = int(year_val or now_year)
+                    label_month = f"{year:04d}-{month_idx:02d}"
+                except Exception:
+                    return JsonResponse({"error": "Nu pot parsa câmpul 'month'."}, status=400)
+    else:
+        # numeric direct: month=11, year=2025
+        try:
+            month_idx = int(month_val)
+            year = int(year_val or now_year)
+            label_month = f"{year:04d}-{month_idx:02d}"
+        except Exception:
+            return JsonResponse({"error": "Nu pot parsa month/year (numeric)."}, status=400)
+
+    if not (1 <= month_idx <= 12):
+        return JsonResponse({"error": "month trebuie să fie între 1 și 12"}, status=400)
+
+    from calendar import monthrange
+    days_in_month = monthrange(year, month_idx)[1]
+
+    # --- intervalul de dată ---
+    start_day = _date(year, month_idx, 1)
+    end_day   = _date(year, month_idx, days_in_month)
+
+    # --- toți angajații ---
+    users_qs = Users.objects.all().order_by("UserName")
+    if not users_qs.exists():
+        return JsonResponse({"error": "Nu există utilizatori în baza de date"}, status=400)
+
+    # per_user[UserId] = { "user":obj, "per_day": {1: sec, 2: sec, ...} }
+    per_user: dict[int, dict] = {}
+    for u in users_qs:
+        per_user[u.UserId] = {
+            "user": u,
+            "per_day": {day: 0 for day in range(1, days_in_month + 1)}
+        }
+
+    # --- sesiuni din luna respectivă ---
+    sessions_qs = (AttendanceSession.objects
+                   .filter(work_date__range=(start_day, end_day))
+                   .select_related("user_fk"))
+
+    for s in sessions_qs:
+        user = s.user_fk
+        uid = user.UserId
+        if uid not in per_user:
+            per_user[uid] = {
+                "user": user,
+                "per_day": {day: 0 for day in range(1, days_in_month + 1)}
+            }
+        day = s.work_date.day
+        dur = s.duration_seconds
+        if dur is None and s.in_time and s.out_time:
+            dur = int((s.out_time - s.in_time).total_seconds())
+        dur = int(dur or 0)
+        if 1 <= day <= days_in_month:
+            per_user[uid]["per_day"][day] += max(0, dur)
+
+    # --- Template Excel ---
+    template_path = os.path.join(os.path.dirname(__file__), "..", "media", "model_xcel_pontaj.xlsx")
+    if not os.path.exists(template_path):
+        return JsonResponse({"error": f"Excel template file not found at {template_path}"}, status=500)
+
+    wb = load_workbook(template_path, data_only=False)
+    ws = wb.active
+
+    # Header info
+    ws["B6"].value = data.get("title") or "Pontaj angajați – toți muncitorii"
+    ws["A5"].value = label_month
+
+    # Header zile (rând 8, de la coloana D)
+    start_column = 4  # D
+    for day in range(1, days_in_month + 1):
+        col_letter = get_column_letter(start_column + day - 1)
+        cell = ws[f"{col_letter}8"]
+        cell.value = day
+        cell.font = HEADER_FONT
+        cell.alignment = CENTER
+
+    # Rânduri per angajat
+    start_row = 9
+    row_increment = 3  # ca în proiectul vechi: ore, (un rând gol), șantier
+
+    # sortăm după nume ca să fie frumos
+    sorted_users = sorted(per_user.values(), key=lambda x: x["user"].UserName.lower())
+
+    for idx, payload in enumerate(sorted_users):
+        user = payload["user"]
+        per_day = payload["per_day"]
+
+        row_hours = start_row + (idx * row_increment)
+        row_sites = row_hours + 2
+
+        # numele muncitorului în col B
+        ws[f"B{row_hours}"].value = user.UserName
+
+        for day in range(1, days_in_month + 1):
+            day_date = _date(year, month_idx, day)
+            # sarim Duminica (weekday() == 6)
+            if day_date.weekday() == 6:
+                continue
+
+            seconds = per_day.get(day, 0)
+            if seconds <= 0:
+                continue
+
+            hours = round(seconds / 3600.0, 2)  # ore cu 2 zecimale
+            col_letter = get_column_letter(start_column + day - 1)
+
+            # ore lucrate
+            ws[f"{col_letter}{row_hours}"].value = float(hours)
+            # santier - TEMPORAR punem "T"
+            ws[f"{col_letter}{row_sites}"].value = "T"
+
+    # --- trimitem fișierul la download ---
+    excel_buffer = io.BytesIO()
+    wb.save(excel_buffer)
+    wb.close()
+    excel_buffer.seek(0)
+
+    filename = f"pontaj_{year:04d}-{month_idx:02d}.xlsx"
+    resp = HttpResponse(
+        excel_buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+    resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp

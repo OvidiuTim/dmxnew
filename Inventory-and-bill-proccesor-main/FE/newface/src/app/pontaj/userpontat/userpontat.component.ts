@@ -11,31 +11,32 @@ interface SessionRow {
   session_id: number;
   worksite?: string | null;
 }
+
 interface LeaveCell {
   reason: 'CO' | 'CM' | 'ALT' | string;
-  hours: string;        // din API
-  multiplier: string;   // din API
+  hours: string;
+  multiplier: string;
 }
 
 interface DayRow {
-  date: string;                 // "YYYY-MM-DD"
-  first_in: string | null;      // ISO local time
-  last_out: string | null;      // ISO local time
-  total_hms: string;            // "HH:MM:SS"
+  date: string;
+  first_in: string | null;
+  last_out: string | null;
+  total_hms: string;
   entries: number;
   exits: number;
   sessions: SessionRow[];
-  day_worksite?: string | null; // ultimul worksite nenul
-  leave?: LeaveCell | null;     // concediu/absență (opțional)
+  day_worksite?: string | null;
+  leave?: LeaveCell | null;
 }
 
 type EditMode = 'sessions' | 'leave';
 
 type SessEditRow = {
-  session_id?: number;          // prezent pentru rândurile existente
-  in: string;                   // "HH:MM"
-  out: string;                  // "HH:MM"
-  worksite?: string;            // opțional
+  session_id?: number;
+  in: string;
+  out: string;
+  worksite?: string;
 };
 
 @Component({
@@ -47,7 +48,7 @@ export class UserpontatComponent implements OnInit {
   userId!: number;
   userName: string | null = null;
 
-  selectedMonth = this.monthNow(); // "YYYY-MM"
+  selectedMonth = this.monthNow();
   startISO = '';
   endISO = '';
 
@@ -57,13 +58,13 @@ export class UserpontatComponent implements OnInit {
 
   days: DayRow[] = [];
   monthTotal = '00:00:00';
-  monthSalary: number | null = null;  // lei
+  monthSalary: number | null = null;
 
-  // === Editor state ===
-  editingDate: string | null = null;  // "YYYY-MM-DD"
-  mode: EditMode = 'sessions';        // default
+  // editor
+  editingDate: string | null = null;
+  mode: EditMode = 'sessions';
 
-  // Form TOTAL (păstrat în cod, dar UI nu mai folosește tab-ul "total")
+  // form „total” (îl păstrăm pentru compat)
   form = {
     totalHms: '',
     anchor: 'start' as 'start' | 'end' | 'custom',
@@ -71,19 +72,21 @@ export class UserpontatComponent implements OnInit {
     worksite: ''
   };
 
-  // Form SESIUNI
+  // SESIUNI
   sessForm: SessEditRow[] = [{ in: '', out: '', worksite: '' }];
 
-  // Form LIPSA ZI DE LUCRU
+  // salariu orar luat din Users (backend)
+  hourlyRate = 0;
+
+  // LIPSA ZI DE LUCRU
   leaveForm = {
     reason: 'CO' as 'CO' | 'CM' | 'ALT',
     hours: 8 as number,
-    rate: 0 as number,                 // doar pentru calcul UI (serverul poate ignora)
+    rate: 0 as number,             // doar pentru afișare, vine din hourlyRate
     multiplierEnabled: false,
     multiplier: 1 as number
   };
 
-  // Mapare denumiri concedii + formatter ore
   mapLeave: Record<string, string> = {
     CO: 'Concediu odihnă',
     CM: 'Concediu medical',
@@ -101,9 +104,10 @@ export class UserpontatComponent implements OnInit {
     this.computeBounds();
     this.load();
     this.refreshMonthSalary();
+    this.fetchUserInfo();   // ← luăm numele și salariul/oră
   }
 
-  // ===== Helpers - calendar / formatting =====
+  // ================== HELPERS DATĂ/LUNĂ ==================
   monthNow(): string {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -125,8 +129,11 @@ export class UserpontatComponent implements OnInit {
     this.refreshMonthSalary();
   }
 
+  // ================== API LOAD ==================
   load(): void {
-    this.loading = true; this.error = null;
+    this.loading = true;
+    this.error = null;
+
     this.api.getAttendanceRangeForUser(this.startISO, this.endISO, this.userId).subscribe({
       next: (res) => {
         const user = (res?.users || [])[0];
@@ -143,21 +150,60 @@ export class UserpontatComponent implements OnInit {
         this.monthTotal = this.sumMonth(merged);
         this.loading = false;
       },
-      error: (err: any) => {
+      error: (err) => {
         this.error = 'Nu pot încărca pontajul utilizatorului.';
         this.loading = false;
         console.error(err);
       }
     });
-
-    // fallback nume
-    if (!this.userName) {
-      this.api.getUsrList().subscribe(list => {
-        const u = list.find((x: any) => x.UserId === this.userId);
-        if (u) this.userName = u.UserName;
-      });
-    }
   }
+
+private fetchUserInfo(): void {
+  this.api.getUsrList().subscribe({
+    next: (list: any[]) => {
+      console.log('getUsrList() – list brut:', list);
+
+      // caută userul după id (în caz că vine user_id în loc de UserId)
+      const u = list.find(
+        (x) => x.UserId === this.userId || x.user_id === this.userId
+      );
+
+      console.log('Utilizator găsit pentru pontaj (id=', this.userId, '):', u);
+
+      if (!u) {
+        console.warn('Niciun user cu id', this.userId, 'în getUsrList()');
+        return;
+      }
+
+      // numele – folosim ce găsim
+      this.userName = this.userName ?? (u.UserName ?? u.username ?? u.name);
+
+      // încercăm mai multe denumiri pentru câmpul de tarif orar
+      const rawField =
+        u.hourly_rate ??
+        u.hourlyRate ??
+        u.HourlyRate ??
+        u.hourlyrate ??
+        u.rate_per_hour ??
+        '0';
+
+      console.log('Valoare brută tarif orar (rawField):', rawField);
+
+      const rate = parseFloat(rawField);
+      if (!isNaN(rate)) {
+        this.hourlyRate = rate;
+        this.leaveForm.rate = rate; // sincronizat cu formularul de concediu
+        console.log('Tarif orar parsat:', rate);
+      } else {
+        console.warn('Nu pot parsa hourly_rate pentru user:', u);
+      }
+    },
+    error: (err) => {
+      console.error('Nu pot încărca lista de utilizatori pentru hourly_rate', err);
+    }
+  });
+}
+
 
   makeBlankCalendar(): DayRow[] {
     const res: DayRow[] = [];
@@ -197,12 +243,13 @@ export class UserpontatComponent implements OnInit {
     });
   }
 
-  // ===== Formatting used in template =====
+  // ================== FORMATĂRI UI ==================
   hmsToSec(hms: string): number {
     if (!hms) return 0;
     const [h, m, s] = hms.split(':').map(x => parseInt(x || '0', 10));
     return (h * 3600) + (m * 60) + (s || 0);
   }
+
   secToHms(sec: number): string {
     sec = Math.max(0, Math.floor(sec));
     const h = Math.floor(sec / 3600);
@@ -210,8 +257,12 @@ export class UserpontatComponent implements OnInit {
     const s = sec % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
+
   hm(t: string | null) { return t ? t.substring(0, 5) : '—'; }
-  durataOre(hms: string) { const [h, m] = (hms || '00:00:00').split(':'); return `${parseInt(h, 10)}:${m} ore`; }
+  durataOre(hms: string) {
+    const [h, m] = (hms || '00:00:00').split(':');
+    return `${parseInt(h, 10)}:${m} ore`;
+  }
 
   fmtLeaveHours(h: string): string {
     const n = parseFloat(h);
@@ -220,18 +271,18 @@ export class UserpontatComponent implements OnInit {
     return `${clean}h`;
   }
 
-  // ===== Editor actions =====
+  // ================== EDITOR ==================
   openEditor(day: DayRow): void {
     this.editingDate = day.date;
-    this.mode = 'sessions'; // implicit
+    this.mode = 'sessions';
 
-    // Prefill TOTAL (compat)
+    // TOTAL (compat)
     this.form.totalHms = this.toHHMM(day.total_hms);
     this.form.anchor = 'start';
     this.form.customStart = '';
     this.form.worksite = day.day_worksite ?? '';
 
-    // Prefill SESSIUNI
+    // SESIUNI
     this.sessForm = (day.sessions?.length ? day.sessions : [])
       .map<SessEditRow>(s => ({
         session_id: s.session_id,
@@ -239,25 +290,27 @@ export class UserpontatComponent implements OnInit {
         out: s.out_time ? this.hm(s.out_time) : '',
         worksite: s.worksite || ''
       }));
-    if (!this.sessForm.length) this.sessForm = [{ in: '', out: '', worksite: '' }];
+    if (!this.sessForm.length) {
+      this.sessForm = [{ in: '', out: '', worksite: '' }];
+    }
 
-    // Prefill LEAVE dacă există
+    // LIPSA ZI DE LUCRU
     if (day.leave) {
       const mh = parseFloat(day.leave.hours || '0');
       const mm = parseFloat(day.leave.multiplier || '1') || 1;
-      this.leaveForm.reason = (['CO','CM','ALT'].includes(day.leave.reason) ? day.leave.reason : 'ALT') as any;
+      this.leaveForm.reason = (['CO', 'CM', 'ALT'].includes(day.leave.reason) ? day.leave.reason : 'ALT') as any;
       this.leaveForm.hours = isNaN(mh) ? 0 : mh;
       this.leaveForm.multiplierEnabled = mm !== 1;
       this.leaveForm.multiplier = mm || 1;
-      // rate rămâne ce ai folosit anterior în UI (nu vine din API)
     } else {
-      // reset pe default
       this.leaveForm.reason = 'CO';
       this.leaveForm.hours = 8;
       this.leaveForm.multiplierEnabled = false;
       this.leaveForm.multiplier = 1;
-      // rate păstrăm ultima valoare introdusă de operator
     }
+
+    // important: tariful orar vine din Users, nu din ce a fost scris manual
+    this.leaveForm.rate = this.hourlyRate;
   }
 
   cancelEditor(): void {
@@ -273,7 +326,6 @@ export class UserpontatComponent implements OnInit {
     if (this.sessForm.length > 1) this.sessForm.splice(i, 1);
   }
 
-  // Ștergere rapidă a unei sesiuni existente (din listarea zilei)
   deleteSingleSession(row: SessionRow): void {
     if (!row.session_id) return;
     if (!confirm('Ștergi această sesiune?')) return;
@@ -285,7 +337,7 @@ export class UserpontatComponent implements OnInit {
         this.load();
         this.refreshMonthSalary();
       },
-      error: (err: any) => {
+      error: (err) => {
         this.saving = false;
         alert('Eroare la ștergerea sesiunii.');
         console.error(err);
@@ -303,7 +355,7 @@ export class UserpontatComponent implements OnInit {
         this.load();
         this.refreshMonthSalary();
       },
-      error: (err: any) => {
+      error: (err) => {
         this.saving = false;
         alert('Eroare la ștergere zi.');
         console.error(err);
@@ -311,7 +363,7 @@ export class UserpontatComponent implements OnInit {
     });
   }
 
-  // ===== Save TOTAL (în cod pentru compat; UI nu-l expune) =====
+  // ================== SAVE TOTAL ==================
   saveTotal(day: DayRow): void {
     if (!this.validHHMM(this.form.totalHms)) {
       alert('Total invalid. Folosește format HH:MM (ex: 07:30).');
@@ -340,7 +392,8 @@ export class UserpontatComponent implements OnInit {
         this.load();
         this.refreshMonthSalary();
       },
-      error: (err: any) => {
+      error: (err) => {
+        // fallback -> rescriem ziua cu o singură sesiune
         if (err?.status === 404 || err?.status === 405) {
           const totalMin = this.toMinutes(this.form.totalHms);
           let startHHMM = '08:00';
@@ -352,7 +405,7 @@ export class UserpontatComponent implements OnInit {
           } else if (this.form.anchor === 'start') {
             startHHMM = day.first_in ? this.hm(day.first_in) : '08:00';
             endHHMM = this.addMinutesHHMM(startHHMM, totalMin);
-          } else { // 'end'
+          } else {
             endHHMM = day.last_out ? this.hm(day.last_out) : '17:00';
             startHHMM = this.addMinutesHHMM(endHHMM, -totalMin);
           }
@@ -371,7 +424,7 @@ export class UserpontatComponent implements OnInit {
                 this.load();
                 this.refreshMonthSalary();
               },
-              error: (e2: any) => {
+              error: (e2) => {
                 this.saving = false;
                 alert('Eroare la salvarea totalului (fallback).');
                 console.error(e2);
@@ -386,7 +439,7 @@ export class UserpontatComponent implements OnInit {
     });
   }
 
-  // ===== Save SESSIONS (POST /day/edit cu replace=true) =====
+  // ================== SAVE SESSIONS ==================
   saveSessions(day: DayRow): void {
     if (!this.sessForm.length) {
       alert('Adaugă cel puțin o sesiune.');
@@ -419,7 +472,7 @@ export class UserpontatComponent implements OnInit {
         this.load();
         this.refreshMonthSalary();
       },
-      error: (err: any) => {
+      error: (err) => {
         this.saving = false;
         alert('Eroare la salvarea sesiunilor.');
         console.error(err);
@@ -427,11 +480,11 @@ export class UserpontatComponent implements OnInit {
     });
   }
 
-  // ===== Leave (absență cu plată / fără) =====
+  // ================== LEAVE (LIPSĂ ZI DE LUCRU) ==================
   leaveComputedTotal(): number {
-    const mult = this.leaveForm.multiplierEnabled ? (this.leaveForm.multiplier || 1) : 1;
     const hours = this.leaveForm.hours || 0;
-    const rate = this.leaveForm.rate || 0;
+    const mult = this.leaveForm.multiplierEnabled ? (this.leaveForm.multiplier || 1) : 1;
+    const rate = this.hourlyRate || this.leaveForm.rate || 0;
     return +(hours * rate * mult).toFixed(2);
   }
 
@@ -449,9 +502,9 @@ export class UserpontatComponent implements OnInit {
       user_id: this.userId,
       date: day.date,
       reason: this.leaveForm.reason,
-      hours: this.leaveForm.hours, // serverul așteaptă string/number
+      hours: this.leaveForm.hours,
       multiplier: this.leaveForm.multiplierEnabled ? this.leaveForm.multiplier : 1
-      // rate-ul e doar pentru UI, dacă vrei să-l salvezi ca override, putem adăuga câmp în API
+      // hourly_rate NU se trimite -> serverul folosește Users.hourly_rate
     };
 
     this.saving = true;
@@ -462,7 +515,7 @@ export class UserpontatComponent implements OnInit {
         this.load();
         this.refreshMonthSalary();
       },
-      error: (err: any) => {
+      error: (err) => {
         this.saving = false;
         alert('Eroare la salvarea absenței.');
         console.error(err);
@@ -474,14 +527,15 @@ export class UserpontatComponent implements OnInit {
     if (!confirm('Ștergi marcajul de lipsă pentru această zi?')) return;
 
     this.saving = true;
-    this.http.request('DELETE', '/api/leave/delete/', { body: { user_id: this.userId, date: day.date } }).subscribe({
+    // backend-ul tău acceptă POST aici, nu DELETE ⇒ folosim POST
+    this.http.post('/api/leave/delete/', { user_id: this.userId, date: day.date }).subscribe({
       next: () => {
         this.saving = false;
         this.editingDate = null;
         this.load();
         this.refreshMonthSalary();
       },
-      error: (err: any) => {
+      error: (err) => {
         this.saving = false;
         alert('Eroare la ștergerea absenței.');
         console.error(err);
@@ -489,7 +543,7 @@ export class UserpontatComponent implements OnInit {
     });
   }
 
-  // ===== Small utils =====
+  // ================== UTILS MICI ==================
   private validHHMM(s: string): boolean {
     return /^[0-2]?\d:[0-5]\d$/.test(s);
   }

@@ -195,3 +195,73 @@ h2 { margin:0; font-size:18px; }
 }
 
 
+
+
+/* --- TAB: LIPSA ZI DE LUCRU --- */
+.editor .form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 20px;
+  align-items: flex-end;
+  margin-top: 8px;
+}
+
+/* Elemente pe toată lățimea (cele cu class="full") */
+.editor .form-grid .full {
+  grid-column: 1 / -1;
+}
+
+/* Text alb peste tot în acest bloc */
+.editor .form-grid label,
+.editor .form-grid p,
+.editor .form-grid .hint,
+.editor .form-grid span,
+.editor .form-grid .full {
+  color: #ffffff;
+}
+
+/* Inputuri + select aliniate și cu fundal închis */
+.editor .form-grid input,
+.editor .form-grid select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  box-sizing: border-box;
+}
+
+/* Placeholder mai deschis */
+.editor .form-grid input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Readonly / disabled puțin estompate */
+.editor .form-grid input[readonly],
+.editor .form-grid input:disabled,
+.editor .form-grid select:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  opacity: 0.7;
+}
+
+/* Checkbox + text pe un singur rând frumos */
+.editor .form-grid .checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.editor .form-grid .checkbox-inline input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+/* Linie de total + acțiuni la dreapta */
+.editor .form-grid .actions-right {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
