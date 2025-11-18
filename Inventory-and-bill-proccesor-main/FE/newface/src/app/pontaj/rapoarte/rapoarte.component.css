@@ -1,156 +1,243 @@
-.rapoarte-wrap {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 2rem;
+/* Container general */
+.wrap {
+  max-width: 960px;
+  margin: 16px auto 32px;
+  padding: 0 12px;
 }
 
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.25rem;
-}
-
-/* Secțiuni */
-
-.section {
-  background: #f9fafb;
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.section-gray {
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-}
-
-.section-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.section-desc {
-  font-size: 0.9rem;
-  color: #6b7280;
-  margin-bottom: 0.75rem;
-}
-
-/* Layout mic în interiorul secțiunilor */
-
-.row {
+/* Header bar – copiat din pontaj */
+.bar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: flex-end;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: 1px solid #2b2b2f;
+  background: #17181c;
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px #111 inset;
 }
 
-.field {
+.date .weekday {
+  font-size: 18px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
+  gap: 8px;
+  align-items: center;
 }
-
-.field span {
-  color: #4b5563;
-}
-
-.field input {
-  padding: 0.4rem 0.6rem;
-  border-radius: 0.5rem;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  min-width: 180px;
-}
-
-/* Butoane */
 
 .btn {
-  border-radius: 0.75rem;
-  border: none;
-  padding: 0.45rem 0.9rem;
-  font-size: 0.85rem;
+  border: 1px solid #2d2f36;
+  background: #20222a;
+  color: #e7e7e7;
+  padding: 8px 12px;
+  border-radius: 10px;
   cursor: pointer;
-  background: #111827;
-  color: white;
-  transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.1s ease;
+  transition: transform .04s ease, background .2s ease, border .2s ease;
+}
+
+.btn:hover {
+  background: #242633;
+  border-color: #3a3d49;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn.ghost {
+  background: transparent;
+  border-color: #2a2a2a;
+  color: #b9b9b9;
+}
+
+.btn.ghost:hover {
+  border-color: #3a3a3a;
+  color: #efefef;
 }
 
 .btn.primary {
-  background: #111827;
+  background: #2b5cff;
+  border-color: #2b5cff;
+  color: #fff;
 }
 
-.btn:hover:not([disabled]) {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.15);
+.btn.primary:hover {
+  background: #3b69ff;
+  border-color: #3b69ff;
 }
 
-.btn[disabled] {
-  opacity: 0.6;
-  cursor: not-allowed;
+/* Secțiuni rapoarte */
+
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 18px;
 }
 
-/* Butoane firmă (chip-uri) */
+.section-card {
+  background: #15161b;
+  border-radius: 14px;
+  border: 1px solid #262833;
+  padding: 16px 18px;
+  color: #e5e5e5;
+}
+
+.section-card h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.section-sub {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #a5a5a5;
+}
+
+/* Fields */
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.field-row label {
+  font-size: 13px;
+  color: #c3c3c3;
+}
+
+.field-row input[type="date"],
+.field-row input[type="month"] {
+  background: #0f1116;
+  color: #e7e7e7;
+  border: 1px solid #2b2b2f;
+  padding: 7px 10px;
+  border-radius: 10px;
+}
+
+/* Butoane firmă */
 
 .company-buttons {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.chip-btn {
-  padding: 0.35rem 0.8rem;
+.chip {
   border-radius: 999px;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  font-size: 0.8rem;
+  padding: 6px 10px;
+  border: 1px solid #3a3c45;
+  background: #1b1d23;
+  color: #d5d5d5;
+  font-size: 13px;
   cursor: pointer;
-  transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
 }
 
-.chip-btn.active {
-  background: #111827;
-  color: #ffffff;
-  border-color: #111827;
+.chip:hover {
+  background: #222430;
 }
 
-/* Subsecțiuni din secțiunea de firmă */
-
-.subsection {
-  margin-top: 0.6rem;
-  margin-bottom: 0.6rem;
+.chip.active {
+  background: #2b5cff;
+  border-color: #2b5cff;
+  color: #fff;
 }
 
-.sub-title {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #4b5563;
-  margin-bottom: 0.25rem;
-}
+/* Mesaje mici */
 
-.actions-row {
-  margin-top: 1rem;
-}
-
-.error {
-  color: #b91c1c;
-  font-size: 0.85rem;
-  margin-top: 0.5rem;
+.hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #ff9090;
 }
 
 /* Responsive */
 
-@media (max-width: 600px) {
-  .row {
-    flex-direction: column;
-    align-items: stretch;
+@media (min-width: 768px) {
+  .sections {
+    flex-direction: row;
   }
 
-  .actions-row {
-    display: flex;
-    justify-content: flex-start;
+  .section-card {
+    flex: 1;
   }
+}
+
+
+
+.field-row select {
+  background: #0f1116;
+  color: #e7e7e7;
+  border: 1px solid #2b2b2f;
+  padding: 7px 10px;
+  border-radius: 10px;
+}
+
+
+
+.salary-result {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #101117;
+  border: 1px solid #32333b;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.salary-company {
+  font-size: 14px;
+  color: #c5c5d0;
+}
+
+.salary-amount {
+  font-size: 18px;
+  font-weight: 600;
+  color: #f0f0f5;
+}
+
+.salary-card {
+  border: 1px solid #2b2b2f;
+  background: #101117;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+.salary-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.salary-filters .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+}
+
+.salary-filters select {
+  background: #0f1116;
+  color: #e7e7e7;
+  border: 1px solid #2b2b2f;
+  border-radius: 10px;
+  padding: 6px 10px;
+}
+
+.salary-filters .btn {
+  margin-left: auto;
 }

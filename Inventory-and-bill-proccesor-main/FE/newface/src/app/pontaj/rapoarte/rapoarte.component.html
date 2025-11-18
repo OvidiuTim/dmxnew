@@ -1,76 +1,121 @@
-<div class="rapoarte-wrap">
-  <h1 class="page-title">Rapoarte pontaj</h1>
-
-  <!-- SECTION 1: RAPORT PE DATĂ (gri) -->
-  <section class="section section-gray">
-    <h2 class="section-title">Raport pe dată</h2>
-    <p class="section-desc">
-      Alege o zi și deschide pontajul detaliat pentru toți angajații.
-    </p>
-
-    <div class="row">
-      <label class="field">
-        <span>Data</span>
-        <input
-          type="date"
-          [(ngModel)]="selectedDay"
-          [max]="todayISO()"
-        />
-      </label>
-
-      <button class="btn primary" type="button" (click)="openDayReport()">
-        Deschide pontaj
-      </button>
+<div class="wrap">
+  <!-- Header bar (la fel ca în pontaj) -->
+  <div class="bar">
+    <div class="date">
+      <span class="weekday">Rapoarte</span>
     </div>
-  </section>
 
-  <!-- SECTION 2: RAPORT PE FIRMĂ + LUNĂ -->
-  <section class="section">
-    <h2 class="section-title">Raport pe firmă și lună</h2>
-    <p class="section-desc">
-      Alege firma și luna pentru a genera fișierul Excel de pontaj.
-    </p>
+    <div class="actions">
+      <button class="btn ghost" (click)="backToPontaj()">Înapoi la pontaj</button>
+    </div>
+  </div>
 
-    <!-- 1. Alege firma -->
-    <div class="subsection">
-      <div class="sub-title">1. Alege firma</div>
-      <div class="company-buttons">
-        <button
-          *ngFor="let c of companies"
-          type="button"
-          class="chip-btn"
-          [class.active]="c === selectedCompany"
-          (click)="selectCompany(c)"
-        >
-          {{ c }}
+  <!-- Conținut rapoarte -->
+  <div class="sections">
+    <!-- Raport pe zi -->
+    <section class="section-card">
+      <h2>Raport pe zi</h2>
+      <p class="section-sub">
+        Alege o dată și descarcă raportul zilnic (toți angajații).
+      </p>
+
+      <div class="field-row">
+        <label>Data</label>
+        <input type="date" [(ngModel)]="dayDate" [max]="todayISO()" />
+      </div>
+
+      <button class="btn primary" (click)="downloadDayReport()">
+        Descarcă raport pe zi
+      </button>
+
+      <div class="hint" *ngIf="dayError">{{ dayError }}</div>
+    </section>
+
+    <!-- Raport pe firmă + lună -->
+    <section class="section-card">
+      <h2>Raport pe firmă</h2>
+      <p class="section-sub">
+        Alege firma, apoi luna pentru care vrei fișierul de pontaj (.xlsx).
+      </p>
+
+      <div class="field-row">
+        <label>Firma</label>
+        <select [(ngModel)]="selectedCompany">
+          <option [ngValue]="null" disabled>— alege firma —</option>
+          <option *ngFor="let c of companies" [ngValue]="c">{{ c }}</option>
+        </select>
+      </div>
+
+      <div class="field-row">
+        <label>Luna</label>
+        <input type="month" [(ngModel)]="monthValue" />
+      </div>
+
+
+      <button class="btn primary" [disabled]="!selectedCompany || !monthValue" (click)="downloadCompanyMonthReport()">
+        Descarcă raport firmă
+      </button>
+
+      <div class="hint" *ngIf="companyError">{{ companyError }}</div>
+    </section>
+  </div>
+
+
+<br>
+<br>
+
+  <!-- Costuri salariale pe firmă -->
+  <div class="section">
+
+
+    <div class="section-body salary-card">
+          <div class="section-header">
+      <h2>Costuri salariale pe firmă (lunar)</h2>
+      <p>Calculează totalul salariilor pe lună pentru fiecare firmă.</p>
+    </div>
+      <div class="salary-filters">
+        <div class="field">
+          <label>An</label>
+          <select [(ngModel)]="salaryYear">
+            <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Luna</label>
+          <select [(ngModel)]="salaryMonth">
+            <option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Firma</label>
+          <select [(ngModel)]="salaryCompany">
+            <option *ngFor="let c of companies" [ngValue]="c">{{ c }}</option>
+          </select>
+        </div>
+
+        <button class="btn" (click)="loadSalaryCost()"
+          [disabled]="loadingSalary || !salaryYear || !salaryMonth || !salaryCompany">
+          Calculează
         </button>
       </div>
+
+      <div class="state" *ngIf="loadingSalary">Se calculează…</div>
+
+      <div class="salary-result" *ngIf="salaryResult && !loadingSalary">
+        <div class="salary-company">
+          {{ salaryResult.company }} – {{ salaryResult.month }}
+        </div>
+        <div class="salary-amount">
+          {{ salaryResult.total | number:'1.2-2' }} lei
+        </div>
+      </div>
+
+      <div class="state error" *ngIf="salaryError">{{ salaryError }}</div>
     </div>
 
-    <!-- 2. Alege luna -->
-    <div class="subsection">
-      <div class="sub-title">2. Alege luna</div>
-      <label class="field">
-        <span>Lună</span>
-        <input
-          type="month"
-          [(ngModel)]="selectedMonth"
-        />
-      </label>
-    </div>
 
-    <!-- 3. Generează raport -->
-    <div class="actions-row">
-      <button
-        class="btn primary"
-        type="button"
-        [disabled]="!canGenerateCompanyReport()"
-        (click)="generateCompanyExcel()"
-      >
-        {{ loadingExcel ? 'Se generează…' : 'Generează raport Excel' }}
-      </button>
-    </div>
+  </div>
 
-    <p class="error" *ngIf="error">{{ error }}</p>
-  </section>
 </div>
