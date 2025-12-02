@@ -83,6 +83,28 @@ except Exception:
     nfc = None
 
 
+
+
+
+
+UID_PIN_MAP = {
+    "A54936EF": "2839",
+    "C55A37EF": "1414",
+    "053B33EF": "5541",
+    "B55536EF": "5043",
+    "458F33EF": "4685",
+    "85BB34EF": "3304",
+    "A56A37EF": "2693",
+    "05B533EF": "2437",
+    "E53E36EF": "7964",
+    "055036EF": "1525",
+}
+
+_last_seen = {}
+_DEBOUNCE_SEC = 0.7
+
+
+
 @csrf_exempt
 def check_nfc_reader(request):
     if nfc is None:
@@ -1033,6 +1055,7 @@ def workday_close_dt(local_day):
 
 
 # --- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
+# --- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
 @csrf_exempt
 def nfc_scan(request):
     if request.method != "POST":
@@ -1045,7 +1068,10 @@ def nfc_scan(request):
 
     uid = str(data.get("uid") or "").upper().strip()
     tag_type = str(data.get("tag_type") or "").strip()
-    content = str(data.get("content") or "").strip()  # PIN de pe tag
+    content = str(data.get("content") or "").strip()  # PIN de pe tag (dacă există)
+
+    # log brut
+    print(f"[NFC] RAW data: uid={uid} type={tag_type} content='{content}'")
 
     # Folosim timestamp-ul clientului dacă e valid, altfel now()
     client_when = _parse_client_ts(data.get("timestamp"))
@@ -1053,18 +1079,47 @@ def nfc_scan(request):
     # Acceptăm mai multe chei: worksite/site/santier
     ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip() or None
 
-    # Debounce identic (server-side)
+    # --- DETERMINĂM PINUL EFECTIV: din content sau din maparea UID_PIN_MAP ---
+    raw_pin = content if content else None
+    mapped_pin = None
+
+    if raw_pin:
+        # avem PIN direct de pe tag
+        print(f"[NFC-MAP] UID={uid} a trimis PIN direct de pe tag: {raw_pin}")
+    else:
+        # nu avem PIN pe tag -> încercăm mapare UID -> PIN
+        mapped_pin = UID_PIN_MAP.get(uid)
+        if mapped_pin:
+            print(f"[NFC-MAP] UID={uid} mapat din UID_PIN_MAP la PIN={mapped_pin}")
+        else:
+            print(f"[NFC-MAP] UID={uid} NU există în UID_PIN_MAP")
+
+    effective_pin = mapped_pin or raw_pin or ""
+
+    # Debounce identic (server-side) – folosim PINUL EFECTIV, nu contentul brut
     now_ts = timezone.now().timestamp()
-    key = (uid, content)
+    key = (uid, effective_pin)
     if key in _last_seen and (now_ts - _last_seen[key]) < _DEBOUNCE_SEC:
+        print(f"[NFC] DEBOUNCED scan pentru UID={uid} pin={effective_pin}")
         return JsonResponse({"ok": True, "debounced": True})
     _last_seen[key] = now_ts
 
-    # 1) Identific user după PIN
-    user = Users.objects.filter(UserPin=content).first()
-    if not user:
-        print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned={content} -> no user match")
+    # 1) Identific user după PIN EFECTIV
+    if not effective_pin:
+        # nici PIN pe tag, nici în mapare -> nu avem cum găsi user
+        print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned='' -> no user match (no PIN, no mapping)")
         return JsonResponse({"ok": True, "match": None, "received": data})
+
+    user = Users.objects.filter(UserPin=effective_pin).first()
+    if not user:
+        print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned={effective_pin} -> no user match")
+        return JsonResponse({"ok": True, "match": None, "received": data})
+
+    # avem user -> log ca să vezi clar
+    print(
+        f"[NFC] {timezone.now()} UID={uid} type={tag_type} "
+        f"pin_scanned={effective_pin} -> user={user.UserName} (id={user.UserId})"
+    )
 
     # work_date derivat din 'when', nu din 'now'
     today = localdate(when)
@@ -1118,6 +1173,8 @@ def nfc_scan(request):
                     timestamp=when, worksite=ws
                 )
 
+                print(f"[NFC] AUTO-CLOSE + ENTER nou pentru {user.UserName} pe {today} la site='{ws}'")
+
                 return JsonResponse({
                     "ok": True,
                     "state": "ENTER",
@@ -1139,7 +1196,7 @@ def nfc_scan(request):
                 })
 
             # aceeași zi -> EXIT la 'when'
-            # NEW: dacă am primit ws, îl considerăm „locația finală” a zilei/sesiunii
+            # dacă am primit ws, îl considerăm „locația finală” a zilei/sesiunii
             if ws:
                 open_sess.worksite = ws
 
@@ -1157,6 +1214,8 @@ def nfc_scan(request):
                 timestamp=open_sess.out_time, worksite=open_sess.worksite
             )
 
+            print(f"[NFC] EXIT pentru {user.UserName} pe {open_sess.work_date} la site='{open_sess.worksite}'")
+
             return JsonResponse({
                 "ok": True,
                 "state": "EXIT",
@@ -1166,7 +1225,7 @@ def nfc_scan(request):
                     "in_time": localtime(open_sess.in_time).isoformat(),
                     "out_time": localtime(open_sess.out_time).isoformat(),
                     "duration_hms": _fmt_hms(open_sess.duration_seconds),
-                    "worksite": open_sess.worksite,  # va reflecta ws dacă a venit în payload
+                    "worksite": open_sess.worksite,
                 },
                 "received": data,
                 "ts_used": "client" if client_when else "server"
@@ -1186,6 +1245,8 @@ def nfc_scan(request):
         )
         _publish("enter", user, when, {"worksite": ws})
 
+        print(f"[NFC] ENTER nou pentru {user.UserName} pe {today} la site='{ws}'")
+
         return JsonResponse({
             "ok": True,
             "state": "ENTER",
@@ -1198,7 +1259,7 @@ def nfc_scan(request):
             "received": data,
             "ts_used": "client" if client_when else "server"
         })
-      
+   
 
 
 
@@ -2300,6 +2361,30 @@ def attendance_day_delete(request):
     return JsonResponse({"ok": True})
 
 
+def _parse_hm_or_iso_for_day(day: _date, value: str):
+    """
+    Acceptă fie 'HH:MM', fie un ISO datetime complet (ex: '2025-12-02T07:30:00+02:00').
+    Dacă e ISO -> folosim direct; dacă nu -> tratăm ca HH:MM în ziua 'day'.
+    """
+    if not value:
+        raise ValueError("Empty time value")
+
+    s = str(value).strip()
+
+    # 1) Încercăm ISO 8601
+    try:
+        if ("T" in s) or (len(s) > 5 and "-" in s):
+            s_norm = s.replace("Z", "+00:00")
+            dt = datetime.fromisoformat(s_norm)
+            if timezone.is_naive(dt):
+                dt = timezone.make_aware(dt, timezone.get_current_timezone())
+            return dt
+    except Exception:
+        pass
+
+    # 2) Dacă nu e ISO, tratăm ca 'HH:MM'
+    return _parse_hm_for_day(day, s)
+
 
 @csrf_exempt
 def attendance_session_update(request):
@@ -2775,3 +2860,4 @@ def generate_excel(request):
     )
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
+
