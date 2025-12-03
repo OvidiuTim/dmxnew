@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { SharedService } from '../../shared.service';
@@ -10,7 +10,44 @@ import { forkJoin } from 'rxjs';
   templateUrl: './rapoarte.component.html',
   styleUrls: ['./rapoarte.component.css']
 })
-export class RapoarteComponent {
+export class RapoarteComponent implements OnInit {
+
+  ngOnInit(): void {
+    this.loadCompanies();
+  }
+
+  private loadCompanies(): void {
+    this.api.getUsrList().subscribe({
+      next: (users: any[]) => {
+        // extragem numele de firmă din useri
+        const names = users
+          .map(u => (u.Company || '').trim())
+          .filter(c => c.length > 0);
+
+        // unic + sortat
+        const unique = Array.from(new Set(names)).sort((a, b) =>
+          a.localeCompare(b, 'ro')
+        );
+
+        this.companies = unique;
+
+        // dacă nu e nimic selectat, punem prima firmă by default
+        if (!this.selectedCompany && this.companies.length) {
+          this.selectedCompany = this.companies[0];
+        }
+        if (!this.salaryCompany && this.companies.length) {
+          this.salaryCompany = this.companies[0];
+        }
+      },
+      error: (err) => {
+        console.error('Nu pot încărca firmele din lista de useri', err);
+        // nu blocăm pagina, doar nu avem dropdown populat
+      }
+    });
+  }
+
+
+
   // API de bază – relativ la domeniu (se duce în Nginx la Django)
   private readonly apiBase = '/api';
 
@@ -19,7 +56,7 @@ export class RapoarteComponent {
   dayError: string | null = null;
 
   // Raport pe firmă + lună
-  companies: string[] = ['Servicex', 'VB-ROM']; // adaugă aici și alte firme dacă vrei
+  companies: string[] = [];
   selectedCompany: string | null = null;
   monthValue = this.currentMonthISO();
   companyError: string | null = null;
