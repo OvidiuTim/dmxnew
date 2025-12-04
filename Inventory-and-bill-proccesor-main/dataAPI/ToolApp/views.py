@@ -1,5 +1,5 @@
 # --- Standard library ---
-import csv, io
+import csv, io, re
 import json, logging, math
 from threading import Lock
 from queue import Queue, Empty
@@ -2668,21 +2668,33 @@ def generate_excel(request):
 
     # --- funcție de mapare a șantierului la cod (T-A, T-B2 etc.) ---
     def _site_label(raw_ws):
+        """
+        Transformă denumirea de șantier în cod scurt pentru Excel.
+        Exemple dorite:
+          "Tractorului Bloc A"   -> "T BlA"
+          "Tractorului Bloc B2"  -> "T BlB2"
+          "Bloc A"               -> "T BlA"
+          "Depozit Tractorului"  -> "T Depozit"
+        """
         if not raw_ws:
             return None
+
         text = str(raw_ws).strip()
         if not text:
             return None
-        low = text.lower()
-        # Exemple: "Bloc A", "Bloc B2", "Bloc A - ceva"
-        if low.startswith("bloc "):
-            suffix = text[5:].strip()         # după "Bloc "
-            suffix = suffix.split()[0] or ""  # doar primul token (A, B2, etc.)
-            if suffix:
-                return f"T-{suffix}"
-            return "T"
-        # orice altă denumire: T-<text>
-        return f"T-{text}"
+
+        # Căutăm cuvântul 'bloc' oriunde în text și luăm primul token după el
+        # ex: "Tractorului Bloc B2" -> group(1) = "B2"
+        m = re.search(r"\bbloc\b\s*([A-Za-z0-9]+)", text, flags=re.IGNORECASE)
+        if m:
+            code = m.group(1).upper()
+            return f"T Bl{code}"
+
+        # fallback: dacă nu găsim 'bloc', folosim primul cuvânt ca identificator scurt
+        first = text.split()[0]
+        if not first:
+            return None
+        return f"T {first}"
 
     # --- funcție de mapare LeaveDay -> cod (CO, CM, ALT etc.) ---
     def _leave_code_from_lv(lv) -> str | None:
