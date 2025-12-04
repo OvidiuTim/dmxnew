@@ -30,3 +30,7 @@ Inventory-and-bill-proccesor-main/dataAPI/\# afișează cheia publică
 Inventory-and-bill-proccesor-main/dataAPI/\# afișează cheia publică.pub
 Inventory-and-bill-proccesor-main/dataAPI/.DS_Store
 Inventory-and-bill-proccesor-main/dataAPI/media/~$model_xcel_pontaj.xlsx
+
+# Local SQLite backups (server only)
+Inventory-and-bill-proccesor-main/dataAPI/db-*.sqlite3
+Inventory-and-bill-proccesor-main/dataAPI/_backups/
