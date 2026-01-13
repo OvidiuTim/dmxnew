@@ -850,7 +850,7 @@ def mijloacefixeApi(request,id=0):
         mijloacefixe.delete()
         return JsonResponse("Deleted Succeffully!!", safe=False)
 
-        #test nfc reader
+#test nfc reader
 def nfc_tag_view(request):
     with nfc.ContactlessFrontend('usb') as clf:
         target = clf.sense(nfc.clf.RemoteTarget('iso14443a'))
@@ -860,7 +860,7 @@ def nfc_tag_view(request):
 
 
 
-
+#RDIF CHIP MAGAZIE 
 @csrf_exempt
 def rfid_entry_exit(request):
     if request.method == "POST":
@@ -875,7 +875,7 @@ def rfid_entry_exit(request):
 
 
 
-
+#MAGAIE UNELTE - ISSUE / RETURN
 @csrf_exempt
 def issue_tool(request):
     if request.method != 'POST':
@@ -893,7 +893,7 @@ def issue_tool(request):
         return JsonResponse(HistorySerializer(obj).data, safe=False)
     return JsonResponse(ser.errors, status=400, safe=False)
 
-
+#-- MAGAZIE UNELTE - RETURN ---
 @csrf_exempt
 def return_tool(request):
     if request.method != 'POST':
@@ -911,7 +911,7 @@ def return_tool(request):
     return JsonResponse(ser.errors, status=400, safe=False)
 
 
-
+#-- MAGAZIE UNELTE - STATUS TOOLS ---
 @csrf_exempt
 def tools_status(request):
     if request.method != 'GET':
@@ -947,7 +947,7 @@ def tools_status(request):
 
 
 
-
+#--- RFID/Senzor intrare/ieșire magazie & preluare/predare unealtă ---
 @csrf_exempt
 def sensor_event(request):
     if request.method != 'POST':
@@ -1032,6 +1032,7 @@ logger = logging.getLogger(__name__)
 _last_seen = {}
 _DEBOUNCE_SEC = 0.7  # server-side debounce
 
+#--- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
 def _fmt_hms(seconds: int):
     seconds = max(0, int(seconds))
     h = seconds // 3600
@@ -1045,7 +1046,7 @@ PONTAJ_SHIFT_END_HOUR = 18   # 18:00 ora locală = sfârșitul zilei
 PONTAJ_MAX_SHIFT_HOURS = 14  # limită de siguranță (cap durată sesiune)
 
 
-
+#--- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
 def workday_close_dt(local_day):
     """Ora de închidere a zilei (tz-aware) pentru o dată locală."""
     tz = timezone.get_current_timezone()
@@ -1055,7 +1056,7 @@ def workday_close_dt(local_day):
 
 
 # --- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
-# --- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
+
 @csrf_exempt
 def nfc_scan(request):
     if request.method != "POST":
@@ -1263,7 +1264,7 @@ def nfc_scan(request):
 
 
 
-
+#rezumat pe ziua de azi
 @csrf_exempt
 def attendance_today(request):
     if request.method != "GET":
