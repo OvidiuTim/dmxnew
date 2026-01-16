@@ -1294,7 +1294,7 @@ def attendance_today(request):
 
 
 
-
+#doua helpere transforma o durata in secunde in text, si un string yyy mm dd in date
 def _fmt_hms(seconds: int) -> str:
     seconds = max(0, int(seconds or 0))
     h = seconds // 3600
@@ -1308,7 +1308,8 @@ def _parse_iso_date(s: str) -> date:
     except Exception:
         return localdate()
 
-# --- ATTENDANCE DAY: adaugă day_worksite = ultimul worksite nenul din zi ---
+
+# --- ATTENDANCE DAY: pontajul pe o zi anume ---
 @csrf_exempt
 def attendance_day(request):
     """GET /api/pontaj/day/?date=YYYY-MM-DD"""
@@ -1394,6 +1395,8 @@ def attendance_day(request):
     return JsonResponse({"date": str(day), "rows": rows}, safe=False)
 
 
+
+# --- ATTENDANCE PRESENT: cine e acum în lucru ---
 @csrf_exempt
 def attendance_present(request):
     if request.method != "GET":
@@ -1561,12 +1564,13 @@ def attendance_range(request):
 
 from django.shortcuts import render
 
+# --- PAGINA MONITOR PONTAJ ---
 def monitor_pontaj_page(request):
     # template-ul tău e ToolApp/templates/ToolApp/monitor_pontaj.html
     return render(request, "ToolApp/monitor_pontaj.html")
 
 
-# --- SSE broker minimal pentru monitor pontaj ---
+# --- SSE broker minimal pentru monitor pontaj ---(Server-Sent Events), folosit ca să trimiți în timp real către browser ce se întâmplă la pontaj (enter/exit/auto_close etc.).
 class SseBroker:
     def __init__(self):
         self._lock = Lock()
@@ -1614,8 +1618,8 @@ class SseBroker:
         return stream()
 
 sse = SseBroker()
-from django.utils.timezone import localtime
 
+# “anunță live” monitorul de pontaj ce s-a întâmplat (enter/exit/etc.)
 def _publish(kind: str, user, when=None, extra: dict | None = None):
     sse.publish(kind, {
         "user_id": user.UserId,
@@ -1624,7 +1628,7 @@ def _publish(kind: str, user, when=None, extra: dict | None = None):
         **(extra or {})
     })
 
-
+#endpoint-ul SSE la care se conectează pagina de monitor (browserul)
 @csrf_exempt
 def pontaj_stream(request):
     """SSE: /api/pontaj/stream/"""
@@ -1740,7 +1744,7 @@ def attendance_force_close_1730(request):
     return JsonResponse({"ok": True, "date": str(target_day), "closed_sessions": closed})
 
 
-
+#un concediu pentru un angajat într-o zi.
 @csrf_exempt
 def leave_upsert(request):
     """
@@ -1825,6 +1829,7 @@ def leave_upsert(request):
         }
     })
 
+#Citește concediile unui user
 @csrf_exempt
 def leave_get(request):
     """
@@ -1882,6 +1887,7 @@ def leave_get(request):
     } for x in qs]
     return JsonResponse({"user_id": user.UserId, "start": str(start), "end": str(end), "rows": rows})
 
+#Șterge concediul (LeaveDay) unui user într-o zi
 @csrf_exempt
 def leave_delete(request):
     """
@@ -1916,7 +1922,7 @@ def leave_delete(request):
 
 
 
-
+#situația de plată a unui user într-o zi
 @csrf_exempt
 def pay_day(request):
     """GET /api/pay/day/?user_id=ID&date=YYYY-MM-DD"""
@@ -1959,7 +1965,7 @@ def pay_day(request):
     })
 
 
-
+# situația de plată a unui user într-o lună
 @csrf_exempt
 def pay_month(request):
     """GET /api/pay/month/?user_id=ID&month=YYYY-MM"""
@@ -2009,11 +2015,13 @@ def pay_month(request):
 TOKEN_SALT = "pontaj-auth"
 TOKEN_AGE = 24 * 3600  # 24h
 
+#Generează un token
 def _make_token():
     # payload minim; e suficient să fie semnat + timestamp
     payload = {"k": "pontaj", "v": 1}
     return signing.dumps(payload, salt=TOKEN_SALT)
 
+#Verifică un token
 def _check_token(token: str) -> bool:
     if not token:
         return False
@@ -2025,6 +2033,7 @@ def _check_token(token: str) -> bool:
     except signing.BadSignature:
         return False
 
+#Ia parola “corectă” de login
 def _expected_password():
     return (
         os.environ.get("PONTAJ_PASSWORD")
@@ -2033,6 +2042,7 @@ def _expected_password():
         or getattr(settings, "PONTAJ_LOGIN_PASSWORD", "")
     )
 
+# --- AUTH LOGIN / VERIFY ---
 @csrf_exempt
 def auth_login(request):
     """POST /api/auth/login/  body: { "password": "..." }"""
@@ -2056,6 +2066,7 @@ def auth_login(request):
         return resp
     return JsonResponse({"error": "Invalid password"}, status=401)
 
+# --- AUTH VERIFY ---
 @csrf_exempt
 def auth_verify(request):
     """POST /api/auth/verify/  body: { "token": "..." }  (sau folosește cookie 'ptj')"""
@@ -2085,7 +2096,7 @@ def auth_verify(request):
 
 
 GRACE_MINUTES = 10  # leeway ±10 min
-
+# orele de program și închidere automată
 def schedule_bounds_for_day(day):
     """
     Returnează (start_dt, end_dt) tz-aware pentru ziua 'day'.
@@ -2104,7 +2115,7 @@ def schedule_bounds_for_day(day):
     start = timezone.make_aware(datetime(day.year, day.month, day.day, start_h, start_m), tz)
     end   = timezone.make_aware(datetime(day.year, day.month, day.day, end_h, end_m), tz)
     return start, end
-
+# aplică leeway pentru intrare/ieșire
 def apply_enter_grace(ts):
     """
     Dacă intrarea e între [start, start+10min], o rotunjim la start (ex: 07:35 -> 07:30).
@@ -2115,7 +2126,7 @@ def apply_enter_grace(ts):
     if start <= ts <= start + timedelta(minutes=GRACE_MINUTES):
         return start
     return ts
-
+# aplică leeway pentru ieșire
 def apply_exit_grace(ts):
     """
     Dacă ieșirea e între [end-10min, end], o rotunjim la end (ex: 17:25 -> 17:30).
@@ -2126,31 +2137,32 @@ def apply_exit_grace(ts):
     if end - timedelta(minutes=GRACE_MINUTES) <= ts <= end:
         return end
     return ts
-
+# începerea automată a zilei
 def workday_close_dt(local_day):
     """Închidere automată la ora de final a zilei (folosește programul de mai sus)."""
     _, end = schedule_bounds_for_day(local_day)
     return end
 
 
-
+# --- PAGINA MONITOR PONTAJ WHITE ---
 def monitor_pontaj_page_white(request):
     # template-ul tău e ToolApp/templates/ToolApp/monitor_pontaj.html
     return render(request, "ToolApp/monitor_pontaj_white.html")
 
 
 
-
+#--- EDITARE ZI PONTAJ (ADMIN) ---
 def _parse_hm_for_day(day: _date, hm: str):
     hh, mm = map(int, str(hm).strip().split(':')[:2])
     tz = timezone.get_current_timezone()
     return timezone.make_aware(datetime(day.year, day.month, day.day, hh, mm, 0), tz)
-
+# formatează secunde ca HH:MM:SS
 def _fmt_hms(sec: int) -> str:
     sec = max(0, int(sec or 0))
     h = sec // 3600; m = (sec % 3600) // 60; s = sec % 60
     return f"{h:02d}:{m:02d}:{s:02d}"
 
+# recalculare DailyPay pentru un user într-o zi
 def recompute_daily_pay(user, day):
     from decimal import Decimal, ROUND_HALF_UP
     from ToolApp.models import DailyPay
@@ -2172,6 +2184,7 @@ def recompute_daily_pay(user, day):
         obj.save()
     return obj
 
+#rescrie manual pontajul unei zi anume pt un user anume
 @csrf_exempt
 def attendance_edit_day(request):
     """
@@ -2291,7 +2304,7 @@ def attendance_edit_day(request):
     })
 
 
-
+# șterge o sesiune de pontaj
 @csrf_exempt
 def attendance_session_delete(request):
     """
@@ -2322,7 +2335,7 @@ def attendance_session_delete(request):
         return JsonResponse({"error":"session not found"}, status=404)
 
 
-
+# șterge toate sesiunile de pontaj pentru o zi a unui user
 @csrf_exempt
 def attendance_day_delete(request):
     """
@@ -2361,7 +2374,7 @@ def attendance_day_delete(request):
 
     return JsonResponse({"ok": True})
 
-
+#ransformă o valoare de timp într-un datetime tz-aware, acceptând două formate diferite
 def _parse_hm_or_iso_for_day(day: _date, value: str):
     """
     Acceptă fie 'HH:MM', fie un ISO datetime complet (ex: '2025-12-02T07:30:00+02:00').
@@ -2386,7 +2399,7 @@ def _parse_hm_or_iso_for_day(day: _date, value: str):
     # 2) Dacă nu e ISO, tratăm ca 'HH:MM'
     return _parse_hm_for_day(day, s)
 
-
+#modifică o singură sesiune de pontaj
 @csrf_exempt
 def attendance_session_update(request):
     """
@@ -2537,7 +2550,7 @@ def attendance_day_delete(request):
     return JsonResponse({"ok": True, "date": str(day), "deleted_sessions": deleted})
 
 
-
+#variabile din  din openpyxl.styles pentru formatare Excel
 HEADER_FONT = Font(bold=True, size=14)
 CENTER = Alignment(horizontal="center", vertical="center")
 
@@ -2582,11 +2595,11 @@ def generate_excel(request):
 
     month_idx = None
     year = None
-    label_month = None   # ce scriem în A5
-
+    label_month = None   
+    #daca luna vine ca string
     if isinstance(month_val, str):
         mv = month_val.strip()
-        # format "YYYY-MM"
+        # daca contine - in string presupunem format "YYYY-MM"
         if "-" in mv:
             parts = mv.split("-")
             if len(parts) != 2:
@@ -2597,6 +2610,7 @@ def generate_excel(request):
                 label_month = f"{year:04d}-{month_idx:02d}"
             except Exception:
                 return JsonResponse({"error": "Nu pot parsa month='YYYY-MM'"}, status=400)
+        #Dacă NU e "YYYY-MM" → încearcă nume de lună sau număr string
         else:
             mv_lower = mv.lower()
             if mv_lower in month_map:
