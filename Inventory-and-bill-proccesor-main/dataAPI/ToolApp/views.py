@@ -2648,6 +2648,7 @@ def generate_excel(request):
     all_users_qs = Users.objects.all().order_by("UserName")
     all_users = list(all_users_qs)
 
+    # filtrare pe firmă (dacă e cazul)
     if company_name:
         filtered_users = []
         for u in all_users:
@@ -2672,6 +2673,8 @@ def generate_excel(request):
     #   "per_day_site":    {1: 'Bloc A', 2: 'Bloc B2', ...},
     #   "per_day_leave":   {1: {"code": "CO", "hours": 8}, ...}
     # }
+
+    #creează “tabelul” pe care îl completam ulterior din DB și apoi îl punem în Excel.
     per_user: dict[int, dict] = {}
     for u in users_list:
         per_user[u.UserId] = {
@@ -2738,7 +2741,7 @@ def generate_excel(request):
         .select_related("user_fk")
         .order_by("user_fk__UserName", "work_date", "in_time")
     )
-
+    #“umple” tabelul per_user cu ore lucrate și șantierul
     for s in sessions_qs:
         user = s.user_fk
         uid = user.UserId
@@ -2746,19 +2749,20 @@ def generate_excel(request):
         # nu adăugăm useri noi aici; dacă nu e în per_user => altă firmă
         if uid not in per_user:
             continue
-
+        #Determină ziua din lună pentru sesiunea respectivă
         day = s.work_date.day
         if not (1 <= day <= days_in_month):
             continue
 
+        #Calculează durata sesiunii (în secunde)
         dur = s.duration_seconds
         if dur is None and s.in_time and s.out_time:
             dur = int((s.out_time - s.in_time).total_seconds())
         dur = int(dur or 0)
-
+        # dună durata sesiunii în totalul pe zi al muncitorului
         per_user[uid]["per_day_seconds"][day] += max(0, dur)
 
-        # ultima locație nenulă din zi câștigă
+        #Salvează șantierul/locația pentru ziua aia 
         if s.worksite:
             per_user[uid]["per_day_site"][day] = s.worksite
 
@@ -2769,7 +2773,7 @@ def generate_excel(request):
         .select_related("user_fk")
         .order_by("user_fk__UserName", "work_date")
     )
-
+    #Iterează prin toate concediile din luna selectată
     for lv in leaves_qs:
         user = lv.user_fk
         uid = user.UserId
@@ -2822,7 +2826,7 @@ def generate_excel(request):
 
     # sortăm după nume
     sorted_users = sorted(per_user.values(), key=lambda x: x["user"].UserName.lower())
-
+    #Parcurge fiecare muncitor și extrage “pachetele” lui
     for idx, payload in enumerate(sorted_users):
         user = payload["user"]
         per_day_seconds = payload["per_day_seconds"]
@@ -2834,11 +2838,11 @@ def generate_excel(request):
 
         # numele muncitorului în col B
         ws[f"B{row_hours}"].value = user.UserName
-
+        #Parcurge zilele lunii și decide ce pune în fiecare celulă
         for day in range(1, days_in_month + 1):
             day_date = _date(year, month_idx, day)
             col_letter = get_column_letter(start_column + day - 1)
-
+            #Ia concediul din ziua respectivă (dacă există)
             leave_info = per_day_leave.get(day)
 
             # Duminica o sărim doar dacă NU există concediu
