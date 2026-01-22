@@ -2823,6 +2823,10 @@ def generate_excel(request):
     # Rânduri per angajat
     start_row = 9
     row_increment = 3  # ore, (rând gol), șantiere
+    total_ll_hours_column = "AJ"  # coloana pentru total ore libere legale
+    total_cm_hours_column = "AR"  # coloana pentru total ore concediu medical
+    hourly_salary_column = "AP" # coloana pentru salariu orar
+    total_salary_column = "AQ" # coloana pentru salariu total
 
     # sortăm după nume
     sorted_users = sorted(per_user.values(), key=lambda x: x["user"].UserName.lower())
@@ -2835,15 +2839,41 @@ def generate_excel(request):
 
         row_hours = start_row + (idx * row_increment)
         row_sites = row_hours + 2  # aici merg codurile T-A, T-B2, CO, CM etc.
-
+        total_ll_hours = 0.0
+        total_cm_hours = 0.0
+        base_salary_total = 0.0
+        total_worked_hours = 0.0
+        rate = Decimal(str(data.get("hourly_rate"))) if data.get("hourly_rate") not in (None, "") else (user.hourly_rate or Decimal('0.00'))
+      
         # numele muncitorului în col B
         ws[f"B{row_hours}"].value = user.UserName
+        
+        # salariu orar în col AP
+        ws[f"{hourly_salary_column}{row_hours}"].value = float(rate or 0.0)
+       
         #Parcurge zilele lunii și decide ce pune în fiecare celulă
         for day in range(1, days_in_month + 1):
             day_date = _date(year, month_idx, day)
             col_letter = get_column_letter(start_column + day - 1)
             #Ia concediul din ziua respectivă (dacă există)
             leave_info = per_day_leave.get(day)
+
+
+            # Total ore CM (concediu medical)
+            if leave_info:
+                leave_code = leave_info.get("code")
+                if leave_code == "CM":
+                    leave_hours = leave_info.get("hours") or 0.0
+                    total_cm_hours += float(leave_hours)
+            ws[f"{total_cm_hours_column}{row_hours}"].value = float(total_cm_hours)
+
+            # Total ore LL (ALT)
+            if leave_info:
+                leave_code = leave_info.get("code")
+                if leave_code == "ALT":
+                    leave_hours = leave_info.get("hours") or 0.0
+                    total_ll_hours += float(leave_hours)
+            ws[f"{total_ll_hours_column}{row_hours}"].value = float(total_ll_hours)
 
             # Duminica o sărim doar dacă NU există concediu
             if day_date.weekday() == 6 and not leave_info:
@@ -2864,9 +2894,14 @@ def generate_excel(request):
             seconds = per_day_seconds.get(day, 0)
             if seconds <= 0:
                 continue
-
+            
             hours = round(seconds / 3600.0, 2)  # ore cu 2 zecimale
             ws[f"{col_letter}{row_hours}"].value = float(hours)
+
+            total_worked_hours += hours
+            base_salary_total = total_worked_hours * float(rate or 0.0)
+
+            ws[f"{total_salary_column}{row_hours}"].value = float(base_salary_total)
 
             raw_ws = per_day_site.get(day)
             label_ws = _site_label(raw_ws)
