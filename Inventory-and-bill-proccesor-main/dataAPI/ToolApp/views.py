@@ -2896,12 +2896,7 @@ def generate_excel(request):
                 continue
             
             hours = round(seconds / 3600.0, 2)  # ore cu 2 zecimale
-            ws[f"{col_letter}{row_hours}"].value = float(hours)
-
-            total_worked_hours += hours
-            base_salary_total = total_worked_hours * float(rate or 0.0)
-
-            ws[f"{total_salary_column}{row_hours}"].value = float(base_salary_total)
+            ws[f"{col_letter}{row_hours}"].value = float(hours)            
 
             raw_ws = per_day_site.get(day)
             label_ws = _site_label(raw_ws)
