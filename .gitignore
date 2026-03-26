@@ -23,8 +23,6 @@ angular/
 # Secrets
 Inventory-and-bill-proccesor-main/dataAPI/.env
 Inventory-and-bill-proccesor-main/FE/newface/proxy.conf.json
-Inventory-and-bill-proccesor-main/FE/newface/angular.json
-Inventory-and-bill-proccesor-main/FE/newface/angular.json
 Inventory-and-bill-proccesor-main/FE/newface/proxy.local.json
 Inventory-and-bill-proccesor-main/dataAPI/\# afișează cheia publică
 Inventory-and-bill-proccesor-main/dataAPI/\# afișează cheia publică.pub
