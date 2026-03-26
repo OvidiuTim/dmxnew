@@ -89,6 +89,24 @@
         <label>Până la</label>
         <input type="date" [(ngModel)]="worksiteEndDate" [min]="worksiteStartDate" [max]="todayISO()" />
       </div>
+
+      <div class="field company-filter-field">
+        <label>Firmă</label>
+        <button type="button" class="btn ghost company-picker-trigger" (click)="toggleWorksiteCompanyPicker()">
+          {{ currentWorksiteCompanyLabel() }}
+        </button>
+
+        <div class="company-picker-panel" *ngIf="showWorksiteCompanyPicker">
+          <select [(ngModel)]="selectedWorksiteCompany">
+            <option value="">Toate firmele</option>
+            <option *ngFor="let c of companies" [value]="c">{{ c }}</option>
+          </select>
+
+          <button type="button" class="btn primary small" (click)="applyWorksiteCompanyFilter()">
+            Aplică
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="state" *ngIf="loadingWorksiteReport">Se încarcă raportul pe șantiere…</div>
@@ -146,11 +164,32 @@
             <td>{{ row.person_days_count }}</td>
             <td>{{ formatDateTime(row.last_activity) }}</td>
             <td>
-              <div class="people-chips">
-                <span class="chip person-chip" *ngFor="let person of row.people">
-                  {{ person.UserName }} · {{ person.total_hms }}
-                </span>
-              </div>
+              <details class="people-dropdown">
+                <summary>Vezi angajați ({{ row.people_count }})</summary>
+
+                <div class="people-dropdown-panel">
+                  <input
+                    type="text"
+                    placeholder="Caută angajat"
+                    [ngModel]="getWorksitePeopleSearch(row)"
+                    (ngModelChange)="setWorksitePeopleSearch(row, $event)"
+                  />
+
+                  <div class="people-dropdown-list" *ngIf="getFilteredPeople(row).length; else noPeopleFound">
+                    <div class="person-list-item" *ngFor="let person of getFilteredPeople(row)">
+                      <div class="person-main">
+                        <span>{{ person.UserName }}</span>
+                        <small *ngIf="person.Company">{{ person.Company }}</small>
+                      </div>
+                      <span class="person-time">{{ person.total_hms }}</span>
+                    </div>
+                  </div>
+
+                  <ng-template #noPeopleFound>
+                    <div class="people-empty">Nu am găsit angajați pentru filtrul introdus.</div>
+                  </ng-template>
+                </div>
+              </details>
             </td>
           </tr>
         </tbody>

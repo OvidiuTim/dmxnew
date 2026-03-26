@@ -1651,6 +1651,7 @@ def attendance_worksite_report(request):
 
     start = _parse_iso_date(request.GET.get("start") or str(localdate()))
     end = _parse_iso_date(request.GET.get("end") or str(localdate()))
+    company = (request.GET.get("company") or "").strip()
     if end < start:
         start, end = end, start
 
@@ -1661,6 +1662,8 @@ def attendance_worksite_report(request):
         .select_related("user_fk")
         .order_by("worksite", "user_fk__UserName", "in_time")
     )
+    if company:
+        qs = qs.filter(user_fk__Company__iexact=company)
 
     worksites = {}
     total_users = set()
@@ -1757,6 +1760,7 @@ def attendance_worksite_report(request):
     return JsonResponse({
         "start": str(start),
         "end": str(end),
+        "company": company or None,
         "summary": {
             "worksites_count": len(rows),
             "people_count": len(total_users),
@@ -3363,6 +3367,5 @@ def _audit_line(request, msg: str, extra: dict | None = None):
                 f.write(line + "\n")
     except Exception:
         logger.exception("Cannot write pontaj audit log")
-
 
 

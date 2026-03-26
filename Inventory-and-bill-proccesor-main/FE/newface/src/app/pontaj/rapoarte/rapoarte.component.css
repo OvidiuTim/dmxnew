@@ -290,6 +290,7 @@
   flex-direction: column;
   gap: 4px;
   min-width: 180px;
+  position: relative;
 }
 
 .worksite-filters input[type="date"] {
@@ -298,6 +299,45 @@
   border: 1px solid #2b2b2f;
   padding: 7px 10px;
   border-radius: 10px;
+}
+
+.company-filter-field {
+  min-width: 220px;
+}
+
+.company-picker-trigger {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.company-picker-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 5;
+  min-width: 220px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+  background: #101117;
+  border: 1px solid #2f3340;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .28);
+}
+
+.company-picker-panel select {
+  flex: 1;
+  min-width: 0;
+  background: #0f1116;
+  color: #e7e7e7;
+  border: 1px solid #2b2b2f;
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+
+.btn.small {
+  padding: 7px 10px;
 }
 
 .summary-grid {
@@ -361,14 +401,86 @@
   font-weight: 600;
 }
 
-.people-chips {
+.people-dropdown {
+  min-width: 180px;
+}
+
+.people-dropdown summary {
+  cursor: pointer;
+  color: #9fc1ff;
+  text-decoration: underline;
+  list-style: none;
+}
+
+.people-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.people-dropdown-panel {
+  margin-top: 8px;
+  width: 260px;
+  max-width: 260px;
+  padding: 10px;
+  background: #101117;
+  border: 1px solid #2f3340;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .25);
+}
+
+.people-dropdown-panel input[type="text"] {
+  width: 100%;
+  background: #0f1116;
+  color: #e7e7e7;
+  border: 1px solid #2b2b2f;
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+
+.people-dropdown-list {
+  margin-top: 8px;
+  max-height: 220px;
+  overflow-y: auto;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
 }
 
-.person-chip {
-  cursor: default;
+.person-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #171922;
+  border: 1px solid #2a2d38;
+}
+
+.person-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.person-main span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.person-main small {
+  color: #9ea5b6;
+}
+
+.person-time {
+  color: #d8e4ff;
+  white-space: nowrap;
+}
+
+.people-empty {
+  margin-top: 8px;
+  color: #9ea5b6;
+  font-size: 12px;
 }
 
 @media (max-width: 767px) {
@@ -378,5 +490,18 @@
 
   .report-actions {
     width: 100%;
+  }
+
+  .company-picker-panel {
+    position: static;
+    margin-top: 8px;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .people-dropdown-panel {
+    width: min(260px, 72vw);
+    max-width: min(260px, 72vw);
   }
 }

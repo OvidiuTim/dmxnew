@@ -95,6 +95,9 @@ export class RapoarteComponent implements OnInit {
   worksiteReportError: string | null = null;
   worksiteReportRows: WorksiteReportRow[] = [];
   worksiteReportSummary: WorksiteReportSummary | null = null;
+  selectedWorksiteCompany = '';
+  showWorksiteCompanyPicker = false;
+  worksiteEmployeeSearch: Record<string, string> = {};
 
   // Raport pe firmă + lună
   companies: string[] = [];
@@ -184,6 +187,43 @@ export class RapoarteComponent implements OnInit {
     });
   }
 
+  toggleWorksiteCompanyPicker(): void {
+    this.showWorksiteCompanyPicker = !this.showWorksiteCompanyPicker;
+  }
+
+  applyWorksiteCompanyFilter(): void {
+    this.showWorksiteCompanyPicker = false;
+    this.loadWorksiteReport();
+  }
+
+  currentWorksiteCompanyLabel(): string {
+    return this.selectedWorksiteCompany || 'Toate firmele';
+  }
+
+  worksiteRowKey(row: WorksiteReportRow): string {
+    return row.raw_worksite || '__fara_santier__';
+  }
+
+  getWorksitePeopleSearch(row: WorksiteReportRow): string {
+    return this.worksiteEmployeeSearch[this.worksiteRowKey(row)] || '';
+  }
+
+  setWorksitePeopleSearch(row: WorksiteReportRow, value: string): void {
+    this.worksiteEmployeeSearch[this.worksiteRowKey(row)] = value;
+  }
+
+  getFilteredPeople(row: WorksiteReportRow): WorksitePersonRow[] {
+    const query = this.getWorksitePeopleSearch(row).trim().toLowerCase();
+    if (!query) {
+      return row.people;
+    }
+
+    return row.people.filter(person => {
+      const haystack = `${person.UserName} ${person.Company || ''}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+
   loadWorksiteReport(): void {
     this.worksiteReportError = null;
 
@@ -198,8 +238,13 @@ export class RapoarteComponent implements OnInit {
     }
 
     this.loadingWorksiteReport = true;
+    this.worksiteEmployeeSearch = {};
 
-    this.api.getAttendanceWorksiteReport(this.worksiteStartDate, this.worksiteEndDate).subscribe({
+    this.api.getAttendanceWorksiteReport(
+      this.worksiteStartDate,
+      this.worksiteEndDate,
+      this.selectedWorksiteCompany || null
+    ).subscribe({
       next: (res) => {
         this.worksiteReportRows = res?.rows ?? [];
         this.worksiteReportSummary = res?.summary ?? null;
@@ -253,7 +298,10 @@ export class RapoarteComponent implements OnInit {
 
     const csv = lines.join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const fname = `raport_santiere_${this.worksiteStartDate}_${this.worksiteEndDate}.csv`;
+    const companySuffix = this.selectedWorksiteCompany
+      ? `_${this.selectedWorksiteCompany.replace(/\s+/g, '_')}`
+      : '_toate_firmele';
+    const fname = `raport_santiere${companySuffix}_${this.worksiteStartDate}_${this.worksiteEndDate}.csv`;
     this.triggerDownload(blob, fname);
   }
 
