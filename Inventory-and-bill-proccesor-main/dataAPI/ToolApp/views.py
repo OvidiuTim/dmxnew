@@ -1,4 +1,4 @@
-w# --- Standard library ---
+# --- Standard library ---
 import csv, io, re
 import json, logging, math
 from threading import Lock
