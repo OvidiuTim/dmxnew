@@ -1,4 +1,4 @@
-# --- Standard library ---
+w# --- Standard library ---
 import csv, io, re
 import json, logging, math
 from threading import Lock
@@ -139,22 +139,47 @@ UID_PIN_MAP = {
     "B379A4ED": "9956",
     "139691ED": "9955",
     "83D19CED": "9954",
+
+
     "A3C692ED": "9968",
     "F3C2A5ED": "9969",
     "13FD93ED": "9970",
     "E30594ED": "9971",
-    "C30594ED": "9972",
+    # amarjit lost tag
+    "C30594ED": "9958",
     "93A390ED": "9973",
     "93B393ED": "9974",
     "53E991ED": "9957",
     "E3F392ED": "8008",
-    "F3CD9ED": "9946",
-    "A3D091ED": "9945", 
+    "F3CD93ED": "9946",
+    "A3D091ED": "9945",
 
-    #admins
-    "657449EF": "11111",
-    "057944EF": "22222",
+    # NOI
+    "539C91ED": "9944",
+    "B319A6ED": "9943",
+    "339591ED": "9942",
+    "B34091ED": "9941",
+    "6326A5ED": "9940",
+    "D35898ED": "9939",
+    "13DC92ED": "9938",
+    "234EA5ED": "9937",
+    "033F91ED": "9935",
+    "13C99CED": "9934",
+    "838D19ED": "9933",
+    "834091ED": "9932",
+    "734E91ED": "9931",
+    "F33019ED": "9930",
+    "D3F992ED": "9929",
+    "637B93ED": "9928",
+    "83C3A5ED": "9927",
+    "D33A9CED": "9926",
+    "D39AA5ED": "9925",
+    "3370AAED": "9924",
+# admins
+"657449EF": "11111",
+"057944EF": "22222",
 }
+
 
 
 _last_seen = {}
@@ -1833,30 +1858,58 @@ def leave_upsert(request):
     elif data.get("user_serie"):
         user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
     if not user:
-        return JsonResponse({"error":"user not found"}, status=404)
+        return JsonResponse({"error": "user not found"}, status=404)
 
     # date
     try:
         d = _date.fromisoformat(str(data.get("date")))
     except Exception:
-        return JsonResponse({"error":"Bad 'date' (YYYY-MM-DD)"}, status=400)
+        return JsonResponse({"error": "Bad 'date' (YYYY-MM-DD)"}, status=400)
 
     reason = (data.get("reason") or "CO").upper()
-    if reason not in ("CO","CM","ALT"):
-        return JsonResponse({"error":"reason must be CO|CM|ALT"}, status=400)
+    if reason not in ("CO", "CM", "ALT"):
+        return JsonResponse({"error": "reason must be CO|CM|ALT"}, status=400)
+
+    def _snap_leave(x):
+        if not x:
+            return None
+        return {
+            "id": x.id,
+            "date": str(x.work_date),
+            "reason": x.reason,
+            "hours": str(x.hours),
+            "multiplier": str(x.multiplier),
+            "hourly_rate_snapshot": str(x.hourly_rate_snapshot),
+            "pay_amount": str(x.pay_amount),
+            "note": x.note or "",
+        }
+
+    existing = LeaveDay.objects.filter(user_fk=user, work_date=d).first()
+    before = _snap_leave(existing)
 
     from decimal import Decimal, ROUND_HALF_UP
     hours = Decimal(str(data.get("hours") or "8.00"))
     multiplier = Decimal(str(data.get("multiplier") or "1.00"))
-    rate = Decimal(str(data.get("hourly_rate"))) if data.get("hourly_rate") not in (None, "") else (user.hourly_rate or Decimal('0.00'))
+    rate = (
+        Decimal(str(data.get("hourly_rate")))
+        if data.get("hourly_rate") not in (None, "")
+        else (user.hourly_rate or Decimal("0.00"))
+    )
 
-    pay = (rate * hours * multiplier).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    pay = (rate * hours * multiplier).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    obj, _ = LeaveDay.objects.get_or_create(user_fk=user, work_date=d, defaults={
-        "reason": reason, "hours": hours, "multiplier": multiplier,
-        "hourly_rate_snapshot": rate, "pay_amount": pay, "note": data.get("note") or ""
-    })
-    # update dacă exista
+    obj, _ = LeaveDay.objects.get_or_create(
+        user_fk=user,
+        work_date=d,
+        defaults={
+            "reason": reason,
+            "hours": hours,
+            "multiplier": multiplier,
+            "hourly_rate_snapshot": rate,
+            "pay_amount": pay,
+            "note": data.get("note") or "",
+        },
+    )
     obj.reason = reason
     obj.hours = hours
     obj.multiplier = multiplier
@@ -1868,6 +1921,16 @@ def leave_upsert(request):
 
     snap = recompute_daily_pay(user, d)
 
+    after = _snap_leave(obj)
+
+    # AUDIT
+    try:
+        msg = (f"s-a modificat lipsa (leave) la angajatul {user.UserName} pe data {d}: "
+               f"{after['reason']} {after['hours']}h ×{after['multiplier']}")
+        _audit_line(request, msg, {"user_id": user.UserId, "user_name": user.UserName, "before": before, "after": after})
+    except Exception:
+        pass
+
     return JsonResponse({
         "ok": True,
         "user_id": user.UserId,
@@ -1878,13 +1941,14 @@ def leave_upsert(request):
             "multiplier": str(obj.multiplier),
             "hourly_rate": str(obj.hourly_rate_snapshot),
             "pay": str(obj.pay_amount),
-            "note": obj.note or ""
+            "note": obj.note or "",
         },
         "pay_snapshot": {
-            "total_seconds": snap.total_seconds,   # doar ore reale
-            "day_pay": str(snap.day_pay)
-        }
+            "total_seconds": snap.total_seconds,
+            "day_pay": str(snap.day_pay),
+        },
     })
+
 
 #Citește concediile unui user
 @csrf_exempt
@@ -1956,7 +2020,7 @@ def leave_delete(request):
     try:
         data = json.loads(request.body or "{}")
     except Exception:
-        return JsonResponse({"error":"Invalid JSON"}, status=400)
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
 
     user = None
     if data.get("user_id"):
@@ -1966,16 +2030,38 @@ def leave_delete(request):
     elif data.get("user_serie"):
         user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
     if not user:
-        return JsonResponse({"error":"user not found"}, status=404)
+        return JsonResponse({"error": "user not found"}, status=404)
 
     try:
         d = _date.fromisoformat(str(data.get("date")))
     except Exception:
-        return JsonResponse({"error":"Bad 'date'"}, status=400)
+        return JsonResponse({"error": "Bad 'date'"}, status=400)
+
+    existing = LeaveDay.objects.filter(user_fk=user, work_date=d).first()
+    before = None
+    if existing:
+        before = {
+            "id": existing.id,
+            "date": str(existing.work_date),
+            "reason": existing.reason,
+            "hours": str(existing.hours),
+            "multiplier": str(existing.multiplier),
+            "pay_amount": str(existing.pay_amount),
+            "note": existing.note or "",
+        }
 
     LeaveDay.objects.filter(user_fk=user, work_date=d).delete()
     snap = recompute_daily_pay(user, d)
+
+    # AUDIT
+    try:
+        msg = f"s-a șters lipsa (leave) la angajatul {user.UserName} pe data {d}"
+        _audit_line(request, msg, {"user_id": user.UserId, "user_name": user.UserName, "before": before})
+    except Exception:
+        pass
+
     return JsonResponse({"ok": True, "date": str(d), "pay_snapshot": {"total_seconds": snap.total_seconds, "day_pay": str(snap.day_pay)}})
+
 
 
 
@@ -2275,7 +2361,7 @@ def attendance_edit_day(request):
     elif data.get("user_serie"):
         user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
     if not user:
-        return JsonResponse({"error":"user not found"}, status=404)
+        return JsonResponse({"error": "user not found"}, status=404)
 
     # day
     try:
@@ -2287,9 +2373,9 @@ def attendance_edit_day(request):
     if not isinstance(sessions, list) or not sessions:
         return HttpResponseBadRequest("Provide non-empty 'sessions' list")
 
-    replace = str(data.get("replace", "1")).lower() in ("1","true","yes","on")
-    rewrite_presence = str(data.get("rewrite_presence","1")).lower() in ("1","true","yes","on")
-    apply_grace = str(data.get("apply_grace","0")).lower() in ("1","true","yes","on")
+    replace = str(data.get("replace", "1")).lower() in ("1", "true", "yes", "on")
+    rewrite_presence = str(data.get("rewrite_presence", "1")).lower() in ("1", "true", "yes", "on")
+    apply_grace = str(data.get("apply_grace", "0")).lower() in ("1", "true", "yes", "on")
 
     # build, validate, order, non-overlap
     new_items = []
@@ -2299,13 +2385,16 @@ def attendance_edit_day(request):
             out = s.get("out") or s.get("out_time")
             if not inn or not out:
                 return HttpResponseBadRequest("Each session needs both 'in' and 'out'")
-            in_dt  = _parse_hm_for_day(day, inn)
+
+            in_dt = _parse_hm_for_day(day, inn)
             out_dt = _parse_hm_for_day(day, out)
             if out_dt <= in_dt:
                 return HttpResponseBadRequest("A session has out <= in")
+
             if apply_grace:
-                in_dt  = in_dt   # aici poți aplica rotunjiri dacă ai helperii tăi
-                out_dt = out_dt
+                in_dt = apply_enter_grace(in_dt)
+                out_dt = apply_exit_grace(out_dt)
+
             ws = (s.get("worksite") or "").strip() or None
             new_items.append((in_dt, out_dt, ws))
     except Exception as e:
@@ -2313,8 +2402,29 @@ def attendance_edit_day(request):
 
     new_items.sort(key=lambda t: t[0])
     for i in range(1, len(new_items)):
-        if new_items[i][0] < new_items[i-1][1]:
+        if new_items[i][0] < new_items[i - 1][1]:
             return HttpResponseBadRequest("Overlapping sessions")
+
+    def _snap_sessions(qs):
+        out = []
+        for ss in qs:
+            out.append({
+                "id": ss.id,
+                "in": localtime(ss.in_time).strftime("%H:%M") if ss.in_time else None,
+                "out": localtime(ss.out_time).strftime("%H:%M") if ss.out_time else None,
+                "worksite": ss.worksite,
+                "source": ss.source,
+            })
+        return out
+
+    # BEFORE snapshot
+    try:
+        before_qs = (AttendanceSession.objects
+                     .filter(user_fk=user, work_date=day)
+                     .order_by("in_time"))
+        before_list = _snap_sessions(before_qs)
+    except Exception:
+        before_list = []
 
     # commit
     with transaction.atomic():
@@ -2326,19 +2436,52 @@ def attendance_edit_day(request):
         created = []
         for in_dt, out_dt, ws in new_items:
             dur = int((out_dt - in_dt).total_seconds())
-            s = AttendanceSession.objects.create(
-                user_fk=user, work_date=day,
-                in_time=in_dt, out_time=out_dt,
+            ss = AttendanceSession.objects.create(
+                user_fk=user,
+                work_date=day,
+                in_time=in_dt,
+                out_time=out_dt,
                 duration_seconds=max(0, dur),
                 source="manual_edit",
-                worksite=ws
+                worksite=ws,
             )
-            created.append(s)
+            created.append(ss)
+
             if rewrite_presence:
-                PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=in_dt, worksite=ws)
-                PresenceEvent.objects.create(user_fk=user, kind=PresenceEvent.Kind.EXIT,  timestamp=out_dt, worksite=ws)
+                PresenceEvent.objects.create(
+                    user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=in_dt, worksite=ws
+                )
+                PresenceEvent.objects.create(
+                    user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=out_dt, worksite=ws
+                )
 
         recompute_daily_pay(user, day)
+
+    # AFTER snapshot
+    try:
+        after_qs = (AttendanceSession.objects
+                    .filter(user_fk=user, work_date=day)
+                    .order_by("in_time"))
+        after_list = _snap_sessions(after_qs)
+    except Exception:
+        after_list = []
+
+    # AUDIT log (fișier)
+    try:
+        summary = "; ".join(
+            [f"{x.get('in')}-{x.get('out')}" + (f" ({x.get('worksite')})" if x.get("worksite") else "")
+             for x in after_list]
+        )
+        msg = f"s-a modificat la angajatul {user.UserName} pontajul pe data {day}: {summary}"
+        _audit_line(request, msg, {
+            "user_id": user.UserId,
+            "user_name": user.UserName,
+            "date": str(day),
+            "before": before_list,
+            "after": after_list,
+        })
+    except Exception:
+        pass
 
     first_in = min(c.in_time for c in created)
     last_out = max(c.out_time for c in created)
@@ -2348,8 +2491,8 @@ def attendance_edit_day(request):
         "ok": True,
         "user": {"UserId": user.UserId, "UserName": user.UserName},
         "date": str(day),
-        "first_in":  localtime(first_in).isoformat(),
-        "last_out":  localtime(last_out).isoformat(),
+        "first_in": localtime(first_in).isoformat(),
+        "last_out": localtime(last_out).isoformat(),
         "total_hms": _fmt_hms(total),
         "sessions": [{
             "session_id": s.id,
@@ -2366,70 +2509,151 @@ def attendance_edit_day(request):
 def attendance_session_delete(request):
     """
     POST /api/pontaj/session/delete/
-    { "session_id": 123 }
+    Body: { "session_id": 123, "rewrite_presence": true }
+    Șterge o singură sesiune și recalculează plata pe zi.
     """
     if request.method != "POST":
-        return HttpResponseNotAllowed(["POST"])
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
     try:
         data = json.loads(request.body or "{}")
-        sid = int(data.get("session_id") or 0)
     except Exception:
-        return HttpResponseBadRequest("Invalid body")
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    sid = data.get("session_id")
     if not sid:
-        return HttpResponseBadRequest("session_id required")
+        return JsonResponse({"error": "session_id required"}, status=400)
+
+    rewrite_presence = str(data.get("rewrite_presence", "1")).lower() in ("1", "true", "yes", "on")
 
     try:
         with transaction.atomic():
             s = AttendanceSession.objects.select_for_update().get(id=sid)
-            user = s.user_fk; day = s.work_date
-            # șterge prezențele din acea zi (opțional: poți restrânge la intervalul sesiunii)
-            PresenceEvent.objects.filter(user_fk=user, timestamp__date=day).delete()
+            user = s.user_fk
+            day = s.work_date
+            in_t = s.in_time
+            out_t = s.out_time
+            ws = s.worksite
+
+            before = {
+                "id": s.id,
+                "in": localtime(in_t).strftime("%H:%M") if in_t else None,
+                "out": localtime(out_t).strftime("%H:%M") if out_t else None,
+                "worksite": ws,
+                "date": str(day),
+            }
+
             s.delete()
-            # recalc
+
+            if rewrite_presence:
+                if in_t:
+                    PresenceEvent.objects.filter(user_fk=user, timestamp=in_t).delete()
+                if out_t:
+                    PresenceEvent.objects.filter(user_fk=user, timestamp=out_t).delete()
+
             recompute_daily_pay(user, day)
-        return JsonResponse({"ok": True})
+
+        # AUDIT
+        try:
+            msg = (f"s-a șters sesiunea #{before['id']} la angajatul {user.UserName} "
+                   f"pe data {day}: {before['in']}-{before['out']}" + (f" ({ws})" if ws else ""))
+            _audit_line(request, msg, {"user_id": user.UserId, "user_name": user.UserName, "before": before})
+        except Exception:
+            pass
+
+        return JsonResponse({"ok": True, "deleted_session_id": sid, "date": str(day)})
     except AttendanceSession.DoesNotExist:
-        return JsonResponse({"error":"session not found"}, status=404)
+        return JsonResponse({"error": "session not found"}, status=404)
+
+
+
 
 
 # șterge toate sesiunile de pontaj pentru o zi a unui user
 @csrf_exempt
 def attendance_day_delete(request):
     """
-    DELETE /api/pontaj/day/
-    Body:
-    { "user_id": 53 | "user_pin":"2882" | "user_serie":"AA11", "date":"YYYY-MM-DD" }
+    DELETE /api/pontaj/day/delete/?user_id=ID&date=YYYY-MM-DD[&rewrite_presence=1]
+    sau
+    POST   /api/pontaj/day/delete/  body: { "user_id":ID, "date":"YYYY-MM-DD", "rewrite_presence":true }
+    Golește toate sesiunile utilizatorului în ziua respectivă.
     """
-    if request.method != "DELETE":
-        return HttpResponseNotAllowed(["DELETE"])
+    method = request.method
+    if method not in ("DELETE", "POST"):
+        return JsonResponse({"error": "Only DELETE or POST allowed"}, status=405)
+
+    if method == "DELETE":
+        user_id = request.GET.get("user_id")
+        d_str = request.GET.get("date")
+        rewrite_presence = str(request.GET.get("rewrite_presence", "1")).lower() in ("1", "true", "yes", "on")
+    else:
+        try:
+            body = json.loads(request.body or "{}")
+        except Exception:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+        user_id = body.get("user_id")
+        d_str = body.get("date")
+        rewrite_presence = str(body.get("rewrite_presence", "1")).lower() in ("1", "true", "yes", "on")
+
     try:
-        data = json.loads(request.body or "{}")
+        user_id = int(user_id)
+        user = Users.objects.get(UserId=user_id)
     except Exception:
-        return HttpResponseBadRequest("Invalid JSON")
-
-    user = None
-    if data.get("user_id"):
-        user = Users.objects.filter(UserId=data["user_id"]).first()
-    elif data.get("user_pin"):
-        user = Users.objects.filter(UserPin=str(data["user_pin"])).first()
-    elif data.get("user_serie"):
-        user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
-    if not user:
-        return JsonResponse({"error":"user not found"}, status=404)
+        return JsonResponse({"error": "user not found"}, status=404)
 
     try:
-        day = _date.fromisoformat(str(data.get("date")))
+        day = _date.fromisoformat(d_str)
     except Exception:
-        return HttpResponseBadRequest("Bad 'date'")
-    leaves_map = {x.user_fk_id: x for x in LeaveDay.objects.filter(work_date=day)}
+        return JsonResponse({"error": "Invalid 'date' (YYYY-MM-DD)"}, status=400)
 
+    # BEFORE snapshot
+    before_list = []
+    try:
+        qs0 = (AttendanceSession.objects
+               .filter(user_fk=user, work_date=day)
+               .order_by("in_time"))
+        for s in qs0:
+            before_list.append({
+                "id": s.id,
+                "in": localtime(s.in_time).strftime("%H:%M") if s.in_time else None,
+                "out": localtime(s.out_time).strftime("%H:%M") if s.out_time else None,
+                "worksite": s.worksite,
+            })
+    except Exception:
+        pass
 
     with transaction.atomic():
-        AttendanceSession.objects.filter(user_fk=user, work_date=day).delete()
-        PresenceEvent.objects.filter(user_fk=user, timestamp__date=day).delete()
-        recompute_daily_pay(user, day)
+        qs = AttendanceSession.objects.select_for_update().filter(user_fk=user, work_date=day)
+        deleted = qs.count()
+        qs.delete()
 
-    return JsonResponse({"ok": True})
+        if rewrite_presence:
+            PresenceEvent.objects.filter(user_fk=user, timestamp__date=day).delete()
+
+        try:
+            obj = DailyPay.objects.get(user_fk=user, work_date=day)
+            obj.delete()
+        except DailyPay.DoesNotExist:
+            pass
+
+    # AUDIT
+    try:
+        msg = f"s-a șters pontajul COMPLET la angajatul {user.UserName} pe data {day} (sesiuni={deleted})"
+        _audit_line(request, msg, {
+            "user_id": user.UserId,
+            "user_name": user.UserName,
+            "date": str(day),
+            "deleted_sessions": deleted,
+            "before": before_list
+        })
+    except Exception:
+        pass
+
+    return JsonResponse({"ok": True, "date": str(day), "deleted_sessions": deleted})
+
+
+
+
 
 #ransformă o valoare de timp într-un datetime tz-aware, acceptând două formate diferite
 def _parse_hm_or_iso_for_day(day: _date, value: str):
@@ -2978,4 +3202,41 @@ def generate_excel(request):
     )
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
+
+
+import os
+from threading import Lock
+from django.utils import timezone
+from django.utils.timezone import localtime
+
+_PONTAJ_AUDIT_LOCK = Lock()
+_PONTAJ_AUDIT_PATH = os.path.join(os.path.dirname(__file__), "pontaj_audit.log")
+
+def _client_ip(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR", "")
+
+def _audit_line(request, msg: str, extra: dict | None = None):
+    ts = localtime(timezone.now()).strftime("%Y-%m-%d %H:%M:%S")
+    ip = _client_ip(request)
+    ua = (request.META.get("HTTP_USER_AGENT") or "")[:120]
+    line = f"[{ts}] ip={ip} ua={ua} | {msg}"
+    if extra:
+        try:
+            line += " | " + json.dumps(extra, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # scriere safe (best-effort)
+    try:
+        with _PONTAJ_AUDIT_LOCK:
+            with open(_PONTAJ_AUDIT_PATH, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+    except Exception:
+        logger.exception("Cannot write pontaj audit log")
+
+
+
 
