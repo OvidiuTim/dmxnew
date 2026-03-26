@@ -37,3 +37,10 @@ Inventory-and-bill-proccesor-main/myenv/
 myenv/
 venv/
 ENV/
+
+# temp / backup files
+*.save
+*.bak
+*.bak.*
+backups/
+_backups/
