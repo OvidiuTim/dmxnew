@@ -34,3 +34,8 @@ Inventory-and-bill-proccesor-main/dataAPI/media/~$model_xcel_pontaj.xlsx
 # Local SQLite backups (server only)
 Inventory-and-bill-proccesor-main/dataAPI/db-*.sqlite3
 Inventory-and-bill-proccesor-main/dataAPI/_backups/
+
+Inventory-and-bill-proccesor-main/myenv/
+myenv/
+venv/
+ENV/
