@@ -13,6 +13,7 @@ from .views import (
     attendance_day,
     attendance_present,
     attendance_range,
+    attendance_worksite_report,
     monitor_pontaj_page,
     monitor_pontaj_page_white,
     pontaj_stream,
@@ -55,6 +56,7 @@ urlpatterns = [
     path('api/pontaj/day/', attendance_day, name='attendance_day'),              # GET day aggregate
     path('api/pontaj/present/', attendance_present, name='attendance_present'),
     path('api/pontaj/range/', attendance_range, name='attendance_range'),
+    path('api/pontaj/reports/worksites/', attendance_worksite_report, name='attendance_worksite_report'),
     path('api/pontaj/today/', attendance_today, name='attendance_today'),
     path('api/pontaj/stream/', pontaj_stream, name='pontaj_stream'),
 

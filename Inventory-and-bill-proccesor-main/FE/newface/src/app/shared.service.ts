@@ -99,6 +99,9 @@ getAttendanceRangeForUser(start: string, end: string, userId: number) {
   // era this.http.get(`${this.API}/pontaj/range/`, ...)
   return this.http.get<any>(`${this.API}/pontaj/range/`, { params: { start, end, user_id: userId } });
 }
+  getAttendanceWorksiteReport(start: string, end: string) {
+    return this.http.get<any>(`${this.API}/pontaj/reports/worksites/`, { params: { start, end } });
+  }
   /** A) Editează o ZI prin sesiuni explicite (înlocuiește tot în ziua respectivă dacă replace=true) */
   editDaySessions(
     userId: number,
@@ -188,5 +191,4 @@ deleteSession(sessionId: number) {
 
 
 }
-
 

@@ -60,6 +60,104 @@
     </section>
   </div>
 
+  <section class="section-card worksite-report-card">
+    <div class="report-head">
+      <div>
+        <h2>Raport oameni pe șantier</h2>
+        <p class="section-sub">
+          Vezi pe perioadă câți oameni unici au lucrat pe fiecare șantier, câte ore s-au pontat și cine apare în raport.
+        </p>
+      </div>
+
+      <div class="report-actions">
+        <button class="btn ghost" (click)="downloadWorksiteReportCsv()" [disabled]="!worksiteReportRows.length">
+          Descarcă CSV
+        </button>
+        <button class="btn primary" (click)="loadWorksiteReport()" [disabled]="loadingWorksiteReport">
+          Actualizează
+        </button>
+      </div>
+    </div>
+
+    <div class="worksite-filters">
+      <div class="field">
+        <label>De la</label>
+        <input type="date" [(ngModel)]="worksiteStartDate" [max]="worksiteEndDate || todayISO()" />
+      </div>
+
+      <div class="field">
+        <label>Până la</label>
+        <input type="date" [(ngModel)]="worksiteEndDate" [min]="worksiteStartDate" [max]="todayISO()" />
+      </div>
+    </div>
+
+    <div class="state" *ngIf="loadingWorksiteReport">Se încarcă raportul pe șantiere…</div>
+    <div class="state error" *ngIf="worksiteReportError">{{ worksiteReportError }}</div>
+
+    <ng-container *ngIf="worksiteReportSummary && !loadingWorksiteReport">
+      <div class="summary-grid">
+        <div class="summary-card">
+          <span class="summary-label">Șantiere</span>
+          <strong>{{ worksiteReportSummary.worksites_count }}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span class="summary-label">Oameni unici</span>
+          <strong>{{ worksiteReportSummary.people_count }}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span class="summary-label">Ore totale</span>
+          <strong>{{ worksiteReportSummary.total_hms }}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span class="summary-label">Om-zile</span>
+          <strong>{{ worksiteReportSummary.person_days_count }}</strong>
+        </div>
+      </div>
+    </ng-container>
+
+    <div class="empty-state" *ngIf="!loadingWorksiteReport && !worksiteReportError && !worksiteReportRows.length">
+      Nu există pontaje pe șantiere în perioada selectată.
+    </div>
+
+    <div class="worksite-table-wrap" *ngIf="worksiteReportRows.length && !loadingWorksiteReport">
+      <table class="worksite-table">
+        <thead>
+          <tr>
+            <th>Șantier</th>
+            <th>Oameni</th>
+            <th>Ore totale</th>
+            <th>Sesiuni</th>
+            <th>Zile active</th>
+            <th>Om-zile</th>
+            <th>Ultima activitate</th>
+            <th>Angajați</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of worksiteReportRows">
+            <td class="site-name">{{ row.worksite }}</td>
+            <td>{{ row.people_count }}</td>
+            <td>{{ row.total_hms }}</td>
+            <td>{{ row.total_sessions }}</td>
+            <td>{{ row.active_days_count }}</td>
+            <td>{{ row.person_days_count }}</td>
+            <td>{{ formatDateTime(row.last_activity) }}</td>
+            <td>
+              <div class="people-chips">
+                <span class="chip person-chip" *ngFor="let person of row.people">
+                  {{ person.UserName }} · {{ person.total_hms }}
+                </span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
 
 <br>
 <br>

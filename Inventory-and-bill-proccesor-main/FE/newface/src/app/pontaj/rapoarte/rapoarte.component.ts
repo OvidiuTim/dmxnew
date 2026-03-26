@@ -4,6 +4,38 @@ import { Router } from '@angular/router';
 import { SharedService } from '../../shared.service';
 import { forkJoin } from 'rxjs';
 
+type WorksitePersonRow = {
+  UserId: number;
+  UserName: string;
+  Company?: string | null;
+  total_seconds: number;
+  total_hms: string;
+  sessions_count: number;
+  days_count: number;
+};
+
+type WorksiteReportRow = {
+  worksite: string;
+  raw_worksite?: string | null;
+  people_count: number;
+  active_days_count: number;
+  person_days_count: number;
+  total_sessions: number;
+  total_seconds: number;
+  total_hms: string;
+  last_activity?: string | null;
+  people: WorksitePersonRow[];
+};
+
+type WorksiteReportSummary = {
+  worksites_count: number;
+  people_count: number;
+  active_days_count: number;
+  person_days_count: number;
+  total_sessions: number;
+  total_seconds: number;
+  total_hms: string;
+};
 
 @Component({
   selector: 'app-rapoarte',
@@ -14,6 +46,7 @@ export class RapoarteComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCompanies();
+    this.loadWorksiteReport();
   }
 
   private loadCompanies(): void {
@@ -54,6 +87,14 @@ export class RapoarteComponent implements OnInit {
   // Raport pe zi
   dayDate = this.todayISO();
   dayError: string | null = null;
+
+  // Raport șantiere pe perioadă
+  worksiteStartDate = this.currentMonthStartISO();
+  worksiteEndDate = this.todayISO();
+  loadingWorksiteReport = false;
+  worksiteReportError: string | null = null;
+  worksiteReportRows: WorksiteReportRow[] = [];
+  worksiteReportSummary: WorksiteReportSummary | null = null;
 
   // Raport pe firmă + lună
   companies: string[] = [];
@@ -116,6 +157,104 @@ export class RapoarteComponent implements OnInit {
     const d = new Date();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     return `${d.getFullYear()}-${mm}`;
+  }
+
+  currentMonthStartISO(): string {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${d.getFullYear()}-${mm}-01`;
+  }
+
+  formatDateTime(value?: string | null): string {
+    if (!value) {
+      return '—';
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+
+    return parsed.toLocaleString('ro-RO', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  loadWorksiteReport(): void {
+    this.worksiteReportError = null;
+
+    if (!this.worksiteStartDate || !this.worksiteEndDate) {
+      this.worksiteReportError = 'Alege intervalul pentru raportul pe șantiere.';
+      return;
+    }
+
+    if (this.worksiteStartDate > this.worksiteEndDate) {
+      this.worksiteReportError = 'Data de început trebuie să fie înainte de data de sfârșit.';
+      return;
+    }
+
+    this.loadingWorksiteReport = true;
+
+    this.api.getAttendanceWorksiteReport(this.worksiteStartDate, this.worksiteEndDate).subscribe({
+      next: (res) => {
+        this.worksiteReportRows = res?.rows ?? [];
+        this.worksiteReportSummary = res?.summary ?? null;
+        this.loadingWorksiteReport = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.loadingWorksiteReport = false;
+        this.worksiteReportRows = [];
+        this.worksiteReportSummary = null;
+        this.worksiteReportError = 'Nu am putut încărca raportul pe șantiere.';
+      }
+    });
+  }
+
+  downloadWorksiteReportCsv(): void {
+    if (!this.worksiteReportRows.length) {
+      this.worksiteReportError = 'Nu există date de exportat pentru perioada selectată.';
+      return;
+    }
+
+    const header = [
+      'Santier',
+      'Oameni unici',
+      'Ore totale',
+      'Sesiuni',
+      'Zile active',
+      'Om-zile',
+      'Ultima activitate',
+      'Oameni'
+    ];
+    const lines = [header.join(',')];
+
+    for (const row of this.worksiteReportRows) {
+      const people = row.people
+        .map(person => `${person.UserName} (${person.total_hms})`)
+        .join('; ');
+
+      const vals = [
+        `"${row.worksite.replace(/"/g, '""')}"`,
+        row.people_count,
+        row.total_hms,
+        row.total_sessions,
+        row.active_days_count,
+        row.person_days_count,
+        `"${this.formatDateTime(row.last_activity).replace(/"/g, '""')}"`,
+        `"${people.replace(/"/g, '""')}"`
+      ];
+      lines.push(vals.join(','));
+    }
+
+    const csv = lines.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const fname = `raport_santiere_${this.worksiteStartDate}_${this.worksiteEndDate}.csv`;
+    this.triggerDownload(blob, fname);
   }
 
   /* Raport pe zi – CSV din /api/pontaj/day/ */

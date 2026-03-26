@@ -1643,6 +1643,133 @@ def attendance_range(request):
     return JsonResponse({"start": str(start), "end": str(end), "users": result})
 
 
+@csrf_exempt
+def attendance_worksite_report(request):
+    """GET /api/pontaj/reports/worksites/?start=YYYY-MM-DD&end=YYYY-MM-DD"""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    start = _parse_iso_date(request.GET.get("start") or str(localdate()))
+    end = _parse_iso_date(request.GET.get("end") or str(localdate()))
+    if end < start:
+        start, end = end, start
+
+    now = timezone.now()
+    qs = (
+        AttendanceSession.objects
+        .filter(work_date__range=(start, end))
+        .select_related("user_fk")
+        .order_by("worksite", "user_fk__UserName", "in_time")
+    )
+
+    worksites = {}
+    total_users = set()
+    total_days = set()
+    total_person_days = set()
+    total_seconds = 0
+    total_sessions = 0
+
+    for session in qs:
+        user = session.user_fk
+        worksite_key = (session.worksite or "").strip()
+        worksite_label = worksite_key or "Fără șantier asignat"
+
+        duration = session.duration_seconds
+        if session.out_time is None:
+            duration = int((now - session.in_time).total_seconds())
+        duration = max(0, int(duration or 0))
+
+        bucket = worksites.setdefault(
+            worksite_key,
+            {
+                "worksite": worksite_label,
+                "raw_worksite": worksite_key or None,
+                "total_seconds": 0,
+                "total_sessions": 0,
+                "days": set(),
+                "person_days": set(),
+                "people": {},
+                "last_activity": None,
+            },
+        )
+
+        bucket["total_seconds"] += duration
+        bucket["total_sessions"] += 1
+        bucket["days"].add(session.work_date.isoformat())
+        bucket["person_days"].add((user.UserId, session.work_date.isoformat()))
+
+        person = bucket["people"].setdefault(
+            user.UserId,
+            {
+                "UserId": user.UserId,
+                "UserName": user.UserName,
+                "Company": user.Company,
+                "total_seconds": 0,
+                "sessions_count": 0,
+                "days": set(),
+            },
+        )
+        person["total_seconds"] += duration
+        person["sessions_count"] += 1
+        person["days"].add(session.work_date.isoformat())
+
+        activity_dt = session.out_time or session.in_time
+        if activity_dt and (bucket["last_activity"] is None or activity_dt > bucket["last_activity"]):
+            bucket["last_activity"] = activity_dt
+
+        total_users.add(user.UserId)
+        total_days.add(session.work_date.isoformat())
+        total_person_days.add((user.UserId, session.work_date.isoformat()))
+        total_seconds += duration
+        total_sessions += 1
+
+    rows = []
+    for item in worksites.values():
+        people = []
+        for person in item["people"].values():
+            people.append({
+                "UserId": person["UserId"],
+                "UserName": person["UserName"],
+                "Company": person["Company"],
+                "total_seconds": person["total_seconds"],
+                "total_hms": _fmt_hms(person["total_seconds"]),
+                "sessions_count": person["sessions_count"],
+                "days_count": len(person["days"]),
+            })
+
+        people.sort(key=lambda p: (-p["total_seconds"], p["UserName"].lower()))
+
+        rows.append({
+            "worksite": item["worksite"],
+            "raw_worksite": item["raw_worksite"],
+            "people_count": len(item["people"]),
+            "active_days_count": len(item["days"]),
+            "person_days_count": len(item["person_days"]),
+            "total_sessions": item["total_sessions"],
+            "total_seconds": item["total_seconds"],
+            "total_hms": _fmt_hms(item["total_seconds"]),
+            "last_activity": localtime(item["last_activity"]).isoformat() if item["last_activity"] else None,
+            "people": people,
+        })
+
+    rows.sort(key=lambda r: (-r["people_count"], -r["total_seconds"], r["worksite"].lower()))
+
+    return JsonResponse({
+        "start": str(start),
+        "end": str(end),
+        "summary": {
+            "worksites_count": len(rows),
+            "people_count": len(total_users),
+            "active_days_count": len(total_days),
+            "person_days_count": len(total_person_days),
+            "total_sessions": total_sessions,
+            "total_seconds": total_seconds,
+            "total_hms": _fmt_hms(total_seconds),
+        },
+        "rows": rows,
+    })
+
+
 
 from django.shortcuts import render
 
@@ -3236,7 +3363,6 @@ def _audit_line(request, msg: str, extra: dict | None = None):
                 f.write(line + "\n")
     except Exception:
         logger.exception("Cannot write pontaj audit log")
-
 
 
 
