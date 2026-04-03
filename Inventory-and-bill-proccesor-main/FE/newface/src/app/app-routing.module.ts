@@ -14,6 +14,7 @@ import { ShelfsComponent } from './shelfs/shelfs.component';
 import { PontajComponent } from './pontaj/pontaj.component';
 import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 import { RapoarteComponent } from './pontaj/rapoarte/rapoarte.component';
+import { ClockinandoutComponent } from './clockinandout/clockinandout.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -26,6 +27,9 @@ const routes: Routes = [
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj', component: PontajComponent, canActivate: [AuthGuard] },
+
+  // Pontaj manual separat
+  { path: 'clockinandout', component: ClockinandoutComponent },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard] },

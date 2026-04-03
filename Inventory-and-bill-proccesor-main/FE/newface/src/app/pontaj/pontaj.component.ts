@@ -157,4 +157,3 @@ seeAngajat(id: number) {
     this.router.navigate(['/pontaj/rapoarte']);
   }
 }
-

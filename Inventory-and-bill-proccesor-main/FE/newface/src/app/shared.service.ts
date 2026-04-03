@@ -5,8 +5,8 @@ import { Observable } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class SharedService {
   // aceeași origine + prefix '/api'
-  private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api';
-
+  //private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api'; http://127.0.0.1:8000/
+  private readonly API = 'http://127.0.0.1:8000/api';
   constructor(private http: HttpClient) {}
 
   admin = false;
@@ -90,6 +90,21 @@ getAttendanceDay(date?: string) {
   // era this.http.get(`${this.API}/pontaj/day/`, ...)
   return this.http.get<any>(`${this.API}/pontaj/day/`, { params: date ? { date } : {} });
 }
+
+  manualAttendanceByPin(pin: string, worksite?: string) {
+    const body: any = {
+      uid: 'MANUAL',
+      tag_type: 'manual',
+      content: pin,
+      timestamp: new Date().toISOString()
+    };
+
+    if (worksite) {
+      body.worksite = worksite;
+    }
+
+    return this.http.post<any>(`${this.API}/nfc/scan/`, body);
+  }
 
   getAttendancePresent()               { return this.http.get(`${this.API}/pontaj/present/`); }
   getAttendanceRange(start: string, end: string) {

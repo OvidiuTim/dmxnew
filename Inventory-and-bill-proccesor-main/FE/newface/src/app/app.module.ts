@@ -31,6 +31,7 @@ import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { AuthInterceptor } from './auth/auth.interceptor';
 import { RapoarteComponent } from './pontaj/rapoarte/rapoarte.component';
+import { ClockinandoutComponent } from './clockinandout/clockinandout.component';
 
 @NgModule({
   declarations: [
@@ -52,6 +53,7 @@ import { RapoarteComponent } from './pontaj/rapoarte/rapoarte.component';
     PontajComponent,
     UserpontatComponent,
     RapoarteComponent,
+    ClockinandoutComponent,
   ],
   imports: [
     CommonModule,
