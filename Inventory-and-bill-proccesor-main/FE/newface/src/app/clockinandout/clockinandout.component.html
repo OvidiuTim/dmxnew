@@ -10,7 +10,6 @@
       <div class="clock-card">
         <div class="clock-time">{{ formattedTime }}</div>
         <div class="clock-date">{{ formattedDate }}</div>
-        <button type="button" class="report-link" (click)="backToPontaj()">{{ t.back }}</button>
       </div>
     </header>
 
@@ -25,6 +24,20 @@
         <span class="language-native">{{ language.nativeLabel }}</span>
         <span class="language-secondary">{{ language.secondaryLabel }}</span>
       </button>
+
+      <div class="worksite-picker">
+        <label for="worksite-select">{{ t.worksiteLabel }}</label>
+        <select
+          id="worksite-select"
+          [ngModel]="selectedWorksite"
+          (ngModelChange)="setWorksite($event)"
+          name="worksite"
+        >
+          <option value="">{{ t.worksitePlaceholder }}</option>
+          <option *ngFor="let worksite of worksites" [value]="worksite.name">{{ worksite.name }}</option>
+        </select>
+        <p>{{ t.worksiteHelper }}</p>
+      </div>
     </section>
 
     <div class="content-grid">
@@ -48,8 +61,8 @@
           />
 
           <p class="pin-hint">{{ t.keypadHint }}</p>
-          <p class="gate-note" [class.ready]="canSubmit">
-            {{ canSubmit ? t.zoneAllowed : t.zoneRestriction }}
+          <p class="gate-note" [class.ready]="gateReady">
+            {{ gateMessage }}
           </p>
 
           <button type="submit" class="submit-btn" [disabled]="!canSubmit">
@@ -109,8 +122,8 @@
         <div #mapContainer class="map-container"></div>
 
         <div class="map-meta">
-          <div class="meta-pill strong">{{ t.adminZoneLabel }}: {{ adminZone.name }}</div>
-          <div class="meta-pill">{{ t.zoneCenterLabel }}: {{ formatCoordinates(adminZone.center.lat, adminZone.center.lng) }}</div>
+          <div class="meta-pill strong">{{ t.selectedWorksiteLabel }}: {{ selectedWorksite || t.worksitePlaceholder }}</div>
+          <div class="meta-pill">{{ t.zoneCenterLabel }}: {{ formatCoordinates(activeZoneCenter.lat, activeZoneCenter.lng) }}</div>
           <div class="meta-pill" *ngIf="currentPosition">{{ t.yourPositionLabel }}: {{ formatCoordinates(currentPosition.lat, currentPosition.lng) }}</div>
           <div class="meta-pill" *ngIf="currentPosition">{{ t.accuracyLabel(currentPosition.accuracy) }}</div>
         </div>

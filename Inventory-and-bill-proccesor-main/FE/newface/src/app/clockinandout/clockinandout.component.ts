@@ -1,5 +1,4 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
 import * as L from 'leaflet';
 import { SharedService } from '../shared.service';
 
@@ -7,6 +6,7 @@ type LanguageCode = 'ro' | 'en' | 'pa' | 'hi' | 'ne';
 type FeedbackKind = 'enter' | 'exit' | 'error';
 type AttendanceState = 'ENTER' | 'EXIT';
 type LocationState = 'loading' | 'inside' | 'outside' | 'denied' | 'unsupported' | 'error';
+type WorksiteType = 'polygon' | 'circle';
 
 interface LanguageOption {
   code: LanguageCode;
@@ -28,11 +28,12 @@ interface CurrentPosition {
   accuracy: number;
 }
 
-interface MapBounds {
-  north: number;
-  south: number;
-  east: number;
-  west: number;
+interface WorksiteDefinition {
+  name: string;
+  type: WorksiteType;
+  center: { lat: number; lng: number };
+  polygon?: L.LatLngTuple[];
+  radiusMeters?: number;
 }
 
 interface TranslationPack {
@@ -41,7 +42,10 @@ interface TranslationPack {
   stepLocation: string;
   headline: string;
   subtitle: string;
-  back: string;
+  worksiteLabel: string;
+  worksitePlaceholder: string;
+  worksiteHelper: string;
+  worksiteRequired: string;
   pinLabel: string;
   pinPlaceholder: string;
   keypadHint: string;
@@ -77,7 +81,7 @@ interface TranslationPack {
   gpsErrorDetail: string;
   zoneLegend: string;
   youLegend: string;
-  adminZoneLabel: string;
+  selectedWorksiteLabel: string;
   zoneCenterLabel: string;
   yourPositionLabel: string;
   accuracyLabel: (meters: number) => string;
@@ -105,19 +109,46 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   readonly keypadDigits = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
+  readonly sharedLakeHomePolygon: L.LatLngTuple[] = [
+    [45.81016508199533, 24.12913284860785],
+    [45.80900035744908, 24.13132468504609],
+    [45.80957539997287, 24.131899926516482],
+    [45.81063346838532, 24.12999982341415]
+  ];
+
+  readonly sharedLakeHomeCenter = this.computePolygonCenter(this.sharedLakeHomePolygon);
+
+  readonly worksites: WorksiteDefinition[] = [
+    { name: 'The Lake Home Bloc A', type: 'polygon', center: this.sharedLakeHomeCenter, polygon: this.sharedLakeHomePolygon },
+    { name: 'The Lake Home Bloc B2', type: 'polygon', center: this.sharedLakeHomeCenter, polygon: this.sharedLakeHomePolygon },
+    { name: 'The Lake Home Blocurile E si F', type: 'polygon', center: this.sharedLakeHomeCenter, polygon: this.sharedLakeHomePolygon },
+    { name: 'psihiatrie c8', type: 'circle', center: { lat: 45.80720228440877, lng: 24.15440514734915 }, radiusMeters: 30 },
+    { name: 'psihiatrie c16', type: 'circle', center: { lat: 45.80768553302182, lng: 24.157085884823974 }, radiusMeters: 30 },
+    { name: 'spital victoria', type: 'circle', center: { lat: 45.725861888407216, lng: 24.70584969156609 }, radiusMeters: 30 },
+    { name: 'casa de cultura victoria', type: 'circle', center: { lat: 45.73050790281027, lng: 24.70109770865094 }, radiusMeters: 30 },
+    { name: 'bazin ucea', type: 'circle', center: { lat: 45.70058115535115, lng: 24.689376326811146 }, radiusMeters: 30 },
+    { name: 'bloc agnita', type: 'circle', center: { lat: 45.97724541353617, lng: 24.62272565333796 }, radiusMeters: 30 },
+    { name: 'gradinita agnita', type: 'circle', center: { lat: 45.97789754940184, lng: 24.61674765866955 }, radiusMeters: 30 },
+    { name: 'bloc 14 victoria', type: 'circle', center: { lat: 45.73336901742498, lng: 24.701707107591304 }, radiusMeters: 30 },
+    { name: 'bloc 3 victoria', type: 'circle', center: { lat: 45.73105012404724, lng: 24.696154238062714 }, radiusMeters: 30 }
+  ];
+
   readonly translations: Record<LanguageCode, TranslationPack> = {
     ro: {
       stepLanguage: 'Alege limba',
       stepPin: 'Introduceti PIN-ul',
       stepLocation: 'Locatie GPS',
       headline: 'Pontaj manual',
-      subtitle: 'Fiecare angajat isi poate face pontajul de pe telefon. Check-in-ul este permis doar in zona stabilita de administrator.',
-      back: 'Inapoi la pontaj',
+      subtitle: 'Fiecare angajat isi poate face pontajul de pe telefon. Check-in-ul este permis doar daca esti pe santierul selectat.',
+      worksiteLabel: 'Alege santierul unde o sa lucrezi sau ai lucrat azi',
+      worksitePlaceholder: 'Alege santierul',
+      worksiteHelper: 'Primele 3 santiere folosesc poligonul Lake Home, iar restul folosesc cercuri de 30 m.',
+      worksiteRequired: 'Alege santierul unde o sa lucrezi sau ai lucrat azi.',
       pinLabel: 'Introduceti PIN-ul',
       pinPlaceholder: 'PIN angajat',
       keypadHint: 'Poti folosi tastatura sau butoanele numerice.',
-      zoneAllowed: 'Esti in zona selectata. Poti face check-in.',
-      zoneRestriction: 'Check-in-ul este blocat pana intri in patratul verde.',
+      zoneAllowed: 'Esti in interiorul santierului selectat. Poti sa te pontezi.',
+      zoneRestriction: 'Nu esti pe santier.',
       refreshGps: 'Actualizeaza GPS',
       submit: 'Check in / Check out',
       processing: 'Se proceseaza...',
@@ -130,13 +161,13 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       genericError: 'Nu am putut inregistra pontajul acum. Incearca din nou.',
       gpsLoadingBadge: 'GPS se conecteaza',
       gpsLoadingTitle: 'Cerem pozitia curenta a telefonului.',
-      gpsLoadingDetail: 'Accepta accesul la locatie pentru a vedea daca esti in zona verde.',
+      gpsLoadingDetail: 'Accepta accesul la locatie pentru a verifica daca esti in zona santierului.',
       gpsInsideBadge: 'Esti in perimetru',
-      gpsInsideTitle: 'Pozitia ta este in patratul selectat de administrator.',
+      gpsInsideTitle: 'Pozitia ta este in interiorul santierului selectat.',
       gpsInsideDetail: 'Poti trimite check-in-ul imediat.',
       gpsOutsideBadge: 'Esti in afara',
-      gpsOutsideTitle: 'Pozitia ta nu este in patratul verde.',
-      gpsOutsideDetail: 'Mergi in zona marcata pe harta pentru a activa butonul.',
+      gpsOutsideTitle: 'Nu esti pe santier.',
+      gpsOutsideDetail: 'Mergi in zona verde pentru a activa butonul.',
       gpsDeniedBadge: 'GPS dezactivat',
       gpsDeniedTitle: 'Nu avem permisiune pentru localizare.',
       gpsDeniedDetail: 'Activeaza locatia in browserul telefonului si apasa din nou pe Actualizeaza GPS.',
@@ -146,9 +177,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       gpsErrorBadge: 'GPS instabil',
       gpsErrorTitle: 'Nu am reusit sa citesc pozitia curenta.',
       gpsErrorDetail: 'Verifica semnalul GPS si incearca din nou.',
-      zoneLegend: 'Zona aprobata',
+      zoneLegend: 'Zona santier',
       youLegend: 'Pozitia mea',
-      adminZoneLabel: 'Zona demo admin',
+      selectedWorksiteLabel: 'Santier selectat',
       zoneCenterLabel: 'Centru zona',
       yourPositionLabel: 'Pozitia ta',
       accuracyLabel: (meters: number) => `Acuratete GPS: aproximativ ${Math.round(meters)} m`,
@@ -161,13 +192,16 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       stepPin: 'Enter PIN',
       stepLocation: 'GPS location',
       headline: 'Manual attendance',
-      subtitle: 'Each employee can clock in from their own phone. Check-in is allowed only inside the area selected by the administrator.',
-      back: 'Back to attendance',
+      subtitle: 'Each employee can clock in from their own phone. Check-in is allowed only when you are on the selected worksite.',
+      worksiteLabel: 'Choose the worksite where you will work or worked today',
+      worksitePlaceholder: 'Choose worksite',
+      worksiteHelper: 'The first 3 worksites use the Lake Home polygon and the rest use 30 m circles.',
+      worksiteRequired: 'Choose the worksite where you will work or worked today.',
       pinLabel: 'Enter PIN',
       pinPlaceholder: 'Employee PIN',
       keypadHint: 'You can use the keyboard or the numeric keypad.',
-      zoneAllowed: 'You are inside the selected area. Check-in is enabled.',
-      zoneRestriction: 'Check-in is blocked until you enter the green square.',
+      zoneAllowed: 'You are inside the selected worksite. Check-in is enabled.',
+      zoneRestriction: 'You are not on the worksite.',
       refreshGps: 'Refresh GPS',
       submit: 'Check in / Check out',
       processing: 'Processing...',
@@ -180,13 +214,13 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       genericError: 'The attendance could not be recorded right now. Please try again.',
       gpsLoadingBadge: 'GPS loading',
       gpsLoadingTitle: 'We are requesting the current phone location.',
-      gpsLoadingDetail: 'Allow location access to check whether you are inside the green area.',
-      gpsInsideBadge: 'Inside the zone',
-      gpsInsideTitle: 'Your location is inside the area selected by the administrator.',
+      gpsLoadingDetail: 'Allow location access to verify whether you are inside the worksite area.',
+      gpsInsideBadge: 'Inside the area',
+      gpsInsideTitle: 'Your location is inside the selected worksite.',
       gpsInsideDetail: 'You can submit the check-in now.',
-      gpsOutsideBadge: 'Outside the zone',
-      gpsOutsideTitle: 'Your location is outside the green square.',
-      gpsOutsideDetail: 'Move into the marked area on the map to enable the button.',
+      gpsOutsideBadge: 'Outside the area',
+      gpsOutsideTitle: 'You are not on the worksite.',
+      gpsOutsideDetail: 'Move into the green area to enable the button.',
       gpsDeniedBadge: 'GPS blocked',
       gpsDeniedTitle: 'We do not have permission to access location.',
       gpsDeniedDetail: 'Enable location in the phone browser and press Refresh GPS again.',
@@ -196,9 +230,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       gpsErrorBadge: 'GPS unstable',
       gpsErrorTitle: 'We could not read the current position.',
       gpsErrorDetail: 'Check GPS signal and try again.',
-      zoneLegend: 'Allowed area',
+      zoneLegend: 'Worksite area',
       youLegend: 'My position',
-      adminZoneLabel: 'Admin demo area',
+      selectedWorksiteLabel: 'Selected worksite',
       zoneCenterLabel: 'Zone center',
       yourPositionLabel: 'Your position',
       accuracyLabel: (meters: number) => `GPS accuracy: about ${Math.round(meters)} m`,
@@ -211,13 +245,16 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       stepPin: 'ਪਿੰਨ ਦਾਖਲ ਕਰੋ',
       stepLocation: 'GPS ਥਾਂ',
       headline: 'ਮੈਨੁਅਲ ਹਾਜ਼ਰੀ',
-      subtitle: 'ਹਰ ਕਰਮਚਾਰੀ ਆਪਣੇ ਫੋਨ ਤੋਂ ਹਾਜ਼ਰੀ ਲਗਾ ਸਕਦਾ ਹੈ। ਚੈਕ-ਇਨ ਸਿਰਫ਼ ਐਡਮਿਨ ਵਾਲੀ ਚੁਣੀ ਹੋਈ ਜਗ੍ਹਾ ਅੰਦਰ ਹੀ ਹੋਵੇਗਾ।',
-      back: 'ਹਾਜ਼ਰੀ ਵੱਲ ਵਾਪਸ',
+      subtitle: 'ਹਰ ਕਰਮਚਾਰੀ ਆਪਣੇ ਫੋਨ ਤੋਂ ਹਾਜ਼ਰੀ ਲਗਾ ਸਕਦਾ ਹੈ। ਚੈਕ-ਇਨ ਸਿਰਫ਼ ਚੁਣੀ ਹੋਈ ਸਾਈਟ ਅੰਦਰ ਹੋਵੇਗਾ।',
+      worksiteLabel: 'ਅੱਜ ਜਿਸ ਸਾਈਟ ਤੇ ਕੰਮ ਕਰਨਾ ਹੈ ਜਾਂ ਕੀਤਾ ਹੈ, ਉਹ ਚੁਣੋ',
+      worksitePlaceholder: 'ਸਾਈਟ ਚੁਣੋ',
+      worksiteHelper: 'ਪਹਿਲੀਆਂ 3 ਸਾਈਟਾਂ Lake Home ਵਾਲੇ ਪੋਲਿਗਨ ਤੇ ਹਨ, ਬਾਕੀਆਂ 30 ਮੀਟਰ ਦੇ ਘੇਰੇ ਤੇ ਹਨ।',
+      worksiteRequired: 'ਅੱਜ ਜਿਸ ਸਾਈਟ ਤੇ ਕੰਮ ਕਰਨਾ ਹੈ ਜਾਂ ਕੀਤਾ ਹੈ, ਉਹ ਚੁਣੋ।',
       pinLabel: 'ਪਿੰਨ ਦਾਖਲ ਕਰੋ',
       pinPlaceholder: 'ਕਰਮਚਾਰੀ ਪਿੰਨ',
       keypadHint: 'ਤੁਸੀਂ ਕੀਬੋਰਡ ਜਾਂ ਨੰਬਰ ਬਟਨ ਵਰਤ ਸਕਦੇ ਹੋ।',
-      zoneAllowed: 'ਤੁਸੀਂ ਚੁਣੀ ਹੋਈ ਜ਼ੋਨ ਵਿੱਚ ਹੋ। ਚੈਕ-ਇਨ ਚਾਲੂ ਹੈ।',
-      zoneRestriction: 'ਜਦ ਤੱਕ ਤੁਸੀਂ ਹਰੇ ਵਰਗ ਵਿੱਚ ਨਹੀਂ ਆਉਂਦੇ, ਚੈਕ-ਇਨ ਬੰਦ ਰਹੇਗਾ।',
+      zoneAllowed: 'ਤੁਸੀਂ ਚੁਣੀ ਹੋਈ ਸਾਈਟ ਦੇ ਅੰਦਰ ਹੋ। ਚੈਕ-ਇਨ ਚਾਲੂ ਹੈ।',
+      zoneRestriction: 'ਤੁਸੀਂ ਸਾਈਟ ਤੇ ਨਹੀਂ ਹੋ।',
       refreshGps: 'GPS ਤਾਜ਼ਾ ਕਰੋ',
       submit: 'ਚੈਕ ਇਨ / ਚੈਕ ਆਉਟ',
       processing: 'ਕਾਰਵਾਈ ਜਾਰੀ ਹੈ...',
@@ -230,13 +267,13 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       genericError: 'ਇਸ ਵੇਲੇ ਹਾਜ਼ਰੀ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕੀ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
       gpsLoadingBadge: 'GPS ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ',
       gpsLoadingTitle: 'ਫੋਨ ਦੀ ਮੌਜੂਦਾ ਲੋਕੇਸ਼ਨ ਲਈ ਬੇਨਤੀ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ।',
-      gpsLoadingDetail: 'ਹਰੇ ਇਲਾਕੇ ਵਿੱਚ ਹੋ ਜਾਂ ਨਹੀਂ ਵੇਖਣ ਲਈ ਲੋਕੇਸ਼ਨ ਦੀ ਆਗਿਆ ਦਿਓ।',
-      gpsInsideBadge: 'ਜ਼ੋਨ ਅੰਦਰ',
-      gpsInsideTitle: 'ਤੁਹਾਡੀ ਲੋਕੇਸ਼ਨ ਐਡਮਿਨ ਵਾਲੀ ਚੁਣੀ ਜ਼ੋਨ ਅੰਦਰ ਹੈ।',
+      gpsLoadingDetail: 'ਲੋਕੇਸ਼ਨ ਦੀ ਆਗਿਆ ਦਿਓ ਤਾਂ ਜੋ ਪਤਾ ਲੱਗੇ ਕਿ ਤੁਸੀਂ ਸਾਈਟ ਦੀ ਜ਼ੋਨ ਵਿੱਚ ਹੋ ਜਾਂ ਨਹੀਂ।',
+      gpsInsideBadge: 'ਪੇਰੀਮੀਟਰ ਅੰਦਰ',
+      gpsInsideTitle: 'ਤੁਹਾਡੀ ਲੋਕੇਸ਼ਨ ਚੁਣੀ ਹੋਈ ਸਾਈਟ ਦੇ ਅੰਦਰ ਹੈ।',
       gpsInsideDetail: 'ਹੁਣ ਤੁਸੀਂ ਚੈਕ-ਇਨ ਭੇਜ ਸਕਦੇ ਹੋ।',
-      gpsOutsideBadge: 'ਜ਼ੋਨ ਤੋਂ ਬਾਹਰ',
-      gpsOutsideTitle: 'ਤੁਹਾਡੀ ਲੋਕੇਸ਼ਨ ਹਰੇ ਵਰਗ ਤੋਂ ਬਾਹਰ ਹੈ।',
-      gpsOutsideDetail: 'ਬਟਨ ਚਾਲੂ ਕਰਨ ਲਈ ਹਾਰਟੇ ਵਾਲੇ ਇਲਾਕੇ ਵਿੱਚ ਜਾਓ।',
+      gpsOutsideBadge: 'ਪੇਰੀਮੀਟਰ ਤੋਂ ਬਾਹਰ',
+      gpsOutsideTitle: 'ਤੁਸੀਂ ਸਾਈਟ ਤੇ ਨਹੀਂ ਹੋ।',
+      gpsOutsideDetail: 'ਬਟਨ ਚਾਲੂ ਕਰਨ ਲਈ ਹਰੀ ਜ਼ੋਨ ਵਿੱਚ ਜਾਓ।',
       gpsDeniedBadge: 'GPS ਬੰਦ',
       gpsDeniedTitle: 'ਸਾਨੂੰ ਲੋਕੇਸ਼ਨ ਦੀ ਆਗਿਆ ਨਹੀਂ ਮਿਲੀ।',
       gpsDeniedDetail: 'ਫੋਨ ਦੇ ਬਰਾਊਜ਼ਰ ਵਿੱਚ ਲੋਕੇਸ਼ਨ ਚਾਲੂ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ GPS ਤਾਜ਼ਾ ਕਰੋ ਦਬਾਓ।',
@@ -246,9 +283,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       gpsErrorBadge: 'GPS ਅਸਥਿਰ',
       gpsErrorTitle: 'ਮੌਜੂਦਾ ਲੋਕੇਸ਼ਨ ਨਹੀਂ ਪੜ੍ਹੀ ਜਾ ਸਕੀ।',
       gpsErrorDetail: 'GPS ਸਿਗਨਲ ਚੈਕ ਕਰੋ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
-      zoneLegend: 'ਮੰਜ਼ੂਰ ਜ਼ੋਨ',
+      zoneLegend: 'ਸਾਈਟ ਜ਼ੋਨ',
       youLegend: 'ਮੇਰੀ ਲੋਕੇਸ਼ਨ',
-      adminZoneLabel: 'ਐਡਮਿਨ ਡੈਮੋ ਜ਼ੋਨ',
+      selectedWorksiteLabel: 'ਚੁਣੀ ਹੋਈ ਸਾਈਟ',
       zoneCenterLabel: 'ਜ਼ੋਨ ਕੇਂਦਰ',
       yourPositionLabel: 'ਤੁਹਾਡੀ ਲੋਕੇਸ਼ਨ',
       accuracyLabel: (meters: number) => `GPS ਸਹੀਪਨ: ਲਗਭਗ ${Math.round(meters)} ਮੀਟਰ`,
@@ -261,13 +298,16 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       stepPin: 'पिन दर्ज करें',
       stepLocation: 'GPS स्थान',
       headline: 'मैनुअल उपस्थिति',
-      subtitle: 'हर कर्मचारी अपने फोन से उपस्थिति दर्ज कर सकता है। चेक-इन केवल एडमिन द्वारा चुने गए क्षेत्र के अंदर ही होगा।',
-      back: 'उपस्थिति पर वापस जाएं',
+      subtitle: 'हर कर्मचारी अपने फोन से उपस्थिति दर्ज कर सकता है। चेक-इन केवल चुनी हुई साइट के अंदर होगा।',
+      worksiteLabel: 'आज जिस साइट पर काम करोगे या कर चुके हो उसे चुनें',
+      worksitePlaceholder: 'साइट चुनें',
+      worksiteHelper: 'पहली 3 साइटें Lake Home पॉलीगॉन पर हैं और बाकी 30 मीटर सर्कल पर हैं।',
+      worksiteRequired: 'आज जिस साइट पर काम करोगे या कर चुके हो उसे चुनें।',
       pinLabel: 'पिन दर्ज करें',
       pinPlaceholder: 'कर्मचारी पिन',
       keypadHint: 'आप कीबोर्ड या नंबर बटन दोनों का उपयोग कर सकते हैं।',
-      zoneAllowed: 'आप चुने हुए क्षेत्र के अंदर हैं। चेक-इन चालू है।',
-      zoneRestriction: 'जब तक आप हरे वर्ग के अंदर नहीं आते, चेक-इन बंद रहेगा।',
+      zoneAllowed: 'आप चुनी हुई साइट के अंदर हैं। चेक-इन चालू है।',
+      zoneRestriction: 'आप साइट पर नहीं हैं।',
       refreshGps: 'GPS रीफ्रेश करें',
       submit: 'चेक इन / चेक आउट',
       processing: 'प्रोसेस हो रहा है...',
@@ -280,13 +320,13 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       genericError: 'अभी उपस्थिति दर्ज नहीं हो सकी। कृपया फिर से प्रयास करें।',
       gpsLoadingBadge: 'GPS लोड हो रहा है',
       gpsLoadingTitle: 'फोन की वर्तमान लोकेशन ली जा रही है।',
-      gpsLoadingDetail: 'यह देखने के लिए लोकेशन अनुमति दें कि आप हरे क्षेत्र में हैं या नहीं।',
+      gpsLoadingDetail: 'यह देखने के लिए लोकेशन अनुमति दें कि आप साइट की ज़ोन में हैं या नहीं।',
       gpsInsideBadge: 'क्षेत्र के अंदर',
-      gpsInsideTitle: 'आपकी लोकेशन एडमिन द्वारा चुने गए क्षेत्र के अंदर है।',
+      gpsInsideTitle: 'आपकी लोकेशन चुनी हुई साइट के अंदर है।',
       gpsInsideDetail: 'अब आप चेक-इन भेज सकते हैं।',
       gpsOutsideBadge: 'क्षेत्र के बाहर',
-      gpsOutsideTitle: 'आपकी लोकेशन हरे वर्ग के बाहर है।',
-      gpsOutsideDetail: 'बटन चालू करने के लिए नक्शे पर दिखाए गए क्षेत्र में जाएं।',
+      gpsOutsideTitle: 'आप साइट पर नहीं हैं।',
+      gpsOutsideDetail: 'बटन चालू करने के लिए हरे क्षेत्र में जाएं।',
       gpsDeniedBadge: 'GPS बंद',
       gpsDeniedTitle: 'हमें लोकेशन की अनुमति नहीं मिली।',
       gpsDeniedDetail: 'फोन ब्राउज़र में लोकेशन चालू करें और फिर GPS रीफ्रेश करें।',
@@ -296,10 +336,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       gpsErrorBadge: 'GPS अस्थिर',
       gpsErrorTitle: 'वर्तमान लोकेशन नहीं पढ़ी जा सकी।',
       gpsErrorDetail: 'GPS सिग्नल जांचें और फिर से प्रयास करें।',
-      zoneLegend: 'अनुमोदित क्षेत्र',
+      zoneLegend: 'साइट ज़ोन',
       youLegend: 'मेरी लोकेशन',
-      adminZoneLabel: 'एडमिन डेमो क्षेत्र',
-      zoneCenterLabel: 'क्षेत्र केंद्र',
+      selectedWorksiteLabel: 'चुनी हुई साइट',
+      zoneCenterLabel: 'ज़ोन केंद्र',
       yourPositionLabel: 'आपकी लोकेशन',
       accuracyLabel: (meters: number) => `GPS सटीकता: लगभग ${Math.round(meters)} मीटर`,
       successEnter: (name: string) => `${name}, आपकी एंट्री सफलतापूर्वक दर्ज हो गई है।`,
@@ -311,13 +351,16 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       stepPin: 'पिन हाल्नुहोस्',
       stepLocation: 'GPS स्थान',
       headline: 'म्यानुअल हाजिरी',
-      subtitle: 'हरेक कर्मचारीले आफ्नो फोनबाट हाजिरी गर्न सक्छ। चेक-इन एडमिनले छानेको क्षेत्रभित्र मात्र मान्य हुन्छ।',
-      back: 'हाजिरीमा फर्कनुहोस्',
+      subtitle: 'हरेक कर्मचारीले आफ्नो फोनबाट हाजिरी गर्न सक्छ। चेक-इन चयन गरिएको साइटभित्र मात्र मान्य हुन्छ।',
+      worksiteLabel: 'आज काम गर्ने वा गरिसकेको साइट छान्नुहोस्',
+      worksitePlaceholder: 'साइट छान्नुहोस्',
+      worksiteHelper: 'पहिला 3 साइटहरू Lake Home बहुभुजमा छन् र बाँकी 30 मिटर घेरामा छन्।',
+      worksiteRequired: 'आज काम गर्ने वा गरिसकेको साइट छान्नुहोस्।',
       pinLabel: 'पिन हाल्नुहोस्',
       pinPlaceholder: 'कर्मचारी पिन',
       keypadHint: 'किबोर्ड वा अंक बटन दुवै प्रयोग गर्न सकिन्छ।',
-      zoneAllowed: 'तपाईं चयन गरिएको क्षेत्रमा हुनुहुन्छ। चेक-इन खुला छ।',
-      zoneRestriction: 'तपाईं हरियो चौकोनभित्र नआएसम्म चेक-इन बन्द रहनेछ।',
+      zoneAllowed: 'तपाईं चयन गरिएको साइटभित्र हुनुहुन्छ। चेक-इन खुला छ।',
+      zoneRestriction: 'तपाईं साइटमा हुनुहुन्न।',
       refreshGps: 'GPS फेरि जाँच्नुहोस्',
       submit: 'चेक इन / चेक आउट',
       processing: 'प्रक्रिया हुँदैछ...',
@@ -330,13 +373,13 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       genericError: 'अहिले हाजिरी दर्ता गर्न सकिएन। फेरि प्रयास गर्नुहोस्।',
       gpsLoadingBadge: 'GPS लोड हुँदैछ',
       gpsLoadingTitle: 'फोनको हालको स्थान मागिँदैछ।',
-      gpsLoadingDetail: 'तपाईं हरियो क्षेत्रमा हुनुहुन्छ कि छैन भनेर हेर्न स्थान अनुमति दिनुहोस्।',
-      gpsInsideBadge: 'क्षेत्रभित्र',
-      gpsInsideTitle: 'तपाईंको स्थान एडमिनले छानेको क्षेत्रभित्र छ।',
+      gpsLoadingDetail: 'तपाईं साइटको क्षेत्रमा हुनुहुन्छ कि छैन भनेर हेर्न स्थान अनुमति दिनुहोस्।',
+      gpsInsideBadge: 'परिधिभित्र',
+      gpsInsideTitle: 'तपाईंको स्थान चयन गरिएको साइटभित्र छ।',
       gpsInsideDetail: 'अब तपाईं चेक-इन पठाउन सक्नुहुन्छ।',
-      gpsOutsideBadge: 'क्षेत्र बाहिर',
-      gpsOutsideTitle: 'तपाईंको स्थान हरियो चौकोन बाहिर छ।',
-      gpsOutsideDetail: 'बटन सक्रिय गर्न नक्शामा देखाइएको क्षेत्रमा जानुहोस्।',
+      gpsOutsideBadge: 'परिधि बाहिर',
+      gpsOutsideTitle: 'तपाईं साइटमा हुनुहुन्न।',
+      gpsOutsideDetail: 'बटन सक्रिय गर्न हरियो क्षेत्रमा जानुहोस्।',
       gpsDeniedBadge: 'GPS बन्द',
       gpsDeniedTitle: 'हामीलाई स्थान अनुमति छैन।',
       gpsDeniedDetail: 'फोन ब्राउजरमा स्थान अनुमति दिनुहोस् र फेरि GPS थिच्नुहोस्।',
@@ -346,9 +389,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       gpsErrorBadge: 'GPS अस्थिर',
       gpsErrorTitle: 'हालको स्थान पढ्न सकिएन।',
       gpsErrorDetail: 'GPS सिग्नल जाँच्नुहोस् र फेरि प्रयास गर्नुहोस्।',
-      zoneLegend: 'अनुमत क्षेत्र',
+      zoneLegend: 'साइट क्षेत्र',
       youLegend: 'मेरो स्थान',
-      adminZoneLabel: 'एडमिन डेमो क्षेत्र',
+      selectedWorksiteLabel: 'चयन गरिएको साइट',
       zoneCenterLabel: 'क्षेत्रको केन्द्र',
       yourPositionLabel: 'तपाईंको स्थान',
       accuracyLabel: (meters: number) => `GPS शुद्धता: लगभग ${Math.round(meters)} मिटर`,
@@ -358,16 +401,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     }
   };
 
-  // Demo zone centered on the official Lake Home / Lacul lui Binder stop published by Sibiu City Hall.
-  readonly adminZone = {
-    name: 'Sibiu - Tractorului / Lacul lui Binder',
-    center: { lat: 45.808853, lng: 24.131493 },
-    sideMeters: 420
-  };
-
-  readonly zoneBounds = this.createSquareBounds(this.adminZone.center, this.adminZone.sideMeters);
-
   selectedLanguage: LanguageCode = this.readSavedLanguage();
+  selectedWorksite = '';
   pin = '';
   submitting = false;
   currentTime = new Date();
@@ -376,7 +411,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   locationState: LocationState = 'loading';
 
   private map: L.Map | null = null;
-  private zoneRectangle: L.Rectangle | null = null;
+  private zoneShape: L.Polygon | L.Circle | null = null;
   private zoneCenterMarker: L.CircleMarker | null = null;
   private userMarker: L.CircleMarker | null = null;
   private accuracyCircle: L.Circle | null = null;
@@ -385,7 +420,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
   private hasFocusedMap = false;
 
-  constructor(private api: SharedService, private router: Router) {}
+  constructor(private api: SharedService) {}
 
   ngOnInit(): void {
     this.clockTimer = setInterval(() => {
@@ -438,11 +473,39 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     return this.languages.find((language) => language.code === this.selectedLanguage)?.locale ?? 'ro-RO';
   }
 
+  get selectedWorksiteDefinition(): WorksiteDefinition | null {
+    return this.worksites.find((worksite) => worksite.name === this.selectedWorksite) ?? null;
+  }
+
+  get activeZoneCenter(): { lat: number; lng: number } {
+    return this.selectedWorksiteDefinition?.center ?? this.sharedLakeHomeCenter;
+  }
+
   get canSubmit(): boolean {
-    return !!this.pin.trim() && this.locationState === 'inside' && !this.submitting;
+    return !!this.pin.trim() && !!this.selectedWorksite && this.locationState === 'inside' && !this.submitting;
+  }
+
+  get gateReady(): boolean {
+    return !!this.selectedWorksite && this.locationState === 'inside';
+  }
+
+  get gateMessage(): string {
+    if (!this.selectedWorksite) {
+      return this.t.worksiteRequired;
+    }
+
+    if (this.locationState === 'loading') {
+      return this.t.gpsLoadingDetail;
+    }
+
+    return this.locationState === 'inside' ? this.t.zoneAllowed : this.t.zoneRestriction;
   }
 
   get locationBadge(): string {
+    if (!this.selectedWorksite) {
+      return this.t.worksitePlaceholder;
+    }
+
     return {
       loading: this.t.gpsLoadingBadge,
       inside: this.t.gpsInsideBadge,
@@ -454,6 +517,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   get locationTitle(): string {
+    if (!this.selectedWorksite) {
+      return this.t.worksiteLabel;
+    }
+
     return {
       loading: this.t.gpsLoadingTitle,
       inside: this.t.gpsInsideTitle,
@@ -465,6 +532,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   get locationDetail(): string {
+    if (!this.selectedWorksite) {
+      return this.t.worksiteHelper;
+    }
+
     return {
       loading: this.t.gpsLoadingDetail,
       inside: this.t.gpsInsideDetail,
@@ -478,7 +549,19 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   setLanguage(code: LanguageCode): void {
     this.selectedLanguage = code;
     localStorage.setItem('clockinandout-language', code);
+    this.updateZoneTooltip();
     this.focusPinInput();
+  }
+
+  setWorksite(worksite: string): void {
+    this.selectedWorksite = worksite;
+    this.hasFocusedMap = false;
+    this.updateZoneVisualization();
+
+    if (this.currentPosition) {
+      this.recomputeZoneMembership();
+      this.updateUserLayers();
+    }
   }
 
   updatePin(value: string): void {
@@ -513,6 +596,11 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   submitPin(): void {
+    if (!this.selectedWorksite) {
+      this.showError(this.t.worksiteRequired);
+      return;
+    }
+
     if (!this.canSubmit) {
       this.showError(this.t.zoneRestriction);
       return;
@@ -521,7 +609,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     const cleanPin = this.pin.trim();
     this.submitting = true;
 
-    this.api.manualAttendanceByPin(cleanPin, this.adminZone.name).subscribe({
+    this.api.manualAttendanceByPin(cleanPin, this.selectedWorksite).subscribe({
       next: (response) => {
         this.submitting = false;
 
@@ -547,30 +635,24 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     });
   }
 
-  backToPontaj(): void {
-    this.router.navigate(['/pontaj']);
-  }
-
   formatCoordinates(lat: number, lng: number): string {
     return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
   }
 
   private showAttendanceFeedback(state: AttendanceState, userName: string): void {
-    if (state === 'ENTER') {
-      this.feedback = {
-        kind: 'enter',
-        title: this.t.enterTitle,
-        message: this.t.successEnter(userName),
-        stamp: this.t.processedAt(this.formattedTime)
-      };
-    } else {
-      this.feedback = {
-        kind: 'exit',
-        title: this.t.exitTitle,
-        message: this.t.successExit(userName),
-        stamp: this.t.processedAt(this.formattedTime)
-      };
-    }
+    this.feedback = state === 'ENTER'
+      ? {
+          kind: 'enter',
+          title: this.t.enterTitle,
+          message: this.t.successEnter(userName),
+          stamp: this.t.processedAt(this.formattedTime)
+        }
+      : {
+          kind: 'exit',
+          title: this.t.exitTitle,
+          message: this.t.successExit(userName),
+          stamp: this.t.processedAt(this.formattedTime)
+        };
 
     this.scheduleFeedbackReset();
     this.focusPinInput();
@@ -612,20 +694,47 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(this.map);
 
-    this.zoneRectangle = L.rectangle(
-      [
-        [this.zoneBounds.south, this.zoneBounds.west],
-        [this.zoneBounds.north, this.zoneBounds.east]
-      ],
-      {
-        color: '#0f766e',
-        weight: 2,
-        fillColor: '#0f766e',
-        fillOpacity: 0.14
-      }
-    ).addTo(this.map);
+    this.map.setView([this.sharedLakeHomeCenter.lat, this.sharedLakeHomeCenter.lng], 14);
+    setTimeout(() => this.map?.invalidateSize(), 0);
+  }
 
-    this.zoneCenterMarker = L.circleMarker([this.adminZone.center.lat, this.adminZone.center.lng], {
+  private updateZoneVisualization(): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (this.zoneShape) {
+      this.map.removeLayer(this.zoneShape);
+      this.zoneShape = null;
+    }
+
+    if (this.zoneCenterMarker) {
+      this.map.removeLayer(this.zoneCenterMarker);
+      this.zoneCenterMarker = null;
+    }
+
+    const worksite = this.selectedWorksiteDefinition;
+    if (!worksite) {
+      this.map.setView([this.sharedLakeHomeCenter.lat, this.sharedLakeHomeCenter.lng], 14);
+      return;
+    }
+
+    this.zoneShape = worksite.type === 'polygon'
+      ? L.polygon(worksite.polygon!, {
+          color: '#0f766e',
+          weight: 2,
+          fillColor: '#0f766e',
+          fillOpacity: 0.14
+        }).addTo(this.map)
+      : L.circle([worksite.center.lat, worksite.center.lng], {
+          radius: worksite.radiusMeters!,
+          color: '#0f766e',
+          weight: 2,
+          fillColor: '#0f766e',
+          fillOpacity: 0.14
+        }).addTo(this.map);
+
+    this.zoneCenterMarker = L.circleMarker([worksite.center.lat, worksite.center.lng], {
       radius: 7,
       color: '#0f766e',
       weight: 2,
@@ -633,13 +742,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       fillOpacity: 1
     }).addTo(this.map);
 
-    this.zoneCenterMarker.bindTooltip(this.adminZone.name, {
-      permanent: false,
-      direction: 'top'
-    });
+    this.updateZoneTooltip();
 
-    this.map.fitBounds(this.zoneRectangle.getBounds().pad(0.35), { maxZoom: 17 });
-    setTimeout(() => this.map?.invalidateSize(), 0);
+    const zoneBounds = this.getWorksiteBounds(worksite);
+    this.map.fitBounds(zoneBounds.pad(0.35), { maxZoom: 17 });
   }
 
   private startGeolocation(): void {
@@ -676,7 +782,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       accuracy: position.coords.accuracy
     };
 
-    this.locationState = this.pointInsideSquare(this.currentPosition.lat, this.currentPosition.lng) ? 'inside' : 'outside';
+    this.recomputeZoneMembership();
     this.updateUserLayers();
   }
 
@@ -687,6 +793,21 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     this.locationState = 'error';
+  }
+
+  private recomputeZoneMembership(): void {
+    if (!this.currentPosition) {
+      this.locationState = 'loading';
+      return;
+    }
+
+    const worksite = this.selectedWorksiteDefinition;
+    if (!worksite) {
+      this.locationState = 'loading';
+      return;
+    }
+
+    this.locationState = this.pointInsideWorksite(this.currentPosition, worksite) ? 'inside' : 'outside';
   }
 
   private updateUserLayers(): void {
@@ -725,31 +846,105 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       this.accuracyCircle.setStyle({ color, fillColor: color });
     }
 
-    if (!this.hasFocusedMap && this.zoneRectangle) {
-      const combinedBounds = this.zoneRectangle.getBounds().extend(latLng).pad(0.2);
+    if (!this.zoneShape) {
+      return;
+    }
+
+    if (!this.hasFocusedMap) {
+      const combinedBounds = this.zoneShape.getBounds().extend(latLng).pad(0.2);
       this.map.fitBounds(combinedBounds, { maxZoom: 17 });
       this.hasFocusedMap = true;
     }
   }
 
-  private pointInsideSquare(lat: number, lng: number): boolean {
-    return lat >= this.zoneBounds.south &&
-      lat <= this.zoneBounds.north &&
-      lng >= this.zoneBounds.west &&
-      lng <= this.zoneBounds.east;
+  private pointInsideWorksite(position: CurrentPosition, worksite: WorksiteDefinition): boolean {
+    if (worksite.type === 'circle') {
+      return L.latLng(position.lat, position.lng).distanceTo(L.latLng(worksite.center.lat, worksite.center.lng)) <= (worksite.radiusMeters ?? 0);
+    }
+
+    return this.pointInsidePolygon(position.lat, position.lng, worksite.polygon ?? []);
   }
 
-  private createSquareBounds(center: { lat: number; lng: number }, sideMeters: number): MapBounds {
-    const halfSide = sideMeters / 2;
-    const latDelta = halfSide / 111320;
-    const lngDelta = halfSide / (111320 * Math.cos(center.lat * Math.PI / 180));
+  private pointInsidePolygon(lat: number, lng: number, polygon: L.LatLngTuple[]): boolean {
+    if (!polygon.length) {
+      return false;
+    }
 
+    if (this.isPointOnPolygonEdge(lat, lng, polygon)) {
+      return true;
+    }
+
+    let inside = false;
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const yi = polygon[i][0];
+      const xi = polygon[i][1];
+      const yj = polygon[j][0];
+      const xj = polygon[j][1];
+
+      const intersects = ((yi > lat) !== (yj > lat)) &&
+        (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi);
+
+      if (intersects) {
+        inside = !inside;
+      }
+    }
+
+    return inside;
+  }
+
+  private isPointOnPolygonEdge(lat: number, lng: number, polygon: L.LatLngTuple[]): boolean {
+    const tolerance = 0.0000005;
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const ay = polygon[j][0];
+      const ax = polygon[j][1];
+      const by = polygon[i][0];
+      const bx = polygon[i][1];
+
+      const cross = Math.abs((lng - ax) * (by - ay) - (lat - ay) * (bx - ax));
+      if (cross > tolerance) {
+        continue;
+      }
+
+      const dot = (lng - ax) * (bx - ax) + (lat - ay) * (by - ay);
+      if (dot < 0) {
+        continue;
+      }
+
+      const lenSq = (bx - ax) * (bx - ax) + (by - ay) * (by - ay);
+      if (dot <= lenSq) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private computePolygonCenter(points: L.LatLngTuple[]): { lat: number; lng: number } {
     return {
-      north: center.lat + latDelta,
-      south: center.lat - latDelta,
-      east: center.lng + lngDelta,
-      west: center.lng - lngDelta
+      lat: points.reduce((sum, point) => sum + point[0], 0) / points.length,
+      lng: points.reduce((sum, point) => sum + point[1], 0) / points.length
     };
+  }
+
+  private getWorksiteBounds(worksite: WorksiteDefinition): L.LatLngBounds {
+    return worksite.type === 'polygon'
+      ? L.latLngBounds(worksite.polygon!)
+      : L.circle([worksite.center.lat, worksite.center.lng], { radius: worksite.radiusMeters! }).getBounds();
+  }
+
+  private updateZoneTooltip(): void {
+    if (!this.zoneCenterMarker) {
+      return;
+    }
+
+    const label = this.selectedWorksite || this.t.worksitePlaceholder;
+    this.zoneCenterMarker.unbindTooltip();
+    this.zoneCenterMarker.bindTooltip(label, {
+      permanent: false,
+      direction: 'top'
+    });
   }
 
   private focusPinInput(): void {
