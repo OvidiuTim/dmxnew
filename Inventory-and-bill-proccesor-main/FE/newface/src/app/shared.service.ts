@@ -5,8 +5,9 @@ import { Observable } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class SharedService {
   // aceeași origine + prefix '/api'
-  private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api'; 
-  //private readonly API = 'http://127.0.0.1:8000/api';
+  //private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api'; 
+  private readonly API = 'http://127.0.0.1:8000/api';
+  private readonly manualDeviceStorageKey = 'clockinandout-device-key';
   constructor(private http: HttpClient) {}
 
   admin = false;
@@ -96,7 +97,8 @@ getAttendanceDay(date?: string) {
       uid: 'MANUAL',
       tag_type: 'manual',
       content: pin,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      device_key: this.getManualAttendanceDeviceKey()
     };
 
     if (worksite) {
@@ -104,6 +106,24 @@ getAttendanceDay(date?: string) {
     }
 
     return this.http.post<any>(`${this.API}/nfc/scan/`, body);
+  }
+
+  private getManualAttendanceDeviceKey(): string {
+    if (typeof window === 'undefined') {
+      return 'server-side-manual-device';
+    }
+
+    const existing = window.localStorage.getItem(this.manualDeviceStorageKey);
+    if (existing) {
+      return existing;
+    }
+
+    const generated = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `manual-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+    window.localStorage.setItem(this.manualDeviceStorageKey, generated);
+    return generated;
   }
 
   getAttendancePresent()               { return this.http.get(`${this.API}/pontaj/present/`); }

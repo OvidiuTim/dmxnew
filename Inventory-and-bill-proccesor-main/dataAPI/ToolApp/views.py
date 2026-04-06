@@ -16,7 +16,7 @@ from django.http import JsonResponse, StreamingHttpResponse, HttpResponseNotAllo
 from django.utils import timezone
 from django.utils.timezone import localtime, localdate
 from django.db import transaction
-from django.db.models import Sum, Min, Max, OuterRef, Subquery
+from django.db.models import Sum, Min, Max, OuterRef, Subquery, Q
 
 # --- App (ToolApp) ---
 from ToolApp.models import (
@@ -165,10 +165,10 @@ UID_PIN_MAP = {
     "234EA5ED": "9937",
     "033F91ED": "9935",
     "13C99CED": "9934",
-    "838D19ED": "9933",
+    "838D91ED": "9933",
     "834091ED": "9932",
     "734E91ED": "9931",
-    "F33019ED": "9930",
+    "F33091ED": "9930",
     "D3F992ED": "9929",
     "637B93ED": "9928",
     "83C3A5ED": "9927",
@@ -1136,6 +1136,43 @@ def workday_close_dt(local_day):
     return timezone.make_aware(naive, tz)
 
 
+def _is_manual_attendance_scan(uid, tag_type):
+    return str(uid or "").upper().strip() == "MANUAL" or str(tag_type or "").strip().lower() == "manual"
+
+
+def _get_client_ip(request):
+    forwarded_for = (request.META.get("HTTP_X_FORWARDED_FOR") or "").strip()
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()[:64]
+
+    real_ip = (request.META.get("HTTP_X_REAL_IP") or "").strip()
+    if real_ip:
+        return real_ip[:64]
+
+    return (request.META.get("REMOTE_ADDR") or "").strip()[:64] or None
+
+
+def _normalize_manual_device_key(raw_value):
+    value = str(raw_value or "").strip()
+    return value[:64] or None
+
+
+def _client_owns_manual_session(session, client_ip=None, device_key=None):
+    if not session:
+        return False
+
+    if not session.manual_device_key and not session.manual_client_ip:
+        return True
+
+    if device_key and session.manual_device_key:
+        return session.manual_device_key == device_key
+
+    if client_ip and session.manual_client_ip:
+        return session.manual_client_ip == client_ip
+
+    return False
+
+
 
 # --- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
 
@@ -1161,6 +1198,9 @@ def nfc_scan(request):
     when = client_when or timezone.now()
     # Acceptăm mai multe chei: worksite/site/santier
     ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip() or None
+    is_manual_scan = _is_manual_attendance_scan(uid, tag_type)
+    manual_client_ip = _get_client_ip(request) if is_manual_scan else None
+    manual_device_key = _normalize_manual_device_key(data.get("device_key")) if is_manual_scan else None
 
     # --- DETERMINĂM PINUL EFECTIV: din content sau din maparea UID_PIN_MAP ---
     raw_pin = content if content else None
@@ -1215,6 +1255,37 @@ def nfc_scan(request):
                      .order_by('-in_time')
                      .first())
 
+        if is_manual_scan:
+            matching_client_session = None
+            if manual_device_key:
+                matching_client_session = (AttendanceSession.objects
+                                           .select_for_update()
+                                           .filter(out_time__isnull=True, work_date=today, manual_device_key=manual_device_key)
+                                           .order_by('-in_time')
+                                           .first())
+            elif manual_client_ip:
+                matching_client_session = (AttendanceSession.objects
+                                           .select_for_update()
+                                           .filter(out_time__isnull=True, work_date=today, manual_client_ip=manual_client_ip)
+                                           .order_by('-in_time')
+                                           .first())
+
+            if matching_client_session and matching_client_session.user_fk_id != user.UserId:
+                return JsonResponse({
+                    "error": "Telefonul sau browserul acesta are deja un check-in activ pentru alt muncitor. Pe acest dispozitiv poti face acum doar check-out pentru muncitorul pontat primul.",
+                    "error_code": "MANUAL_DEVICE_LOCKED"
+                }, status=409)
+
+            if open_sess and open_sess.work_date == today and not _client_owns_manual_session(
+                open_sess,
+                client_ip=manual_client_ip,
+                device_key=manual_device_key
+            ):
+                return JsonResponse({
+                    "error": "Check-out-ul pentru acest muncitor trebuie facut de pe acelasi telefon sau browser folosit la check-in.",
+                    "error_code": "MANUAL_CHECKOUT_DEVICE_MISMATCH"
+                }, status=409)
+
         if open_sess:
             # dacă sesiunea e din altă zi, o închidem la ora de închidere a zilei anterioare
             if open_sess.work_date < today:
@@ -1247,8 +1318,10 @@ def nfc_scan(request):
                     user_fk=user,
                     work_date=today,
                     in_time=apply_enter_grace(when),
-                    source="nfc",
-                    worksite=ws
+                    source="manual-web" if is_manual_scan else "nfc",
+                    worksite=ws,
+                    manual_client_ip=manual_client_ip if is_manual_scan else None,
+                    manual_device_key=manual_device_key if is_manual_scan else None,
                 )
                 _publish("enter", user, when, {"worksite": ws})
                 PresenceEvent.objects.create(
@@ -1319,8 +1392,10 @@ def nfc_scan(request):
             user_fk=user,
             work_date=today,
             in_time=apply_enter_grace(when),
-            source="nfc",
-            worksite=ws
+            source="manual-web" if is_manual_scan else "nfc",
+            worksite=ws,
+            manual_client_ip=manual_client_ip if is_manual_scan else None,
+            manual_device_key=manual_device_key if is_manual_scan else None,
         )
         PresenceEvent.objects.create(
             user_fk=user, kind=PresenceEvent.Kind.ENTER,
@@ -3367,5 +3442,4 @@ def _audit_line(request, msg: str, extra: dict | None = None):
                 f.write(line + "\n")
     except Exception:
         logger.exception("Cannot write pontaj audit log")
-
 

@@ -239,6 +239,8 @@ class AttendanceSession(models.Model):
     duration_seconds = models.IntegerField(default=0)
     source = models.CharField(max_length=32, default="nfc")
     worksite = models.CharField(max_length=100, null=True, blank=True, db_index=True)
+    manual_client_ip = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+    manual_device_key = models.CharField(max_length=64, null=True, blank=True, db_index=True)
 
     class Meta:
         ordering = ['-in_time']
