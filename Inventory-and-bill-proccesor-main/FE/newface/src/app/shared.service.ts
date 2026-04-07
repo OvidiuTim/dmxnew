@@ -15,8 +15,8 @@ type ManualAttendanceOptions = {
 @Injectable({ providedIn: 'root' })
 export class SharedService {
   // aceeași origine + prefix '/api'
-  //private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api'; 
-  private readonly API = 'http://127.0.0.1:8000/api';
+  private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api'; 
+  //private readonly API = 'http://127.0.0.1:8000/api';
   private readonly manualDeviceStorageKey = 'clockinandout-device-key';
   constructor(private http: HttpClient) {}
 
