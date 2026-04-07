@@ -10,6 +10,14 @@ interface SessionRow {
   open: boolean;
   session_id: number;
   worksite?: string | null;
+  in_gps?: GpsPoint | null;
+  out_gps?: GpsPoint | null;
+}
+
+interface GpsPoint {
+  lat: number;
+  lng: number;
+  accuracy?: number | null;
 }
 
 interface LeaveCell {
@@ -259,6 +267,21 @@ private fetchUserInfo(): void {
   }
 
   hm(t: string | null) { return t ? t.substring(0, 5) : '—'; }
+  formatGps(point?: GpsPoint | null): string {
+    if (!point) return '—';
+    return `${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`;
+  }
+
+  gpsTitle(point?: GpsPoint | null): string {
+    if (!point) return '';
+
+    const accuracy = point.accuracy !== null && point.accuracy !== undefined
+      ? ` • ±${Math.round(point.accuracy)} m`
+      : '';
+
+    return `${this.formatGps(point)}${accuracy}`;
+  }
+
   durataOre(hms: string) {
     const [h, m] = (hms || '00:00:00').split(':');
     return `${parseInt(h, 10)}:${m} ore`;

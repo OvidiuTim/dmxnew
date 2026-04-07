@@ -77,6 +77,8 @@
           <!-- Site + buton ștergere sesiune -->
           <div class="site">
             <span class="chip" *ngIf="s.worksite">{{ s.worksite }}</span>
+            <span class="chip" *ngIf="s.in_gps" [title]="gpsTitle(s.in_gps)">GPS intrare: {{ formatGps(s.in_gps) }}</span>
+            <span class="chip" *ngIf="s.out_gps" [title]="gpsTitle(s.out_gps)">GPS iesire: {{ formatGps(s.out_gps) }}</span>
             <button class="btn danger" *ngIf="s.session_id" style="margin-left:8px" title="Șterge această sesiune"
               (click)="deleteSingleSession(s)">
               Șterge

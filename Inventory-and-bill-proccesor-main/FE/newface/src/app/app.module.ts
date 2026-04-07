@@ -32,6 +32,7 @@ import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { AuthInterceptor } from './auth/auth.interceptor';
 import { RapoarteComponent } from './pontaj/rapoarte/rapoarte.component';
 import { ClockinandoutComponent } from './clockinandout/clockinandout.component';
+import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandoutdriver.component';
 
 @NgModule({
   declarations: [
@@ -54,6 +55,7 @@ import { ClockinandoutComponent } from './clockinandout/clockinandout.component'
     UserpontatComponent,
     RapoarteComponent,
     ClockinandoutComponent,
+    ClockinandoutdriverComponent,
   ],
   imports: [
     CommonModule,

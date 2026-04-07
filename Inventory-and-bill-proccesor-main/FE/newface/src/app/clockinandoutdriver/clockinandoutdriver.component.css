@@ -1,0 +1,359 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  --bg-panel: rgba(255, 250, 240, 0.92);
+  --bg-panel-strong: rgba(255, 248, 233, 0.98);
+  --ink-main: #1f2933;
+  --ink-soft: #5b6773;
+  --line-soft: rgba(31, 41, 51, 0.12);
+  --accent: #0f766e;
+  --accent-strong: #115e59;
+  --accent-danger: #b42318;
+  font-family: "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif;
+}
+
+.driver-page {
+  min-height: 100vh;
+  padding: 32px 20px 48px;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(15, 118, 110, 0.18), transparent 28%),
+    linear-gradient(180deg, #fbf6ea 0%, #efe7d8 50%, #e9e0d0 100%);
+  color: var(--ink-main);
+}
+
+.driver-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.hero-card,
+.entry-card,
+.map-card {
+  border: 1px solid var(--line-soft);
+  border-radius: 28px;
+  background: var(--bg-panel);
+  box-shadow: 0 24px 80px rgba(77, 63, 42, 0.12);
+  backdrop-filter: blur(12px);
+}
+
+.hero-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.7fr);
+  gap: 20px;
+  padding: 28px;
+  margin-bottom: 20px;
+}
+
+.hero-copy h1 {
+  margin: 18px 0 12px;
+  font-size: clamp(2.1rem, 5vw, 4rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.hero-copy p {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--ink-soft);
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.clock-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.12), rgba(15, 118, 110, 0.03));
+  border: 1px solid rgba(15, 118, 110, 0.14);
+}
+
+.clock-time {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.clock-date {
+  color: var(--ink-soft);
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+  gap: 20px;
+}
+
+.entry-card,
+.map-card {
+  padding: 28px;
+}
+
+.map-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.map-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.map-top h2 {
+  margin: 10px 0 8px;
+  font-size: clamp(1.55rem, 2.4vw, 2.1rem);
+  line-height: 1.15;
+}
+
+.map-top p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.refresh-btn,
+.submit-btn {
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.96rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.refresh-btn {
+  padding: 11px 16px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink-main);
+  border: 1px solid rgba(31, 41, 51, 0.08);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.legend-item,
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(31, 41, 51, 0.08);
+  font-size: 0.9rem;
+}
+
+.legend-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+}
+
+.legend-dot.you {
+  background: #2563eb;
+}
+
+.map-container {
+  min-height: 420px;
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(31, 41, 51, 0.08);
+}
+
+.map-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.meta-pill.strong {
+  font-weight: 700;
+}
+
+.step-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--accent-strong);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gps-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 14px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gps-badge.loading {
+  background: rgba(31, 41, 51, 0.08);
+}
+
+.gps-badge.ready {
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--accent-strong);
+}
+
+.gps-badge.denied,
+.gps-badge.error,
+.gps-badge.unsupported {
+  background: rgba(180, 35, 24, 0.1);
+  color: var(--accent-danger);
+}
+
+.pin-form label {
+  display: block;
+  margin: 22px 0 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.pin-form input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 22px;
+  background: var(--bg-panel-strong);
+  padding: 20px 22px;
+  color: var(--ink-main);
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  letter-spacing: 0.45em;
+  text-align: center;
+  outline: none;
+}
+
+.pin-form input:focus {
+  border-color: rgba(15, 118, 110, 0.44);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+}
+
+.gate-note {
+  margin: 18px 0 18px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.14);
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.gate-note.ready {
+  background: rgba(15, 118, 110, 0.1);
+  border-color: rgba(15, 118, 110, 0.18);
+  color: var(--accent-strong);
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #f9fffd;
+}
+
+.submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.feedback-banner {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+}
+
+.feedback-banner.enter {
+  background: rgba(15, 118, 110, 0.12);
+  border-color: rgba(15, 118, 110, 0.18);
+}
+
+.feedback-banner.exit {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(217, 119, 6, 0.18);
+}
+
+.feedback-banner.error {
+  background: rgba(180, 35, 24, 0.1);
+  border-color: rgba(180, 35, 24, 0.18);
+}
+
+.feedback-title {
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.feedback-message {
+  line-height: 1.55;
+}
+
+.feedback-stamp {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1080px) {
+  .hero-card,
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clock-card {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 680px) {
+  .driver-page {
+    padding: 20px 14px 32px;
+  }
+
+  .hero-card,
+  .entry-card,
+  .map-card {
+    border-radius: 24px;
+    padding: 20px;
+  }
+
+  .pin-form input {
+    font-size: 1.8rem;
+    letter-spacing: 0.28em;
+    padding: 18px 16px;
+  }
+
+  .map-top {
+    flex-direction: column;
+  }
+
+  .refresh-btn {
+    width: 100%;
+  }
+
+  .map-container {
+    min-height: 340px;
+  }
+}

@@ -2,6 +2,16 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+type ManualAttendanceOptions = {
+  worksite?: string;
+  mode?: 'driver' | 'manual';
+  gps?: {
+    lat: number;
+    lng: number;
+    accuracy?: number | null;
+  };
+};
+
 @Injectable({ providedIn: 'root' })
 export class SharedService {
   // aceeași origine + prefix '/api'
@@ -92,17 +102,30 @@ getAttendanceDay(date?: string) {
   return this.http.get<any>(`${this.API}/pontaj/day/`, { params: date ? { date } : {} });
 }
 
-  manualAttendanceByPin(pin: string, worksite?: string) {
+  manualAttendanceByPin(pin: string, worksiteOrOptions?: string | ManualAttendanceOptions) {
+    const options: ManualAttendanceOptions = typeof worksiteOrOptions === 'string'
+      ? { worksite: worksiteOrOptions }
+      : (worksiteOrOptions ?? {});
+
     const body: any = {
       uid: 'MANUAL',
       tag_type: 'manual',
       content: pin,
       timestamp: new Date().toISOString(),
-      device_key: this.getManualAttendanceDeviceKey()
+      device_key: this.getManualAttendanceDeviceKey(),
+      mode: options.mode ?? 'manual',
     };
 
-    if (worksite) {
-      body.worksite = worksite;
+    if (options.worksite) {
+      body.worksite = options.worksite;
+    }
+
+    if (options.gps) {
+      body.gps = {
+        lat: options.gps.lat,
+        lng: options.gps.lng,
+        accuracy: options.gps.accuracy ?? null,
+      };
     }
 
     return this.http.post<any>(`${this.API}/nfc/scan/`, body);

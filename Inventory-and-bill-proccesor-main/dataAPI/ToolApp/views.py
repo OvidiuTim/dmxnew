@@ -1173,6 +1173,59 @@ def _client_owns_manual_session(session, client_ip=None, device_key=None):
     return False
 
 
+def _parse_float_or_none(value):
+    if value in (None, ""):
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_gps_payload(data):
+    gps = data.get("gps") if isinstance(data.get("gps"), dict) else {}
+
+    lat = _parse_float_or_none(gps.get("lat") if gps else data.get("gps_lat") or data.get("latitude") or data.get("lat"))
+    lng = _parse_float_or_none(gps.get("lng") if gps else data.get("gps_lng") or data.get("longitude") or data.get("lng"))
+    accuracy = _parse_float_or_none(gps.get("accuracy") if gps else data.get("gps_accuracy") or data.get("accuracy"))
+
+    if lat is None or lng is None:
+        return None
+
+    if lat < -90 or lat > 90 or lng < -180 or lng > 180:
+        return None
+
+    return {
+        "lat": lat,
+        "lng": lng,
+        "accuracy": accuracy,
+    }
+
+
+def _session_gps_payload(session):
+    return {
+        "in_gps": (
+            {
+                "lat": session.in_gps_latitude,
+                "lng": session.in_gps_longitude,
+                "accuracy": session.in_gps_accuracy_m,
+            }
+            if session.in_gps_latitude is not None and session.in_gps_longitude is not None
+            else None
+        ),
+        "out_gps": (
+            {
+                "lat": session.out_gps_latitude,
+                "lng": session.out_gps_longitude,
+                "accuracy": session.out_gps_accuracy_m,
+            }
+            if session.out_gps_latitude is not None and session.out_gps_longitude is not None
+            else None
+        ),
+    }
+
+
 
 # --- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
 
@@ -1198,9 +1251,17 @@ def nfc_scan(request):
     when = client_when or timezone.now()
     # Acceptăm mai multe chei: worksite/site/santier
     ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip() or None
+    attendance_mode = (data.get("mode") or data.get("attendance_mode") or "").strip().lower() or None
     is_manual_scan = _is_manual_attendance_scan(uid, tag_type)
     manual_client_ip = _get_client_ip(request) if is_manual_scan else None
     manual_device_key = _normalize_manual_device_key(data.get("device_key")) if is_manual_scan else None
+    gps_payload = _extract_gps_payload(data)
+
+    if attendance_mode == "driver" and not gps_payload:
+        return JsonResponse({
+            "error": "Locatia GPS este obligatorie pentru pontajul soferilor.",
+            "error_code": "GPS_REQUIRED_FOR_DRIVER"
+        }, status=400)
 
     # --- DETERMINĂM PINUL EFECTIV: din content sau din maparea UID_PIN_MAP ---
     raw_pin = content if content else None
@@ -1318,7 +1379,10 @@ def nfc_scan(request):
                     user_fk=user,
                     work_date=today,
                     in_time=apply_enter_grace(when),
-                    source="manual-web" if is_manual_scan else "nfc",
+                    in_gps_latitude=gps_payload["lat"] if gps_payload else None,
+                    in_gps_longitude=gps_payload["lng"] if gps_payload else None,
+                    in_gps_accuracy_m=gps_payload["accuracy"] if gps_payload else None,
+                    source="manual-driver" if attendance_mode == "driver" else ("manual-web" if is_manual_scan else "nfc"),
                     worksite=ws,
                     manual_client_ip=manual_client_ip if is_manual_scan else None,
                     manual_device_key=manual_device_key if is_manual_scan else None,
@@ -1346,6 +1410,7 @@ def nfc_scan(request):
                         "work_date": str(new_sess.work_date),
                         "in_time": localtime(new_sess.in_time).isoformat(),
                         "worksite": ws,
+                        **_session_gps_payload(new_sess),
                     },
                     "received": data,
                     "ts_used": "client" if client_when else "server"
@@ -1357,6 +1422,10 @@ def nfc_scan(request):
                 open_sess.worksite = ws
 
             open_sess.out_time = apply_exit_grace(when)
+            if gps_payload:
+                open_sess.out_gps_latitude = gps_payload["lat"]
+                open_sess.out_gps_longitude = gps_payload["lng"]
+                open_sess.out_gps_accuracy_m = gps_payload["accuracy"]
             open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
             open_sess.save()
             recompute_daily_pay(user, open_sess.work_date)
@@ -1382,6 +1451,7 @@ def nfc_scan(request):
                     "out_time": localtime(open_sess.out_time).isoformat(),
                     "duration_hms": _fmt_hms(open_sess.duration_seconds),
                     "worksite": open_sess.worksite,
+                    **_session_gps_payload(open_sess),
                 },
                 "received": data,
                 "ts_used": "client" if client_when else "server"
@@ -1392,7 +1462,10 @@ def nfc_scan(request):
             user_fk=user,
             work_date=today,
             in_time=apply_enter_grace(when),
-            source="manual-web" if is_manual_scan else "nfc",
+            in_gps_latitude=gps_payload["lat"] if gps_payload else None,
+            in_gps_longitude=gps_payload["lng"] if gps_payload else None,
+            in_gps_accuracy_m=gps_payload["accuracy"] if gps_payload else None,
+            source="manual-driver" if attendance_mode == "driver" else ("manual-web" if is_manual_scan else "nfc"),
             worksite=ws,
             manual_client_ip=manual_client_ip if is_manual_scan else None,
             manual_device_key=manual_device_key if is_manual_scan else None,
@@ -1413,6 +1486,7 @@ def nfc_scan(request):
                 "work_date": str(sess.work_date),
                 "in_time": localtime(sess.in_time).isoformat(),
                 "worksite": ws,
+                **_session_gps_payload(sess),
             },
             "received": data,
             "ts_used": "client" if client_when else "server"
@@ -1515,6 +1589,7 @@ def attendance_day(request):
             "open": (s.out_time is None),
             "session_id": s.id,
             "worksite": s.worksite,
+            **_session_gps_payload(s),
         })
 
         # ultima locație nenulă devine site-ul zilei
@@ -1578,6 +1653,7 @@ def attendance_present(request):
             "duration_hms": _fmt_hms(dur),
             "session_id": s.id,
             "worksite": s.worksite,  # NEW
+            **_session_gps_payload(s),
         })
 
     return JsonResponse({"now": localtime(now).isoformat(), "present": data})
@@ -1643,6 +1719,7 @@ def attendance_range(request):
                 "open": (s.out_time is None),
                 "session_id": s.id,
                 "worksite": s.worksite,
+                **_session_gps_payload(s),
             })
             bucket["entries"] += 1
             if s.out_time:
@@ -3442,4 +3519,3 @@ def _audit_line(request, msg: str, extra: dict | None = None):
                 f.write(line + "\n")
     except Exception:
         logger.exception("Cannot write pontaj audit log")
-

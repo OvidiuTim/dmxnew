@@ -15,6 +15,7 @@ import { PontajComponent } from './pontaj/pontaj.component';
 import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 import { RapoarteComponent } from './pontaj/rapoarte/rapoarte.component';
 import { ClockinandoutComponent } from './clockinandout/clockinandout.component';
+import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandoutdriver.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -30,6 +31,7 @@ const routes: Routes = [
 
   // Pontaj manual separat
   { path: 'clockinandout', component: ClockinandoutComponent },
+  { path: 'clockinandoutdriver', component: ClockinandoutdriverComponent },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard] },
