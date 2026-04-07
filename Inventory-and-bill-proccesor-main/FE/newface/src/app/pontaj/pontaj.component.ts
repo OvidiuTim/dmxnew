@@ -50,6 +50,14 @@ seeAngajat(id: number) {
   // sau: this.router.navigateByUrl(`/pontaj/user/${id}`); // tot OK, dar nu e nevoie de /pontaj
 }
 
+  addEmployee(): void {
+    this.router.navigate(['/users/new']);
+  }
+
+  editEmployee(id: number): void {
+    this.router.navigate(['/users', id, 'edit']);
+  }
+
   loadDay(): void {
     this.loading = true;
     this.error = null;

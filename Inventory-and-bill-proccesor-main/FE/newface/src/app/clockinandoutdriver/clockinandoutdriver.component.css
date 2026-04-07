@@ -119,6 +119,10 @@
   line-height: 1.6;
 }
 
+.map-top .refresh-btn {
+  margin: 14px 0 16px;
+}
+
 .refresh-btn,
 .submit-btn {
   border: 0;
@@ -129,10 +133,27 @@
 }
 
 .refresh-btn {
-  padding: 11px 16px;
-  background: rgba(255, 255, 255, 0.85);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 16px 24px;
+  background: linear-gradient(180deg, #fffdf8, #f2eee3);
   color: var(--ink-main);
-  border: 1px solid rgba(31, 41, 51, 0.08);
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  box-shadow: 0 14px 30px rgba(15, 118, 110, 0.1);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: left;
+}
+
+.refresh-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  fill: currentColor;
 }
 
 .legend {

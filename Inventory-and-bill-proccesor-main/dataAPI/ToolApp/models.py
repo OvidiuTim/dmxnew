@@ -31,6 +31,11 @@ class Users(models.Model):
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=0)  # lei/oră
     Company = models.CharField(max_length=100, null=True, blank=True)
+    equipment_size = models.CharField(max_length=100, null=True, blank=True)
+    received_equipment = models.BooleanField(null=True, blank=True)
+    phone_number = models.CharField(max_length=50, null=True, blank=True)
+    photo = models.TextField(null=True, blank=True)
+    trade = models.CharField(max_length=100, null=True, blank=True)
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
 

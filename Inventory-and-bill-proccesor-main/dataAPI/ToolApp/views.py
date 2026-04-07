@@ -219,6 +219,15 @@ def _day_time_dt(local_day, hour, minute):
 @csrf_exempt
 def userApi(request,id=0):
     if request.method=='GET':
+        if id:
+            try:
+                user = Users.objects.get(UserId=id)
+            except Users.DoesNotExist:
+                return JsonResponse({"error": "User not found"}, status=404)
+
+            user_serializer = UserSerializer(user)
+            return JsonResponse(user_serializer.data, safe=False)
+
         users = Users.objects.all()
         users_serializer = UserSerializer(users, many=True)
         return JsonResponse(users_serializer.data, safe=False)
@@ -227,21 +236,28 @@ def userApi(request,id=0):
         user_data=JSONParser().parse(request)
         user_serializer = UserSerializer(data=user_data)
         if user_serializer.is_valid():
-            user_serializer.save()
-            return JsonResponse("Added Successfully!!" , safe=False)
-        return JsonResponse("Failed to Add.",safe=False)
+            user = user_serializer.save()
+            return JsonResponse(UserSerializer(user).data , safe=False, status=201)
+        return JsonResponse({"error": "Failed to Add.", "details": user_serializer.errors},safe=False, status=400)
     
     elif request.method=='PUT':
         user_data = JSONParser().parse(request)
-        user=Users.objects.get(UserId=user_data['UserId'])
+        try:
+            user=Users.objects.get(UserId=user_data['UserId'])
+        except (Users.DoesNotExist, KeyError):
+            return JsonResponse({"error": "User not found"}, safe=False, status=404)
+
         user_serializer=UserSerializer(user,data=user_data)
         if user_serializer.is_valid():
-            user_serializer.save()
-            return JsonResponse("Updated Successfully!!", safe=False)
-        return JsonResponse("Failed to Update.", safe=False)
+            saved = user_serializer.save()
+            return JsonResponse(UserSerializer(saved).data, safe=False)
+        return JsonResponse({"error": "Failed to Update.", "details": user_serializer.errors}, safe=False, status=400)
 
     elif request.method=='DELETE':
-        user=Users.objects.get(UserId=id)
+        try:
+            user=Users.objects.get(UserId=id)
+        except Users.DoesNotExist:
+            return JsonResponse({"error": "User not found"}, safe=False, status=404)
         user.delete()
         return JsonResponse("Deleted Succeffully!!", safe=False)
 

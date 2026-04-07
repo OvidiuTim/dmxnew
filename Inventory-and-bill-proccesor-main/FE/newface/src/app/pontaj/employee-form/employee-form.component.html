@@ -1,0 +1,99 @@
+<div class="employee-page">
+  <div class="employee-shell">
+    <div class="hero-card">
+      <div class="hero-copy">
+        <a routerLink="/pontaj" class="back-link">← Inapoi la pontaj</a>
+        <div class="eyebrow">{{ isEditMode ? 'Editare angajat' : 'Adaugare angajat' }}</div>
+        <h1>{{ pageTitle }}</h1>
+        <p>{{ pageSubtitle }}</p>
+      </div>
+
+      <div class="status-card">
+        <div class="status-label">Date obligatorii</div>
+        <div class="status-value">Nume, serie, PIN, tarif</div>
+        <div class="status-note">Restul campurilor pot ramane null.</div>
+      </div>
+    </div>
+
+    <div class="state" *ngIf="loading">Se incarca datele angajatului…</div>
+    <div class="state error" *ngIf="error">{{ error }}</div>
+
+    <form class="editor-card" *ngIf="!loading" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-grid">
+        <div class="field">
+          <label for="user-name">Nume angajat</label>
+          <input id="user-name" type="text" formControlName="UserName" placeholder="Nume si prenume">
+        </div>
+
+        <div class="field">
+          <label for="user-serie">Serie angajat</label>
+          <input id="user-serie" type="text" formControlName="UserSerie" placeholder="Ex: DMX-001">
+        </div>
+
+        <div class="field">
+          <label for="user-pin">PIN angajat</label>
+          <input id="user-pin" type="text" inputmode="numeric" formControlName="UserPin" placeholder="Ex: 8502">
+        </div>
+
+        <div class="field">
+          <label for="user-rate">Tarif orar</label>
+          <input id="user-rate" type="text" inputmode="decimal" formControlName="hourly_rate" placeholder="23.00">
+        </div>
+
+        <div class="field">
+          <label for="user-company">Companie</label>
+          <input id="user-company" type="text" formControlName="Company" placeholder="RNX">
+        </div>
+
+        <div class="field">
+          <label for="user-trade">Meserie</label>
+          <input id="user-trade" type="text" formControlName="trade" placeholder="Ex: Dulgher">
+        </div>
+
+        <div class="field">
+          <label for="user-phone">Numar de telefon</label>
+          <input id="user-phone" type="tel" formControlName="phone_number" placeholder="Ex: 07xx xxx xxx">
+        </div>
+
+        <div class="field">
+          <label for="user-size">Marime echipament</label>
+          <input id="user-size" type="text" formControlName="equipment_size" placeholder="Ex: L / 42 / XL">
+        </div>
+
+        <div class="field">
+          <label for="user-equipment">A primit echipament</label>
+          <select id="user-equipment" [value]="receivedEquipmentValue" (change)="onReceivedEquipmentChange($any($event.target).value)">
+            <option value="">Nesetat</option>
+            <option value="true">Da</option>
+            <option value="false">Nu</option>
+          </select>
+        </div>
+
+        <div class="photo-card">
+          <div class="photo-preview" [class.empty]="!photoPreview">
+            <img *ngIf="photoPreview" [src]="photoPreview" alt="Poza angajatului">
+            <span *ngIf="!photoPreview">Fara poza</span>
+          </div>
+
+          <div class="photo-meta">
+            <div class="field field-photo">
+              <label for="user-photo">Poza</label>
+              <input id="user-photo" type="file" accept="image/*" (change)="onPhotoSelected($event)">
+              <p *ngIf="photoFileName" class="photo-name">{{ photoFileName }}</p>
+              <p class="photo-help">Poza este optionala si se poate adauga direct din telefon sau calculator.</p>
+            </div>
+
+            <button type="button" class="btn ghost" (click)="clearPhoto()" [disabled]="!photoPreview">Sterge poza</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn ghost" (click)="cancel()">Renunta</button>
+        <button type="submit" class="btn primary" [disabled]="saving">
+          {{ saving ? 'Se salveaza...' : (isEditMode ? 'Salveaza modificarile' : 'Adauga angajat') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

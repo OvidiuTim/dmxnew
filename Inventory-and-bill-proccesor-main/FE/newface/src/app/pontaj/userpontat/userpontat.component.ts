@@ -20,6 +20,20 @@ interface GpsPoint {
   accuracy?: number | null;
 }
 
+interface EmployeeProfile {
+  UserId?: number;
+  UserName?: string | null;
+  UserSerie?: string | null;
+  UserPin?: string | null;
+  hourly_rate?: string | number | null;
+  Company?: string | null;
+  equipment_size?: string | null;
+  received_equipment?: boolean | null;
+  phone_number?: string | null;
+  photo?: string | null;
+  trade?: string | null;
+}
+
 interface LeaveCell {
   reason: 'CO' | 'CM' | 'ALT' | string;
   hours: string;
@@ -55,6 +69,9 @@ type SessEditRow = {
 export class UserpontatComponent implements OnInit {
   userId!: number;
   userName: string | null = null;
+  employeeProfile: EmployeeProfile | null = null;
+  profileLoading = false;
+  profileError: string | null = null;
 
   selectedMonth = this.monthNow();
   startISO = '';
@@ -166,51 +183,70 @@ export class UserpontatComponent implements OnInit {
     });
   }
 
-private fetchUserInfo(): void {
-  this.api.getUsrList().subscribe({
-    next: (list: any[]) => {
-      console.log('getUsrList() – list brut:', list);
+  private fetchUserInfo(): void {
+    this.profileLoading = true;
+    this.profileError = null;
 
-      // caută userul după id (în caz că vine user_id în loc de UserId)
-      const u = list.find(
-        (x) => x.UserId === this.userId || x.user_id === this.userId
-      );
+    this.api.getUser(this.userId).subscribe({
+      next: (user: EmployeeProfile) => {
+        this.profileLoading = false;
+        this.employeeProfile = user ?? null;
+        this.userName = this.userName ?? user?.UserName ?? null;
 
-      console.log('Utilizator găsit pentru pontaj (id=', this.userId, '):', u);
-
-      if (!u) {
-        console.warn('Niciun user cu id', this.userId, 'în getUsrList()');
-        return;
-      }
-
-      // numele – folosim ce găsim
-      this.userName = this.userName ?? (u.UserName ?? u.username ?? u.name);
-
-      // încercăm mai multe denumiri pentru câmpul de tarif orar
-      const rawField =
-        u.hourly_rate ??
-        u.hourlyRate ??
-        u.HourlyRate ??
-        u.hourlyrate ??
-        u.rate_per_hour ??
-        '0';
-
-      console.log('Valoare brută tarif orar (rawField):', rawField);
-
-      const rate = parseFloat(rawField);
-      if (!isNaN(rate)) {
+        const rate = this.parseHourlyRate(user);
         this.hourlyRate = rate;
-        this.leaveForm.rate = rate; // sincronizat cu formularul de concediu
-        console.log('Tarif orar parsat:', rate);
-      } else {
-        console.warn('Nu pot parsa hourly_rate pentru user:', u);
+        this.leaveForm.rate = rate;
+      },
+      error: (err) => {
+        this.profileLoading = false;
+        this.profileError = 'Nu pot încărca detaliile angajatului.';
+        console.error('Nu pot încărca utilizatorul pentru cardul de profil', err);
       }
-    },
-    error: (err) => {
-      console.error('Nu pot încărca lista de utilizatori pentru hourly_rate', err);
+    });
+  }
+
+  private parseHourlyRate(user?: EmployeeProfile | null): number {
+    const rawField =
+      user?.hourly_rate ??
+      (user as any)?.hourlyRate ??
+      (user as any)?.HourlyRate ??
+      (user as any)?.hourlyrate ??
+      (user as any)?.rate_per_hour ??
+      '0';
+
+    const rate = parseFloat(String(rawField));
+    return Number.isFinite(rate) ? rate : 0;
+  }
+
+  displayText(value: string | number | null | undefined): string {
+    const normalized = `${value ?? ''}`.trim();
+    return normalized ? normalized : '—';
+  }
+
+  displayBoolean(value: boolean | null | undefined): string {
+    if (value === true) return 'Da';
+    if (value === false) return 'Nu';
+    return '—';
+  }
+
+  get hourlyRateLabel(): string {
+    const rate = this.parseHourlyRate(this.employeeProfile);
+    return rate > 0 ? `${rate.toFixed(2)} lei / oră` : '—';
+  }
+
+  get profileInitials(): string {
+    const source = (this.employeeProfile?.UserName ?? this.userName ?? '').trim();
+    if (!source) {
+      return '—';
     }
-  });
-}
+
+    return source
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map(part => part.charAt(0).toUpperCase())
+      .join('');
+  }
 
 
   makeBlankCalendar(): DayRow[] {

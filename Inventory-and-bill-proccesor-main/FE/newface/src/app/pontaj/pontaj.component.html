@@ -6,6 +6,7 @@
     </div>
 
     <div class="actions">
+      <button class="btn primary" (click)="addEmployee()">Adauga angajat</button>
       <button class="btn" (click)="togglePicker()">Alege ziua</button>
       <button class="btn ghost" (click)="goToReports()">Rapoarte</button>
       <input
@@ -44,7 +45,8 @@
           </div>
         </div>
         <div class="totals">
-         <a class="btn small" href (click)="seeAngajat(r.UserId); $event.preventDefault()">Detalii</a> 
+          <button class="btn small ghost" type="button" (click)="editEmployee(r.UserId)">Editeaza angajat</button>
+          <a class="btn small" href (click)="seeAngajat(r.UserId); $event.preventDefault()">Detalii</a> 
           <span class="total">{{ durataOre(r.total_hms) }}</span>
           <span [class]="statusChipClass(r.status)">{{ r.status }}</span>
         </div>

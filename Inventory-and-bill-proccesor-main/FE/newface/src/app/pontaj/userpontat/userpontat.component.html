@@ -22,6 +22,67 @@
     </div>
   </div>
 
+  <section class="profile-card" *ngIf="employeeProfile || profileLoading || profileError">
+    <div class="profile-head">
+      <div class="profile-photo" [class.empty]="!employeeProfile?.photo">
+        <img *ngIf="employeeProfile?.photo" [src]="employeeProfile?.photo" [alt]="userName || 'Poza angajatului'">
+        <span *ngIf="!employeeProfile?.photo">{{ profileInitials }}</span>
+      </div>
+
+      <div class="profile-intro">
+        <div class="profile-kicker">Fișa angajatului</div>
+        <h3>{{ userName || 'Angajat' }}</h3>
+        <p>
+          {{ displayText(employeeProfile?.trade) }}
+          <span class="profile-divider">•</span>
+          {{ displayText(employeeProfile?.Company) }}
+        </p>
+      </div>
+    </div>
+
+    <div class="state" *ngIf="profileLoading">Se încarcă detaliile angajatului…</div>
+    <div class="state error" *ngIf="profileError">{{ profileError }}</div>
+
+    <div class="profile-grid" *ngIf="!profileLoading">
+      <div class="profile-item">
+        <span class="profile-label">ID angajat</span>
+        <strong>{{ displayText(employeeProfile?.UserId) }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">PIN</span>
+        <strong>{{ displayText(employeeProfile?.UserPin) }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">Serie</span>
+        <strong>{{ displayText(employeeProfile?.UserSerie) }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">Telefon</span>
+        <strong>{{ displayText(employeeProfile?.phone_number) }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">Companie</span>
+        <strong>{{ displayText(employeeProfile?.Company) }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">Tarif orar</span>
+        <strong>{{ hourlyRateLabel }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">Meserie</span>
+        <strong>{{ displayText(employeeProfile?.trade) }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">A primit echipament</span>
+        <strong>{{ displayBoolean(employeeProfile?.received_equipment) }}</strong>
+      </div>
+      <div class="profile-item">
+        <span class="profile-label">Mărime echipament</span>
+        <strong>{{ displayText(employeeProfile?.equipment_size) }}</strong>
+      </div>
+    </div>
+  </section>
+
   <div class="state" *ngIf="loading">Se încarcă…</div>
   <div class="state error" *ngIf="error">{{ error }}</div>
 

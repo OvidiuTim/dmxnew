@@ -62,12 +62,20 @@
           <div>
             <div class="step-chip">2. {{ t.stepLocation }}</div>
             <div *ngIf="selectedWorksite" class="gps-badge" [ngClass]="effectiveLocationState">{{ locationBadge }}</div>
+
             <h2>{{ locationTitle }}</h2>
             <p>{{ locationDetail }}</p>
           </div>
-
-          <button *ngIf="selectedWorksite" type="button" class="refresh-btn" (click)="refreshLocation()">{{ t.refreshGps }}</button>
         </div>
+
+
+          <button *ngIf="selectedWorksite" type="button" class="refresh-btn" (click)="refreshLocation()">
+            <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 21s-6-5.33-6-10a6 6 0 1 1 12 0c0 4.67-6 10-6 10Z"></path>
+              <circle cx="12" cy="11" r="2.5"></circle>
+            </svg>
+            <span>{{ t.refreshGps }}</span>
+          </button>
 
         <div class="legend" *ngIf="selectedWorksite">
           <span class="legend-item">

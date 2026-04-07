@@ -44,12 +44,22 @@
 .btn:hover { background: #242633; border-color:#3a3d49; }
 .btn:active { transform: translateY(1px); }
 
+.btn.primary {
+  background: linear-gradient(135deg, #0f766e, #115e59);
+  border-color: rgba(15, 118, 110, 0.55);
+}
+
 .btn.ghost {
   background: transparent;
   border-color: #2a2a2a;
   color: #b9b9b9;
 }
 .btn.ghost:hover { border-color:#3a3a3a; color:#efefef; }
+
+.btn.small {
+  padding: 7px 10px;
+  font-size: 12px;
+}
 
 .date-input {
   background: #0f1116;
@@ -157,10 +167,24 @@
 
 /* Responsive */
 @media (max-width: 640px) {
+  .bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
   .sess-head, .sess-row {
     grid-template-columns: 1fr 1fr 1fr;
   }
   .who .meta { flex-direction: column; gap: 4px; }
+
+  .totals {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
 }
 
 

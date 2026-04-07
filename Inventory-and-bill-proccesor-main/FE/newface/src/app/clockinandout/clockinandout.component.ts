@@ -111,7 +111,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   readonly sharedLakeHomeCenter = { lat: 45.81027575048179, lng: 24.130539205078342 };
 
   readonly worksites: WorksiteDefinition[] = [
-    { name: 'The Lake Home Bloc A', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 100 },
+    { name: 'The Lake Home Bloc A', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
     { name: 'The Lake Home Bloc B2', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
     { name: 'The Lake Home Blocurile E si F', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
     { name: 'psihiatrie c8', type: 'circle', center: { lat: 45.80720228440877, lng: 24.15440514734915 }, radiusMeters: 40 },

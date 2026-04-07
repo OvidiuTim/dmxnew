@@ -27,6 +27,7 @@ import { ShelfsComponent } from './shelfs/shelfs.component';
 import { NavbarComponent } from './navbar/navbar.component';
 import { PontajComponent } from './pontaj/pontaj.component';
 import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
+import { EmployeeFormComponent } from './pontaj/employee-form/employee-form.component';
 
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { AuthInterceptor } from './auth/auth.interceptor';
@@ -53,6 +54,7 @@ import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandou
     NavbarComponent,
     PontajComponent,
     UserpontatComponent,
+    EmployeeFormComponent,
     RapoarteComponent,
     ClockinandoutComponent,
     ClockinandoutdriverComponent,

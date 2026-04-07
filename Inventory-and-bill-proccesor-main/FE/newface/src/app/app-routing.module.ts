@@ -14,6 +14,7 @@ import { ShelfsComponent } from './shelfs/shelfs.component';
 import { PontajComponent } from './pontaj/pontaj.component';
 import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 import { RapoarteComponent } from './pontaj/rapoarte/rapoarte.component';
+import { EmployeeFormComponent } from './pontaj/employee-form/employee-form.component';
 import { ClockinandoutComponent } from './clockinandout/clockinandout.component';
 import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandoutdriver.component';
 
@@ -35,6 +36,10 @@ const routes: Routes = [
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard] },
+
+  // Formular angajat
+  { path: 'users/new', component: EmployeeFormComponent, canActivate: [AuthGuard] },
+  { path: 'users/:id/edit', component: EmployeeFormComponent, canActivate: [AuthGuard] },
 
   // Pagina utilizator protejată (/pontaj/user/:id)
   { path: 'user/:id', component: UserpontatComponent, canActivate: [AuthGuard] },

@@ -19,8 +19,23 @@ class UserSerializer(serializers.ModelSerializer):
             "UserPin",
             "NameAndSerie",
             "hourly_rate",
-            "Company",      # <<–– ADĂUGAT
+            "Company",
+            "equipment_size",
+            "received_equipment",
+            "phone_number",
+            "photo",
+            "trade",
         )
+        extra_kwargs = {
+            "NameAndSerie": {"required": False, "allow_null": True, "allow_blank": True},
+            "hourly_rate": {"required": False, "allow_null": True},
+            "Company": {"required": False, "allow_null": True, "allow_blank": True},
+            "equipment_size": {"required": False, "allow_null": True, "allow_blank": True},
+            "received_equipment": {"required": False, "allow_null": True},
+            "phone_number": {"required": False, "allow_null": True, "allow_blank": True},
+            "photo": {"required": False, "allow_null": True, "allow_blank": True},
+            "trade": {"required": False, "allow_null": True, "allow_blank": True},
+        }
 
 
 
