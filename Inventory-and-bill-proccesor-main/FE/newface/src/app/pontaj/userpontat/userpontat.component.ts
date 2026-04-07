@@ -282,6 +282,19 @@ private fetchUserInfo(): void {
     return `${this.formatGps(point)}${accuracy}`;
   }
 
+  gpsMapsUrl(point?: GpsPoint | null): string {
+    if (!point) return '#';
+    return `https://www.google.com/maps/search/?api=1&query=${point.lat},${point.lng}`;
+  }
+
+  openGpsOnMap(point?: GpsPoint | null): void {
+    if (!point || typeof window === 'undefined') {
+      return;
+    }
+
+    window.open(this.gpsMapsUrl(point), '_blank', 'noopener,noreferrer');
+  }
+
   durataOre(hms: string) {
     const [h, m] = (hms || '00:00:00').split(':');
     return `${parseInt(h, 10)}:${m} ore`;

@@ -1321,7 +1321,6 @@ def nfc_scan(request):
     # work_date derivat din 'when', nu din 'now'
     today = localdate(when)
 
-    from datetime import timedelta
     with transaction.atomic():
         open_sess = (AttendanceSession.objects
                      .select_for_update()

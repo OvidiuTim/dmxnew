@@ -66,19 +66,37 @@
         </div>
 
         <div class="sess-row" *ngFor="let s of d.sessions">
-          <div class="in">{{ hm(s.in_time) }}</div>
+          <div class="time-stack">
+            <div class="in">{{ hm(s.in_time) }}</div>
+            <button
+              class="btn secondary map-mini-btn"
+              type="button"
+              [disabled]="!s.in_gps"
+              [title]="'Vezi pe harta punctul de check-in: ' + gpsTitle(s.in_gps)"
+              (click)="openGpsOnMap(s.in_gps)"
+            >
+              {{ s.in_gps ? 'Vezi check-in' : 'Fara GPS' }}
+            </button>
+          </div>
           <div class="arrow">→</div>
-          <div class="out">
+          <div class="time-stack">
             <ng-container *ngIf="s.out_time; else openTag">{{ hm(s.out_time) }}</ng-container>
             <ng-template #openTag><span class="open">deschis</span></ng-template>
+            <button
+              class="btn secondary map-mini-btn"
+              type="button"
+              [disabled]="!s.out_gps"
+              [title]="'Vezi pe harta punctul de check-out: ' + gpsTitle(s.out_gps)"
+              (click)="openGpsOnMap(s.out_gps)"
+            >
+              {{ s.out_gps ? 'Vezi check-out' : 'Fara GPS' }}
+            </button>
           </div>
           <div class="dur">{{ durataOre(s.duration_hms) }}</div>
 
           <!-- Site + buton ștergere sesiune -->
           <div class="site">
             <span class="chip" *ngIf="s.worksite">{{ s.worksite }}</span>
-            <span class="chip" *ngIf="s.in_gps" [title]="gpsTitle(s.in_gps)">GPS intrare: {{ formatGps(s.in_gps) }}</span>
-            <span class="chip" *ngIf="s.out_gps" [title]="gpsTitle(s.out_gps)">GPS iesire: {{ formatGps(s.out_gps) }}</span>
             <button class="btn danger" *ngIf="s.session_id" style="margin-left:8px" title="Șterge această sesiune"
               (click)="deleteSingleSession(s)">
               Șterge
