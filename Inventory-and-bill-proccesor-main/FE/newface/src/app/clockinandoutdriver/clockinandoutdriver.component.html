@@ -18,12 +18,12 @@
         <div class="map-top">
           <div>
             <div class="step-chip">1. Locatie GPS</div>
-            <div class="gps-badge" [ngClass]="locationState">{{ locationBadge }}</div>
+            <div class="gps-badge" [ngClass]="effectiveLocationState">{{ locationBadge }}</div>
             <h2>{{ locationTitle }}</h2>
             <p>{{ locationDetail }}</p>
           </div>
 
-          <button type="button" class="refresh-btn" (click)="refreshLocation()">Actualizeaza GPS</button>
+          <button type="button" class="refresh-btn" (click)="refreshLocation()">Ia-mi locatia mea live</button>
         </div>
 
         <div class="legend">
@@ -38,6 +38,7 @@
         <div class="map-meta">
           <div class="meta-pill strong">{{ locationReadyHint }}</div>
           <div class="meta-pill" *ngIf="currentPosition">Coordonate: {{ formatCoordinates(currentPosition.lat, currentPosition.lng) }}</div>
+          <div class="meta-pill" *ngIf="locationFreshForLabel">{{ locationFreshForLabel }}</div>
         </div>
       </section>
 
@@ -62,7 +63,7 @@
           />
 
           <p class="gate-note" [class.ready]="canSubmit">
-            {{ canSubmit ? 'Locatia este gata si poate fi salvata impreuna cu pontajul.' : 'Pontajul este permis doar dupa ce vedem locatia ta actuala pe harta.' }}
+            {{ gateMessage }}
           </p>
 
           <button type="submit" class="submit-btn" [disabled]="!canSubmit">

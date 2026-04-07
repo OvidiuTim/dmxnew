@@ -15,16 +15,31 @@
       </header>
 
       <section class="language-panel">
-        <button
-          *ngFor="let language of languages"
-          type="button"
-          class="language-btn"
-          [class.active]="selectedLanguage === language.code"
-          (click)="setLanguage(language.code)"
-        >
-          <span class="language-native">{{ language.nativeLabel }}</span>
-          <span class="language-secondary">{{ language.secondaryLabel }}</span>
-        </button>
+        <div class="language-buttons">
+          <button
+            *ngFor="let language of languages"
+            type="button"
+            class="language-btn"
+            [class.active]="selectedLanguage === language.code"
+            (click)="setLanguage(language.code)"
+          >
+            <span class="language-native">{{ language.nativeLabel }}</span>
+            <span class="language-secondary">{{ language.secondaryLabel }}</span>
+          </button>
+        </div>
+
+        <div class="language-select-mobile">
+          <select
+            [ngModel]="selectedLanguage"
+            (ngModelChange)="setLanguage($event)"
+            name="mobile-language"
+            aria-label="Language"
+          >
+            <option *ngFor="let language of languages" [ngValue]="language.code">
+              {{ language.nativeLabel }} - {{ language.secondaryLabel }}
+            </option>
+          </select>
+        </div>
 
         <div class="worksite-picker">
           <label for="worksite-select">{{ t.worksiteLabel }}</label>
@@ -46,7 +61,7 @@
         <div class="map-top">
           <div>
             <div class="step-chip">2. {{ t.stepLocation }}</div>
-            <div *ngIf="selectedWorksite" class="gps-badge" [ngClass]="locationState">{{ locationBadge }}</div>
+            <div *ngIf="selectedWorksite" class="gps-badge" [ngClass]="effectiveLocationState">{{ locationBadge }}</div>
             <h2>{{ locationTitle }}</h2>
             <p>{{ locationDetail }}</p>
           </div>
@@ -78,6 +93,7 @@
           <div class="meta-pill">{{ t.zoneCenterLabel }}: {{ formatCoordinates(activeZoneCenter.lat, activeZoneCenter.lng) }}</div>
           <div class="meta-pill" *ngIf="currentPosition">{{ t.yourPositionLabel }}: {{ formatCoordinates(currentPosition.lat, currentPosition.lng) }}</div>
           <div class="meta-pill" *ngIf="currentPosition">{{ t.accuracyLabel(currentPosition.accuracy) }}</div>
+          <div class="meta-pill" *ngIf="locationFreshForLabel">{{ locationFreshForLabel }}</div>
         </div>
       </section>
 

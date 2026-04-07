@@ -9,6 +9,7 @@ type ManualAttendanceOptions = {
     lat: number;
     lng: number;
     accuracy?: number | null;
+    capturedAt?: string | null;
   };
 };
 
@@ -125,6 +126,7 @@ getAttendanceDay(date?: string) {
         lat: options.gps.lat,
         lng: options.gps.lng,
         accuracy: options.gps.accuracy ?? null,
+        captured_at: options.gps.capturedAt ?? null,
       };
     }
 

@@ -5,7 +5,7 @@ import { SharedService } from '../shared.service';
 type LanguageCode = 'ro' | 'en' | 'pa' | 'hi' | 'ne';
 type FeedbackKind = 'enter' | 'exit' | 'error';
 type AttendanceState = 'ENTER' | 'EXIT';
-type LocationState = 'loading' | 'inside' | 'outside' | 'denied' | 'unsupported' | 'error';
+type LocationState = 'idle' | 'loading' | 'inside' | 'outside' | 'expired' | 'denied' | 'unsupported' | 'error';
 type WorksiteType = 'polygon' | 'circle';
 
 interface LanguageOption {
@@ -141,7 +141,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       keypadHint: 'Poti folosi tastatura sau butoanele numerice.',
       zoneAllowed: 'Esti in interiorul santierului selectat. Poti sa te pontezi.',
       zoneRestriction: 'Nu esti pe santier.',
-      refreshGps: 'Actualizeaza GPS',
+      refreshGps: 'Ia-mi locatia mea live',
       submit: 'Check in / Check out',
       processing: 'Se proceseaza...',
       clear: 'Sterge',
@@ -196,7 +196,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       keypadHint: 'You can use the keyboard or the numeric keypad.',
       zoneAllowed: 'You are inside the selected worksite. Check-in is enabled.',
       zoneRestriction: 'You are not on the worksite.',
-      refreshGps: 'Refresh GPS',
+      refreshGps: 'Get my live location',
       submit: 'Check in / Check out',
       processing: 'Processing...',
       clear: 'Clear',
@@ -251,7 +251,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       keypadHint: 'ਤੁਸੀਂ ਕੀਬੋਰਡ ਜਾਂ ਨੰਬਰ ਬਟਨ ਵਰਤ ਸਕਦੇ ਹੋ।',
       zoneAllowed: 'ਤੁਸੀਂ ਚੁਣੀ ਹੋਈ ਸਾਈਟ ਦੇ ਅੰਦਰ ਹੋ। ਚੈਕ-ਇਨ ਚਾਲੂ ਹੈ।',
       zoneRestriction: 'ਤੁਸੀਂ ਸਾਈਟ ਤੇ ਨਹੀਂ ਹੋ।',
-      refreshGps: 'GPS ਤਾਜ਼ਾ ਕਰੋ',
+      refreshGps: 'ਮੇਰੀ ਮੌਜੂਦਾ ਲੋਕੇਸ਼ਨ ਲਵੋ',
       submit: 'ਚੈਕ ਇਨ / ਚੈਕ ਆਉਟ',
       processing: 'ਕਾਰਵਾਈ ਜਾਰੀ ਹੈ...',
       clear: 'ਸਾਫ਼ ਕਰੋ',
@@ -306,7 +306,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       keypadHint: 'आप कीबोर्ड या नंबर बटन दोनों का उपयोग कर सकते हैं।',
       zoneAllowed: 'आप चुनी हुई साइट के अंदर हैं। चेक-इन चालू है।',
       zoneRestriction: 'आप साइट पर नहीं हैं।',
-      refreshGps: 'GPS रीफ्रेश करें',
+      refreshGps: 'मेरी लाइव लोकेशन लो',
       submit: 'चेक इन / चेक आउट',
       processing: 'प्रोसेस हो रहा है...',
       clear: 'साफ करें',
@@ -361,7 +361,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       keypadHint: 'किबोर्ड वा अंक बटन दुवै प्रयोग गर्न सकिन्छ।',
       zoneAllowed: 'तपाईं चयन गरिएको साइटभित्र हुनुहुन्छ। चेक-इन खुला छ।',
       zoneRestriction: 'तपाईं साइटमा हुनुहुन्न।',
-      refreshGps: 'GPS फेरि जाँच्नुहोस्',
+      refreshGps: 'मेरो हालको लोकेशन लिनुहोस्',
       submit: 'चेक इन / चेक आउट',
       processing: 'प्रक्रिया हुँदैछ...',
       clear: 'खाली गर्नुहोस्',
@@ -410,7 +410,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   currentTime = new Date();
   feedback: FeedbackState | null = null;
   currentPosition: CurrentPosition | null = null;
-  locationState: LocationState = 'loading';
+  locationState: LocationState = 'idle';
+  locationCapturedAt: Date | null = null;
+  readonly locationValidityMs = 10 * 60 * 1000;
 
   private map: L.Map | null = null;
   private zoneShape: L.Polygon | L.Circle | null = null;
@@ -477,11 +479,40 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   get canSubmit(): boolean {
-    return !!this.pin.trim() && !!this.selectedWorksite && this.locationState === 'inside' && !this.submitting;
+    return !!this.pin.trim() && !!this.selectedWorksite && this.effectiveLocationState === 'inside' && !this.submitting;
   }
 
   get gateReady(): boolean {
-    return !!this.selectedWorksite && this.locationState === 'inside';
+    return !!this.selectedWorksite && this.effectiveLocationState === 'inside';
+  }
+
+  get effectiveLocationState(): LocationState {
+    if (this.locationState === 'inside' || this.locationState === 'outside') {
+      return this.isLocationFresh ? this.locationState : 'expired';
+    }
+
+    if (this.currentPosition && this.locationCapturedAt && !this.isLocationFresh) {
+      return 'expired';
+    }
+
+    return this.locationState;
+  }
+
+  get isLocationFresh(): boolean {
+    if (!this.locationCapturedAt) {
+      return false;
+    }
+
+    return (this.currentTime.getTime() - this.locationCapturedAt.getTime()) <= this.locationValidityMs;
+  }
+
+  get locationFreshForLabel(): string | null {
+    if (!this.locationCapturedAt || !this.isLocationFresh) {
+      return null;
+    }
+
+    const remainingMs = Math.max(0, this.locationValidityMs - (this.currentTime.getTime() - this.locationCapturedAt.getTime()));
+    return this.getLocationFreshForText(this.formatRemainingTime(remainingMs));
   }
 
   get gateMessage(): string {
@@ -489,11 +520,28 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       return this.t.worksiteRequired;
     }
 
-    if (this.locationState === 'loading') {
+    const state = this.effectiveLocationState;
+    if (state === 'idle') {
+      return this.getLocationMissingErrorText();
+    }
+
+    if (state === 'expired') {
+      return this.getLocationExpiredErrorText();
+    }
+
+    if (state === 'loading') {
       return this.t.gpsLoadingDetail;
     }
 
-    return this.locationState === 'inside' ? this.t.zoneAllowed : this.t.zoneRestriction;
+    if (state === 'inside') {
+      return this.t.zoneAllowed;
+    }
+
+    if (state === 'outside') {
+      return this.t.zoneRestriction;
+    }
+
+    return this.locationDetail;
   }
 
   get locationBadge(): string {
@@ -501,14 +549,21 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       return this.t.worksitePlaceholder;
     }
 
+    const state = this.effectiveLocationState;
+    if (state === 'idle' || state === 'expired') {
+      return this.getLocationCopy(state).badge;
+    }
+
     return {
+      idle: this.t.worksitePlaceholder,
       loading: this.t.gpsLoadingBadge,
       inside: this.t.gpsInsideBadge,
       outside: this.t.gpsOutsideBadge,
+      expired: this.t.gpsOutsideBadge,
       denied: this.t.gpsDeniedBadge,
       unsupported: this.t.gpsUnsupportedBadge,
       error: this.t.gpsErrorBadge
-    }[this.locationState];
+    }[state];
   }
 
   get locationTitle(): string {
@@ -516,14 +571,21 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       return this.t.worksiteLabel;
     }
 
+    const state = this.effectiveLocationState;
+    if (state === 'idle' || state === 'expired') {
+      return this.getLocationCopy(state).title;
+    }
+
     return {
+      idle: this.t.worksiteLabel,
       loading: this.t.gpsLoadingTitle,
       inside: this.t.gpsInsideTitle,
       outside: this.t.gpsOutsideTitle,
+      expired: this.t.gpsOutsideTitle,
       denied: this.t.gpsDeniedTitle,
       unsupported: this.t.gpsUnsupportedTitle,
       error: this.t.gpsErrorTitle
-    }[this.locationState];
+    }[state];
   }
 
   get locationDetail(): string {
@@ -531,14 +593,21 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       return this.t.worksiteHelper;
     }
 
+    const state = this.effectiveLocationState;
+    if (state === 'idle' || state === 'expired') {
+      return this.getLocationCopy(state).detail;
+    }
+
     return {
+      idle: this.t.worksiteHelper,
       loading: this.t.gpsLoadingDetail,
       inside: this.t.gpsInsideDetail,
       outside: this.t.gpsOutsideDetail,
+      expired: this.t.gpsOutsideDetail,
       denied: this.t.gpsDeniedDetail,
       unsupported: this.t.gpsUnsupportedDetail,
       error: this.t.gpsErrorDetail
-    }[this.locationState];
+    }[state];
   }
 
   setLanguage(code: LanguageCode): void {
@@ -557,11 +626,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
     if (!worksite) {
       this.stopGeolocation();
-      this.locationState = 'loading';
+      this.locationState = 'idle';
       return;
     }
-
-    this.startGeolocation();
 
     if (this.currentPosition) {
       this.recomputeZoneMembership();
@@ -569,7 +636,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       return;
     }
 
-    this.locationState = 'loading';
+    this.locationState = 'idle';
   }
 
   updatePin(value: string): void {
@@ -581,12 +648,27 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   refreshLocation(): void {
-    this.startGeolocation();
+    if (!this.selectedWorksite) {
+      this.showError(this.t.worksiteRequired);
+      return;
+    }
+
+    this.requestFreshLocation();
   }
 
   submitPin(): void {
     if (!this.selectedWorksite) {
       this.showError(this.t.worksiteRequired);
+      return;
+    }
+
+    if (!this.currentPosition) {
+      this.showError(this.getLocationMissingErrorText());
+      return;
+    }
+
+    if (this.effectiveLocationState === 'expired') {
+      this.showError(this.getLocationExpiredErrorText());
       return;
     }
 
@@ -598,7 +680,16 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     const cleanPin = this.pin.trim();
     this.submitting = true;
 
-    this.api.manualAttendanceByPin(cleanPin, this.selectedWorksite.name).subscribe({
+    this.api.manualAttendanceByPin(cleanPin, {
+      worksite: this.selectedWorksite.name,
+      mode: 'manual',
+      gps: {
+        lat: this.currentPosition.lat,
+        lng: this.currentPosition.lng,
+        accuracy: this.currentPosition.accuracy,
+        capturedAt: this.locationCapturedAt?.toISOString()
+      }
+    }).subscribe({
       next: (response) => {
         this.submitting = false;
 
@@ -665,6 +756,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
     if (code === 'MANUAL_CHECKOUT_DEVICE_MISMATCH') {
       return this.t.manualCheckoutSameDeviceError;
+    }
+
+    if (code === 'GPS_CAPTURE_EXPIRED') {
+      return this.getLocationExpiredErrorText();
     }
 
     return typeof error?.error?.error === 'string' ? error.error.error : this.t.genericError;
@@ -757,7 +852,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     this.focusMapOnWorksite(worksite);
   }
 
-  private startGeolocation(): void {
+  private requestFreshLocation(): void {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       this.locationState = 'unsupported';
       return;
@@ -776,15 +871,6 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       }
     );
 
-    this.watchId = navigator.geolocation.watchPosition(
-      (position) => this.handlePosition(position),
-      (error) => this.handlePositionError(error),
-      {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 3000
-      }
-    );
   }
 
   private stopGeolocation(): void {
@@ -800,6 +886,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       lng: position.coords.longitude,
       accuracy: position.coords.accuracy
     };
+    this.locationCapturedAt = new Date();
 
     this.recomputeZoneMembership();
     this.updateUserLayers();
@@ -997,6 +1084,128 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       permanent: false,
       direction: 'top'
     });
+  }
+
+  private formatRemainingTime(remainingMs: number): string {
+    const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  private getLocationFreshForText(time: string): string {
+    switch (this.selectedLanguage) {
+      case 'en':
+        return `Location valid for ${time}.`;
+      case 'pa':
+        return `ਲੋਕੇਸ਼ਨ ਹੋਰ ${time} ਲਈ ਵੈਧ ਹੈ।`;
+      case 'hi':
+        return `लोकेशन ${time} तक मान्य है।`;
+      case 'ne':
+        return `लोकेशन अझै ${time} सम्म मान्य छ।`;
+      default:
+        return `Locatia este valabila inca ${time}.`;
+    }
+  }
+
+  private getLocationMissingErrorText(): string {
+    switch (this.selectedLanguage) {
+      case 'en':
+        return 'Press Get my live location and then enter the PIN within 10 minutes.';
+      case 'pa':
+        return 'ਪਹਿਲਾਂ ਮੇਰੀ ਮੌਜੂਦਾ ਲੋਕੇਸ਼ਨ ਲਵੋ ਦਬਾਓ, ਫਿਰ 10 ਮਿੰਟਾਂ ਅੰਦਰ ਪਿੰਨ ਦਾਖਲ ਕਰੋ।';
+      case 'hi':
+        return 'पहले मेरी लाइव लोकेशन लो दबाएं, फिर 10 मिनट के भीतर पिन दर्ज करें।';
+      case 'ne':
+        return 'पहिले मेरो हालको लोकेशन लिनुहोस् थिच्नुहोस्, त्यसपछि १० मिनेटभित्र पिन हाल्नुहोस्।';
+      default:
+        return 'Apasa pe Ia-mi locatia mea live, apoi introdu PIN-ul in maximum 10 minute.';
+    }
+  }
+
+  private getLocationExpiredErrorText(): string {
+    switch (this.selectedLanguage) {
+      case 'en':
+        return 'The saved location expired. Press Get my live location again and then enter the PIN within 10 minutes.';
+      case 'pa':
+        return 'ਸੇਵ ਕੀਤੀ ਲੋਕੇਸ਼ਨ ਮਿਆਦ ਤੋਂ ਬਾਹਰ ਹੋ ਗਈ ਹੈ। ਦੁਬਾਰਾ ਮੇਰੀ ਮੌਜੂਦਾ ਲੋਕੇਸ਼ਨ ਲਵੋ ਦਬਾਓ ਅਤੇ 10 ਮਿੰਟਾਂ ਅੰਦਰ ਪਿੰਨ ਦਾਖਲ ਕਰੋ।';
+      case 'hi':
+        return 'सहेजी गई लोकेशन की समय-सीमा खत्म हो गई है। फिर से मेरी लाइव लोकेशन लो दबाएं और 10 मिनट के भीतर पिन दर्ज करें।';
+      case 'ne':
+        return 'सेभ गरिएको लोकेशनको समय सकिएको छ। फेरि मेरो हालको लोकेशन लिनुहोस् थिच्नुहोस् र १० मिनेटभित्र पिन हाल्नुहोस्।';
+      default:
+        return 'Locatia salvata a expirat. Apasa din nou pe Ia-mi locatia mea live si introdu PIN-ul in maximum 10 minute.';
+    }
+  }
+
+  private getLocationCopy(state: 'idle' | 'expired'): { badge: string; title: string; detail: string } {
+    if (state === 'expired') {
+      switch (this.selectedLanguage) {
+        case 'en':
+          return {
+            badge: 'Location expired',
+            title: 'The saved GPS location has expired.',
+            detail: 'Press Get my live location again. The saved position can be used for attendance for 10 minutes only.'
+          };
+        case 'pa':
+          return {
+            badge: 'ਲੋਕੇਸ਼ਨ ਮਿਆਦ ਖਤਮ',
+            title: 'ਸੇਵ ਕੀਤੀ GPS ਲੋਕੇਸ਼ਨ ਦੀ ਮਿਆਦ ਖਤਮ ਹੋ ਗਈ ਹੈ।',
+            detail: 'ਦੁਬਾਰਾ ਮੇਰੀ ਮੌਜੂਦਾ ਲੋਕੇਸ਼ਨ ਲਵੋ ਦਬਾਓ। ਸੇਵ ਕੀਤੀ ਲੋਕੇਸ਼ਨ ਸਿਰਫ਼ 10 ਮਿੰਟ ਲਈ ਹੀ ਵਰਤੀ ਜਾ ਸਕਦੀ ਹੈ।'
+          };
+        case 'hi':
+          return {
+            badge: 'लोकेशन समाप्त',
+            title: 'सहेजी गई GPS लोकेशन की समय-सीमा समाप्त हो गई है।',
+            detail: 'फिर से मेरी लाइव लोकेशन लो दबाएं। सहेजी गई लोकेशन केवल 10 मिनट तक मान्य रहती है।'
+          };
+        case 'ne':
+          return {
+            badge: 'लोकेशन सकियो',
+            title: 'सेभ गरिएको GPS लोकेशनको समय सकिएको छ।',
+            detail: 'फेरि मेरो हालको लोकेशन लिनुहोस् थिच्नुहोस्। सेभ गरिएको लोकेशन १० मिनेट मात्र मान्य हुन्छ।'
+          };
+        default:
+          return {
+            badge: 'Locatie expirata',
+            title: 'Locatia GPS salvata a expirat.',
+            detail: 'Apasa din nou pe Ia-mi locatia mea live. Pozitia salvata poate fi folosita pentru pontaj doar 10 minute.'
+          };
+      }
+    }
+
+    switch (this.selectedLanguage) {
+      case 'en':
+        return {
+          badge: 'Location needed',
+          title: 'Capture your current GPS location first.',
+          detail: 'Press Get my live location. After the location is captured, you have 10 minutes to enter the PIN.'
+        };
+      case 'pa':
+        return {
+          badge: 'ਲੋਕੇਸ਼ਨ ਚਾਹੀਦੀ ਹੈ',
+          title: 'ਸਭ ਤੋਂ ਪਹਿਲਾਂ ਆਪਣੀ ਮੌਜੂਦਾ GPS ਲੋਕੇਸ਼ਨ ਲਵੋ।',
+          detail: 'ਮੇਰੀ ਮੌਜੂਦਾ ਲੋਕੇਸ਼ਨ ਲਵੋ ਦਬਾਓ। ਲੋਕੇਸ਼ਨ ਮਿਲਣ ਤੋਂ ਬਾਅਦ ਤੁਹਾਡੇ ਕੋਲ ਪਿੰਨ ਦਾਖਲ ਕਰਨ ਲਈ 10 ਮਿੰਟ ਹੋਣਗੇ।'
+        };
+      case 'hi':
+        return {
+          badge: 'लोकेशन चाहिए',
+          title: 'पहले अपनी वर्तमान GPS लोकेशन लें।',
+          detail: 'मेरी लाइव लोकेशन लो दबाएं। लोकेशन मिल जाने के बाद आपके पास पिन दर्ज करने के लिए 10 मिनट होंगे।'
+        };
+      case 'ne':
+        return {
+          badge: 'लोकेशन चाहिन्छ',
+          title: 'पहिले आफ्नो हालको GPS लोकेशन लिनुहोस्।',
+          detail: 'मेरो हालको लोकेशन लिनुहोस् थिच्नुहोस्। लोकेशन आएपछि पिन हाल्न १० मिनेट समय हुनेछ।'
+        };
+      default:
+        return {
+          badge: 'Locatie necesara',
+          title: 'Ia mai intai locatia GPS curenta.',
+          detail: 'Apasa pe Ia-mi locatia mea live. Dupa ce locatia este capturata, ai 10 minute sa introduci PIN-ul.'
+        };
+    }
   }
 
   private readSavedLanguage(): LanguageCode {

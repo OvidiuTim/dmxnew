@@ -1203,6 +1203,12 @@ def _extract_gps_payload(data):
     }
 
 
+def _extract_gps_captured_at(data):
+    gps = data.get("gps") if isinstance(data.get("gps"), dict) else {}
+    raw_value = gps.get("captured_at") if gps else data.get("gps_captured_at")
+    return _parse_client_ts(raw_value)
+
+
 def _session_gps_payload(session):
     return {
         "in_gps": (
@@ -1256,11 +1262,18 @@ def nfc_scan(request):
     manual_client_ip = _get_client_ip(request) if is_manual_scan else None
     manual_device_key = _normalize_manual_device_key(data.get("device_key")) if is_manual_scan else None
     gps_payload = _extract_gps_payload(data)
+    gps_captured_at = _extract_gps_captured_at(data)
 
     if attendance_mode == "driver" and not gps_payload:
         return JsonResponse({
             "error": "Locatia GPS este obligatorie pentru pontajul soferilor.",
             "error_code": "GPS_REQUIRED_FOR_DRIVER"
+        }, status=400)
+
+    if gps_payload and gps_captured_at and gps_captured_at < (timezone.now() - timedelta(minutes=10)):
+        return JsonResponse({
+            "error": "Locatia GPS salvata a expirat. Cere din nou locatia si introdu PIN-ul in maximum 10 minute.",
+            "error_code": "GPS_CAPTURE_EXPIRED"
         }, status=400)
 
     # --- DETERMINĂM PINUL EFECTIV: din content sau din maparea UID_PIN_MAP ---

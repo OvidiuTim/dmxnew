@@ -209,9 +209,18 @@
   background: rgba(31, 41, 51, 0.08);
 }
 
+.gps-badge.idle {
+  background: rgba(31, 41, 51, 0.08);
+}
+
 .gps-badge.ready {
   background: rgba(15, 118, 110, 0.12);
   color: var(--accent-strong);
+}
+
+.gps-badge.expired {
+  background: rgba(217, 119, 6, 0.12);
+  color: #8a4b06;
 }
 
 .gps-badge.denied,

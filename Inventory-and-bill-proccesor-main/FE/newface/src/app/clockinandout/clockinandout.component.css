@@ -100,10 +100,36 @@
 }
 
 .language-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0;
+}
+
+.language-buttons {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
-  padding: 0;
+}
+
+.language-select-mobile {
+  display: none;
+}
+
+.language-select-mobile select {
+  width: 100%;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 14px 16px;
+  color: var(--ink-main);
+  font-size: 1rem;
+  outline: none;
+}
+
+.language-select-mobile select:focus {
+  border-color: rgba(15, 118, 110, 0.44);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
 }
 
 .language-btn {
@@ -148,7 +174,6 @@
 }
 
 .worksite-picker {
-  grid-column: 1 / -1;
   padding: 10px 4px 0;
 }
 
@@ -331,12 +356,17 @@
   background: rgba(31, 41, 51, 0.08);
 }
 
+.gps-badge.idle {
+  background: rgba(31, 41, 51, 0.08);
+}
+
 .gps-badge.inside {
   background: rgba(15, 118, 110, 0.12);
   color: var(--accent-strong);
 }
 
-.gps-badge.outside {
+.gps-badge.outside,
+.gps-badge.expired {
   background: rgba(217, 119, 6, 0.12);
   color: #8a4b06;
 }
@@ -500,5 +530,15 @@
 
   .map-container {
     min-height: 340px;
+  }
+}
+
+@media (max-width: 820px) {
+  .language-buttons {
+    display: none;
+  }
+
+  .language-select-mobile {
+    display: block;
   }
 }

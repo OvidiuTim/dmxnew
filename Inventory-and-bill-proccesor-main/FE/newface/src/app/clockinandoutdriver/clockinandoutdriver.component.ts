@@ -4,7 +4,7 @@ import { SharedService } from '../shared.service';
 
 type FeedbackKind = 'enter' | 'exit' | 'error';
 type AttendanceState = 'ENTER' | 'EXIT';
-type LocationState = 'loading' | 'ready' | 'denied' | 'unsupported' | 'error';
+type LocationState = 'idle' | 'loading' | 'ready' | 'expired' | 'denied' | 'unsupported' | 'error';
 
 interface FeedbackState {
   kind: FeedbackKind;
@@ -32,15 +32,15 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   currentTime = new Date();
   feedback: FeedbackState | null = null;
   currentPosition: CurrentPosition | null = null;
-  locationState: LocationState = 'loading';
+  locationState: LocationState = 'idle';
+  locationCapturedAt: Date | null = null;
+  readonly locationValidityMs = 10 * 60 * 1000;
 
   private map: L.Map | null = null;
   private userMarker: L.CircleMarker | null = null;
   private accuracyCircle: L.Circle | null = null;
-  private watchId: number | null = null;
   private clockTimer: ReturnType<typeof setInterval> | null = null;
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
-  private hasCenteredOnUser = false;
 
   constructor(private api: SharedService) {}
 
@@ -52,7 +52,6 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
 
   ngAfterViewInit(): void {
     this.initMap();
-    this.startGeolocation();
   }
 
   ngOnDestroy(): void {
@@ -64,7 +63,6 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       clearTimeout(this.resetTimer);
     }
 
-    this.stopGeolocation();
     this.map?.remove();
   }
 
@@ -86,38 +84,73 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     }).format(this.currentTime);
   }
 
+  get isLocationFresh(): boolean {
+    if (!this.locationCapturedAt) {
+      return false;
+    }
+
+    return (this.currentTime.getTime() - this.locationCapturedAt.getTime()) <= this.locationValidityMs;
+  }
+
+  get effectiveLocationState(): LocationState {
+    if (this.locationState === 'ready' && !this.isLocationFresh) {
+      return 'expired';
+    }
+
+    if (this.currentPosition && this.locationCapturedAt && !this.isLocationFresh) {
+      return 'expired';
+    }
+
+    return this.locationState;
+  }
+
   get canSubmit(): boolean {
-    return !!this.pin.trim() && !!this.currentPosition && this.locationState === 'ready' && !this.submitting;
+    return !!this.pin.trim() && !!this.currentPosition && this.effectiveLocationState === 'ready' && !this.submitting;
   }
 
   get locationBadge(): string {
     return {
+      idle: 'Locatie necesara',
       loading: 'GPS se conecteaza',
       ready: 'Locatie gata',
+      expired: 'Locatie expirata',
       denied: 'GPS blocat',
       unsupported: 'GPS indisponibil',
       error: 'GPS instabil'
-    }[this.locationState];
+    }[this.effectiveLocationState];
   }
 
   get locationTitle(): string {
     return {
+      idle: 'Ia mai intai locatia curenta a telefonului.',
       loading: 'Cerem locatia curenta a telefonului.',
       ready: 'Locatia ta actuala este gata pentru pontaj.',
+      expired: 'Locatia GPS salvata a expirat.',
       denied: 'Nu avem acces la localizarea telefonului.',
       unsupported: 'Browserul nu suporta localizarea.',
       error: 'Nu am reusit sa citim locatia curenta.'
-    }[this.locationState];
+    }[this.effectiveLocationState];
   }
 
   get locationDetail(): string {
     return {
+      idle: 'Apasa pe Ia-mi locatia mea live. Dupa ce locatia este capturata, ai 10 minute sa introduci PIN-ul.',
       loading: 'Soferii pot face check-in de oriunde, dar locatia GPS este obligatorie si va fi salvata impreuna cu pontajul.',
       ready: 'Locatia este afisata pe harta si va fi salvata la check-in sau check-out.',
-      denied: 'Permite accesul la locatie in browser si apasa din nou pe Actualizeaza GPS.',
+      expired: 'Apasa din nou pe Ia-mi locatia mea live. Pozitia salvata poate fi folosita pentru pontaj doar 10 minute.',
+      denied: 'Permite accesul la locatie in browser si apasa din nou pe Ia-mi locatia mea live.',
       unsupported: 'Deschide pagina intr-un browser modern de pe telefonul soferului.',
       error: 'Verifica semnalul GPS si incearca din nou.'
-    }[this.locationState];
+    }[this.effectiveLocationState];
+  }
+
+  get locationFreshForLabel(): string | null {
+    if (!this.locationCapturedAt || !this.isLocationFresh) {
+      return null;
+    }
+
+    const remainingMs = Math.max(0, this.locationValidityMs - (this.currentTime.getTime() - this.locationCapturedAt.getTime()));
+    return `Locatia este valabila inca ${this.formatRemainingTime(remainingMs)}.`;
   }
 
   get locationReadyHint(): string {
@@ -125,7 +158,27 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       return 'Pontajul este blocat pana cand pozitia curenta este disponibila.';
     }
 
+    if (this.effectiveLocationState === 'expired') {
+      return 'Locatia salvata a expirat. Apasa din nou pe Ia-mi locatia mea live inainte sa introduci PIN-ul.';
+    }
+
     return `Pozitie curenta: ${this.formatCoordinates(this.currentPosition.lat, this.currentPosition.lng)}. Acuratete aproximativa: ${Math.round(this.currentPosition.accuracy)} m.`;
+  }
+
+  get gateMessage(): string {
+    if (!this.currentPosition) {
+      return 'Pontajul este permis doar dupa ce vezi locatia ta curenta pe harta.';
+    }
+
+    if (this.effectiveLocationState === 'expired') {
+      return 'Locatia a expirat. Apasa din nou pe Ia-mi locatia mea live si introdu PIN-ul in maximum 10 minute.';
+    }
+
+    if (this.effectiveLocationState === 'ready') {
+      return 'Locatia este gata si poate fi salvata impreuna cu pontajul.';
+    }
+
+    return 'Pontajul este permis doar dupa ce vezi locatia ta curenta pe harta.';
   }
 
   updatePin(value: string): void {
@@ -137,12 +190,21 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   }
 
   refreshLocation(): void {
-    this.hasCenteredOnUser = false;
-    this.startGeolocation();
+    this.requestFreshLocation();
   }
 
   submitPin(): void {
-    if (!this.currentPosition || this.locationState !== 'ready') {
+    if (!this.currentPosition) {
+      this.showError('Locatia GPS este obligatorie pentru pontajul soferilor.');
+      return;
+    }
+
+    if (this.effectiveLocationState === 'expired') {
+      this.showError('Locatia GPS salvata a expirat. Apasa din nou pe Ia-mi locatia mea live si introdu PIN-ul in maximum 10 minute.');
+      return;
+    }
+
+    if (this.effectiveLocationState !== 'ready') {
       this.showError('Locatia GPS este obligatorie pentru pontajul soferilor.');
       return;
     }
@@ -156,6 +218,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
         lat: this.currentPosition.lat,
         lng: this.currentPosition.lng,
         accuracy: this.currentPosition.accuracy,
+        capturedAt: this.locationCapturedAt?.toISOString()
       }
     }).subscribe({
       next: (response) => {
@@ -233,6 +296,10 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       return 'Locatia GPS este obligatorie pentru pontajul soferilor.';
     }
 
+    if (code === 'GPS_CAPTURE_EXPIRED') {
+      return 'Locatia GPS salvata a expirat. Apasa din nou pe Ia-mi locatia mea live si introdu PIN-ul in maximum 10 minute.';
+    }
+
     return typeof error?.error?.error === 'string'
       ? error.error.error
       : 'Nu am putut inregistra pontajul acum. Incearca din nou.';
@@ -266,13 +333,12 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     setTimeout(() => this.map?.invalidateSize(), 0);
   }
 
-  private startGeolocation(): void {
+  private requestFreshLocation(): void {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       this.locationState = 'unsupported';
       return;
     }
 
-    this.stopGeolocation();
     this.locationState = 'loading';
 
     navigator.geolocation.getCurrentPosition(
@@ -284,23 +350,6 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
         maximumAge: 0
       }
     );
-
-    this.watchId = navigator.geolocation.watchPosition(
-      (position) => this.handlePosition(position),
-      (error) => this.handlePositionError(error),
-      {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 3000
-      }
-    );
-  }
-
-  private stopGeolocation(): void {
-    if (this.watchId !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.clearWatch(this.watchId);
-      this.watchId = null;
-    }
   }
 
   private handlePosition(position: GeolocationPosition): void {
@@ -309,7 +358,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       lng: position.coords.longitude,
       accuracy: position.coords.accuracy
     };
-
+    this.locationCapturedAt = new Date();
     this.locationState = 'ready';
     this.updateUserLayers();
   }
@@ -358,9 +407,13 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       this.accuracyCircle.setStyle({ color, fillColor: color });
     }
 
-    if (!this.hasCenteredOnUser) {
-      this.map.setView(latLng, 16, { animate: false });
-      this.hasCenteredOnUser = true;
-    }
+    this.map.setView(latLng, 16, { animate: false });
+  }
+
+  private formatRemainingTime(remainingMs: number): string {
+    const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
 }
