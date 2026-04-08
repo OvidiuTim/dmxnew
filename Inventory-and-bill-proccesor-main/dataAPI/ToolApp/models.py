@@ -28,6 +28,7 @@ class Users(models.Model):
     UserName = models.CharField(max_length=100)
     UserSerie = models.CharField(max_length=100, unique=True, db_index=True)
     UserPin = models.CharField(max_length=100)
+    uid = models.CharField(max_length=128, null=True, blank=True, db_index=True)
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=0)  # lei/oră
     Company = models.CharField(max_length=100, null=True, blank=True)

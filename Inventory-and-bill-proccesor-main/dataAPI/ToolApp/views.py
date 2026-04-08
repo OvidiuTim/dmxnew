@@ -267,9 +267,9 @@ def users_bulk(request):
     """
     POST /api/users/bulk/
     - Acceptă:
-        a) JSON: [ { "UserName":"...", "UserSerie":"...", "UserPin":"..." }, ... ]
+        a) JSON: [ { "UserName":"...", "UserSerie":"...", "UserPin":"...", "uid":"..." }, ... ]
            (sau { "rows":[...] })
-        b) CSV (Content-Type: text/csv) cu headere: UserName,UserSerie,UserPin
+        b) CSV (Content-Type: text/csv) cu headere: UserName,UserSerie,UserPin,uid
     Returnează: { "created": N }
     """
     if request.method != "POST":
@@ -288,6 +288,7 @@ def users_bulk(request):
                     "UserName": r.get("UserName") or r.get("name"),
                     "UserSerie": r.get("UserSerie") or r.get("serie"),
                     "UserPin":   r.get("UserPin")   or r.get("pin"),
+                    "uid":       r.get("uid")       or r.get("UID"),
                 })
         else:
             # JSON
@@ -301,6 +302,7 @@ def users_bulk(request):
                     "UserName": r.get("UserName") or r.get("name"),
                     "UserSerie": r.get("UserSerie") or r.get("serie"),
                     "UserPin":   r.get("UserPin")   or r.get("pin"),
+                    "uid":       r.get("uid")       or r.get("UID"),
                 })
     except Exception as e:
         return JsonResponse({"error": f"Parsare eșuată: {e}"}, status=400)
@@ -321,7 +323,7 @@ def users_bulk_update(request):
     """
     PUT /api/users/bulk_update/[?create_if_missing=1][&dry_run=1]
     Body (JSON): listă sau { "rows": [...] } cu obiecte user.
-    Identificare per rând (în ordinea asta): UserId | UserSerie | UserPin.
+    Identificare per rând (în ordinea asta): UserId | UserSerie | UserPin | uid.
     Exemplu rând: { "UserId": 12, "UserName": "..." , "hourly_rate": 27.5 }
     """
     if request.method != "PUT":
@@ -345,7 +347,7 @@ def users_bulk_update(request):
     results = []
 
     for idx, row in enumerate(data, start=1):
-        # cheie de căutare: UserId | UserSerie | UserPin
+        # cheie de căutare: UserId | UserSerie | UserPin | uid
         lookup = None
         if row.get("UserId") not in (None, ""):
             lookup = {"UserId": row.get("UserId")}
@@ -353,9 +355,11 @@ def users_bulk_update(request):
             lookup = {"UserSerie": row.get("UserSerie")}
         elif row.get("UserPin"):
             lookup = {"UserPin": row.get("UserPin")}
+        elif row.get("uid"):
+            lookup = {"uid": row.get("uid")}
         else:
             errors += 1
-            results.append({"row": idx, "error": "Lipsește cheie de identificare (UserId sau UserSerie sau UserPin)."})
+            results.append({"row": idx, "error": "Lipsește cheie de identificare (UserId sau UserSerie sau UserPin sau uid)."})
             continue
 
         try:
@@ -1295,6 +1299,7 @@ def nfc_scan(request):
     # --- DETERMINĂM PINUL EFECTIV: din content sau din maparea UID_PIN_MAP ---
     raw_pin = content if content else None
     mapped_pin = None
+    mapped_user = None
 
     if raw_pin:
         # avem PIN direct de pe tag
@@ -1305,9 +1310,16 @@ def nfc_scan(request):
         if mapped_pin:
             print(f"[NFC-MAP] UID={uid} mapat din UID_PIN_MAP la PIN={mapped_pin}")
         else:
-            print(f"[NFC-MAP] UID={uid} NU există în UID_PIN_MAP")
+            mapped_user = Users.objects.filter(uid__iexact=uid).first() if uid and uid != "MANUAL" else None
+            if mapped_user:
+                print(
+                    f"[NFC-MAP] UID={uid} găsit direct în Users.uid pentru user={mapped_user.UserName} "
+                    f"(id={mapped_user.UserId})"
+                )
+            else:
+                print(f"[NFC-MAP] UID={uid} NU există nici în UID_PIN_MAP, nici în Users.uid")
 
-    effective_pin = mapped_pin or raw_pin or ""
+    effective_pin = mapped_pin or raw_pin or (str(mapped_user.UserPin or "").strip() if mapped_user else "")
 
     # Debounce identic (server-side) – folosim PINUL EFECTIV, nu contentul brut
     now_ts = timezone.now().timestamp()
@@ -1323,7 +1335,7 @@ def nfc_scan(request):
         print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned='' -> no user match (no PIN, no mapping)")
         return JsonResponse({"ok": True, "match": None, "received": data})
 
-    user = Users.objects.filter(UserPin=effective_pin).first()
+    user = mapped_user or Users.objects.filter(UserPin=effective_pin).first()
     if not user:
         print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned={effective_pin} -> no user match")
         return JsonResponse({"ok": True, "match": None, "received": data})

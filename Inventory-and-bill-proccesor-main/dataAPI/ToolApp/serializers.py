@@ -17,6 +17,7 @@ class UserSerializer(serializers.ModelSerializer):
             "UserName",
             "UserSerie",
             "UserPin",
+            "uid",
             "NameAndSerie",
             "hourly_rate",
             "Company",
@@ -28,6 +29,7 @@ class UserSerializer(serializers.ModelSerializer):
         )
         extra_kwargs = {
             "NameAndSerie": {"required": False, "allow_null": True, "allow_blank": True},
+            "uid": {"required": False, "allow_null": True, "allow_blank": True},
             "hourly_rate": {"required": False, "allow_null": True},
             "Company": {"required": False, "allow_null": True, "allow_blank": True},
             "equipment_size": {"required": False, "allow_null": True, "allow_blank": True},
