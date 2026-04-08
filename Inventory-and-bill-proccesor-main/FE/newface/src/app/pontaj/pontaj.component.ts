@@ -15,6 +15,7 @@ interface SessionRow {
 interface DayUserRow {
   UserId: number;
   UserName: string;
+  Company?: string | null;
   first_in: string | null;    // ISO local time sau null
   last_out: string | null;    // ISO local time sau null
   total_hms: string;          // "HH:MM:SS"
@@ -38,6 +39,10 @@ export class PontajComponent implements OnInit {
   rows: DayUserRow[] = [];                   // toți userii (inclusiv absenți)
   totalUsers = 0;
   presentNow = 0;
+  selectedCompany = 'ALL';
+  selectedStatus: DayUserRow['status'] | 'ALL' = 'ALL';
+  searchTerm = '';
+  companyOptions: string[] = [];
 
   constructor(private api: SharedService, private router: Router) {}
 
@@ -73,11 +78,17 @@ seeAngajat(id: number) {
         }
         const merged: DayUserRow[] = users.map((u: any) => {
           const hit = byId.get(u.UserId);
-          if (hit) return hit;
+          if (hit) {
+            return {
+              ...hit,
+              Company: u.Company ?? null
+            };
+          }
           // absent — nu are sesiuni în ziua aleasă
           return {
             UserId: u.UserId,
             UserName: u.UserName,
+            Company: u.Company ?? null,
             first_in: null,
             last_out: null,
             total_hms: '00:00:00',
@@ -90,6 +101,18 @@ seeAngajat(id: number) {
         merged.sort((a, b) => a.UserName.localeCompare(b.UserName, 'ro'));
 
         this.rows = merged;
+        this.companyOptions = Array.from(
+          new Set(
+            merged
+              .map(row => (row.Company ?? '').trim())
+              .filter(Boolean)
+          )
+        ).sort((a, b) => a.localeCompare(b, 'ro'));
+
+        if (this.selectedCompany !== 'ALL' && !this.companyOptions.includes(this.selectedCompany)) {
+          this.selectedCompany = 'ALL';
+        }
+
         this.totalUsers = merged.length;
         this.presentNow = merged.filter(r => r.status === 'IN').length;
         this.loading = false;
@@ -121,6 +144,29 @@ seeAngajat(id: number) {
   }
 
   trackByUser = (_: number, row: DayUserRow) => row.UserId;
+
+  get filteredRows(): DayUserRow[] {
+    const search = this.normalizeText(this.searchTerm);
+
+    return this.rows.filter((row) => {
+      const matchesCompany = this.selectedCompany === 'ALL' || (row.Company ?? '') === this.selectedCompany;
+      const matchesStatus = this.selectedStatus === 'ALL' || row.status === this.selectedStatus;
+      const matchesSearch = !search || this.normalizeText(row.UserName).includes(search);
+      return matchesCompany && matchesStatus && matchesSearch;
+    });
+  }
+
+  onCompanyChange(event: Event): void {
+    this.selectedCompany = (event.target as HTMLSelectElement).value || 'ALL';
+  }
+
+  onStatusChange(event: Event): void {
+    this.selectedStatus = ((event.target as HTMLSelectElement).value || 'ALL') as DayUserRow['status'] | 'ALL';
+  }
+
+  onSearchChange(event: Event): void {
+    this.searchTerm = (event.target as HTMLInputElement).value ?? '';
+  }
 
   // ---- helpers de afișare ----
   todayISO(): string {
@@ -158,6 +204,14 @@ seeAngajat(id: number) {
       'OUT': 'chip out',
       'ABSENT': 'chip absent'
     }[status];
+  }
+
+  private normalizeText(value: string | null | undefined): string {
+    return (value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
   }
 
 

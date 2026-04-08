@@ -27,6 +27,50 @@
     <div class="badge">Total angajați: {{ totalUsers }}</div>
     <div class="badge live">În lucru acum: {{ presentNow }}</div>
     <div class="badge date-badge">Zi: {{ selectedDate }}</div>
+    <div class="badge date-badge">Afișați: {{ filteredRows.length }}</div>
+  </div>
+
+  <div class="filters">
+    <div class="filter-field">
+      <label for="company-filter">Filtru firmă</label>
+      <select
+        id="company-filter"
+        class="filter-input"
+        [value]="selectedCompany"
+        (change)="onCompanyChange($event)"
+      >
+        <option value="ALL">Toate firmele</option>
+        <option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option>
+      </select>
+    </div>
+
+    <div class="filter-field">
+      <label for="status-filter">Filtru status</label>
+      <select
+        id="status-filter"
+        class="filter-input"
+        [value]="selectedStatus"
+        (change)="onStatusChange($event)"
+      >
+        <option value="ALL">Toate statusurile</option>
+        <option value="IN">IN</option>
+        <option value="OUT">OUT</option>
+        <option value="ABSENT">ABSENT</option>
+      </select>
+    </div>
+
+    <div class="filter-field search-field">
+      <label for="name-search">Caută după nume</label>
+      <input
+        id="name-search"
+        class="filter-input"
+        type="search"
+        [value]="searchTerm"
+        (input)="onSearchChange($event)"
+        placeholder="Scrie numele muncitorului"
+        autocomplete="off"
+      />
+    </div>
   </div>
 
   <!-- Loading / Error -->
@@ -35,11 +79,14 @@
 
   <!-- List -->
   <div class="list" *ngIf="!loading && !error">
-    <div class="card" *ngFor="let r of rows; trackBy: trackByUser">
+    <div class="state" *ngIf="filteredRows.length === 0">Nu am găsit angajați pentru filtrele selectate.</div>
+
+    <div class="card" *ngFor="let r of filteredRows; trackBy: trackByUser">
       <div class="card-head">
         <div class="who">
           <div class="name">{{ r.UserName }}</div>
           <div class="meta">
+            <span>Firmă: <b>{{ r.Company || '—' }}</b></span>
             <span>Prima intrare: <b>{{ r.first_in ? (r.first_in | date:'HH:mm:ss') : '—' }}</b></span>
             <span>Ultima ieșire: <b>{{ r.last_out ? (r.last_out | date:'HH:mm:ss') : '—' }}</b></span>
           </div>
