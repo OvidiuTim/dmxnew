@@ -10,7 +10,7 @@
 
       <div class="status-card">
         <div class="status-label">Date obligatorii</div>
-        <div class="status-value">Nume, serie, PIN, tarif</div>
+        <div class="status-value">Nume, serie, tarif</div>
         <div class="status-note">Restul campurilor pot ramane null.</div>
       </div>
     </div>
@@ -31,8 +31,8 @@
         </div>
 
         <div class="field">
-          <label for="user-pin">PIN angajat</label>
-          <input id="user-pin" type="text" inputmode="numeric" formControlName="UserPin" placeholder="Ex: 8502">
+          <label for="user-pin">{{ isEditMode ? 'PIN nou' : 'PIN angajat' }}</label>
+          <input id="user-pin" type="password" inputmode="numeric" formControlName="UserPin" [placeholder]="isEditMode ? 'Completeaza doar daca il schimbi' : 'Ex: 8502'">
         </div>
 
         <div class="field">

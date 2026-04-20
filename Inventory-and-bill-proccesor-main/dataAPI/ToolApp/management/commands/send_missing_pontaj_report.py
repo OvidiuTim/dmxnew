@@ -68,7 +68,6 @@ def build_html(target_day, missing_users):
                   <td style="padding:8px;border:1px solid #ddd;">{idx}</td>
                   <td style="padding:8px;border:1px solid #ddd;">{getattr(user, 'UserName', '')}</td>
                   <td style="padding:8px;border:1px solid #ddd;">{getattr(user, 'UserSerie', '') or '-'}</td>
-                  <td style="padding:8px;border:1px solid #ddd;">{getattr(user, 'UserPin', '') or '-'}</td>
                 </tr>
                 """
             )
@@ -89,7 +88,6 @@ def build_html(target_day, missing_users):
               <th style="padding:8px;border:1px solid #ddd;text-align:left;">#</th>
               <th style="padding:8px;border:1px solid #ddd;text-align:left;">Nume</th>
               <th style="padding:8px;border:1px solid #ddd;text-align:left;">Serie</th>
-              <th style="padding:8px;border:1px solid #ddd;text-align:left;">PIN</th>
             </tr>
           </thead>
           <tbody>
@@ -121,8 +119,7 @@ def build_text(target_day, missing_users):
     for idx, user in enumerate(missing_users, start=1):
         lines.append(
             f"{idx}. {getattr(user, 'UserName', '')} | "
-            f"Serie: {getattr(user, 'UserSerie', '') or '-'} | "
-            f"PIN: {getattr(user, 'UserPin', '') or '-'}"
+            f"Serie: {getattr(user, 'UserSerie', '') or '-'}"
         )
     return "\n".join(lines)
 

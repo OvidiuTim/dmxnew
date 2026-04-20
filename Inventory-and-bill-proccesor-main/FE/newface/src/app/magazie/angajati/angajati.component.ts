@@ -45,17 +45,8 @@ export class AngajatiComponent implements OnInit {
   UserId!: string;
   UserName!: string;
   UserSerie!: string;
-  UserPin!: string;
   NameAndSerie!: string;
   chipselectat!: string;
-
-  displayEmployeeBox(userPin: string) {
-  this.http.get(`/api/get-employee-data?user_pin=${userPin}`).subscribe((data: any) => {
-    // Use the data to display the employee's "box"
-    // e.g., update the UserList with the received data
-    console.log(data)
-  });
-}
 
 
   loginname!: string;
@@ -89,7 +80,6 @@ export class AngajatiComponent implements OnInit {
   modalunelte(item: any) {
     this.usermodaltool = false;
     this.service.selectedUser = item;
-    this.service.selectedUserPin = item.UserPin;
     console.log(this.usermodaltool);
     this.modalTitluUsername = item.UserName;
     setTimeout(() => {
@@ -101,13 +91,11 @@ export class AngajatiComponent implements OnInit {
   modalmaterial(item: any){
     this.usermodalmaterial=true
     this.service.selectedUser=item;
-    this.service.selectedUserPin=item.UserPin;
   }
 
   modalshecla(item: any){
     this.usermodalschela=true
     this.service.selectedUser=item;
-    this.service.selectedUserPin=item.UserPin;
   }
 
   addClick(){
@@ -115,7 +103,6 @@ export class AngajatiComponent implements OnInit {
       UserId:0,
       UserSerie:"",
       UserName:"",
-      UserPin:"",
       NameAndSerie:"",
       
     }
@@ -162,7 +149,6 @@ enough(){
 
     var val = {UserId:this.UserId,
               UserSerie:"1",
-              UserPin:"1",
               UserName:this.UserName,
               NameAndSerie:"1",};
     this.service.addUser(val).subscribe(res=>{
@@ -195,14 +181,17 @@ search() {
     return;
   }
 
-  const searchValueAsNumber = Number(this.searchValue);
   let matchingUser;
   let userIndex = -1;
+  const normalizedSearch = this.searchValue.trim().toLowerCase();
 
   for (const [index, user] of this.UserList.entries()) {
     console.log('userul verificat este ', user.UserName);
 
-    if (Number(user.UserPin) === searchValueAsNumber) {
+    if (
+      String(user.UserSerie ?? '').trim().toLowerCase() === normalizedSearch ||
+      String(user.uid ?? '').trim().toLowerCase() === normalizedSearch
+    ) {
       matchingUser = user;
       userIndex = index;
       break;

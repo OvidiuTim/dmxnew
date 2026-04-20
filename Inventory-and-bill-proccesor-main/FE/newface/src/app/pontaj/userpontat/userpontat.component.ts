@@ -24,7 +24,7 @@ interface EmployeeProfile {
   UserId?: number;
   UserName?: string | null;
   UserSerie?: string | null;
-  UserPin?: string | null;
+  has_pin?: boolean | null;
   uid?: string | null;
   hourly_rate?: string | number | null;
   Company?: string | null;

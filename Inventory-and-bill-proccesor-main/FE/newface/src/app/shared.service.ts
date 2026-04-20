@@ -24,7 +24,6 @@ export class SharedService {
   admin = false;
   allowthis = false;
   selectedUser: any;
-  selectedUserPin: any;
   username!: string;
 
   // --- Angajați ---
@@ -131,7 +130,14 @@ getAttendanceDay(date?: string) {
       };
     }
 
-    return this.http.post<any>(`${this.API}/nfc/scan/`, body);
+    return this.http.post<any>(`${this.API}/pontaj/clock/`, {
+      pin: body.content,
+      device_key: body.device_key,
+      timestamp: body.timestamp,
+      worksite: body.worksite,
+      gps: body.gps,
+      mode: body.mode,
+    });
   }
 
   private getManualAttendanceDeviceKey(): string {

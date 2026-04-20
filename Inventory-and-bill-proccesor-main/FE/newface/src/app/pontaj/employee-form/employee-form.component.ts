@@ -47,6 +47,9 @@ export class EmployeeFormComponent implements OnInit {
     this.userId = Number(rawId);
     this.isEditMode = Number.isFinite(this.userId);
     if (this.isEditMode) {
+      this.form.controls.UserPin.clearValidators();
+      this.form.controls.UserPin.setValidators([Validators.maxLength(100)]);
+      this.form.controls.UserPin.updateValueAndValidity();
       this.loadUser(this.userId as number);
     }
   }
@@ -119,6 +122,9 @@ export class EmployeeFormComponent implements OnInit {
 
   submit(): void {
     this.error = null;
+    if (!this.isEditMode && !(this.form.value.UserPin ?? '').trim()) {
+      this.form.controls.UserPin.setErrors({ required: true });
+    }
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       this.error = 'Completeaza campurile obligatorii inainte sa salvezi.';
@@ -181,7 +187,7 @@ export class EmployeeFormComponent implements OnInit {
         this.form.patchValue({
           UserName: user?.UserName ?? '',
           UserSerie: user?.UserSerie ?? '',
-          UserPin: user?.UserPin ?? '',
+          UserPin: '',
           uid: user?.uid ?? '',
           hourly_rate: user?.hourly_rate != null ? String(user.hourly_rate) : '23.00',
           Company: user?.Company ?? 'RNX',
@@ -203,11 +209,10 @@ export class EmployeeFormComponent implements OnInit {
   private buildPayload(): any {
     const value = this.form.getRawValue();
 
-    return {
+    const payload: any = {
       ...(this.userId ? { UserId: this.userId } : {}),
       UserName: (value.UserName ?? '').trim(),
       UserSerie: (value.UserSerie ?? '').trim(),
-      UserPin: (value.UserPin ?? '').trim(),
       uid: this.normalizeOptionalString(value.uid),
       hourly_rate: this.normalizeRate(value.hourly_rate),
       Company: this.normalizeOptionalString(value.Company),
@@ -218,6 +223,12 @@ export class EmployeeFormComponent implements OnInit {
       photo: value.photo || null,
       trade: this.normalizeOptionalString(value.trade),
     };
+
+    const pin = (value.UserPin ?? '').trim();
+    if (pin) {
+      payload.UserPin = pin;
+    }
+    return payload;
   }
 
   private normalizeOptionalString(value: string | null | undefined): string | null {

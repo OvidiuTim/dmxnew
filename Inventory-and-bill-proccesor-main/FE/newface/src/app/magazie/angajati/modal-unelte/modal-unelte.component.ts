@@ -46,14 +46,9 @@ export class ModalUnelteComponent implements OnInit {
 
   administrator!: string;
   
-  pin!: string;
-  TryPin!: string;
   ngOnInit(): void {
     //aduce userul aici
     this.selectedUserSimple = this.service.selectedUser
-
-    //aduce userul aici
-    this.pin = this.service.selectedUserPin
 
     //refresh la lista
     this.refreshTolList();
@@ -255,21 +250,5 @@ export class ModalUnelteComponent implements OnInit {
         this.wait()
 
   }
-
-
-  pingood:boolean=false;
-  pincheck:boolean=true;
-  verificaPin(){
-
-    if(this.TryPin == this.pin){
-      this.pingood=true;
-      this.pincheck=false;
-    }
-    else{
-      alert("pinul este incorect")
-    }
-  }
-
-
 
 }

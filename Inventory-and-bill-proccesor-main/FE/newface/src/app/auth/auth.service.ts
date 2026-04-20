@@ -1,31 +1,34 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { tap, map } from 'rxjs/operators';
-import { Observable, of } from 'rxjs';
+import { Observable } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api';
-  private readonly KEY = 'pontaj_token';
+  private authenticated = false;
 
   constructor(private http: HttpClient) {}
 
-  get token(): string | null { return localStorage.getItem(this.KEY); }
-  isLoggedIn(): boolean { return !!this.token; }
+  isLoggedIn(): boolean { return this.authenticated; }
 
   login(password: string) {
-    return this.http.post<{token:string, expires_in:number}>(`${this.API}/auth/login/`, { password })
-      .pipe(tap(res => localStorage.setItem(this.KEY, res.token)));
+    return this.http.post<{ok:boolean, role:string, expires_in:number}>(
+      `${this.API}/auth/login/`,
+      { password },
+      { withCredentials: true }
+    ).pipe(tap(() => { this.authenticated = true; }));
   }
 
   verify(): Observable<boolean> {
-    const tok = this.token;
-    if (!tok) return of(false);
-    return this.http.post(`${this.API}/auth/verify/`, { token: tok })
-      .pipe(map(() => true));
+    return this.http.post(`${this.API}/auth/verify/`, {}, { withCredentials: true })
+      .pipe(
+        tap(() => { this.authenticated = true; }),
+        map(() => true)
+      );
   }
 
   logout() {
-    localStorage.removeItem(this.KEY);
+    this.authenticated = false;
   }
 }

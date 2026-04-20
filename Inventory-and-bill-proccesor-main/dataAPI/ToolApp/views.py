@@ -6,6 +6,7 @@ from queue import Queue, Empty
 from collections import deque
 from datetime import datetime, timedelta, date as _date
 from decimal import Decimal, ROUND_HALF_UP
+from typing import Optional
 
 # --- Third-party ---
 from rest_framework.parsers import JSONParser
@@ -17,13 +18,15 @@ from django.utils import timezone
 from django.utils.timezone import localtime, localdate
 from django.db import transaction
 from django.db.models import Sum, Min, Max, OuterRef, Subquery, Q
+from django.core.cache import cache
 
 # --- App (ToolApp) ---
 from ToolApp.models import (
     Users, AttendanceSession, PresenceEvent, Tools, Histories,
     Shed, Unfunctional, Materials, Consumables, WorkField,
     CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas,
-    SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay, LeaveDay
+    SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay, LeaveDay,
+    PinAttemptLog
 )
 from ToolApp.serializers import (
     ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, ToolSerializer,
@@ -45,6 +48,7 @@ from django.utils.timezone import localtime, localdate
 from datetime import date, datetime
 from django.db.models import Sum, Min, Max
 from ToolApp.models import Users, AttendanceSession
+from ToolApp.security import TOKEN_AGE, check_admin_token, get_token_from_request, make_admin_token
 
 from datetime import datetime
 from django.utils import timezone
@@ -53,7 +57,6 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.conf import settings
-from django.core import signing
 import os, hmac, json
 
 # === PONTAJ: program + leeway ===
@@ -401,12 +404,13 @@ def users_bulk_update(request):
     for idx, row in enumerate(data, start=1):
         # cheie de căutare: UserId | UserSerie | UserPin | uid
         lookup = None
+        inst_by_pin = None
         if row.get("UserId") not in (None, ""):
             lookup = {"UserId": row.get("UserId")}
         elif row.get("UserSerie"):
             lookup = {"UserSerie": row.get("UserSerie")}
         elif row.get("UserPin"):
-            lookup = {"UserPin": row.get("UserPin")}
+            inst_by_pin = _find_user_by_pin(row.get("UserPin"))
         elif row.get("uid"):
             lookup = {"uid": row.get("uid")}
         else:
@@ -415,7 +419,12 @@ def users_bulk_update(request):
             continue
 
         try:
-            inst = Users.objects.get(**lookup)
+            if inst_by_pin:
+                inst = inst_by_pin
+            elif lookup:
+                inst = Users.objects.get(**lookup)
+            else:
+                raise Users.DoesNotExist()
             ser = UserSerializer(inst, data=row, partial=True)
             if ser.is_valid():
                 if not dry_run:
@@ -1229,6 +1238,80 @@ def _normalize_manual_device_key(raw_value):
     return value[:64] or None
 
 
+PIN_RATE_LIMIT_MAX_FAILURES = 5
+PIN_RATE_LIMIT_WINDOW_SECONDS = 15 * 60
+PIN_RATE_LIMIT_BLOCK_SECONDS = 15 * 60
+
+
+def _pin_rate_identity(request, device_key=None, uid=None):
+    ip = _get_client_ip(request) or ""
+    device = _normalize_manual_device_key(device_key) or ""
+    uid_part = str(uid or "").upper().strip()[:64]
+    return ip, device, f"pin:{ip}:{device}:{uid_part}"
+
+
+def _pin_is_blocked(request, device_key=None, uid=None):
+    ip, device, base_key = _pin_rate_identity(request, device_key=device_key, uid=uid)
+    blocked_until = cache.get(f"{base_key}:blocked_until")
+    if blocked_until and blocked_until > timezone.now().timestamp():
+        PinAttemptLog.objects.create(
+            ip_address=ip,
+            device_key=device,
+            uid=str(uid or "")[:128],
+            success=False,
+            blocked=True,
+            reason="temporarily_blocked",
+        )
+        return True, int(blocked_until - timezone.now().timestamp())
+    return False, 0
+
+
+def _log_pin_attempt(request, *, success, reason, device_key=None, uid=None, worksite=None):
+    ip, device, base_key = _pin_rate_identity(request, device_key=device_key, uid=uid)
+    PinAttemptLog.objects.create(
+        ip_address=ip,
+        device_key=device,
+        uid=str(uid or "")[:128],
+        worksite=str(worksite or "")[:100],
+        success=bool(success),
+        blocked=False,
+        reason=str(reason or "")[:128],
+    )
+
+    if success:
+        cache.delete(f"{base_key}:failures")
+        cache.delete(f"{base_key}:blocked_until")
+        return
+
+    failures = cache.get(f"{base_key}:failures") or 0
+    failures += 1
+    cache.set(f"{base_key}:failures", failures, PIN_RATE_LIMIT_WINDOW_SECONDS)
+    if failures >= PIN_RATE_LIMIT_MAX_FAILURES:
+        cache.set(
+            f"{base_key}:blocked_until",
+            timezone.now().timestamp() + PIN_RATE_LIMIT_BLOCK_SECONDS,
+            PIN_RATE_LIMIT_BLOCK_SECONDS,
+        )
+
+
+def _find_user_by_pin(raw_pin):
+    raw_pin = str(raw_pin or "").strip()
+    if not raw_pin:
+        return None
+
+    for user in Users.objects.exclude(pin_hash="").only("UserId", "UserName", "UserSerie", "UserPin", "pin_hash"):
+        if user.check_pin(raw_pin):
+            return user
+
+    legacy_user = Users.objects.filter(UserPin=raw_pin).first()
+    if legacy_user:
+        legacy_user.set_pin(raw_pin)
+        legacy_user.save(update_fields=["UserPin", "pin_hash"])
+        return legacy_user
+
+    return None
+
+
 def _client_owns_manual_session(session, client_ip=None, device_key=None):
     if not session:
         return False
@@ -1371,26 +1454,39 @@ def nfc_scan(request):
             else:
                 print(f"[NFC-MAP] UID={uid} NU există nici în UID_PIN_MAP, nici în Users.uid")
 
-    effective_pin = mapped_pin or raw_pin or (str(mapped_user.UserPin or "").strip() if mapped_user else "")
+    effective_pin = mapped_pin or raw_pin or ""
+
+    blocked, retry_after = _pin_is_blocked(request, device_key=data.get("device_key"), uid=uid)
+    if blocked:
+        return JsonResponse({
+            "error": "Prea multe incercari gresite. Incearca din nou mai tarziu.",
+            "error_code": "PIN_TEMPORARILY_BLOCKED",
+            "retry_after_seconds": retry_after,
+        }, status=429)
 
     # Debounce identic (server-side) – folosim PINUL EFECTIV, nu contentul brut
     now_ts = timezone.now().timestamp()
-    key = (uid, effective_pin)
+    debounce_identity = effective_pin or (f"user:{mapped_user.UserId}" if mapped_user else "")
+    key = (uid, debounce_identity)
     if key in _last_seen and (now_ts - _last_seen[key]) < _DEBOUNCE_SEC:
         print(f"[NFC] DEBOUNCED scan pentru UID={uid} pin={effective_pin}")
         return JsonResponse({"ok": True, "debounced": True})
     _last_seen[key] = now_ts
 
     # 1) Identific user după PIN EFECTIV
-    if not effective_pin:
+    if not effective_pin and not mapped_user:
         # nici PIN pe tag, nici în mapare -> nu avem cum găsi user
         print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned='' -> no user match (no PIN, no mapping)")
+        _log_pin_attempt(request, success=False, reason="missing_pin", device_key=data.get("device_key"), uid=uid, worksite=ws)
         return JsonResponse({"ok": True, "match": None, "received": data})
 
-    user = mapped_user or Users.objects.filter(UserPin=effective_pin).first()
+    user = mapped_user or _find_user_by_pin(effective_pin)
     if not user:
         print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned={effective_pin} -> no user match")
+        _log_pin_attempt(request, success=False, reason="invalid_pin", device_key=data.get("device_key"), uid=uid, worksite=ws)
         return JsonResponse({"ok": True, "match": None, "received": data})
+
+    _log_pin_attempt(request, success=True, reason="ok", device_key=data.get("device_key"), uid=uid, worksite=ws)
 
     # avem user -> log ca să vezi clar
     print(
@@ -1584,6 +1680,41 @@ def nfc_scan(request):
             "ts_used": "client" if client_when else "server"
         })
    
+
+
+@csrf_exempt
+def pontaj_clock(request):
+    """
+    POST /api/pontaj/clock/
+    Body Android/web:
+    {
+      "pin": "1234",
+      "device_key": "android-device-id",
+      "gps": {"lat": 45.1, "lng": 25.1, "accuracy": 20, "captured_at": "..."},
+      "worksite": "Tractorului Bloc B2",
+      "mode": "manual" | "driver"
+    }
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    payload = {
+        "uid": str(data.get("uid") or "MANUAL"),
+        "tag_type": "manual",
+        "content": str(data.get("pin") or data.get("content") or "").strip(),
+        "timestamp": data.get("timestamp") or timezone.now().isoformat(),
+        "device_key": data.get("device_key"),
+        "gps": data.get("gps"),
+        "worksite": data.get("worksite") or data.get("site") or data.get("santier"),
+        "mode": data.get("mode") or data.get("attendance_mode") or "manual",
+    }
+    request._body = json.dumps(payload).encode("utf-8")
+    return nfc_scan(request)
 
 
 
@@ -2048,7 +2179,7 @@ class SseBroker:
                 except Exception:
                     pass
 
-    def subscribe(self, last_id: int | None = None):
+    def subscribe(self, last_id: Optional[int] = None):
         q: Queue[str] = Queue()
         with self._lock:
             self._subs.add(q)
@@ -2077,7 +2208,7 @@ class SseBroker:
 sse = SseBroker()
 
 # “anunță live” monitorul de pontaj ce s-a întâmplat (enter/exit/etc.)
-def _publish(kind: str, user, when=None, extra: dict | None = None):
+def _publish(kind: str, user, when=None, extra: Optional[dict] = None):
     sse.publish(kind, {
         "user_id": user.UserId,
         "user_name": user.UserName,
@@ -2106,7 +2237,7 @@ def pontaj_stream(request):
 
 
 
-def _parse_client_ts(ts_str: str) -> datetime | None:
+def _parse_client_ts(ts_str: str) -> Optional[datetime]:
     """
     Acceptă ISO 8601 cu 'Z' sau cu offset (+02:00). Dacă e naiv, îl tratăm ca UTC.
     Returnează tz-aware în timezone curent.
@@ -2229,7 +2360,7 @@ def leave_upsert(request):
     if data.get("user_id"):
         user = Users.objects.filter(UserId=data["user_id"]).first()
     elif data.get("user_pin"):
-        user = Users.objects.filter(UserPin=str(data["user_pin"])).first()
+        user = _find_user_by_pin(data["user_pin"])
     elif data.get("user_serie"):
         user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
     if not user:
@@ -2401,7 +2532,7 @@ def leave_delete(request):
     if data.get("user_id"):
         user = Users.objects.filter(UserId=data["user_id"]).first()
     elif data.get("user_pin"):
-        user = Users.objects.filter(UserPin=str(data["user_pin"])).first()
+        user = _find_user_by_pin(data["user_pin"])
     elif data.get("user_serie"):
         user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
     if not user:
@@ -2530,26 +2661,13 @@ def pay_month(request):
 
 
 
-TOKEN_SALT = "pontaj-auth"
-TOKEN_AGE = 24 * 3600  # 24h
-
 #Generează un token
 def _make_token():
-    # payload minim; e suficient să fie semnat + timestamp
-    payload = {"k": "pontaj", "v": 1}
-    return signing.dumps(payload, salt=TOKEN_SALT)
+    return make_admin_token()
 
 #Verifică un token
 def _check_token(token: str) -> bool:
-    if not token:
-        return False
-    try:
-        data = signing.loads(token, salt=TOKEN_SALT, max_age=TOKEN_AGE)
-        return data.get("k") == "pontaj"
-    except signing.SignatureExpired:
-        return False
-    except signing.BadSignature:
-        return False
+    return check_admin_token(token)
 
 #Ia parola “corectă” de login
 def _expected_password():
@@ -2578,35 +2696,27 @@ def auth_login(request):
 
     if hmac.compare_digest(got, exp):
         tok = _make_token()
-        resp = JsonResponse({"token": tok, "expires_in": TOKEN_AGE})
-        # Cookie util dacă vrei să-l citești în backend ulterior
-        resp.set_cookie("ptj", tok, max_age=TOKEN_AGE, httponly=True, samesite="Lax", secure=True)
+        resp = JsonResponse({"ok": True, "role": "admin", "expires_in": TOKEN_AGE})
+        resp.set_cookie(
+            "ptj",
+            tok,
+            max_age=TOKEN_AGE,
+            httponly=True,
+            samesite="Lax",
+            secure=getattr(settings, "SESSION_COOKIE_SECURE", True),
+        )
         return resp
     return JsonResponse({"error": "Invalid password"}, status=401)
 
 # --- AUTH VERIFY ---
 @csrf_exempt
 def auth_verify(request):
-    """POST /api/auth/verify/  body: { "token": "..." }  (sau folosește cookie 'ptj')"""
-    tok = None
-    # 1) Authorization: Bearer xxx
-    auth = request.META.get("HTTP_AUTHORIZATION") or ""
-    if auth.lower().startswith("bearer "):
-        tok = auth[7:].strip()
-    # 2) body
-    if not tok and request.method == "POST":
-        try:
-            body = json.loads(request.body or "{}")
-            tok = body.get("token")
-        except Exception:
-            tok = None
-    # 3) cookie
-    if not tok:
-        tok = request.COOKIES.get("ptj")
+    """POST /api/auth/verify/ folosind cookie HttpOnly 'ptj' sau Authorization Bearer."""
+    tok = get_token_from_request(request)
 
     ok = _check_token(tok or "")
     if ok:
-        return JsonResponse({"ok": True})
+        return JsonResponse({"ok": True, "role": "admin"})
     return JsonResponse({"ok": False}, status=401)
 
 
@@ -2732,7 +2842,7 @@ def attendance_edit_day(request):
     if data.get("user_id"):
         user = Users.objects.filter(UserId=data["user_id"]).first()
     elif data.get("user_pin"):
-        user = Users.objects.filter(UserPin=str(data["user_pin"])).first()
+        user = _find_user_by_pin(data["user_pin"])
     elif data.get("user_serie"):
         user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
     if not user:
@@ -3371,7 +3481,7 @@ def generate_excel(request):
         return f"T {first}"
 
     # --- funcție de mapare LeaveDay -> cod (CO, CM, ALT etc.) ---
-    def _leave_code_from_lv(lv) -> str | None:
+    def _leave_code_from_lv(lv) -> Optional[str]:
         raw = getattr(lv, "reason", None) or getattr(lv, "leave_type", None)
         if not raw:
             return None
@@ -3593,7 +3703,7 @@ def _client_ip(request):
         return xff.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR", "")
 
-def _audit_line(request, msg: str, extra: dict | None = None):
+def _audit_line(request, msg: str, extra: Optional[dict] = None):
     ts = localtime(timezone.now()).strftime("%Y-%m-%d %H:%M:%S")
     ip = _client_ip(request)
     ua = (request.META.get("HTTP_USER_AGENT") or "")[:120]

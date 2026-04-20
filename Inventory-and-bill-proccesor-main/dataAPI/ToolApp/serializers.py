@@ -10,6 +10,9 @@ from ToolApp.models import (
 
 # -------------------- USERS --------------------
 class UserSerializer(serializers.ModelSerializer):
+    UserPin = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    has_pin = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Users
         fields = (
@@ -17,6 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
             "UserName",
             "UserSerie",
             "UserPin",
+            "has_pin",
             "uid",
             "NameAndSerie",
             "hourly_rate",
@@ -38,6 +42,26 @@ class UserSerializer(serializers.ModelSerializer):
             "photo": {"required": False, "allow_null": True, "allow_blank": True},
             "trade": {"required": False, "allow_null": True, "allow_blank": True},
         }
+
+    def get_has_pin(self, obj):
+        return bool(getattr(obj, "pin_hash", None) or getattr(obj, "UserPin", None))
+
+    def create(self, validated_data):
+        raw_pin = validated_data.pop("UserPin", None)
+        user = Users(**validated_data)
+        if raw_pin:
+            user.set_pin(raw_pin)
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        raw_pin = validated_data.pop("UserPin", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if raw_pin:
+            instance.set_pin(raw_pin)
+        instance.save()
+        return instance
 
 
 

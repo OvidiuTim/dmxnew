@@ -1,6 +1,7 @@
 from django.db import models
 # ToolApp/models.py
 from django.db import models
+from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.utils.timezone import localdate
 # Create your models here
@@ -27,7 +28,8 @@ class Users(models.Model):
     UserId = models.AutoField(primary_key=True)
     UserName = models.CharField(max_length=100)
     UserSerie = models.CharField(max_length=100, unique=True, db_index=True)
-    UserPin = models.CharField(max_length=100)
+    UserPin = models.CharField(max_length=100, blank=True, default="")
+    pin_hash = models.CharField(max_length=256, blank=True, default="")
     uid = models.CharField(max_length=128, null=True, blank=True, db_index=True)
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=0)  # lei/oră
@@ -40,9 +42,22 @@ class Users(models.Model):
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
 
+    def set_pin(self, raw_pin):
+        raw_pin = str(raw_pin or "").strip()
+        self.pin_hash = make_password(raw_pin) if raw_pin else ""
+        self.UserPin = ""
+
+    def check_pin(self, raw_pin):
+        raw_pin = str(raw_pin or "").strip()
+        if not raw_pin:
+            return False
+        if self.pin_hash:
+            return check_password(raw_pin, self.pin_hash)
+        return bool(self.UserPin) and self.UserPin == raw_pin
+
     class Meta:
         indexes = [
-            models.Index(fields=['UserPin']),
+            models.Index(fields=['pin_hash']),
             models.Index(fields=['UserSerie']),
         ]
 
@@ -313,3 +328,21 @@ class LeaveDay(models.Model):
 
     def __str__(self):
         return f"{self.work_date} - {self.user_fk} - {self.get_reason_display()} {self.hours}h x{self.multiplier}"
+
+
+class PinAttemptLog(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    ip_address = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    device_key = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    uid = models.CharField(max_length=128, blank=True, default="")
+    worksite = models.CharField(max_length=100, blank=True, default="")
+    success = models.BooleanField(default=False)
+    blocked = models.BooleanField(default=False)
+    reason = models.CharField(max_length=128, blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["ip_address", "device_key", "created_at"]),
+            models.Index(fields=["success", "blocked", "created_at"]),
+        ]

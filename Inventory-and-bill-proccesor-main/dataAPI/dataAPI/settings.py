@@ -30,11 +30,17 @@ PONTAJ_PASSWORD = (
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-npqmmmqf84+vci&!^p0qpc8mi2oxjn91wr88zk8v)%bli2pj&s'
+def env_bool(name, default=False):
+    return str(os.getenv(name, str(default))).strip().lower() in ("1", "true", "yes", "on")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True   # temporar ca să vezi erorile
+
+# SECURITY WARNING: keep the secret key used in production secret.
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("DJANGO_SECRET_KEY is required in .env")
+
+# SECURITY WARNING: don't run with debug turned on in production.
+DEBUG = env_bool("DJANGO_DEBUG", False)
 
 ALLOWED_HOSTS = ["178.128.194.197","magazie.dmxconstruction.ro","www.magazie.dmxconstruction.ro","127.0.0.1","localhost"]
 
@@ -47,7 +53,15 @@ INSTALLED_APPS = [
     # 'nfc'  <- STERGE asta
 ]
 
-CORS_ORIGIN_ALLOW_ALL = True
+def env_list(name, default=""):
+    return [x.strip() for x in os.getenv(name, default).split(",") if x.strip()]
+
+
+CORS_ALLOWED_ORIGINS = env_list(
+    "DJANGO_CORS_ALLOWED_ORIGINS",
+    "https://magazie.dmxconstruction.ro,https://www.magazie.dmxconstruction.ro",
+)
+CORS_ALLOW_CREDENTIALS = True
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -57,6 +71,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'ToolApp.security.ApiAuthMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -141,3 +156,11 @@ CSRF_TRUSTED_ORIGINS = [
     "http://magazie.dmxconstruction.ro",
     "https://magazie.dmxconstruction.ro",
 ]
+
+SESSION_COOKIE_SECURE = env_bool("DJANGO_SECURE_COOKIES", not DEBUG)
+CSRF_COOKIE_SECURE = env_bool("DJANGO_SECURE_COOKIES", not DEBUG)
+SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", False)
+SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_SECURE_HSTS_SECONDS", "0" if DEBUG else "31536000"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", not DEBUG)
+SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

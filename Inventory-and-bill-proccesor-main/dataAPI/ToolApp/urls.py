@@ -9,6 +9,7 @@ from .views import (
 
     # Pontaj - listări / monitor
     nfc_scan,
+    pontaj_clock,
     attendance_today,
     attendance_day,
     attendance_present,
@@ -53,6 +54,7 @@ urlpatterns = [
 
     # --- Pontaj (existente cu /api/) ---
     path('api/nfc/scan/', nfc_scan, name='nfc_scan'),
+    path('api/pontaj/clock/', pontaj_clock, name='pontaj_clock'),
     path('api/pontaj/day/', attendance_day, name='attendance_day'),              # GET day aggregate
     path('api/pontaj/present/', attendance_present, name='attendance_present'),
     path('api/pontaj/range/', attendance_range, name='attendance_range'),
