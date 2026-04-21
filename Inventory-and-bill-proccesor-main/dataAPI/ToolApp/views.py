@@ -223,7 +223,7 @@ UID_PIN_MAP = {
 "25FF32EF": "1195",
 "058137EF": "1196",
 "754136EF": "1197",
-"85B436EF": "1198",
+"85B436EF": "1178",
 "853B34EF": "1199",
 "255937EF": "1200",
 "255A37EF": "1202",
@@ -233,6 +233,28 @@ UID_PIN_MAP = {
 "652736EF": "1206",
 "E59433EF": "1207",
 "75BC33EF": "1208",
+
+    # Raspberry ACR122U fallback map - keep server-side compatibility with boxes
+    # that send only UID, or NDEF content that is not a PIN.
+    "A50033EF": "1201",
+    "F5BB36EF": "2882",
+    "453036EF": "9844",
+    "455A37EF": "7955",
+    "25F635EF": "2282",
+    "65BE35EF": "2319",
+    "755937EF": "2340",
+    "05AD35EF": "4709",
+    "B5D236EF": "2992",
+    "55F832EF": "3587",
+    "55ED35EF": "4095",
+    "25AE33EF": "6417",
+    "256F36EF": "8728",
+    "D56536EF": "8012",
+    "B58136EF": "8665",
+    "156137EF": "8804",
+    "C5B535EF": "8502",
+    "F53136EF": "5410",
+    "95AE35EF": "1153",
 }
 
 
@@ -1238,6 +1260,18 @@ def _normalize_manual_device_key(raw_value):
     return value[:64] or None
 
 
+def _extract_pin_candidate(raw_content):
+    content = str(raw_content or "").strip()
+    if not content:
+        return ""
+
+    if re.fullmatch(r"\d{3,8}", content):
+        return content
+
+    match = re.search(r"\b(?:pin|cod|code)\D{0,12}(\d{3,8})\b", content, flags=re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
 PIN_RATE_LIMIT_MAX_FAILURES = 5
 PIN_RATE_LIMIT_WINDOW_SECONDS = 15 * 60
 PIN_RATE_LIMIT_BLOCK_SECONDS = 15 * 60
@@ -1432,7 +1466,7 @@ def nfc_scan(request):
         }, status=400)
 
     # --- DETERMINĂM PINUL EFECTIV: din content sau din maparea UID_PIN_MAP ---
-    raw_pin = content if content else None
+    raw_pin = _extract_pin_candidate(content)
     mapped_pin = None
     mapped_user = None
 
@@ -1440,6 +1474,8 @@ def nfc_scan(request):
         # avem PIN direct de pe tag
         print(f"[NFC-MAP] UID={uid} a trimis PIN direct de pe tag: {raw_pin}")
     else:
+        if content:
+            print(f"[NFC-MAP] UID={uid} a trimis content non-PIN; încerc mapare UID. content='{content[:80]}'")
         # nu avem PIN pe tag -> încercăm mapare UID -> PIN
         mapped_pin = UID_PIN_MAP.get(uid)
         if mapped_pin:
@@ -1679,7 +1715,71 @@ def nfc_scan(request):
             "received": data,
             "ts_used": "client" if client_when else "server"
         })
-   
+
+
+
+@csrf_exempt
+def pontaj_login(request):
+    """
+    POST /api/pontaj/login/
+    Body Android:
+    {
+      "pin": "1234",
+      "device_key": "android-device-id",
+      "uid": "MANUAL"
+    }
+
+    Valideaza PIN-ul si returneaza userul fara sa creeze eveniment de pontaj.
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    uid = str(data.get("uid") or "MANUAL").upper().strip()
+    pin = str(data.get("pin") or data.get("content") or "").strip()
+    device_key = data.get("device_key")
+
+    blocked, retry_after = _pin_is_blocked(request, device_key=device_key, uid=uid)
+    if blocked:
+        return JsonResponse({
+            "ok": False,
+            "error": "Prea multe incercari gresite. Incearca din nou mai tarziu.",
+            "error_code": "PIN_TEMPORARILY_BLOCKED",
+            "retry_after_seconds": retry_after,
+        }, status=429)
+
+    if not pin:
+        _log_pin_attempt(request, success=False, reason="missing_pin", device_key=device_key, uid=uid)
+        return JsonResponse({
+            "ok": False,
+            "error": "PIN-ul este obligatoriu.",
+            "error_code": "PIN_REQUIRED",
+        }, status=400)
+
+    user = _find_user_by_pin(pin)
+    if not user:
+        _log_pin_attempt(request, success=False, reason="invalid_pin", device_key=device_key, uid=uid)
+        return JsonResponse({
+            "ok": False,
+            "error": "Nu exista niciun angajat pentru PIN-ul introdus.",
+            "error_code": "INVALID_PIN",
+        }, status=404)
+
+    _log_pin_attempt(request, success=True, reason="login_ok", device_key=device_key, uid=uid)
+    return JsonResponse({
+        "ok": True,
+        "mode": "worker",
+        "user": {
+            "id": user.UserId,
+            "name": user.UserName,
+            "serie": user.UserSerie,
+            "company": user.Company,
+        },
+    })
 
 
 @csrf_exempt

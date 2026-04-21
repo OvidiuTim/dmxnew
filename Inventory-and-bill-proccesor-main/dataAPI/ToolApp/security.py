@@ -12,6 +12,7 @@ PUBLIC_API_PREFIXES = (
     "/api/auth/login/",
     "/api/auth/verify/",
     "/api/nfc/scan/",
+    "/api/pontaj/login/",
     "/api/pontaj/clock/",
 )
 

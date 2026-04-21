@@ -54,6 +54,7 @@ urlpatterns = [
 
     # --- Pontaj (existente cu /api/) ---
     path('api/nfc/scan/', nfc_scan, name='nfc_scan'),
+    path('api/pontaj/login/', views.pontaj_login, name='pontaj_login'),
     path('api/pontaj/clock/', pontaj_clock, name='pontaj_clock'),
     path('api/pontaj/day/', attendance_day, name='attendance_day'),              # GET day aggregate
     path('api/pontaj/present/', attendance_present, name='attendance_present'),
