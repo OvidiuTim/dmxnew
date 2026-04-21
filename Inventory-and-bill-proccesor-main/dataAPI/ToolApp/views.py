@@ -1,6 +1,8 @@
 # --- Standard library ---
 import csv, io, re
 import json, logging, math
+import hashlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from queue import Queue, Empty
 from collections import deque
@@ -19,6 +21,7 @@ from django.utils.timezone import localtime, localdate
 from django.db import transaction
 from django.db.models import Sum, Min, Max, OuterRef, Subquery, Q
 from django.core.cache import cache
+from django.contrib.auth.hashers import check_password
 
 # --- App (ToolApp) ---
 from ToolApp.models import (
@@ -1328,20 +1331,61 @@ def _log_pin_attempt(request, *, success, reason, device_key=None, uid=None, wor
         )
 
 
+PIN_CHECK_WORKERS = 12
+PIN_LOGIN_CACHE_SECONDS = 24 * 3600
+
+
+def _pin_cache_key(raw_pin):
+    digest = hashlib.sha256(str(raw_pin or "").strip().encode("utf-8")).hexdigest()
+    return f"pin-login-user:{digest}"
+
+
+def _check_pin_row(raw_pin, row):
+    user_id, pin_hash = row
+    if pin_hash and check_password(raw_pin, pin_hash):
+        return user_id
+    return None
+
+
 def _find_user_by_pin(raw_pin):
     raw_pin = str(raw_pin or "").strip()
     if not raw_pin:
         return None
 
-    for user in Users.objects.exclude(pin_hash="").only("UserId", "UserName", "UserSerie", "UserPin", "pin_hash"):
-        if user.check_pin(raw_pin):
-            return user
+    cached_user_id = cache.get(_pin_cache_key(raw_pin))
+    if cached_user_id:
+        cached_user = Users.objects.filter(UserId=cached_user_id).first()
+        if cached_user:
+            return cached_user
 
     legacy_user = Users.objects.filter(UserPin=raw_pin).first()
     if legacy_user:
         legacy_user.set_pin(raw_pin)
         legacy_user.save(update_fields=["UserPin", "pin_hash"])
+        cache.set(_pin_cache_key(raw_pin), legacy_user.UserId, PIN_LOGIN_CACHE_SECONDS)
         return legacy_user
+
+    rows = list(
+        Users.objects
+        .exclude(pin_hash="")
+        .values_list("UserId", "pin_hash")
+    )
+    if not rows:
+        return None
+
+    executor = ThreadPoolExecutor(max_workers=min(PIN_CHECK_WORKERS, len(rows)))
+    try:
+        futures = [executor.submit(_check_pin_row, raw_pin, row) for row in rows]
+        for future in as_completed(futures):
+            user_id = future.result()
+            if user_id:
+                for pending in futures:
+                    pending.cancel()
+                cache.set(_pin_cache_key(raw_pin), user_id, PIN_LOGIN_CACHE_SECONDS)
+                executor.shutdown(wait=False, cancel_futures=True)
+                return Users.objects.filter(UserId=user_id).first()
+    finally:
+        executor.shutdown(wait=False, cancel_futures=True)
 
     return None
 
@@ -1716,6 +1760,27 @@ def nfc_scan(request):
             "ts_used": "client" if client_when else "server"
         })
 
+
+
+@csrf_exempt
+def app_version(request):
+    """GET /api/app/version/ - public version gate used by the Android app."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    return JsonResponse({
+        "minimum_version_code": int(os.environ.get("DMX_ANDROID_MIN_VERSION_CODE", "1")),
+        "latest_version_code": int(os.environ.get("DMX_ANDROID_LATEST_VERSION_CODE", "1")),
+        "latest_version_name": os.environ.get("DMX_ANDROID_LATEST_VERSION_NAME", "1.0"),
+        "update_url": os.environ.get(
+            "DMX_ANDROID_UPDATE_URL",
+            "https://play.google.com/store/apps/details?id=ro.dmxconstruction.dmxclock",
+        ),
+        "message": os.environ.get(
+            "DMX_ANDROID_UPDATE_MESSAGE",
+            "Exista o versiune noua. Actualizeaza aplicatia ca sa poti continua pontajul.",
+        ),
+    })
 
 
 @csrf_exempt
