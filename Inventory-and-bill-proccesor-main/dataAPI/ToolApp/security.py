@@ -15,7 +15,13 @@ PUBLIC_API_PREFIXES = (
     "/api/nfc/scan/",
     "/api/pontaj/login/",
     "/api/pontaj/clock/",
+    "/api/pontaj/stream/",
 )
+
+
+def _normalize_public_path(path: str) -> str:
+    path = path or "/"
+    return path if path.endswith("/") else f"{path}/"
 
 
 def make_admin_token():
@@ -67,7 +73,7 @@ class ApiAuthMiddleware:
         if not path.startswith("/api/"):
             return self.get_response(request)
 
-        if path.startswith(PUBLIC_API_PREFIXES):
+        if _normalize_public_path(path).startswith(PUBLIC_API_PREFIXES):
             return self.get_response(request)
 
         if request_has_admin(request):

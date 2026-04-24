@@ -2317,10 +2317,53 @@ def attendance_worksite_report(request):
 
 from django.shortcuts import render
 
+def _monitor_initial_events(limit: int = 24):
+    today = localdate()
+    events = []
+
+    sessions = (
+        AttendanceSession.objects
+        .filter(work_date=today)
+        .select_related("user_fk")
+        .order_by("in_time", "id")
+    )
+
+    for session in sessions:
+        in_time = localtime(session.in_time) if session.in_time else None
+        out_time = localtime(session.out_time) if session.out_time else None
+        worksite = session.worksite or ""
+
+        if in_time:
+            events.append({
+                "kind": "enter",
+                "user_name": session.user_fk.UserName,
+                "at": in_time.strftime("%H:%M:%S"),
+                "worksite": worksite,
+                "_sort_key": session.in_time,
+            })
+
+        if out_time:
+            events.append({
+                "kind": "exit",
+                "user_name": session.user_fk.UserName,
+                "at": out_time.strftime("%H:%M:%S"),
+                "worksite": worksite,
+                "_sort_key": session.out_time,
+            })
+
+    events.sort(key=lambda item: item["_sort_key"], reverse=True)
+    trimmed = events[:limit]
+    for item in trimmed:
+        item.pop("_sort_key", None)
+    return trimmed
+
+
 # --- PAGINA MONITOR PONTAJ ---
 def monitor_pontaj_page(request):
     # template-ul tău e ToolApp/templates/ToolApp/monitor_pontaj.html
-    return render(request, "ToolApp/monitor_pontaj.html")
+    return render(request, "ToolApp/monitor_pontaj.html", {
+        "initial_events": _monitor_initial_events(),
+    })
 
 
 # --- SSE broker minimal pentru monitor pontaj ---(Server-Sent Events), folosit ca să trimiți în timp real către browser ce se întâmplă la pontaj (enter/exit/auto_close etc.).
@@ -2940,7 +2983,9 @@ def workday_close_dt(local_day):
 # --- PAGINA MONITOR PONTAJ WHITE ---
 def monitor_pontaj_page_white(request):
     # template-ul tău e ToolApp/templates/ToolApp/monitor_pontaj.html
-    return render(request, "ToolApp/monitor_pontaj_white.html")
+    return render(request, "ToolApp/monitor_pontaj_white.html", {
+        "initial_events": _monitor_initial_events(),
+    })
 
 
 
