@@ -1,3 +1,7 @@
+import hashlib
+import hmac
+
+from django.conf import settings
 from django.db import models
 # ToolApp/models.py
 from django.db import models
@@ -30,6 +34,7 @@ class Users(models.Model):
     UserSerie = models.CharField(max_length=100, unique=True, db_index=True)
     UserPin = models.CharField(max_length=100, blank=True, default="")
     pin_hash = models.CharField(max_length=256, blank=True, default="")
+    pin_lookup = models.CharField(max_length=64, blank=True, default="", db_index=True)
     uid = models.CharField(max_length=128, null=True, blank=True, db_index=True)
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=0)  # lei/oră
@@ -45,11 +50,14 @@ class Users(models.Model):
     def set_pin(self, raw_pin):
         raw_pin = str(raw_pin or "").strip()
         self.pin_hash = make_password(raw_pin) if raw_pin else ""
+        self.pin_lookup = build_pin_lookup(raw_pin)
         self.UserPin = ""
 
     def check_pin(self, raw_pin):
         raw_pin = str(raw_pin or "").strip()
         if not raw_pin:
+            return False
+        if self.pin_lookup and self.pin_lookup != build_pin_lookup(raw_pin):
             return False
         if self.pin_hash:
             return check_password(raw_pin, self.pin_hash)
@@ -58,8 +66,17 @@ class Users(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['pin_hash']),
+            models.Index(fields=['pin_lookup']),
             models.Index(fields=['UserSerie']),
         ]
+
+
+def build_pin_lookup(raw_pin):
+    raw_pin = str(raw_pin or "").strip()
+    if not raw_pin:
+        return ""
+    secret = getattr(settings, "SECRET_KEY", "dmx-pin-lookup").encode("utf-8")
+    return hmac.new(secret, raw_pin.encode("utf-8"), hashlib.sha256).hexdigest()
 
     
 

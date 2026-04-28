@@ -29,7 +29,7 @@ from ToolApp.models import (
     Shed, Unfunctional, Materials, Consumables, WorkField,
     CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas,
     SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay, LeaveDay,
-    PinAttemptLog
+    PinAttemptLog, build_pin_lookup
 )
 from ToolApp.serializers import (
     ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, ToolSerializer,
@@ -1301,6 +1301,10 @@ def _pin_rate_identity(request, device_key=None, uid=None):
     ip = _get_client_ip(request) or ""
     device = _normalize_manual_device_key(device_key) or ""
     uid_part = str(uid or "").upper().strip()[:64]
+    if _is_manual_attendance_scan(uid, "manual"):
+        if device:
+            return ip, device, f"pin:manual-device:{device}:{uid_part}"
+        return ip, device, f"pin:manual:{uid_part}"
     return ip, device, f"pin:{ip}:{device}:{uid_part}"
 
 
@@ -1322,20 +1326,20 @@ def _pin_is_blocked(request, device_key=None, uid=None):
 
 def _log_pin_attempt(request, *, success, reason, device_key=None, uid=None, worksite=None):
     ip, device, base_key = _pin_rate_identity(request, device_key=device_key, uid=uid)
+    if success:
+        cache.delete(f"{base_key}:failures")
+        cache.delete(f"{base_key}:blocked_until")
+        return
+
     PinAttemptLog.objects.create(
         ip_address=ip,
         device_key=device,
         uid=str(uid or "")[:128],
         worksite=str(worksite or "")[:100],
-        success=bool(success),
+        success=False,
         blocked=False,
         reason=str(reason or "")[:128],
     )
-
-    if success:
-        cache.delete(f"{base_key}:failures")
-        cache.delete(f"{base_key}:blocked_until")
-        return
 
     failures = cache.get(f"{base_key}:failures") or 0
     failures += 1
@@ -1357,8 +1361,10 @@ def _pin_cache_key(raw_pin):
     return f"pin-login-user:{digest}"
 
 
-def _check_pin_row(raw_pin, row):
-    user_id, pin_hash = row
+def _check_pin_row(raw_pin, lookup_key, row):
+    user_id, pin_hash, pin_lookup = row
+    if pin_lookup and lookup_key and pin_lookup != lookup_key:
+        return None
     if pin_hash and check_password(raw_pin, pin_hash):
         return user_id
     return None
@@ -1368,6 +1374,7 @@ def _find_user_by_pin(raw_pin):
     raw_pin = str(raw_pin or "").strip()
     if not raw_pin:
         return None
+    lookup_key = build_pin_lookup(raw_pin)
 
     cached_user_id = cache.get(_pin_cache_key(raw_pin))
     if cached_user_id:
@@ -1375,24 +1382,29 @@ def _find_user_by_pin(raw_pin):
         if cached_user:
             return cached_user
 
+    fast_user = Users.objects.filter(pin_lookup=lookup_key).first()
+    if fast_user:
+        cache.set(_pin_cache_key(raw_pin), fast_user.UserId, PIN_LOGIN_CACHE_SECONDS)
+        return fast_user
+
     legacy_user = Users.objects.filter(UserPin=raw_pin).first()
     if legacy_user:
         legacy_user.set_pin(raw_pin)
-        legacy_user.save(update_fields=["UserPin", "pin_hash"])
+        legacy_user.save(update_fields=["UserPin", "pin_hash", "pin_lookup"])
         cache.set(_pin_cache_key(raw_pin), legacy_user.UserId, PIN_LOGIN_CACHE_SECONDS)
         return legacy_user
 
     rows = list(
         Users.objects
         .exclude(pin_hash="")
-        .values_list("UserId", "pin_hash")
+        .values_list("UserId", "pin_hash", "pin_lookup")
     )
     if not rows:
         return None
 
     executor = ThreadPoolExecutor(max_workers=min(PIN_CHECK_WORKERS, len(rows)))
     try:
-        futures = [executor.submit(_check_pin_row, raw_pin, row) for row in rows]
+        futures = [executor.submit(_check_pin_row, raw_pin, lookup_key, row) for row in rows]
         for future in as_completed(futures):
             user_id = future.result()
             if user_id:
@@ -1400,7 +1412,11 @@ def _find_user_by_pin(raw_pin):
                     pending.cancel()
                 cache.set(_pin_cache_key(raw_pin), user_id, PIN_LOGIN_CACHE_SECONDS)
                 executor.shutdown(wait=False, cancel_futures=True)
-                return Users.objects.filter(UserId=user_id).first()
+                user = Users.objects.filter(UserId=user_id).first()
+                if user and user.pin_lookup != lookup_key:
+                    user.pin_lookup = lookup_key
+                    user.save(update_fields=["pin_lookup"])
+                return user
     finally:
         executor.shutdown(wait=False, cancel_futures=True)
 
@@ -1509,8 +1525,8 @@ def nfc_scan(request):
     ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip() or None
     attendance_mode = (data.get("mode") or data.get("attendance_mode") or "").strip().lower() or None
     is_manual_scan = _is_manual_attendance_scan(uid, tag_type)
-    manual_client_ip = _get_client_ip(request) if is_manual_scan else None
     manual_device_key = _normalize_manual_device_key(data.get("device_key")) if is_manual_scan else None
+    manual_client_ip = None
     gps_payload = _extract_gps_payload(data)
     gps_captured_at = _extract_gps_captured_at(data)
 
@@ -1610,12 +1626,6 @@ def nfc_scan(request):
                                            .filter(out_time__isnull=True, work_date=today, manual_device_key=manual_device_key)
                                            .order_by('-in_time')
                                            .first())
-            elif manual_client_ip:
-                matching_client_session = (AttendanceSession.objects
-                                           .select_for_update()
-                                           .filter(out_time__isnull=True, work_date=today, manual_client_ip=manual_client_ip)
-                                           .order_by('-in_time')
-                                           .first())
 
             if matching_client_session and matching_client_session.user_fk_id != user.UserId:
                 return JsonResponse({
@@ -1625,7 +1635,7 @@ def nfc_scan(request):
 
             if open_sess and open_sess.work_date == today and not _client_owns_manual_session(
                 open_sess,
-                client_ip=manual_client_ip,
+                client_ip=None,
                 device_key=manual_device_key
             ):
                 return JsonResponse({

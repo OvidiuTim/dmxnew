@@ -1,10 +1,11 @@
 from datetime import timedelta
+import json
 
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.timezone import localdate
 
-from ToolApp.models import AttendanceSession, Users
+from ToolApp.models import AttendanceSession, Users, build_pin_lookup
 
 
 class MonitorPontajTests(TestCase):
@@ -36,3 +37,59 @@ class MonitorPontajTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Type"], "text/event-stream")
+
+
+class ManualAttendanceSecurityTests(TestCase):
+    def test_same_ip_different_devices_can_clock_in(self):
+        first = Users(UserName="Muncitor 1", UserSerie="SER-201")
+        first.set_pin("1201")
+        first.save()
+
+        second = Users(UserName="Muncitor 2", UserSerie="SER-202")
+        second.set_pin("1202")
+        second.save()
+
+        base_payload = {
+            "uid": "MANUAL",
+            "tag_type": "manual",
+            "timestamp": timezone.now().isoformat(),
+            "worksite": "Tractorului Bloc B2",
+            "gps": {"lat": 45.81, "lng": 24.13, "accuracy": 10},
+            "mode": "manual",
+        }
+
+        first_response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({**base_payload, "pin": "1201", "device_key": "device-a"}),
+            content_type="application/json",
+            REMOTE_ADDR="1.2.3.4",
+        )
+        second_response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({**base_payload, "pin": "1202", "device_key": "device-b"}),
+            content_type="application/json",
+            REMOTE_ADDR="1.2.3.4",
+        )
+
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(second_response.status_code, 200)
+        self.assertEqual(first_response.json()["state"], "ENTER")
+        self.assertEqual(second_response.json()["state"], "ENTER")
+
+    def test_successful_pin_lookup_persists_fast_lookup_digest(self):
+        user = Users(UserName="Muncitor 3", UserSerie="SER-203")
+        user.set_pin("5555")
+        user.pin_lookup = ""
+        user.save()
+
+        response = self.client.post(
+            "/api/pontaj/login/",
+            data=json.dumps({"pin": "5555", "device_key": "device-c", "uid": "MANUAL"}),
+            content_type="application/json",
+            REMOTE_ADDR="5.6.7.8",
+        )
+
+        user.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(user.pin_lookup, build_pin_lookup("5555"))
