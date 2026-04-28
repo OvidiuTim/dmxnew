@@ -2,7 +2,6 @@
 import csv, io, re
 import json, logging, math
 import hashlib
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from queue import Queue, Empty
 from collections import deque
@@ -21,7 +20,6 @@ from django.utils.timezone import localtime, localdate
 from django.db import transaction
 from django.db.models import Sum, Min, Max, OuterRef, Subquery, Q
 from django.core.cache import cache
-from django.contrib.auth.hashers import check_password
 
 # --- App (ToolApp) ---
 from ToolApp.models import (
@@ -29,7 +27,7 @@ from ToolApp.models import (
     Shed, Unfunctional, Materials, Consumables, WorkField,
     CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas,
     SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay, LeaveDay,
-    PinAttemptLog, build_pin_lookup
+    PinAttemptLog
 )
 from ToolApp.serializers import (
     ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, ToolSerializer,
@@ -1352,7 +1350,6 @@ def _log_pin_attempt(request, *, success, reason, device_key=None, uid=None, wor
         )
 
 
-PIN_CHECK_WORKERS = 12
 PIN_LOGIN_CACHE_SECONDS = 24 * 3600
 
 
@@ -1361,66 +1358,21 @@ def _pin_cache_key(raw_pin):
     return f"pin-login-user:{digest}"
 
 
-def _check_pin_row(raw_pin, lookup_key, row):
-    user_id, pin_hash, pin_lookup = row
-    if pin_lookup and lookup_key and pin_lookup != lookup_key:
-        return None
-    if pin_hash and check_password(raw_pin, pin_hash):
-        return user_id
-    return None
-
-
 def _find_user_by_pin(raw_pin):
     raw_pin = str(raw_pin or "").strip()
     if not raw_pin:
         return None
-    lookup_key = build_pin_lookup(raw_pin)
 
     cached_user_id = cache.get(_pin_cache_key(raw_pin))
     if cached_user_id:
-        cached_user = Users.objects.filter(UserId=cached_user_id).first()
+        cached_user = Users.objects.filter(UserId=cached_user_id, UserPin=raw_pin).first()
         if cached_user:
             return cached_user
 
-    fast_user = Users.objects.filter(pin_lookup=lookup_key).first()
-    if fast_user:
-        cache.set(_pin_cache_key(raw_pin), fast_user.UserId, PIN_LOGIN_CACHE_SECONDS)
-        return fast_user
-
-    legacy_user = Users.objects.filter(UserPin=raw_pin).first()
-    if legacy_user:
-        legacy_user.set_pin(raw_pin)
-        legacy_user.save(update_fields=["UserPin", "pin_hash", "pin_lookup"])
-        cache.set(_pin_cache_key(raw_pin), legacy_user.UserId, PIN_LOGIN_CACHE_SECONDS)
-        return legacy_user
-
-    rows = list(
-        Users.objects
-        .exclude(pin_hash="")
-        .values_list("UserId", "pin_hash", "pin_lookup")
-    )
-    if not rows:
-        return None
-
-    executor = ThreadPoolExecutor(max_workers=min(PIN_CHECK_WORKERS, len(rows)))
-    try:
-        futures = [executor.submit(_check_pin_row, raw_pin, lookup_key, row) for row in rows]
-        for future in as_completed(futures):
-            user_id = future.result()
-            if user_id:
-                for pending in futures:
-                    pending.cancel()
-                cache.set(_pin_cache_key(raw_pin), user_id, PIN_LOGIN_CACHE_SECONDS)
-                executor.shutdown(wait=False, cancel_futures=True)
-                user = Users.objects.filter(UserId=user_id).first()
-                if user and user.pin_lookup != lookup_key:
-                    user.pin_lookup = lookup_key
-                    user.save(update_fields=["pin_lookup"])
-                return user
-    finally:
-        executor.shutdown(wait=False, cancel_futures=True)
-
-    return None
+    user = Users.objects.filter(UserPin=raw_pin).first()
+    if user:
+        cache.set(_pin_cache_key(raw_pin), user.UserId, PIN_LOGIN_CACHE_SECONDS)
+    return user
 
 
 def _client_owns_manual_session(session, client_ip=None, device_key=None):

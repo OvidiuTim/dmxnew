@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.utils import timezone
 from django.utils.timezone import localdate
 
-from ToolApp.models import AttendanceSession, Users, build_pin_lookup
+from ToolApp.models import AttendanceSession, Users
 
 
 class MonitorPontajTests(TestCase):
@@ -76,10 +76,9 @@ class ManualAttendanceSecurityTests(TestCase):
         self.assertEqual(first_response.json()["state"], "ENTER")
         self.assertEqual(second_response.json()["state"], "ENTER")
 
-    def test_successful_pin_lookup_persists_fast_lookup_digest(self):
+    def test_successful_pin_lookup_uses_plain_userpin(self):
         user = Users(UserName="Muncitor 3", UserSerie="SER-203")
         user.set_pin("5555")
-        user.pin_lookup = ""
         user.save()
 
         response = self.client.post(
@@ -92,4 +91,6 @@ class ManualAttendanceSecurityTests(TestCase):
         user.refresh_from_db()
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(user.pin_lookup, build_pin_lookup("5555"))
+        self.assertEqual(user.UserPin, "5555")
+        self.assertEqual(user.pin_hash, "")
+        self.assertEqual(user.pin_lookup, "")

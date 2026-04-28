@@ -44,12 +44,12 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
     def get_has_pin(self, obj):
-        return bool(getattr(obj, "pin_hash", None) or getattr(obj, "UserPin", None))
+        return bool(getattr(obj, "UserPin", None))
 
     def create(self, validated_data):
         raw_pin = validated_data.pop("UserPin", None)
         user = Users(**validated_data)
-        if raw_pin:
+        if raw_pin is not None:
             user.set_pin(raw_pin)
         user.save()
         return user
@@ -58,7 +58,7 @@ class UserSerializer(serializers.ModelSerializer):
         raw_pin = validated_data.pop("UserPin", None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        if raw_pin:
+        if raw_pin is not None:
             instance.set_pin(raw_pin)
         instance.save()
         return instance

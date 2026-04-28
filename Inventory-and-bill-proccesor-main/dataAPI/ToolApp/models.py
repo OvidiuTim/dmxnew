@@ -1,11 +1,6 @@
-import hashlib
-import hmac
-
-from django.conf import settings
 from django.db import models
 # ToolApp/models.py
 from django.db import models
-from django.contrib.auth.hashers import check_password, make_password
 from django.utils import timezone
 from django.utils.timezone import localdate
 # Create your models here
@@ -49,18 +44,14 @@ class Users(models.Model):
 
     def set_pin(self, raw_pin):
         raw_pin = str(raw_pin or "").strip()
-        self.pin_hash = make_password(raw_pin) if raw_pin else ""
-        self.pin_lookup = build_pin_lookup(raw_pin)
-        self.UserPin = ""
+        self.UserPin = raw_pin
+        self.pin_hash = ""
+        self.pin_lookup = ""
 
     def check_pin(self, raw_pin):
         raw_pin = str(raw_pin or "").strip()
         if not raw_pin:
             return False
-        if self.pin_lookup and self.pin_lookup != build_pin_lookup(raw_pin):
-            return False
-        if self.pin_hash:
-            return check_password(raw_pin, self.pin_hash)
         return bool(self.UserPin) and self.UserPin == raw_pin
 
     class Meta:
@@ -72,11 +63,7 @@ class Users(models.Model):
 
 
 def build_pin_lookup(raw_pin):
-    raw_pin = str(raw_pin or "").strip()
-    if not raw_pin:
-        return ""
-    secret = getattr(settings, "SECRET_KEY", "dmx-pin-lookup").encode("utf-8")
-    return hmac.new(secret, raw_pin.encode("utf-8"), hashlib.sha256).hexdigest()
+    return str(raw_pin or "").strip()
 
     
 
