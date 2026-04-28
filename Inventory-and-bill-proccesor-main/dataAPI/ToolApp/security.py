@@ -11,7 +11,6 @@ TOKEN_AGE = 24 * 3600
 PUBLIC_API_PREFIXES = (
     "/api/auth/login/",
     "/api/auth/verify/",
-    "/api/app/version/",
     "/api/nfc/scan/",
     "/api/pontaj/login/",
     "/api/pontaj/clock/",

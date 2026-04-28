@@ -1728,27 +1728,41 @@ def nfc_scan(request):
             "ts_used": "client" if client_when else "server"
         })
 
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = str(os.environ.get(name, str(default))).strip().lower()
+    return raw in {"1", "true", "yes", "on"}
 
 
-@csrf_exempt
-def app_version(request):
-    """GET /api/app/version/ - public version gate used by the Android app."""
-    if request.method != "GET":
-        return JsonResponse({"error": "Only GET allowed"}, status=405)
-
-    return JsonResponse({
-        "minimum_version_code": int(os.environ.get("DMX_ANDROID_MIN_VERSION_CODE", "1")),
-        "latest_version_code": int(os.environ.get("DMX_ANDROID_LATEST_VERSION_CODE", "1")),
-        "latest_version_name": os.environ.get("DMX_ANDROID_LATEST_VERSION_NAME", "1.0"),
-        "update_url": os.environ.get(
+def _app_version_payload():
+    link = os.environ.get(
+        "DMX_ANDROID_NEWVERSION_LINK",
+        os.environ.get(
             "DMX_ANDROID_UPDATE_URL",
             "https://play.google.com/store/apps/details?id=ro.dmxconstruction.dmxclock",
         ),
+    )
+    return {
+        "minimum_version_code": int(os.environ.get("DMX_ANDROID_MIN_VERSION_CODE", "1")),
+        "latest_version_code": int(os.environ.get("DMX_ANDROID_LATEST_VERSION_CODE", "1")),
+        "latest_version_name": os.environ.get("DMX_ANDROID_LATEST_VERSION_NAME", "1.0"),
+        "update_url": os.environ.get("DMX_ANDROID_UPDATE_URL", link),
         "message": os.environ.get(
             "DMX_ANDROID_UPDATE_MESSAGE",
             "Exista o versiune noua. Actualizeaza aplicatia ca sa poti continua pontajul.",
         ),
-    })
+        "is_update_available": _env_bool("DMX_ANDROID_UPDATE_AVAILABLE", False),
+        "is_force_update": _env_bool("DMX_ANDROID_FORCE_UPDATE", False),
+        "link": link,
+    }
+
+
+@csrf_exempt
+def app_version(request):
+    """GET /api/app/version/ sau /api/newversion/ - version/config endpoint protejat."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    return JsonResponse(_app_version_payload())
 
 
 @csrf_exempt
