@@ -9,6 +9,7 @@ interface SessionRow {
   out_time: string | null;    // "HH:MM:SS" sau null dacă e deschisă
   duration_hms: string;       // "HH:MM:SS"
   open: boolean;
+  missing_exit?: boolean;
   session_id: number;
 }
 

@@ -283,6 +283,7 @@ def check_nfc_reader(request):
 AUTO_CLOSE_HOUR = 17
 AUTO_CLOSE_MIN  = 30
 AUTO_CLOSE_SOURCE_TAG = "|auto1730"
+MISSING_EXIT_SOURCE_TAG = "|missing_exit"
 PONTAJ_MAX_SHIFT_HOURS = 14  # deja îl ai, îl folosim pentru cap durată
 
 
@@ -290,6 +291,22 @@ def _day_time_dt(local_day, hour, minute):
     tz = timezone.get_current_timezone()
     naive = datetime(local_day.year, local_day.month, local_day.day, hour, minute, 0)
     return timezone.make_aware(naive, tz)
+
+
+def _source_has_tag(source_value, tag):
+    return tag in str(source_value or "")
+
+
+def _is_missing_exit_session(session):
+    return _source_has_tag(getattr(session, "source", ""), MISSING_EXIT_SOURCE_TAG)
+
+
+def _mark_session_missing_exit(session):
+    source = str(session.source or "")
+    if MISSING_EXIT_SOURCE_TAG not in source:
+        session.source = source + MISSING_EXIT_SOURCE_TAG
+    session.out_time = None
+    session.duration_seconds = 0
 
 
 
@@ -1581,6 +1598,7 @@ def nfc_scan(request):
         open_sess = (AttendanceSession.objects
                      .select_for_update()
                      .filter(user_fk=user, out_time__isnull=True)
+                     .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
                      .order_by('-in_time')
                      .first())
 
@@ -1618,29 +1636,16 @@ def nfc_scan(request):
         if open_sess:
             # dacă sesiunea e din altă zi, o închidem la ora de închidere a zilei anterioare
             if open_sess.work_date < today:
-                close_at = workday_close_dt(open_sess.work_date)
-                if close_at > when:
-                    close_at = when
+                _mark_session_missing_exit(open_sess)
+                open_sess.save(update_fields=["out_time", "duration_seconds", "source"])
 
-                max_close = open_sess.in_time + timedelta(hours=PONTAJ_MAX_SHIFT_HOURS)
-                if close_at > max_close:
-                    close_at = max_close
-
-                open_sess.out_time = close_at
-                open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
-                open_sess.source = (open_sess.source or '') + '|auto'
-                open_sess.save()
-
-                _publish("auto_close", user, close_at, {
-                    "closed_at_hm": localtime(close_at).strftime("%H:%M"),
+                _publish("auto_close", user, when, {
+                    "closed_at_hm": None,
                     "duration_hms": _fmt_hms(open_sess.duration_seconds),
                     "work_date": str(open_sess.work_date),
                     "worksite": open_sess.worksite,
+                    "missing_exit": True,
                 })
-                PresenceEvent.objects.create(
-                    user_fk=user, kind=PresenceEvent.Kind.EXIT,
-                    timestamp=close_at, worksite=open_sess.worksite
-                )
 
                 # deschidem sesiune nouă la 'when', cu worksite curent (ws)
                 new_sess = AttendanceSession.objects.create(
@@ -1668,10 +1673,11 @@ def nfc_scan(request):
                     "state": "ENTER",
                     "auto_closed_previous": {
                         "work_date": str(open_sess.work_date),
-                        "closed_at": localtime(close_at).isoformat(),
+                        "closed_at": None,
                         "duration_hms": _fmt_hms(open_sess.duration_seconds),
                         "session_id": open_sess.id,
                         "worksite": open_sess.worksite,
+                        "missing_exit": True,
                     },
                     "user": {"id": user.UserId, "name": user.UserName},
                     "session": {
@@ -1947,6 +1953,7 @@ def attendance_day(request):
 
     rows_by_user = {}
     for s in qs:
+        missing_exit = _is_missing_exit_session(s)
         u = s.user_fk
         key = u.UserId
         if key not in rows_by_user:
@@ -1962,19 +1969,20 @@ def attendance_day(request):
             }
 
         in_local  = localtime(s.in_time) if s.in_time else None
-        out_local = localtime(s.out_time) if s.out_time else None
-        if s.out_time is None:
+        out_local = localtime(s.out_time) if (s.out_time and not missing_exit) else None
+        if s.out_time is None and not missing_exit:
             dur = int((timezone.now() - s.in_time).total_seconds())
             rows_by_user[key]["status"] = "IN"
         else:
-            dur = s.duration_seconds or int((s.out_time - s.in_time).total_seconds())
+            dur = 0 if missing_exit else (s.duration_seconds or int((s.out_time - s.in_time).total_seconds()))
         rows_by_user[key]["total_seconds"] += max(0, dur)
 
         rows_by_user[key]["sessions"].append({
             "in_time":  in_local.strftime("%H:%M:%S") if in_local else None,
             "out_time": out_local.strftime("%H:%M:%S") if out_local else None,
             "duration_hms": _fmt_hms(dur),
-            "open": (s.out_time is None),
+            "open": (s.out_time is None and not missing_exit),
+            "missing_exit": missing_exit,
             "session_id": s.id,
             "worksite": s.worksite,
             **_session_gps_payload(s),
@@ -2024,6 +2032,7 @@ def attendance_present(request):
 
     open_qs = (AttendanceSession.objects
                .filter(out_time__isnull=True)
+               .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
                .select_related("user_fk")
                .order_by("in_time"))
 
@@ -2095,22 +2104,26 @@ def attendance_range(request):
             bucket = days.get(s.work_date)
             if not bucket:
                 continue
+            missing_exit = _is_missing_exit_session(s)
             in_local = localtime(s.in_time)
-            out_local = localtime(s.out_time) if s.out_time else None
+            out_local = localtime(s.out_time) if (s.out_time and not missing_exit) else None
             dur = s.duration_seconds if s.out_time else int((now - s.in_time).total_seconds())
+            if missing_exit:
+                dur = 0
             dur = max(0, int(dur))
 
             bucket["sessions"].append({
                 "in_time":  in_local.strftime("%H:%M:%S"),
                 "out_time": out_local.strftime("%H:%M:%S") if out_local else None,
                 "duration_hms": _fmt_hms(dur),
-                "open": (s.out_time is None),
+                "open": (s.out_time is None and not missing_exit),
+                "missing_exit": missing_exit,
                 "session_id": s.id,
                 "worksite": s.worksite,
                 **_session_gps_payload(s),
             })
             bucket["entries"] += 1
-            if s.out_time:
+            if s.out_time and not missing_exit:
                 bucket["exits"] += 1
             bucket["total_seconds"] += dur
 
@@ -2213,6 +2226,7 @@ def attendance_worksite_report(request):
     total_sessions = 0
 
     for session in qs:
+        missing_exit = _is_missing_exit_session(session)
         user = session.user_fk
         worksite_key = (session.worksite or "").strip()
         worksite_label = worksite_key or "Fără șantier asignat"
@@ -2220,6 +2234,8 @@ def attendance_worksite_report(request):
         duration = session.duration_seconds
         if session.out_time is None:
             duration = int((now - session.in_time).total_seconds())
+        if missing_exit:
+            duration = 0
         duration = max(0, int(duration or 0))
 
         bucket = worksites.setdefault(
@@ -2481,6 +2497,7 @@ def close_open_sessions_for_day_at_1730(target_day):
         qs = (AttendanceSession.objects
               .select_for_update()
               .filter(work_date=target_day, out_time__isnull=True)
+              .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
               .order_by('in_time'))
         for s in qs:
             # out = max(in_time, 17:30) ca să evităm durată negativă

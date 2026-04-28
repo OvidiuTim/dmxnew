@@ -114,9 +114,12 @@
         <div class="sess-row" *ngFor="let s of r.sessions">
           <div>{{ hm(s.in_time) }}</div>
           <div>
-            <ng-container *ngIf="s.out_time; else openTag">
+            <ng-container *ngIf="s.out_time; else outFallback">
               {{ hm(s.out_time) }}
             </ng-container>
+            <ng-template #outFallback>
+              <span *ngIf="s.missing_exit; else openTag" class="muted">—</span>
+            </ng-template>
             <ng-template #openTag>
               <span class="open">deschis</span>
             </ng-template>

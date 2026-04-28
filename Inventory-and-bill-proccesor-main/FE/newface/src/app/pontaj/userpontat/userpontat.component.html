@@ -141,7 +141,10 @@
           </div>
           <div class="arrow">→</div>
           <div class="time-stack">
-            <ng-container *ngIf="s.out_time; else openTag">{{ hm(s.out_time) }}</ng-container>
+            <ng-container *ngIf="s.out_time; else outFallback">{{ hm(s.out_time) }}</ng-container>
+            <ng-template #outFallback>
+              <span *ngIf="s.missing_exit; else openTag" class="muted">—</span>
+            </ng-template>
             <ng-template #openTag><span class="open">deschis</span></ng-template>
             <button
               class="btn secondary map-mini-btn"

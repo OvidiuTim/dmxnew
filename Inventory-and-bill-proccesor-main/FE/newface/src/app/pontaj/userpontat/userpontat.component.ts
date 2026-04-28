@@ -8,6 +8,7 @@ interface SessionRow {
   out_time: string | null;
   duration_hms: string;
   open: boolean;
+  missing_exit?: boolean;
   session_id: number;
   worksite?: string | null;
   in_gps?: GpsPoint | null;
