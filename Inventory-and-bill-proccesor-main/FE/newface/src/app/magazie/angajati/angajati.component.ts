@@ -164,10 +164,43 @@ enough(){
 
   deleteClick(item: { UserId: any; }){
     if(confirm('Esti sigur?')){
-    this.service.deleteUser(item.UserId).subscribe(data=>{
-      console.log(data.toString());
-      this.refreshUsrList();
-      this.wait()
+    this.service.deleteUser(item.UserId).subscribe({
+      next: (data) => {
+        console.log(data?.toString?.() ?? data);
+        this.refreshUsrList();
+        this.wait();
+      },
+      error: (err) => {
+        console.error('Eroare la stergerea angajatului', err);
+        const message =
+          err?.error?.message ||
+          err?.error?.error ||
+          'Angajatul nu a putut fi sters. Daca are pontaj, istoric, plati sau concedii, trebuie arhivat sau curatat manual.';
+
+        if (err?.status === 409) {
+          const forceDelete = confirm(`${message}\n\nVrei sa-l stergi oricum? Aceasta actiune va sterge pontajul, platile si concediile lui si va scoate legaturile din istoric.`);
+          if (forceDelete) {
+            this.service.deleteUser(item.UserId, true).subscribe({
+              next: (forcedData) => {
+                console.log(forcedData?.toString?.() ?? forcedData);
+                this.refreshUsrList();
+                this.wait();
+              },
+              error: (forceErr) => {
+                console.error('Eroare la stergerea fortata a angajatului', forceErr);
+                alert(
+                  forceErr?.error?.message ||
+                  forceErr?.error?.error ||
+                  'Angajatul nu a putut fi sters nici cu override.'
+                );
+              }
+            });
+            return;
+          }
+        }
+
+        alert(message);
+      }
     })
     }
 }

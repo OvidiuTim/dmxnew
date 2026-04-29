@@ -31,7 +31,7 @@ export class SharedService {
   getUser(id: number | string)         { return this.http.get<any>(`${this.API}/user/${id}`); }
   addUser(val: any)                    { return this.http.post(`${this.API}/user/`, val); }
   updateUser(val: any)                 { return this.http.put(`${this.API}/user/`, val); }
-  deleteUser(id: any)                  { return this.http.delete(`${this.API}/user/${id}`); }
+  deleteUser(id: any, force = false)   { return this.http.delete(`${this.API}/user/${id}${force ? '?force=1' : ''}`); }
 
   // --- Unelte ---
   getTolList(): Observable<any[]>      { return this.http.get<any[]>(`${this.API}/tool/`); }

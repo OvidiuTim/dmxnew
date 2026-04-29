@@ -18,6 +18,7 @@ from django.http import JsonResponse, StreamingHttpResponse, HttpResponseNotAllo
 from django.utils import timezone
 from django.utils.timezone import localtime, localdate
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from django.db.models import Sum, Min, Max, OuterRef, Subquery, Q
 from django.core.cache import cache
 
@@ -353,7 +354,34 @@ def userApi(request,id=0):
             user=Users.objects.get(UserId=id)
         except Users.DoesNotExist:
             return JsonResponse({"error": "User not found"}, safe=False, status=404)
-        user.delete()
+
+        force_delete = str(request.GET.get("force") or "").lower() in ("1", "true", "yes", "on")
+
+        if force_delete:
+            with transaction.atomic():
+                Histories.objects.filter(user_fk=user).update(user_fk=None)
+                Histories.objects.filter(issued_by=user).update(issued_by=None)
+                AttendanceSession.objects.filter(user_fk=user).delete()
+                PresenceEvent.objects.filter(user_fk=user).delete()
+                DailyPay.objects.filter(user_fk=user).delete()
+                LeaveDay.objects.filter(user_fk=user).delete()
+                user.delete()
+            return JsonResponse(
+                {"ok": True, "forced": True, "message": "Angajatul a fost sters cu override."},
+                safe=False,
+            )
+
+        try:
+            user.delete()
+        except ProtectedError:
+            return JsonResponse(
+                {
+                    "error": "User has related records",
+                    "message": "Angajatul nu poate fi sters deoarece are pontaj, istoric, plati sau concedii asociate."
+                },
+                safe=False,
+                status=409,
+            )
         return JsonResponse("Deleted Succeffully!!", safe=False)
 
 # --- BULK USERS: import JSON sau CSV ---
