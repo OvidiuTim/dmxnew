@@ -37,6 +37,26 @@ type WorksiteReportSummary = {
   total_hms: string;
 };
 
+type DayCostPersonRow = {
+  UserId: number;
+  UserName: string;
+  UserSerie?: string | null;
+  display_name: string;
+  Company?: string | null;
+  hourly_rate: number;
+  total_seconds: number;
+  total_hms: string;
+  worked_hours: number;
+  day_cost: number;
+};
+
+type DayCostSummary = {
+  people_count: number;
+  total_seconds: number;
+  total_hms: string;
+  total_cost: number;
+};
+
 @Component({
   selector: 'app-rapoarte',
   templateUrl: './rapoarte.component.html',
@@ -47,6 +67,7 @@ export class RapoarteComponent implements OnInit {
   ngOnInit(): void {
     this.loadCompanies();
     this.loadWorksiteReport();
+    this.loadDayCostReport();
   }
 
   private loadCompanies(): void {
@@ -98,6 +119,14 @@ export class RapoarteComponent implements OnInit {
   selectedWorksiteCompany = '';
   showWorksiteCompanyPicker = false;
   worksiteEmployeeSearch: Record<string, string> = {};
+
+  // Cost pe zi
+  dayCostDate = this.todayISO();
+  selectedDayCostCompany = '';
+  loadingDayCostReport = false;
+  dayCostError: string | null = null;
+  dayCostSummary: DayCostSummary | null = null;
+  dayCostPeople: DayCostPersonRow[] = [];
 
   // Raport pe firmă + lună
   companies: string[] = [];
@@ -256,6 +285,55 @@ export class RapoarteComponent implements OnInit {
         this.worksiteReportRows = [];
         this.worksiteReportSummary = null;
         this.worksiteReportError = 'Nu am putut încărca raportul pe șantiere.';
+      }
+    });
+  }
+
+  loadDayCostReport(): void {
+    this.dayCostError = null;
+
+    if (!this.dayCostDate) {
+      this.dayCostError = 'Alege data pentru costul zilnic.';
+      return;
+    }
+
+    this.loadingDayCostReport = true;
+    this.dayCostPeople = [];
+    this.dayCostSummary = null;
+
+    this.api.getAttendanceDayCostReport(
+      this.dayCostDate,
+      this.selectedDayCostCompany || null
+    ).subscribe({
+      next: (res) => {
+        this.dayCostSummary = res?.summary ? {
+          people_count: Number(res.summary.people_count ?? 0),
+          total_seconds: Number(res.summary.total_seconds ?? 0),
+          total_hms: res.summary.total_hms ?? '00:00:00',
+          total_cost: Number(res.summary.total_cost ?? 0),
+        } : null;
+
+        this.dayCostPeople = (res?.people ?? []).map((person: any) => ({
+          UserId: Number(person.UserId ?? 0),
+          UserName: person.UserName ?? '',
+          UserSerie: person.UserSerie ?? null,
+          display_name: person.display_name ?? person.UserName ?? '',
+          Company: person.Company ?? null,
+          hourly_rate: Number(person.hourly_rate ?? 0),
+          total_seconds: Number(person.total_seconds ?? 0),
+          total_hms: person.total_hms ?? '00:00:00',
+          worked_hours: Number(person.worked_hours ?? 0),
+          day_cost: Number(person.day_cost ?? 0),
+        }));
+
+        this.loadingDayCostReport = false;
+      },
+      error: (err) => {
+        console.error(err);
+        this.loadingDayCostReport = false;
+        this.dayCostPeople = [];
+        this.dayCostSummary = null;
+        this.dayCostError = 'Nu am putut calcula costul pe zi.';
       }
     });
   }

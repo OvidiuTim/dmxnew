@@ -2,6 +2,7 @@
 import csv, io, re
 import json, logging, math
 import hashlib
+import unicodedata
 from threading import Lock
 from queue import Queue, Empty
 from collections import deque
@@ -306,6 +307,62 @@ def _mark_session_missing_exit(session):
         session.source = source + MISSING_EXIT_SOURCE_TAG
     session.out_time = None
     session.duration_seconds = 0
+
+
+def _fold_worksite_text(value) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.lower()
+    text = re.sub(r"\s*&\s*", " & ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+_WORKSITE_CANONICAL_LABELS = {
+    "tractorului bloc a": "Bloc A",
+    "the lake home bloc a": "Bloc A",
+    "tractorului bloc b2": "Bloc B2",
+    "the lake home bloc b2": "Bloc B2",
+    "tractorului bloc e & f": "Bloc E & F",
+    "the lake home bloc e & f": "Bloc E & F",
+    "casa de cultura victoria": "Casa de Cultură Victoria",
+}
+
+
+def _canonicalize_worksite_label(raw_worksite):
+    text = str(raw_worksite or "").strip()
+    if not text:
+        return "Fără șantier asignat", ""
+
+    folded = _fold_worksite_text(text)
+    canonical = _WORKSITE_CANONICAL_LABELS.get(folded)
+    if canonical:
+        return canonical, _fold_worksite_text(canonical)
+
+    return text, folded or text.lower()
+
+
+def _attendance_session_duration_seconds(session, now=None) -> int:
+    if _is_missing_exit_session(session):
+        return 0
+
+    now = now or timezone.now()
+    duration = session.duration_seconds
+    if session.out_time is None and session.in_time:
+        duration = int((now - session.in_time).total_seconds())
+
+    return max(0, int(duration or 0))
+
+
+def _user_name_with_serie(user) -> str:
+    serie = str(getattr(user, "UserSerie", "") or "").strip()
+    if serie:
+        return f"{user.UserName} ({serie})"
+    return user.UserName
 
 
 
@@ -2230,23 +2287,15 @@ def attendance_worksite_report(request):
     total_sessions = 0
 
     for session in qs:
-        missing_exit = _is_missing_exit_session(session)
         user = session.user_fk
-        worksite_key = (session.worksite or "").strip()
-        worksite_label = worksite_key or "Fără șantier asignat"
-
-        duration = session.duration_seconds
-        if session.out_time is None:
-            duration = int((now - session.in_time).total_seconds())
-        if missing_exit:
-            duration = 0
-        duration = max(0, int(duration or 0))
+        worksite_label, worksite_key = _canonicalize_worksite_label(session.worksite)
+        duration = _attendance_session_duration_seconds(session, now=now)
 
         bucket = worksites.setdefault(
             worksite_key,
             {
                 "worksite": worksite_label,
-                "raw_worksite": worksite_key or None,
+                "raw_worksite": worksite_label,
                 "total_seconds": 0,
                 "total_sessions": 0,
                 "days": set(),
@@ -2331,6 +2380,80 @@ def attendance_worksite_report(request):
             "total_hms": _fmt_hms(total_seconds),
         },
         "rows": rows,
+    })
+
+
+@csrf_exempt
+def attendance_day_cost_report(request):
+    """GET /api/pontaj/reports/day-cost/?date=YYYY-MM-DD[&company=NAME]"""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    day = _parse_iso_date(request.GET.get("date") or str(localdate()))
+    company = (request.GET.get("company") or "").strip()
+    now = timezone.now()
+
+    qs = (
+        AttendanceSession.objects
+        .filter(work_date=day)
+        .select_related("user_fk")
+        .order_by("user_fk__UserName", "in_time")
+    )
+    if company:
+        qs = qs.filter(user_fk__Company__iexact=company)
+
+    per_user = {}
+    total_seconds = 0
+    total_cost = Decimal("0.00")
+
+    for session in qs:
+        user = session.user_fk
+        duration = _attendance_session_duration_seconds(session, now=now)
+        bucket = per_user.setdefault(
+            user.UserId,
+            {
+                "UserId": user.UserId,
+                "UserName": user.UserName,
+                "UserSerie": user.UserSerie,
+                "display_name": _user_name_with_serie(user),
+                "Company": user.Company,
+                "hourly_rate": Decimal(str(user.hourly_rate or 0)),
+                "total_seconds": 0,
+            },
+        )
+        bucket["total_seconds"] += duration
+
+    people = []
+    for item in per_user.values():
+        worked_hours = Decimal(item["total_seconds"]) / Decimal("3600")
+        person_cost = (worked_hours * item["hourly_rate"]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_seconds += item["total_seconds"]
+        total_cost += person_cost
+        people.append({
+            "UserId": item["UserId"],
+            "UserName": item["UserName"],
+            "UserSerie": item["UserSerie"],
+            "display_name": item["display_name"],
+            "Company": item["Company"],
+            "hourly_rate": str(item["hourly_rate"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+            "total_seconds": item["total_seconds"],
+            "total_hms": _fmt_hms(item["total_seconds"]),
+            "worked_hours": float(worked_hours.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+            "day_cost": str(person_cost),
+        })
+
+    people.sort(key=lambda person: (-person["total_seconds"], person["display_name"].lower()))
+
+    return JsonResponse({
+        "date": str(day),
+        "company": company or None,
+        "summary": {
+            "people_count": len(people),
+            "total_seconds": total_seconds,
+            "total_hms": _fmt_hms(total_seconds),
+            "total_cost": str(total_cost.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+        },
+        "people": people,
     })
 
 
@@ -3843,7 +3966,7 @@ def generate_excel(request):
         rate = Decimal(str(data.get("hourly_rate"))) if data.get("hourly_rate") not in (None, "") else (user.hourly_rate or Decimal('0.00'))
       
         # numele muncitorului în col B
-        ws[f"B{row_hours}"].value = user.UserName
+        ws[f"B{row_hours}"].value = _user_name_with_serie(user)
         
         # salariu orar în col AP
         ws[f"{hourly_salary_column}{row_hours}"].value = float(rate or 0.0)

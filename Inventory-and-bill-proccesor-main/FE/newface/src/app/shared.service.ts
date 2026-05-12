@@ -173,6 +173,13 @@ getAttendanceRangeForUser(start: string, end: string, userId: number) {
     }
     return this.http.get<any>(`${this.API}/pontaj/reports/worksites/`, { params });
   }
+  getAttendanceDayCostReport(date: string, company?: string | null) {
+    const params: any = { date };
+    if (company) {
+      params.company = company;
+    }
+    return this.http.get<any>(`${this.API}/pontaj/reports/day-cost/`, { params });
+  }
   /** A) Editează o ZI prin sesiuni explicite (înlocuiește tot în ziua respectivă dacă replace=true) */
   editDaySessions(
     userId: number,

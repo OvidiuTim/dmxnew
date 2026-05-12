@@ -1,11 +1,13 @@
 from datetime import timedelta
 import json
+from decimal import Decimal
 
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.timezone import localdate
 
 from ToolApp.models import AttendanceSession, Users
+from ToolApp.security import make_admin_token
 
 
 class MonitorPontajTests(TestCase):
@@ -94,3 +96,78 @@ class ManualAttendanceSecurityTests(TestCase):
         self.assertEqual(user.UserPin, "5555")
         self.assertEqual(user.pin_hash, "")
         self.assertEqual(user.pin_lookup, "")
+
+
+class AttendanceReportsTests(TestCase):
+    def setUp(self):
+        super().setUp()
+        self.auth_header = {"HTTP_AUTHORIZATION": f"Bearer {make_admin_token()}"}
+
+    def test_worksite_report_groups_known_aliases(self):
+        user_one = Users.objects.create(UserName="Ion Pop", UserSerie="SER-301", Company="DMX")
+        user_two = Users.objects.create(UserName="Vasile Ionescu", UserSerie="SER-302", Company="DMX")
+        today = localdate()
+        now = timezone.now()
+
+        AttendanceSession.objects.create(
+            user_fk=user_one,
+            work_date=today,
+            in_time=now - timedelta(hours=5),
+            out_time=now - timedelta(hours=1),
+            duration_seconds=4 * 3600,
+            source="manual",
+            worksite="Tractorului Bloc A",
+        )
+        AttendanceSession.objects.create(
+            user_fk=user_two,
+            work_date=today,
+            in_time=now - timedelta(hours=4),
+            out_time=now - timedelta(hours=2),
+            duration_seconds=2 * 3600,
+            source="manual",
+            worksite="The Lake Home Bloc A",
+        )
+
+        response = self.client.get(
+            f"/api/pontaj/reports/worksites/?start={today.isoformat()}&end={today.isoformat()}",
+            **self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["summary"]["worksites_count"], 1)
+        self.assertEqual(payload["rows"][0]["worksite"], "Bloc A")
+        self.assertEqual(payload["rows"][0]["people_count"], 2)
+        self.assertEqual(payload["rows"][0]["total_seconds"], 6 * 3600)
+
+    def test_day_cost_report_uses_hourly_rate_times_worked_hours(self):
+        user = Users.objects.create(
+            UserName="Mihai Popescu",
+            UserSerie="SER-401",
+            Company="DMX",
+            hourly_rate=Decimal("25.50"),
+        )
+        today = localdate()
+        now = timezone.now()
+
+        AttendanceSession.objects.create(
+            user_fk=user,
+            work_date=today,
+            in_time=now - timedelta(hours=3, minutes=30),
+            out_time=now,
+            duration_seconds=(3 * 3600) + (30 * 60),
+            source="manual",
+            worksite="Tractorului Bloc B2",
+        )
+
+        response = self.client.get(
+            f"/api/pontaj/reports/day-cost/?date={today.isoformat()}",
+            **self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["summary"]["people_count"], 1)
+        self.assertEqual(payload["summary"]["total_hms"], "03:30:00")
+        self.assertEqual(payload["summary"]["total_cost"], "89.25")
+        self.assertEqual(payload["people"][0]["display_name"], "Mihai Popescu (SER-401)")

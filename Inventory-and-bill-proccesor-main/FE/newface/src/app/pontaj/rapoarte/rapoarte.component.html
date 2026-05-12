@@ -197,6 +197,83 @@
     </div>
   </section>
 
+  <section class="section-card day-cost-card">
+    <div class="report-head">
+      <div>
+        <h2>Cost pe zi</h2>
+        <p class="section-sub">
+          Calculează costul total din ziua aleasă pe baza salariului orar și a orelor muncite de fiecare angajat.
+        </p>
+      </div>
+
+      <div class="report-actions">
+        <button class="btn primary" (click)="loadDayCostReport()" [disabled]="loadingDayCostReport">
+          Calculează
+        </button>
+      </div>
+    </div>
+
+    <div class="worksite-filters">
+      <div class="field">
+        <label>Data</label>
+        <input type="date" [(ngModel)]="dayCostDate" [max]="todayISO()" />
+      </div>
+
+      <div class="field">
+        <label>Firmă</label>
+        <select [(ngModel)]="selectedDayCostCompany">
+          <option value="">Toate firmele</option>
+          <option *ngFor="let c of companies" [value]="c">{{ c }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="state" *ngIf="loadingDayCostReport">Se calculează costul pe zi…</div>
+    <div class="state error" *ngIf="dayCostError">{{ dayCostError }}</div>
+
+    <ng-container *ngIf="dayCostSummary && !loadingDayCostReport">
+      <div class="summary-grid">
+        <div class="summary-card emphasis">
+          <span class="summary-label">Cost total</span>
+          <strong>{{ dayCostSummary.total_cost | number:'1.2-2' }} lei</strong>
+        </div>
+
+        <div class="summary-card">
+          <span class="summary-label">Oameni calculați</span>
+          <strong>{{ dayCostSummary.people_count }}</strong>
+        </div>
+
+        <div class="summary-card">
+          <span class="summary-label">Ore totale</span>
+          <strong>{{ dayCostSummary.total_hms }}</strong>
+        </div>
+      </div>
+
+      <div class="worksite-table-wrap" *ngIf="dayCostPeople.length">
+        <table class="worksite-table day-cost-table">
+          <thead>
+            <tr>
+              <th>Muncitor</th>
+              <th>Firmă</th>
+              <th>Salariu/oră</th>
+              <th>Ore</th>
+              <th>Total zi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let person of dayCostPeople">
+              <td class="site-name">{{ person.display_name }}</td>
+              <td>{{ person.Company || '—' }}</td>
+              <td>{{ person.hourly_rate | number:'1.2-2' }} lei</td>
+              <td>{{ person.total_hms }}</td>
+              <td>{{ person.day_cost | number:'1.2-2' }} lei</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+  </section>
+
 
 <br>
 <br>

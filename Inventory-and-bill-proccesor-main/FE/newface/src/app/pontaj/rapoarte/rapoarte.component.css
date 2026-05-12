@@ -301,6 +301,14 @@
   border-radius: 10px;
 }
 
+.worksite-filters select {
+  background: #0f1116;
+  color: #e7e7e7;
+  border: 1px solid #2b2b2f;
+  padding: 7px 10px;
+  border-radius: 10px;
+}
+
 .company-filter-field {
   min-width: 220px;
 }
@@ -364,6 +372,11 @@
 .summary-card strong {
   font-size: 20px;
   color: #f4f6fb;
+}
+
+.summary-card.emphasis {
+  border-color: #2b5cff;
+  box-shadow: 0 0 0 1px rgba(43, 92, 255, .18) inset;
 }
 
 .worksite-table-wrap {
@@ -481,6 +494,14 @@
   margin-top: 8px;
   color: #9ea5b6;
   font-size: 12px;
+}
+
+.day-cost-card {
+  margin-top: 18px;
+}
+
+.day-cost-table {
+  min-width: 760px;
 }
 
 @media (max-width: 767px) {
