@@ -30,9 +30,25 @@
           <input id="user-serie" type="text" formControlName="UserSerie" placeholder="Ex: DMX-001">
         </div>
 
-        <div class="field">
+        <div class="field pin-field">
           <label for="user-pin">{{ isEditMode ? 'PIN nou' : 'PIN angajat' }}</label>
-          <input id="user-pin" type="password" inputmode="numeric" formControlName="UserPin" [placeholder]="isEditMode ? 'Completeaza doar daca il schimbi' : 'Ex: 8502'">
+          <div class="pin-input-row">
+            <input
+              id="user-pin"
+              [type]="isEditMode ? 'text' : 'password'"
+              inputmode="numeric"
+              formControlName="UserPin"
+              [placeholder]="isEditMode ? 'Completeaza doar daca il schimbi' : 'Ex: 8502'"
+              (input)="onPinInput($any($event.target).value)"
+            >
+            <button *ngIf="isEditMode" type="button" class="btn ghost pin-reset-btn" (click)="resetPin()">Reseteaza PIN</button>
+          </div>
+          <p *ngIf="isEditMode && generatedPinPreview" class="pin-preview">
+            PIN nou generat: <strong>{{ generatedPinPreview }}</strong>
+          </p>
+          <p *ngIf="isEditMode && !generatedPinPreview" class="pin-help">
+            Apasa pe „Reseteaza PIN” ca sa generezi unul nou, apoi salveaza modificarile.
+          </p>
         </div>
 
         <div class="field">

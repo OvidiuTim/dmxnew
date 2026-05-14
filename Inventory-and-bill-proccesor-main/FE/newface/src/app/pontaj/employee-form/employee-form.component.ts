@@ -16,6 +16,7 @@ export class EmployeeFormComponent implements OnInit {
   error: string | null = null;
   photoPreview: string | null = null;
   photoFileName = '';
+  generatedPinPreview: string | null = null;
 
   readonly form = this.fb.group({
     UserName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -87,6 +88,21 @@ export class EmployeeFormComponent implements OnInit {
     }
 
     this.form.patchValue({ received_equipment: null });
+  }
+
+  resetPin(): void {
+    const newPin = this.generatePin();
+    this.form.patchValue({ UserPin: newPin });
+    this.generatedPinPreview = newPin;
+    this.error = null;
+  }
+
+  onPinInput(value: string): void {
+    const normalized = value.replace(/\D/g, '').slice(0, 12);
+    if (normalized !== value) {
+      this.form.patchValue({ UserPin: normalized }, { emitEvent: false });
+    }
+    this.generatedPinPreview = normalized || null;
   }
 
   onPhotoSelected(event: Event): void {
@@ -198,6 +214,7 @@ export class EmployeeFormComponent implements OnInit {
           trade: user?.trade ?? '',
         });
         this.photoPreview = user?.photo ?? null;
+        this.generatedPinPreview = null;
       },
       error: () => {
         this.loading = false;
@@ -248,5 +265,9 @@ export class EmployeeFormComponent implements OnInit {
     }
 
     return parsed.toFixed(2);
+  }
+
+  private generatePin(): string {
+    return String(Math.floor(1000 + Math.random() * 9000));
   }
 }
