@@ -185,6 +185,10 @@
   color: #aeb8c5;
 }
 
+.field select + input {
+  margin-top: 10px;
+}
+
 .photo-card {
   grid-column: 1 / -1;
   display: grid;

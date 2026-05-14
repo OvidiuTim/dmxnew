@@ -9,6 +9,7 @@ import { SharedService } from '../../shared.service';
   styleUrls: ['./employee-form.component.css']
 })
 export class EmployeeFormComponent implements OnInit {
+  readonly addCompanyOptionValue = '__ADD_NEW_COMPANY__';
   isEditMode = false;
   userId: number | null = null;
   loading = false;
@@ -17,6 +18,9 @@ export class EmployeeFormComponent implements OnInit {
   photoPreview: string | null = null;
   photoFileName = '';
   generatedPinPreview: string | null = null;
+  companyOptions: string[] = [];
+  selectedCompanyOption = 'RNX';
+  isAddingNewCompany = false;
 
   readonly form = this.fb.group({
     UserName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -40,8 +44,11 @@ export class EmployeeFormComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadCompanyOptions();
+
     const rawId = this.route.snapshot.paramMap.get('id');
     if (!rawId) {
+      this.syncCompanySelection(this.form.value.Company ?? 'RNX');
       return;
     }
 
@@ -88,6 +95,23 @@ export class EmployeeFormComponent implements OnInit {
     }
 
     this.form.patchValue({ received_equipment: null });
+  }
+
+  onCompanySelectionChange(value: string): void {
+    if (value === this.addCompanyOptionValue) {
+      this.isAddingNewCompany = true;
+      this.selectedCompanyOption = value;
+      this.form.patchValue({ Company: '' });
+      return;
+    }
+
+    this.isAddingNewCompany = false;
+    this.selectedCompanyOption = value;
+    this.form.patchValue({ Company: value || null });
+  }
+
+  onNewCompanyInput(value: string): void {
+    this.form.patchValue({ Company: value });
   }
 
   resetPin(): void {
@@ -215,6 +239,7 @@ export class EmployeeFormComponent implements OnInit {
         });
         this.photoPreview = user?.photo ?? null;
         this.generatedPinPreview = null;
+        this.syncCompanySelection(user?.Company ?? 'RNX');
       },
       error: () => {
         this.loading = false;
@@ -265,6 +290,51 @@ export class EmployeeFormComponent implements OnInit {
     }
 
     return parsed.toFixed(2);
+  }
+
+  private loadCompanyOptions(): void {
+    this.api.getUsrList().subscribe({
+      next: (users) => {
+        this.companyOptions = Array.from(
+          new Set(
+            (users ?? [])
+              .map(user => String(user?.Company ?? '').trim())
+              .filter(Boolean)
+          )
+        ).sort((a, b) => a.localeCompare(b, 'ro'));
+
+        if (!this.companyOptions.length) {
+          this.companyOptions = ['RNX'];
+        }
+
+        this.syncCompanySelection(this.form.value.Company ?? 'RNX');
+      },
+      error: () => {
+        this.companyOptions = ['RNX'];
+        this.syncCompanySelection(this.form.value.Company ?? 'RNX');
+      }
+    });
+  }
+
+  private syncCompanySelection(company: string | null | undefined): void {
+    const normalized = (company ?? '').trim();
+    if (!normalized) {
+      this.isAddingNewCompany = false;
+      this.selectedCompanyOption = this.companyOptions[0] ?? 'RNX';
+      this.form.patchValue({ Company: this.selectedCompanyOption }, { emitEvent: false });
+      return;
+    }
+
+    if (this.companyOptions.includes(normalized)) {
+      this.isAddingNewCompany = false;
+      this.selectedCompanyOption = normalized;
+      this.form.patchValue({ Company: normalized }, { emitEvent: false });
+      return;
+    }
+
+    this.isAddingNewCompany = true;
+    this.selectedCompanyOption = this.addCompanyOptionValue;
+    this.form.patchValue({ Company: normalized }, { emitEvent: false });
   }
 
   private generatePin(): string {
