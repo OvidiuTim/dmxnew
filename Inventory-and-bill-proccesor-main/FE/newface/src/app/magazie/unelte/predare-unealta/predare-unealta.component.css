@@ -76,6 +76,33 @@
   margin-top: 16px;
 }
 
+.handover-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.handover-tabs button {
+  min-height: 40px;
+  border: 1px solid #2d3543;
+  border-radius: 6px;
+  background: #0f131a;
+  color: #aeb6c4;
+  cursor: pointer;
+}
+
+.handover-tabs button.active,
+.handover-tabs button:hover {
+  border-color: #239363;
+  background: #10251b;
+  color: #eef2f8;
+}
+
+.return-status {
+  margin-top: 16px;
+}
+
 .quick-add-btn {
   justify-self: start;
   margin-top: 6px;

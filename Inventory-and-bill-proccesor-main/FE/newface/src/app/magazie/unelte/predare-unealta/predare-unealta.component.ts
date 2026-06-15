@@ -24,8 +24,15 @@ interface ToolItem {
   AssignedUserName?: string | null;
   DateReceived?: string | null;
   DateOfGiving?: string | null;
+  IsReturned?: boolean | null;
+  IsLost?: boolean | null;
+  DateReturned?: string | null;
+  DateLost?: string | null;
   Pieces?: number | null;
 }
+
+type HandoverTab = 'predare' | 'preluare';
+type ReturnStatus = 'magazie' | 'stricata';
 
 @Component({
   selector: 'app-predare-unealta',
@@ -39,6 +46,8 @@ export class PredareUnealtaComponent implements OnInit {
 
   userSearchTerm = '';
   toolSearchTerm = '';
+  activeTab: HandoverTab = 'predare';
+  returnStatus: ReturnStatus = 'magazie';
   loadingUsers = false;
   loadingTools = false;
   saving = false;
@@ -71,13 +80,30 @@ export class PredareUnealtaComponent implements OnInit {
     ].some(value => this.normalize(value).includes(search)));
   }
 
-  get filteredTools(): ToolItem[] {
-    const search = this.normalize(this.toolSearchTerm);
-    if (!search) {
-      return this.tools;
+  get availableTools(): ToolItem[] {
+    return this.tools.filter(tool => this.isWarehouseTool(tool));
+  }
+
+  get employeeTools(): ToolItem[] {
+    if (!this.selectedUser) {
+      return [];
     }
 
-    return this.tools.filter(tool => [
+    return this.tools.filter(tool => this.isToolAssignedToSelectedUser(tool));
+  }
+
+  get activeTools(): ToolItem[] {
+    return this.activeTab === 'predare' ? this.availableTools : this.employeeTools;
+  }
+
+  get filteredTools(): ToolItem[] {
+    const search = this.normalize(this.toolSearchTerm);
+    const tools = this.activeTools;
+    if (!search) {
+      return tools;
+    }
+
+    return tools.filter(tool => [
       tool.ToolName,
       tool.ToolSerie,
       tool.Location,
@@ -137,6 +163,14 @@ export class PredareUnealtaComponent implements OnInit {
   clearSelectedUser(): void {
     this.selectedUser = null;
     this.toolSearchTerm = '';
+    this.activeTab = 'predare';
+  }
+
+  selectTab(tab: HandoverTab): void {
+    this.activeTab = tab;
+    this.toolSearchTerm = '';
+    this.error = null;
+    this.success = null;
   }
 
   addToolForSelectedUser(): void {
@@ -189,10 +223,8 @@ export class PredareUnealtaComponent implements OnInit {
         const userName = this.selectedUser?.UserName ?? 'angajat';
         this.saving = false;
         this.success = `Unealta a fost predata catre ${userName}.`;
-        this.selectedUser = null;
         this.toolSearchTerm = '';
         this.loadTools();
-        this.router.navigateByUrl('/predare-unealta');
       },
       error: (err) => {
         console.error('Nu pot preda unealta', err);
@@ -200,6 +232,61 @@ export class PredareUnealtaComponent implements OnInit {
         this.error = err?.error?.details
           ? `Nu pot preda unealta: ${JSON.stringify(err.error.details)}`
           : 'Nu pot preda unealta acum.';
+      }
+    });
+  }
+
+  receiveTool(tool: ToolItem): void {
+    if (!this.selectedUser) {
+      this.error = 'Alege un angajat inainte sa preiei unealta.';
+      return;
+    }
+
+    const statusLabel = this.returnStatus === 'stricata' ? 'stricata' : 'functionala';
+    const confirmed = confirm(`Preiei "${tool.ToolName}" de la ${this.selectedUser.UserName} ca unealta ${statusLabel}?`);
+    if (!confirmed) {
+      return;
+    }
+
+    this.saving = true;
+    this.error = null;
+    this.success = null;
+
+    const payload = {
+      ToolId: tool.ToolId,
+      ToolSerie: tool.ToolSerie ?? null,
+      ToolName: tool.ToolName,
+      User: null,
+      IsSSM: !!tool.IsSSM,
+      Status: this.returnStatus,
+      Location: 'Magazie',
+      MainLocation: 'Magazie',
+      Detail: tool.Detail ?? null,
+      AssignedUserId: null,
+      DateReceived: tool.DateReceived ?? tool.DateOfGiving ?? null,
+      DateOfGiving: tool.DateReceived ?? tool.DateOfGiving ?? null,
+      IsReturned: true,
+      DateReturned: this.todayISO(),
+      IsLost: false,
+      DateLost: null,
+      Pieces: tool.Pieces ?? 1,
+    };
+
+    this.service.updateTool(payload).subscribe({
+      next: () => {
+        this.saving = false;
+        this.success = this.returnStatus === 'stricata'
+          ? 'Unealta a fost preluata in magazie ca stricata.'
+          : 'Unealta a fost preluata in magazie ca functionala.';
+        this.toolSearchTerm = '';
+        this.loadTools();
+      },
+      error: (err) => {
+        console.error('Nu pot prelua unealta', err);
+        this.saving = false;
+        this.error = err?.error?.details
+          ? `Nu pot prelua unealta: ${JSON.stringify(err.error.details)}`
+          : 'Nu pot prelua unealta acum.';
       }
     });
   }
@@ -213,6 +300,28 @@ export class PredareUnealtaComponent implements OnInit {
 
   holderLabel(tool: ToolItem): string {
     return tool.AssignedUserName || tool.User || tool.Location || tool.MainLocation || 'Magazie';
+  }
+
+  private isWarehouseTool(tool: ToolItem): boolean {
+    const status = this.normalize(tool.Status);
+    return !tool.IsLost && status === 'magazie';
+  }
+
+  private isToolAssignedToSelectedUser(tool: ToolItem): boolean {
+    if (!this.selectedUser || tool.IsReturned || tool.IsLost) {
+      return false;
+    }
+
+    const userIdMatches = Number(tool.AssignedUserId) === this.selectedUser.UserId;
+    const userName = this.normalize(this.selectedUser.UserName);
+    const userNameMatches = [
+      tool.AssignedUserName,
+      tool.User,
+      tool.Location,
+      tool.MainLocation,
+    ].some(value => this.normalize(value) === userName);
+
+    return (userIdMatches || userNameMatches) && this.normalize(tool.Status) === 'in_lucru';
   }
 
   private normalize(value: string | number | null | undefined): string {

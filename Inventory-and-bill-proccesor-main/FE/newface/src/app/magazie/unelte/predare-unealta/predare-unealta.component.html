@@ -55,7 +55,7 @@
 
       <div class="editor-panel">
         <div class="editor-title">
-          <h3>Preda unealta</h3>
+          <h3>Miscare unealta</h3>
           <button class="btn ghost" type="button" *ngIf="selectedUser" (click)="clearSelectedUser()">Schimba angajat</button>
         </div>
 
@@ -67,6 +67,33 @@
           </button>
         </div>
 
+        <div class="handover-tabs" *ngIf="selectedUser">
+          <button
+            type="button"
+            [class.active]="activeTab === 'predare'"
+            (click)="selectTab('predare')"
+          >
+            Preda unealta
+          </button>
+          <button
+            type="button"
+            [class.active]="activeTab === 'preluare'"
+            (click)="selectTab('preluare')"
+          >
+            Preluare unealta
+          </button>
+        </div>
+
+        <div class="return-status" *ngIf="selectedUser && activeTab === 'preluare'">
+          <label>
+            <span>Stare la preluare</span>
+            <select [(ngModel)]="returnStatus">
+              <option value="magazie">Functionala</option>
+              <option value="stricata">Stricata</option>
+            </select>
+          </label>
+        </div>
+
         <ng-template #noEmployee>
           <div class="selected-employee muted-card">
             <span>Angajat selectat</span>
@@ -76,7 +103,11 @@
 
         <div class="search-field handover-search">
           <span>Cautare unealta</span>
-          <input type="search" [(ngModel)]="toolSearchTerm" placeholder="Nume, serie, locatie, angajat">
+          <input
+            type="search"
+            [(ngModel)]="toolSearchTerm"
+            [placeholder]="activeTab === 'predare' ? 'Nume, serie sau detalii din magazie' : 'Nume, serie sau detalii de la angajat'"
+          >
         </div>
 
         <div class="state" *ngIf="loadingTools">Se incarca uneltele...</div>
@@ -92,15 +123,31 @@
 
             <div class="pick-tool-side">
               <span class="pill" [class.ssm]="tool.IsSSM">{{ statusLabel(tool) }}</span>
-              <button class="btn primary" type="button" [disabled]="!selectedUser || saving" (click)="assignTool(tool)">
+              <button
+                class="btn primary"
+                type="button"
+                *ngIf="activeTab === 'predare'"
+                [disabled]="!selectedUser || saving"
+                (click)="assignTool(tool)"
+              >
                 Preda
+              </button>
+              <button
+                class="btn primary"
+                type="button"
+                *ngIf="activeTab === 'preluare'"
+                [disabled]="!selectedUser || saving"
+                (click)="receiveTool(tool)"
+              >
+                Preia
               </button>
             </div>
           </div>
 
           <div class="empty empty-with-action" *ngIf="filteredTools.length === 0">
-            <span>Nu exista unelte pentru cautarea curenta.</span>
-            <button class="btn primary" type="button" [disabled]="!selectedUser" (click)="addToolForSelectedUser()">
+            <span *ngIf="activeTab === 'predare'">Nu exista unelte disponibile in magazie pentru cautarea curenta.</span>
+            <span *ngIf="activeTab === 'preluare'">Nu exista unelte in lucru la angajatul selectat.</span>
+            <button class="btn primary" type="button" *ngIf="activeTab === 'predare'" [disabled]="!selectedUser" (click)="addToolForSelectedUser()">
               Adauga unealta
             </button>
           </div>
