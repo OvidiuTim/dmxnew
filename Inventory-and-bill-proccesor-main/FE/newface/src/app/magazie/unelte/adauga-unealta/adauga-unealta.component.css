@@ -1,0 +1,43 @@
+.add-panel {
+  max-width: 1100px;
+}
+
+.add-form-grid {
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+}
+
+.computed-card {
+  min-height: 86px;
+  border: 1px solid #2d3543;
+  border-radius: 8px;
+  background: #0f131a;
+  padding: 14px;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+}
+
+.computed-card span {
+  color: #aeb6c4;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.computed-card strong {
+  color: #ffffff;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+@media (max-width: 1180px) {
+  .add-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .add-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

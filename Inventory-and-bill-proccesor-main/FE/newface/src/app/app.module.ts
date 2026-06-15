@@ -11,6 +11,7 @@ import { LoginComponent } from './login/login.component';
 import { MagazieComponent } from './magazie/magazie.component';
 import { AngajatiComponent } from './magazie/angajati/angajati.component';
 import { UnelteComponent } from './magazie/unelte/unelte.component';
+import { AdaugaUnealtaComponent } from './magazie/unelte/adauga-unealta/adauga-unealta.component';
 import { MaterialeComponent } from './magazie/materiale/materiale.component';
 import { SchelaComponent } from './magazie/schela/schela.component';
 import { ModalUnelteComponent } from './magazie/angajati/modal-unelte/modal-unelte.component';
@@ -43,6 +44,7 @@ import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandou
     MagazieComponent,
     AngajatiComponent,
     UnelteComponent,
+    AdaugaUnealtaComponent,
     MaterialeComponent,
     SchelaComponent,
     ModalUnelteComponent,

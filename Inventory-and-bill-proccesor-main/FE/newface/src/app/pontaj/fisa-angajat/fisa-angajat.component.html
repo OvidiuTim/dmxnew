@@ -37,6 +37,9 @@
     </section>
 
     <nav class="tabs" aria-label="Taburi fisa angajat">
+      <button class="tab" type="button" [class.active]="activeTab === 'general'" (click)="setTab('general')">
+        Informatii generale
+      </button>
       <button class="tab" type="button" [class.active]="activeTab === 'site'" (click)="setTab('site')">
         Scule santier
         <span>{{ siteTools.length }}</span>
@@ -47,7 +50,52 @@
       </button>
     </nav>
 
-    <section class="content">
+    <section class="general-panel panel" *ngIf="activeTab === 'general'">
+      <div class="panel-title">
+        <h2>Informatii generale</h2>
+      </div>
+
+      <div class="general-grid">
+        <div class="general-item">
+          <span>ID angajat</span>
+          <strong>{{ displayText(employee.UserId) }}</strong>
+        </div>
+        <div class="general-item">
+          <span>UID tag</span>
+          <strong>{{ displayText(employee.uid) }}</strong>
+        </div>
+        <div class="general-item">
+          <span>Serie</span>
+          <strong>{{ displayText(employee.UserSerie) }}</strong>
+        </div>
+        <div class="general-item">
+          <span>Telefon</span>
+          <strong>{{ displayText(employee.phone_number) }}</strong>
+        </div>
+        <div class="general-item">
+          <span>Companie</span>
+          <strong>{{ displayText(employee.Company) }}</strong>
+        </div>
+        <div class="general-item">
+          <span>Tarif orar</span>
+          <strong>{{ hourlyRateLabel }}</strong>
+        </div>
+        <div class="general-item">
+          <span>Meserie</span>
+          <strong>{{ displayText(employee.trade) }}</strong>
+        </div>
+        <div class="general-item">
+          <span>A primit echipament</span>
+          <strong>{{ displayBoolean(employee.received_equipment) }}</strong>
+        </div>
+        <div class="general-item">
+          <span>Marime echipament</span>
+          <strong>{{ displayText(employee.equipment_size) }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="content" *ngIf="activeTab !== 'general'">
       <div class="panel">
         <div class="panel-title">
           <h2>{{ currentTitle }}</h2>
@@ -103,31 +151,26 @@
 
         <div class="summary-row">
           <div>
-            <div class="summary-label">In lucru</div>
-            <div class="summary-desc">Sunt la angajat</div>
+            <div class="summary-label">Are in lucru</div>
+            <div class="summary-desc">Scule aflate acum la angajat</div>
           </div>
           <div class="summary-number green">{{ inWorkCount }}</div>
         </div>
 
         <div class="summary-row">
           <div>
-            <div class="summary-label">Returnate</div>
-            <div class="summary-desc">Au fost date inapoi</div>
+            <div class="summary-label">A avut si a returnat</div>
+            <div class="summary-desc">Scule date inapoi</div>
           </div>
           <div class="summary-number yellow">{{ returnedCount }}</div>
         </div>
 
         <div class="summary-row">
           <div>
-            <div class="summary-label">Pierdute</div>
-            <div class="summary-desc">Nu mai sunt in posesie</div>
+            <div class="summary-label">A pierdut</div>
+            <div class="summary-desc">Scule marcate pierdute</div>
           </div>
           <div class="summary-number red">{{ lostCount }}</div>
-        </div>
-
-        <div class="summary-row total-row">
-          <div class="summary-label">Total</div>
-          <div class="summary-number white">{{ totalCount }}</div>
         </div>
       </aside>
     </section>

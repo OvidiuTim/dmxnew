@@ -3,14 +3,17 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { SharedService } from '../../shared.service';
 
-type ToolTab = 'site' | 'ssm';
+type SheetTab = 'general' | 'site' | 'ssm';
 
 interface EmployeeProfile {
   UserId?: number;
   UserName?: string | null;
   UserSerie?: string | null;
+  uid?: string | null;
+  hourly_rate?: string | number | null;
   Company?: string | null;
   equipment_size?: string | null;
+  received_equipment?: boolean | null;
   phone_number?: string | null;
   photo?: string | null;
   trade?: string | null;
@@ -46,7 +49,7 @@ export class FisaAngajatComponent implements OnInit {
   siteTools: EmployeeTool[] = [];
   ssmTools: EmployeeTool[] = [];
 
-  activeTab: ToolTab = 'site';
+  activeTab: SheetTab = 'general';
   dropdownOpen = false;
   openToolMenuId: number | null = null;
 
@@ -81,7 +84,13 @@ export class FisaAngajatComponent implements OnInit {
   }
 
   get currentSummaryTitle(): string {
-    return this.activeTab === 'site' ? 'Sumar scule santier' : 'Sumar scule SSM';
+    return 'Sumar scule angajat';
+  }
+
+  get hourlyRateLabel(): string {
+    const raw = this.employee?.hourly_rate ?? '0';
+    const rate = Number(String(raw).replace(',', '.'));
+    return Number.isFinite(rate) && rate > 0 ? `${rate.toFixed(2)} lei / ora` : '-';
   }
 
   get inWorkCount(): number {
@@ -136,7 +145,7 @@ export class FisaAngajatComponent implements OnInit {
     });
   }
 
-  setTab(tab: ToolTab): void {
+  setTab(tab: SheetTab): void {
     this.activeTab = tab;
     this.openToolMenuId = null;
   }
@@ -207,6 +216,16 @@ export class FisaAngajatComponent implements OnInit {
   displayText(value: string | number | null | undefined): string {
     const normalized = String(value ?? '').trim();
     return normalized || '-';
+  }
+
+  displayBoolean(value: boolean | null | undefined): string {
+    if (value === true) {
+      return 'Da';
+    }
+    if (value === false) {
+      return 'Nu';
+    }
+    return '-';
   }
 
   trackByTool(_: number, tool: EmployeeTool): number {

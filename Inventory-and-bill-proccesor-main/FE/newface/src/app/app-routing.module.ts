@@ -7,6 +7,7 @@ import { AngajatiComponent } from './magazie/angajati/angajati.component';
 import { MaterialeComponent } from './magazie/materiale/materiale.component';
 import { SchelaComponent } from './magazie/schela/schela.component';
 import { UnelteComponent } from './magazie/unelte/unelte.component';
+import { AdaugaUnealtaComponent } from './magazie/unelte/adauga-unealta/adauga-unealta.component';
 import { LoginComponent } from './login/login.component';
 import { HistoryComponent } from './magazie/history/history.component';
 import { DashboardComponent } from './dashboard/dashboard.component';
@@ -53,6 +54,7 @@ const routes: Routes = [
   { path: 'materiale', component: MaterialeComponent },
   { path: 'schela', component: SchelaComponent },
   { path: 'unelte', component: UnelteComponent },
+  { path: 'unelte/adauga-unealta', component: AdaugaUnealtaComponent },
   { path: 'history', component: HistoryComponent },
   { path: 'rafturi', component: ShelfsComponent },
   { path: 'dashboard', component: DashboardComponent },

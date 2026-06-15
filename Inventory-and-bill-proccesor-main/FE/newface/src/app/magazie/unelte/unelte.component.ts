@@ -82,11 +82,9 @@ export class UnelteComponent implements OnInit {
   }
 
   seeMagazie(): void { this.router.navigateByUrl('/magazie'); }
-  seeAngajati(): void { this.router.navigateByUrl('/angajati'); }
-  seeMateriale(): void { this.router.navigateByUrl('/materiale'); }
   seeUnelte(): void { this.router.navigateByUrl('/unelte'); }
-  seeSchela(): void { this.router.navigateByUrl('/schela'); }
-  seeIstoric(): void { this.router.navigateByUrl('/history'); }
+  seeAdaugaUnealta(): void { this.router.navigateByUrl('/unelte/adauga-unealta'); }
+  seePredareUnealta(): void { this.router.navigateByUrl('/angajati'); }
 
   get isEditing(): boolean {
     return this.toolForm.ToolId !== null;
@@ -163,6 +161,10 @@ export class UnelteComponent implements OnInit {
     this.error = null;
     this.success = null;
 
+    if (!this.isEditing) {
+      return;
+    }
+
     if (!this.toolForm.ToolName.trim()) {
       this.error = 'Completeaza numele uneltei.';
       return;
@@ -170,12 +172,12 @@ export class UnelteComponent implements OnInit {
 
     this.saving = true;
     const payload = this.buildPayload();
-    const request = this.isEditing ? this.service.updateTool(payload) : this.service.addTool(payload);
+    const request = this.service.updateTool(payload);
 
     request.subscribe({
       next: () => {
         this.saving = false;
-        this.success = this.isEditing ? 'Unealta a fost actualizata.' : 'Unealta a fost adaugata.';
+        this.success = 'Unealta a fost actualizata.';
         this.cancelEdit();
         this.refreshToolList();
       },

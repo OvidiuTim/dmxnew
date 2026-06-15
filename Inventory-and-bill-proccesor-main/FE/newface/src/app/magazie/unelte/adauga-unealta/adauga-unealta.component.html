@@ -1,0 +1,85 @@
+<div class="tools-layout">
+  <aside class="sidebar">
+    <h1 (click)="seeMagazie()">Magazie</h1>
+    <div class="pages">
+      <h5 (click)="seeUnelte()">Unelte</h5>
+      <h5 class="page-on" (click)="seeAdaugaUnealta()">Adauga unealta</h5>
+      <h5 (click)="seePredareUnealta()">Predare unealta</h5>
+    </div>
+  </aside>
+
+  <main class="tools-page">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">Magazie</p>
+        <h2>Adauga unealta</h2>
+      </div>
+      <div class="head-stats">
+        <span>Locatie: {{ computedLocation }}</span>
+        <span>Stare: {{ computedStatusLabel }}</span>
+      </div>
+    </header>
+
+    <section class="editor-panel add-panel">
+      <div class="editor-title">
+        <h3>Unealta noua</h3>
+      </div>
+
+      <div class="form-grid add-form-grid">
+        <label>
+          <span>Nume unealta</span>
+          <input type="text" [(ngModel)]="form.ToolName" placeholder="Ex: Ruleta Stanley 5m">
+        </label>
+
+        <label>
+          <span>Serie</span>
+          <input type="text" [(ngModel)]="form.ToolSerie" placeholder="Optional">
+        </label>
+
+        <label>
+          <span>Tip scula</span>
+          <select [(ngModel)]="form.IsSSM">
+            <option [ngValue]="false">Scule santier</option>
+            <option [ngValue]="true">Scule SSM</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Angajat</span>
+          <select [(ngModel)]="form.AssignedUserId" [disabled]="loadingUsers">
+            <option [ngValue]="null">Fara angajat</option>
+            <option *ngFor="let user of users" [ngValue]="user.UserId">{{ user.UserName }}</option>
+          </select>
+        </label>
+
+        <label class="span-2">
+          <span>Detalii</span>
+          <textarea rows="3" [(ngModel)]="form.Detail" placeholder="Detalii utile pentru magazie"></textarea>
+        </label>
+
+        <div class="computed-card">
+          <span>Stare automata</span>
+          <strong>{{ computedStatusLabel }}</strong>
+        </div>
+
+        <div class="computed-card">
+          <span>Locatie automata</span>
+          <strong>{{ computedLocation }}</strong>
+        </div>
+
+        <div class="computed-card">
+          <span>Data primirii</span>
+          <strong>{{ computedDateReceived || 'Se seteaza cand alegi angajat' }}</strong>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <div class="state error" *ngIf="error">{{ error }}</div>
+        <div class="state success" *ngIf="success">{{ success }}</div>
+        <button class="btn primary" type="button" [disabled]="saving" (click)="saveTool()">
+          {{ saving ? 'Se salveaza...' : 'Adauga unealta' }}
+        </button>
+      </div>
+    </section>
+  </main>
+</div>

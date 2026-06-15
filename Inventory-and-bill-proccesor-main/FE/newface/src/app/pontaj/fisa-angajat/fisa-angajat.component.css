@@ -231,6 +231,41 @@
   font-size: 14px;
 }
 
+.general-panel {
+  margin-bottom: 20px;
+}
+
+.general-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.general-item {
+  min-width: 0;
+  border: 1px solid #1f2a3a;
+  border-radius: 8px;
+  background: #09111f;
+  padding: 16px;
+  display: grid;
+  gap: 7px;
+}
+
+.general-item span {
+  color: #8ea0b9;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+
+.general-item strong {
+  color: #ffffff;
+  font-size: 17px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .list-header,
 .tool-card {
   display: grid;
@@ -401,6 +436,10 @@
     grid-template-columns: 1fr;
   }
 
+  .general-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .employee-card {
     align-items: flex-start;
     flex-direction: column;
@@ -477,6 +516,10 @@
 
   .tool-meta {
     justify-content: center;
+  }
+
+  .general-grid {
+    grid-template-columns: 1fr;
   }
 
   .summary-label {

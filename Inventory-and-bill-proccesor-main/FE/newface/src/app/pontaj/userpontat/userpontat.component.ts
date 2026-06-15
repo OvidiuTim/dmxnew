@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { SharedService } from '../../shared.service';
 import { HttpClient } from '@angular/common/http';
 
@@ -122,6 +122,7 @@ export class UserpontatComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
+    private router: Router,
     private api: SharedService,
     private http: HttpClient
   ) {}
@@ -248,6 +249,10 @@ export class UserpontatComponent implements OnInit {
       .slice(0, 2)
       .map(part => part.charAt(0).toUpperCase())
       .join('');
+  }
+
+  goToEmployeeSheet(): void {
+    this.router.navigate(['/pontaj/fisa-angajat', this.userId]);
   }
 
 

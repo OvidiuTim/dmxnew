@@ -2,11 +2,9 @@
   <aside class="sidebar">
     <h1 (click)="seeMagazie()">Magazie</h1>
     <div class="pages">
-      <h5 (click)="seeAngajati()">Angajati</h5>
-      <h5 (click)="seeMateriale()">Materiale</h5>
       <h5 class="page-on" (click)="seeUnelte()">Unelte</h5>
-      <h5 (click)="seeSchela()">Schela</h5>
-      <h5 (click)="seeIstoric()">Istoric</h5>
+      <h5 (click)="seeAdaugaUnealta()">Adauga unealta</h5>
+      <h5 (click)="seePredareUnealta()">Predare unealta</h5>
     </div>
   </aside>
 
@@ -23,10 +21,10 @@
       </div>
     </header>
 
-    <section class="editor-panel">
+    <section class="editor-panel" *ngIf="isEditing">
       <div class="editor-title">
-        <h3>{{ isEditing ? 'Editeaza unealta' : 'Adauga unealta' }}</h3>
-        <button class="btn ghost" type="button" (click)="cancelEdit()" *ngIf="isEditing">Renunta</button>
+        <h3>Editeaza unealta</h3>
+        <button class="btn ghost" type="button" (click)="cancelEdit()">Renunta</button>
       </div>
 
       <div class="form-grid">
@@ -107,7 +105,7 @@
         <div class="state error" *ngIf="error">{{ error }}</div>
         <div class="state success" *ngIf="success">{{ success }}</div>
         <button class="btn primary" type="button" [disabled]="saving" (click)="saveTool()">
-          {{ saving ? 'Se salveaza...' : (isEditing ? 'Salveaza modificarile' : 'Adauga unealta') }}
+          {{ saving ? 'Se salveaza...' : 'Salveaza modificarile' }}
         </button>
       </div>
     </section>
