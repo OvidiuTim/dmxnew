@@ -84,7 +84,7 @@ export class UnelteComponent implements OnInit {
   seeMagazie(): void { this.router.navigateByUrl('/magazie'); }
   seeUnelte(): void { this.router.navigateByUrl('/unelte'); }
   seeAdaugaUnealta(): void { this.router.navigateByUrl('/unelte/adauga-unealta'); }
-  seePredareUnealta(): void { this.router.navigateByUrl('/angajati'); }
+  seePredareUnealta(): void { this.router.navigateByUrl('/predare-unealta'); }
 
   get isEditing(): boolean {
     return this.toolForm.ToolId !== null;

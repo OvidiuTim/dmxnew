@@ -1,0 +1,111 @@
+<div class="tools-layout">
+  <aside class="sidebar">
+    <h1 (click)="seeMagazie()">Magazie</h1>
+    <div class="pages">
+      <h5 (click)="seeUnelte()">Unelte</h5>
+      <h5 (click)="seeAdaugaUnealta()">Adauga unealta</h5>
+      <h5 class="page-on" (click)="seePredareUnealta()">Predare unealta</h5>
+    </div>
+  </aside>
+
+  <main class="tools-page">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">Magazie</p>
+        <h2>Predare unealta</h2>
+      </div>
+      <div class="head-stats">
+        <span>Angajati: {{ users.length }}</span>
+        <span>Unelte: {{ tools.length }}</span>
+      </div>
+    </header>
+
+    <div class="state error" *ngIf="error">{{ error }}</div>
+    <div class="state success" *ngIf="success">{{ success }}</div>
+
+    <section class="handover-grid">
+      <div class="editor-panel">
+        <div class="editor-title">
+          <h3>Alege angajatul</h3>
+        </div>
+
+        <div class="search-field handover-search">
+          <span>Cautare angajat</span>
+          <input type="search" [(ngModel)]="userSearchTerm" placeholder="Nume, serie, firma, meserie">
+        </div>
+
+        <div class="state" *ngIf="loadingUsers">Se incarca angajatii...</div>
+
+        <div class="employee-list" *ngIf="!loadingUsers">
+          <button
+            class="employee-card"
+            type="button"
+            *ngFor="let user of filteredUsers"
+            [class.selected]="selectedUser?.UserId === user.UserId"
+            (click)="selectUser(user)"
+          >
+            <strong>{{ user.UserName }}</strong>
+            <span>{{ user.Company || 'Fara firma' }}<ng-container *ngIf="user.trade"> • {{ user.trade }}</ng-container></span>
+            <small>Serie: {{ user.UserSerie || '-' }}</small>
+          </button>
+
+          <div class="empty" *ngIf="filteredUsers.length === 0">Nu exista angajati pentru cautarea curenta.</div>
+        </div>
+      </div>
+
+      <div class="editor-panel">
+        <div class="editor-title">
+          <h3>Preda unealta</h3>
+          <button class="btn ghost" type="button" *ngIf="selectedUser" (click)="clearSelectedUser()">Schimba angajat</button>
+        </div>
+
+        <div class="selected-employee" *ngIf="selectedUser; else noEmployee">
+          <span>Angajat selectat</span>
+          <strong>{{ selectedUser.UserName }}</strong>
+          <button class="btn primary quick-add-btn" type="button" (click)="addToolForSelectedUser()">
+            Adauga unealta
+          </button>
+        </div>
+
+        <ng-template #noEmployee>
+          <div class="selected-employee muted-card">
+            <span>Angajat selectat</span>
+            <strong>Alege un angajat din lista</strong>
+          </div>
+        </ng-template>
+
+        <div class="search-field handover-search">
+          <span>Cautare unealta</span>
+          <input type="search" [(ngModel)]="toolSearchTerm" placeholder="Nume, serie, locatie, angajat">
+        </div>
+
+        <div class="state" *ngIf="loadingTools">Se incarca uneltele...</div>
+
+        <div class="tool-pick-list" *ngIf="!loadingTools">
+          <div class="pick-tool-card" *ngFor="let tool of filteredTools">
+            <div>
+              <strong>{{ tool.ToolName }}</strong>
+              <span>{{ tool.ToolSerie || 'Fara serie' }}</span>
+              <small>{{ holderLabel(tool) }}</small>
+              <small *ngIf="tool.Detail">{{ tool.Detail }}</small>
+            </div>
+
+            <div class="pick-tool-side">
+              <span class="pill" [class.ssm]="tool.IsSSM">{{ statusLabel(tool) }}</span>
+              <button class="btn primary" type="button" [disabled]="!selectedUser || saving" (click)="assignTool(tool)">
+                Preda
+              </button>
+            </div>
+          </div>
+
+          <div class="empty empty-with-action" *ngIf="filteredTools.length === 0">
+            <span>Nu exista unelte pentru cautarea curenta.</span>
+            <button class="btn primary" type="button" [disabled]="!selectedUser" (click)="addToolForSelectedUser()">
+              Adauga unealta
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>

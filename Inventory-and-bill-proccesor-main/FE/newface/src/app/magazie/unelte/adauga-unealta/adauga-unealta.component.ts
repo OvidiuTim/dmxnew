@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { SharedService } from 'src/app/shared.service';
 
 interface EmployeeOption {
@@ -28,17 +28,29 @@ export class AdaugaUnealtaComponent implements OnInit {
   saving = false;
   error: string | null = null;
   success: string | null = null;
+  private preselectedUserId: number | null = null;
 
-  constructor(private router: Router, private service: SharedService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private service: SharedService
+  ) {}
 
   ngOnInit(): void {
+    const rawUserId = this.route.snapshot.queryParamMap.get('user_id');
+    const parsedUserId = Number(rawUserId);
+    if (rawUserId && Number.isFinite(parsedUserId)) {
+      this.preselectedUserId = parsedUserId;
+      this.form.AssignedUserId = parsedUserId;
+    }
+
     this.loadUsers();
   }
 
   seeMagazie(): void { this.router.navigateByUrl('/magazie'); }
   seeUnelte(): void { this.router.navigateByUrl('/unelte'); }
   seeAdaugaUnealta(): void { this.router.navigateByUrl('/unelte/adauga-unealta'); }
-  seePredareUnealta(): void { this.router.navigateByUrl('/angajati'); }
+  seePredareUnealta(): void { this.router.navigateByUrl('/predare-unealta'); }
 
   get assignedUser(): EmployeeOption | null {
     return this.users.find(user => user.UserId === this.form.AssignedUserId) ?? null;
@@ -68,6 +80,11 @@ export class AdaugaUnealtaComponent implements OnInit {
           .map(user => ({ UserId: Number(user.UserId), UserName: String(user.UserName ?? '') }))
           .filter(user => Number.isFinite(user.UserId) && !!user.UserName)
           .sort((a, b) => a.UserName.localeCompare(b.UserName, 'ro'));
+
+        if (this.preselectedUserId && this.users.some(user => user.UserId === this.preselectedUserId)) {
+          this.form.AssignedUserId = this.preselectedUserId;
+        }
+
         this.loadingUsers = false;
       },
       error: (err) => {
@@ -93,6 +110,9 @@ export class AdaugaUnealtaComponent implements OnInit {
         this.saving = false;
         this.success = 'Unealta a fost adaugata.';
         this.form = this.emptyForm();
+        if (this.preselectedUserId) {
+          this.form.AssignedUserId = this.preselectedUserId;
+        }
       },
       error: (err) => {
         console.error('Nu pot adauga unealta', err);
