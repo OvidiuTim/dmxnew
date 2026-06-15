@@ -1,103 +1,180 @@
-<body>
-    <section class="sidebar">
-        <h1 (click)="seeMagazie()">Magazie</h1>
-        <div class="pages">
-            <h5 (click)="seeAngajati()">Angajați</h5>
-            <h5 (click)="seeMateriale()">Materiale</h5>
-            <h5 class="page-on" (click)="seeUnelte()">Unelte</h5>
-            <h5 (click)="seeSchela()">schela</h5>
-            <h5 (click)="seeIstoric()">Istoric</h5>
-        </div>
-    </section>
-
-    <section class="pages-content">
-        <div class="searchbox">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="dimgray" class="lupa bi bi-search"
-                viewBox="0 0 16 16">
-                <path
-                    d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
-            </svg>
-            <input type="text" placeholder="căutare">
-            <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
-                data-backdrop="static" data-keyboard="false"><img src="./../../../assets/media/icons/plus-circle.svg"
-                    alt="">
-                Adauga Unelte
-            </button>
-
-            <button type="button" class="btnDesc btn btn-primary btnAdd"><svg
-                xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-                class="bi bi-download" viewBox="0 0 16 16">
-                <path
-                    d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
-                <path
-                    d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
-            </svg>Descarcă Unelte</button>
-        </div>
-
-        <div class="table">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Serie</th>
-                        <th>Nume echipament</th>
-                        <th>Numar bucati</th>
-                        <th>Locatie</th>
-                        <th>Actiune</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr *ngFor="let dataItem of ToolList">
-                        <td>{{dataItem.ToolSerie}}</td>
-                        <td>{{dataItem.ToolName}}</td>
-                        <td>{{dataItem.Pieces}}</td>
-                        <td>{{dataItem.MainLocation}}</td>
-                        <td>
-<!-- 
-
-                            <button type="button" class="btn btn-primary iconbtn" style="margin: 3px;"
-                                data-toggle="modal" data-target="#GiveToUser"><img
-                                    src="./../../../assets/media/icons/edit.svg" alt="">
-                                editati
-                            </button>
--->
-                            <button type="button" class="btn btn-danger iconbtn" style="margin: 3px;"
-                                data-toggle="modal" data-target="#GiveToUser"  (click)="deleteClick(dataItem)"><img
-                                    src="./../../../assets/media/icons/trash.svg" alt="">
-                                sterge
-                            </button>
-                        </td>
-                </tbody>
-            </table>
-        </div>
-
-    </section>
-
-    <!-- Modal Adauga Schela -->
-    <div class="modal fade" id="addAngajatModal" tabindex="-1" role="dialog" aria-labelledby="modaladdAngajatModal"
-        aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="modaladdAngajatModal"><img src="./../../../assets/media/icons/unelte.svg" alt="">Adauga unealta nou</h5>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <label for="" >Serie echipament</label>
-                    <input type="text" placeholder="Seria" [(ngModel)]="ToolSerie"> 
-                    <label for="">Nume unealta</label>
-                    <input type="text" placeholder="Numele" [(ngModel)]="ToolName"> 
-                    <label for="">Bucati</label> 
-                    <input type="number"  [(ngModel)]="startingPoint" [(ngModel)]="Pieces">
-                </div>
-                
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
-                    <button type="button" class="btn btn-primary" (click)="addUser()">Salvează</button>
-                </div>
-            </div>
-        </div>
+<div class="tools-layout">
+  <aside class="sidebar">
+    <h1 (click)="seeMagazie()">Magazie</h1>
+    <div class="pages">
+      <h5 (click)="seeAngajati()">Angajati</h5>
+      <h5 (click)="seeMateriale()">Materiale</h5>
+      <h5 class="page-on" (click)="seeUnelte()">Unelte</h5>
+      <h5 (click)="seeSchela()">Schela</h5>
+      <h5 (click)="seeIstoric()">Istoric</h5>
     </div>
-</body>
+  </aside>
+
+  <main class="tools-page">
+    <header class="page-head">
+      <div>
+        <p class="eyebrow">Magazie</p>
+        <h2>Unelte si echipamente</h2>
+      </div>
+      <div class="head-stats">
+        <span>Scule santier: {{ totalSiteTools }}</span>
+        <span>Scule SSM: {{ totalSsmTools }}</span>
+        <span>Total: {{ tools.length }}</span>
+      </div>
+    </header>
+
+    <section class="editor-panel">
+      <div class="editor-title">
+        <h3>{{ isEditing ? 'Editeaza unealta' : 'Adauga unealta' }}</h3>
+        <button class="btn ghost" type="button" (click)="cancelEdit()" *ngIf="isEditing">Renunta</button>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          <span>Nume unealta</span>
+          <input type="text" [(ngModel)]="toolForm.ToolName" placeholder="Ex: Ruleta Stanley 5m">
+        </label>
+
+        <label>
+          <span>Serie</span>
+          <input type="text" [(ngModel)]="toolForm.ToolSerie" placeholder="Optional">
+        </label>
+
+        <label>
+          <span>Tip</span>
+          <select [(ngModel)]="toolForm.IsSSM">
+            <option [ngValue]="false">Scule santier</option>
+            <option [ngValue]="true">Scule SSM</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Stare</span>
+          <select [(ngModel)]="toolForm.Status">
+            <option *ngFor="let status of statuses" [ngValue]="status.value">{{ status.label }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Angajat</span>
+          <select [(ngModel)]="toolForm.AssignedUserId">
+            <option [ngValue]="null">Fara angajat</option>
+            <option *ngFor="let user of users" [ngValue]="user.UserId">{{ user.UserName }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Data primirii</span>
+          <input type="date" [(ngModel)]="toolForm.DateReceived">
+        </label>
+
+        <label>
+          <span>Locatie</span>
+          <input type="text" [(ngModel)]="toolForm.Location" placeholder="Magazie, santier sau angajat">
+        </label>
+
+        <label class="span-2">
+          <span>Detalii</span>
+          <textarea rows="3" [(ngModel)]="toolForm.Detail" placeholder="Detalii utile pentru magazie"></textarea>
+        </label>
+
+        <div class="checks">
+          <label class="check">
+            <input
+              type="checkbox"
+              [ngModel]="toolForm.IsReturned"
+              (ngModelChange)="onReturnedChange($event)"
+            >
+            <span>Returnata</span>
+          </label>
+          <input type="date" [(ngModel)]="toolForm.DateReturned" [disabled]="!toolForm.IsReturned">
+        </div>
+
+        <div class="checks">
+          <label class="check">
+            <input
+              type="checkbox"
+              [ngModel]="toolForm.IsLost"
+              (ngModelChange)="onLostChange($event)"
+            >
+            <span>Pierduta</span>
+          </label>
+          <input type="date" [(ngModel)]="toolForm.DateLost" [disabled]="!toolForm.IsLost">
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <div class="state error" *ngIf="error">{{ error }}</div>
+        <div class="state success" *ngIf="success">{{ success }}</div>
+        <button class="btn primary" type="button" [disabled]="saving" (click)="saveTool()">
+          {{ saving ? 'Se salveaza...' : (isEditing ? 'Salveaza modificarile' : 'Adauga unealta') }}
+        </button>
+      </div>
+    </section>
+
+    <section class="filters">
+      <div class="search-field">
+        <span>Cautare</span>
+        <input type="search" [(ngModel)]="searchTerm" placeholder="Nume, serie, locatie, angajat">
+      </div>
+
+      <label>
+        <span>Tip</span>
+        <select [(ngModel)]="categoryFilter">
+          <option value="ALL">Toate</option>
+          <option value="SITE">Scule santier</option>
+          <option value="SSM">Scule SSM</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Stare</span>
+        <select [(ngModel)]="statusFilter">
+          <option value="ALL">Toate starile</option>
+          <option *ngFor="let status of statuses" [value]="status.value">{{ status.label }}</option>
+        </select>
+      </label>
+    </section>
+
+    <div class="state" *ngIf="loading">Se incarca uneltele...</div>
+
+    <section class="tools-table" *ngIf="!loading">
+      <div class="table-head">
+        <div>Unealta</div>
+        <div>Tip</div>
+        <div>Stare</div>
+        <div>Locatie</div>
+        <div>Angajat</div>
+        <div>Primita</div>
+        <div>Predare</div>
+        <div>Actiuni</div>
+      </div>
+
+      <div class="empty" *ngIf="filteredTools.length === 0">Nu exista unelte pentru filtrele selectate.</div>
+
+      <div class="tool-row" *ngFor="let tool of filteredTools; trackBy: trackByTool">
+        <div class="tool-name">
+          <strong>{{ tool.ToolName }}</strong>
+          <span>{{ tool.ToolSerie || 'Fara serie' }}</span>
+          <small *ngIf="tool.Detail">{{ tool.Detail }}</small>
+        </div>
+        <div>
+          <span class="pill" [class.ssm]="tool.IsSSM">{{ tool.IsSSM ? 'SSM' : 'Santier' }}</span>
+        </div>
+        <div>
+          <span class="status" [class.magazie]="tool.Status === 'magazie'" [class.stricata]="tool.Status === 'stricata'">
+            {{ statusLabel(tool.Status) }}
+          </span>
+        </div>
+        <div>{{ tool.Location || tool.MainLocation || '-' }}</div>
+        <div>{{ tool.AssignedUserName || tool.User || '-' }}</div>
+        <div>{{ formatDate(tool.DateReceived || tool.DateOfGiving) }}</div>
+        <div>{{ possessionLabel(tool) }}</div>
+        <div class="row-actions">
+          <button class="btn small" type="button" (click)="editTool(tool)">Editeaza</button>
+          <button class="btn small danger" type="button" (click)="deleteClick(tool)">Sterge</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>

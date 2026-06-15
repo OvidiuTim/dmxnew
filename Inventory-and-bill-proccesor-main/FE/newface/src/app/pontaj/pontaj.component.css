@@ -56,6 +56,16 @@
 }
 .btn.ghost:hover { border-color:#3a3a3a; color:#efefef; }
 
+.btn.primary-soft {
+  background: #12301f;
+  border-color: #1d6a43;
+  color: #b8f0cc;
+}
+.btn.primary-soft:hover {
+  background: #163c27;
+  border-color: #248554;
+}
+
 .btn.small {
   padding: 7px 10px;
   font-size: 12px;

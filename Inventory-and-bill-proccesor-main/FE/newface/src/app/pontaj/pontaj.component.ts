@@ -56,6 +56,10 @@ seeAngajat(id: number) {
   // sau: this.router.navigateByUrl(`/pontaj/user/${id}`); // tot OK, dar nu e nevoie de /pontaj
 }
 
+seeFisaAngajat(id: number): void {
+  this.router.navigate(['/pontaj/fisa-angajat', id]);
+}
+
   addEmployee(): void {
     this.router.navigate(['/users/new']);
   }

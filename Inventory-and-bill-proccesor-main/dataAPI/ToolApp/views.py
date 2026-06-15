@@ -634,7 +634,46 @@ def users_purge(request):
 @csrf_exempt
 def toolApi(request,id=0):
     if request.method=='GET':
-        tools = Tools.objects.all()
+        tools = Tools.objects.select_related("AssignedTo").all()
+
+        if id:
+            try:
+                tool = tools.get(ToolId=id)
+            except Tools.DoesNotExist:
+                return JsonResponse({"error": "Tool not found"}, status=404)
+            return JsonResponse(ToolSerializer(tool).data, safe=False)
+
+        user_id = request.GET.get("user_id")
+        if user_id:
+            try:
+                user = Users.objects.get(UserId=user_id)
+            except Users.DoesNotExist:
+                return JsonResponse({"error": "User not found"}, status=404)
+
+            tools = tools.filter(
+                Q(AssignedTo=user)
+                | Q(User__iexact=user.UserName)
+                | Q(MainLocation__iexact=user.UserName)
+            )
+
+        is_ssm = request.GET.get("is_ssm")
+        if is_ssm not in (None, ""):
+            tools = tools.filter(IsSSM=str(is_ssm).lower() in ("1", "true", "yes", "on"))
+
+        status = request.GET.get("status")
+        if status:
+            tools = tools.filter(Status=status)
+
+        search = (request.GET.get("search") or "").strip()
+        if search:
+            tools = tools.filter(
+                Q(ToolName__icontains=search)
+                | Q(ToolSerie__icontains=search)
+                | Q(MainLocation__icontains=search)
+                | Q(Detail__icontains=search)
+            )
+
+        tools = tools.order_by("ToolName", "ToolId")
         tools_serializer = ToolSerializer(tools, many=True)
         return JsonResponse(tools_serializer.data, safe=False)
 
@@ -642,23 +681,38 @@ def toolApi(request,id=0):
         tool_data=JSONParser().parse(request)
         tool_serializer = ToolSerializer(data=tool_data)
         if tool_serializer.is_valid():
-            tool_serializer.save()
-            return JsonResponse("Added Successfully!!" , safe=False)
-        return JsonResponse("Failed to Add.",safe=False)
+            tool = tool_serializer.save()
+            return JsonResponse(ToolSerializer(tool).data, safe=False, status=201)
+        return JsonResponse({"error": "Failed to Add.", "details": tool_serializer.errors},safe=False, status=400)
     
     elif request.method=='PUT':
         tool_data = JSONParser().parse(request)
-        tool=Tools.objects.get(ToolId=tool_data['ToolId'])
-        tool_serializer=ToolSerializer(tool,data=tool_data)
+        try:
+            tool=Tools.objects.get(ToolId=tool_data['ToolId'])
+        except (Tools.DoesNotExist, KeyError):
+            return JsonResponse({"error": "Tool not found"}, safe=False, status=404)
+
+        tool_serializer=ToolSerializer(tool,data=tool_data, partial=True)
         if tool_serializer.is_valid():
-            tool_serializer.save()
-            return JsonResponse("Updated Successfully!!", safe=False)
-        return JsonResponse("Failed to Update.", safe=False)
+            saved = tool_serializer.save()
+            return JsonResponse(ToolSerializer(saved).data, safe=False)
+        return JsonResponse({"error": "Failed to Update.", "details": tool_serializer.errors}, safe=False, status=400)
 
     elif request.method=='DELETE':
-        tool=Tools.objects.get(ToolId=id)
-        tool.delete()
-        return JsonResponse("Deleted Succeffully!!", safe=False)
+        try:
+            tool=Tools.objects.get(ToolId=id)
+        except Tools.DoesNotExist:
+            return JsonResponse({"error": "Tool not found"}, safe=False, status=404)
+
+        try:
+            tool.delete()
+        except ProtectedError:
+            return JsonResponse(
+                {"error": "Tool has related records", "message": "Unealta are istoric asociat si nu poate fi stearsa."},
+                safe=False,
+                status=409,
+            )
+        return JsonResponse({"ok": True, "message": "Deleted Successfully"}, safe=False)
 
 #api istoric
 @csrf_exempt
@@ -1178,6 +1232,19 @@ def issue_tool(request):
         if last and last.direction == 'OUT':
             return JsonResponse({"error": "Unealta este deja predată (OUT)."}, status=400)
         obj = ser.save()
+        tool.AssignedTo = obj.user_fk
+        tool.User = obj.user_fk.UserName if obj.user_fk else tool.User
+        tool.DateOfGiving = timezone.localtime(obj.timestamp).date()
+        tool.MainLocation = obj.user_fk.UserName if obj.user_fk else tool.MainLocation
+        tool.Status = Tools.ToolStatus.IN_LUCRU
+        tool.IsReturned = False
+        tool.IsLost = False
+        tool.DateReturned = None
+        tool.DateLost = None
+        tool.save(update_fields=[
+            "AssignedTo", "User", "DateOfGiving", "MainLocation", "Status",
+            "IsReturned", "IsLost", "DateReturned", "DateLost",
+        ])
         return JsonResponse(HistorySerializer(obj).data, safe=False)
     return JsonResponse(ser.errors, status=400, safe=False)
 
@@ -1195,6 +1262,15 @@ def return_tool(request):
         if not last or last.direction != 'OUT':
             return JsonResponse({"error": "Unealta nu este în OUT; nu poți face IN."}, status=400)
         obj = ser.save()
+        tool.DateReturned = timezone.localtime(obj.timestamp).date()
+        tool.MainLocation = "Magazie"
+        tool.Status = Tools.ToolStatus.MAGAZIE
+        tool.IsReturned = True
+        tool.IsLost = False
+        tool.DateLost = None
+        tool.save(update_fields=[
+            "DateReturned", "MainLocation", "Status", "IsReturned", "IsLost", "DateLost",
+        ])
         return JsonResponse(HistorySerializer(obj).data, safe=False)
     return JsonResponse(ser.errors, status=400, safe=False)
 
@@ -1226,6 +1302,13 @@ def tools_status(request):
             "ToolId": t.ToolId,
             "ToolSerie": t.ToolSerie,
             "ToolName": t.ToolName,
+            "IsSSM": t.IsSSM,
+            "Status": t.Status,
+            "StatusLabel": t.get_Status_display(),
+            "Location": t.MainLocation,
+            "DateReceived": t.DateOfGiving,
+            "IsReturned": t.IsReturned,
+            "IsLost": t.IsLost,
             "status": state,
             "last_movement_at": ts,
             "holder": holder
@@ -1304,6 +1387,31 @@ def sensor_event(request):
                 return JsonResponse(ser.errors, status=400, safe=False)
 
             obj = ser.save()
+            movement_day = timezone.localtime(obj.timestamp).date()
+            if direction == "OUT":
+                tool.AssignedTo = user
+                tool.User = user.UserName
+                tool.DateOfGiving = movement_day
+                tool.MainLocation = user.UserName
+                tool.Status = Tools.ToolStatus.IN_LUCRU
+                tool.IsReturned = False
+                tool.IsLost = False
+                tool.DateReturned = None
+                tool.DateLost = None
+                tool.save(update_fields=[
+                    "AssignedTo", "User", "DateOfGiving", "MainLocation", "Status",
+                    "IsReturned", "IsLost", "DateReturned", "DateLost",
+                ])
+            else:
+                tool.DateReturned = movement_day
+                tool.MainLocation = "Magazie"
+                tool.Status = Tools.ToolStatus.MAGAZIE
+                tool.IsReturned = True
+                tool.IsLost = False
+                tool.DateLost = None
+                tool.save(update_fields=[
+                    "DateReturned", "MainLocation", "Status", "IsReturned", "IsLost", "DateLost",
+                ])
 
         msg = f"{user.UserName} a {'preluat' if direction=='OUT' else 'predat'} {tool.ToolName}"
         return JsonResponse({"ok": True, "message": msg, "history": HistorySerializer(obj).data})

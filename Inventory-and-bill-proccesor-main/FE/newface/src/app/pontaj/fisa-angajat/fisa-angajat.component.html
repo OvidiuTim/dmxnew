@@ -1,0 +1,137 @@
+<div class="employee-sheet">
+  <div class="topbar">
+    <button class="back-btn" type="button" (click)="goBack()">Inapoi la lista angajati</button>
+    <img class="logo" src="assets/media/logo-novarion.svg" alt="Novarion">
+  </div>
+
+  <div class="state error" *ngIf="error">{{ error }}</div>
+  <div class="state" *ngIf="loading">Se incarca fisa angajatului...</div>
+
+  <ng-container *ngIf="!loading && employee">
+    <section class="employee-card">
+      <div class="employee-left">
+        <div class="employee-photo" [class.has-photo]="employee.photo">
+          <img *ngIf="employee.photo" [src]="employee.photo" [alt]="employee.UserName || 'Poza angajat'">
+          <span *ngIf="!employee.photo">{{ profileInitials }}</span>
+        </div>
+
+        <div class="employee-info">
+          <h1>{{ displayText(employee.UserName) }}</h1>
+          <div class="data">
+            <span>Firma: <b>{{ displayText(employee.Company) }}</b></span>
+            <span>Meserie: <b>{{ displayText(employee.trade) }}</b></span>
+            <span>Marime: <b>{{ displayText(employee.equipment_size) }}</b></span>
+            <span>Telefon: <b>{{ displayText(employee.phone_number) }}</b></span>
+            <span>Serie: <b>{{ displayText(employee.UserSerie) }}</b></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropdown-btn" type="button" (click)="toggleDropdown()">Predare / preluare</button>
+        <div class="dropdown-menu" [class.show]="dropdownOpen">
+          <button type="button" class="dropdown-item" (click)="goToTools()">Gestioneaza scule</button>
+          <button type="button" class="dropdown-item" (click)="editEmployee()">Editeaza angajat</button>
+        </div>
+      </div>
+    </section>
+
+    <nav class="tabs" aria-label="Taburi fisa angajat">
+      <button class="tab" type="button" [class.active]="activeTab === 'site'" (click)="setTab('site')">
+        Scule santier
+        <span>{{ siteTools.length }}</span>
+      </button>
+      <button class="tab" type="button" [class.active]="activeTab === 'ssm'" (click)="setTab('ssm')">
+        Scule SSM
+        <span>{{ ssmTools.length }}</span>
+      </button>
+    </nav>
+
+    <section class="content">
+      <div class="panel">
+        <div class="panel-title">
+          <h2>{{ currentTitle }}</h2>
+          <span class="badge">{{ currentTools.length }}</span>
+        </div>
+
+        <div class="list-header">
+          <div>Denumire</div>
+          <div>Data primirii</div>
+          <div>Stare</div>
+          <div>Predare</div>
+          <div>Actiuni</div>
+        </div>
+
+        <div class="equipment-list">
+          <div class="empty" *ngIf="currentTools.length === 0">
+            Nu exista scule in acest tab pentru angajat.
+          </div>
+
+          <div class="tool-card" *ngFor="let tool of currentTools; trackBy: trackByTool">
+            <div class="tool-main">
+              <div class="tool-name">{{ tool.ToolName }}</div>
+              <div class="tool-meta">
+                <span>{{ tool.ToolSerie || 'Fara serie' }}</span>
+                <span>{{ tool.Location || tool.MainLocation || 'Fara locatie' }}</span>
+                <span *ngIf="tool.Detail">{{ tool.Detail }}</span>
+              </div>
+            </div>
+
+            <div class="tool-date">{{ formatDate(tool.DateReceived || tool.DateOfGiving) }}</div>
+
+            <span [class]="statusClass(tool.Status)">{{ statusLabel(tool.Status) }}</span>
+
+            <div class="possession">{{ possessionLabel(tool) }}</div>
+
+            <div class="tool-actions">
+              <button class="action-btn" type="button" (click)="toggleToolMenu(tool.ToolId)">...</button>
+              <div class="tool-menu" [class.show]="openToolMenuId === tool.ToolId">
+                <button type="button" class="tool-menu-item" (click)="goToTools()">Editeaza</button>
+                <button type="button" class="tool-menu-item" (click)="goToTools()">Istoric</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="results">
+          Se afiseaza {{ currentTools.length }} din {{ currentTools.length }} rezultate
+        </div>
+      </div>
+
+      <aside class="panel summary-panel">
+        <h2>{{ currentSummaryTitle }}</h2>
+
+        <div class="summary-row">
+          <div>
+            <div class="summary-label">In lucru</div>
+            <div class="summary-desc">Sunt la angajat</div>
+          </div>
+          <div class="summary-number green">{{ inWorkCount }}</div>
+        </div>
+
+        <div class="summary-row">
+          <div>
+            <div class="summary-label">Returnate</div>
+            <div class="summary-desc">Au fost date inapoi</div>
+          </div>
+          <div class="summary-number yellow">{{ returnedCount }}</div>
+        </div>
+
+        <div class="summary-row">
+          <div>
+            <div class="summary-label">Pierdute</div>
+            <div class="summary-desc">Nu mai sunt in posesie</div>
+          </div>
+          <div class="summary-number red">{{ lostCount }}</div>
+        </div>
+
+        <div class="summary-row total-row">
+          <div class="summary-label">Total</div>
+          <div class="summary-number white">{{ totalCount }}</div>
+        </div>
+      </aside>
+    </section>
+  </ng-container>
+
+  <footer class="footer">© 2026 Novarion DMX Construction</footer>
+</div>

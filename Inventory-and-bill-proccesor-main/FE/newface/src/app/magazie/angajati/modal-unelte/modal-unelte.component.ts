@@ -82,35 +82,12 @@ export class ModalUnelteComponent implements OnInit {
 
 
 
-    this.ToolList = this.ToolListWithoutFilter.filter(function (el: { ToolId: 
-      { toString: () => string; }; ToolName: { toString: () => string; };
-      MainLocation: { toString: () => string; };
-    
-    }){
-
-
-        return el.ToolName.toString().toLowerCase().includes(
-        ToolNameFilter.toString().trim().toLowerCase()
-      )
-      && el.MainLocation.toString().toLowerCase().includes(
-        ToolLocationFilter.toString().trim().toLowerCase())
+    this.ToolList = this.ToolListWithoutFilter.filter((el: any) => {
+      return this.matchesName(el, ToolNameFilter) && this.matchesLocation(el, ToolLocationFilter);
     });
 
-
-
-    this.ToolListmain = this.ToolListWithoutFilter.filter(function (el: { ToolId: 
-      { toString: () => string; }; ToolName: { toString: () => string; }; 
-      MainLocation: { toString: () => string; }; 
-    
-    
-    }){
-      
-        return el.ToolName.toString().toLowerCase().includes(
-        ToolNameFilter.toString().trim().toLowerCase()
-      )&&el.MainLocation.toString().toLowerCase().includes(
-        ToolLocationFilterMagazie.toString().trim().toLowerCase()
-      ) 
-
+    this.ToolListmain = this.ToolListWithoutFilter.filter((el: any) => {
+      return this.matchesName(el, ToolNameFilter) && this.matchesLocation(el, ToolLocationFilterMagazie);
     });
   }
 
@@ -122,21 +99,11 @@ export class ModalUnelteComponent implements OnInit {
     var ToolLocationFilter = this.ToolLocationFilter;
 
     this.service.getTolList().subscribe(data=>{
-      this.ToolList=data.filter(function (el: {MainLocation: 
-        { toString: () => string; }; }) { 
-          return el.MainLocation.toString().toLowerCase().includes(
-            ToolLocationFilter.toString().trim().toLowerCase()
-          ) 
-        });
+      this.ToolList=data.filter((el: any) => this.matchesLocation(el, ToolLocationFilter));
 
       this.ToolLocationFilterMagazie = 'Magazie'
       var ToolLocationFilterMagazie = this.ToolLocationFilterMagazie;
-      this.ToolListmain=data.filter(function (el: {MainLocation: 
-        { toString: () => string; }; }) { 
-          return el.MainLocation.toString().toLowerCase().includes(
-            ToolLocationFilterMagazie.toString().trim().toLowerCase()
-          ) 
-        });
+      this.ToolListmain=data.filter((el: any) => this.matchesLocation(el, ToolLocationFilterMagazie));
 
         this.ToolListWithoutFilter=data;
     });
@@ -165,11 +132,19 @@ export class ModalUnelteComponent implements OnInit {
       ToolSerie:this.ToolSerie,
       ToolName:this.ToolName,
       User:this.User,
-      DateOfGiving:this.DateOfGiving ,
+      DateOfGiving:this.tol.DateReceived || this.tol.DateOfGiving || this.DateOfGiving ,
       Detail:this.Detail ,
       Pieces:this.Pieces ,
       MainLocation:this.MainLocation ,
-      Provider:this.Provider 
+      Location:this.MainLocation,
+      Provider:this.Provider,
+      AssignedUserId:this.selectedUserSimple?.UserId ?? null,
+      IsSSM:!!this.tol.IsSSM,
+      Status:'magazie',
+      IsReturned:true,
+      DateReturned:this.DateOfGiving,
+      IsLost:false,
+      DateLost:null
     
     };
 
@@ -181,13 +156,12 @@ export class ModalUnelteComponent implements OnInit {
 
     this.GiveRecive = "a preluat"
     this.Pieces=this.tol.Pieces;
-    var valo = {HistoryId:this.HistoryId,
-      Tool:this.ToolName,
-      User:this.User,
-      DateOfGiving:this.DateOfGiving,
-      ToolSerie:this.ToolSerie,
-      GiveRecive:this.GiveRecive,
-      Pieces:this.administrator
+    var valo = {
+      user_serie:this.selectedUserSimple?.UserSerie,
+      tool_serie:this.ToolSerie,
+      direction:'IN',
+      quantity:1,
+      note:`Operat de ${this.administrator || 'administrator'}`
       };
       this.service.addHistory(valo).subscribe(res=>{
         console.log(res.toString());});
@@ -206,7 +180,7 @@ export class ModalUnelteComponent implements OnInit {
     this.ToolId=this.tol.ToolId;
     this.ToolSerie=this.tol.ToolSerie;
     this.ToolName=this.tol.ToolName;
-    this.User=this.tol.User;
+    this.User=this.selectedUserSimple.UserName;
     this.DateOfGiving= (this.datePipe.transform(this.BucketDate,"yyyy-MM-dd"));
     this.Detail=this.tol.Detail;
     this.Pieces=this.tol.Pieces;
@@ -224,7 +198,15 @@ export class ModalUnelteComponent implements OnInit {
       Detail:this.Detail ,
       Pieces:this.Pieces ,
       MainLocation:this.MainLocation ,
-      Provider:this.Provider 
+      Location:this.MainLocation,
+      Provider:this.Provider,
+      AssignedUserId:this.selectedUserSimple?.UserId ?? null,
+      IsSSM:!!this.tol.IsSSM,
+      Status:'in_lucru',
+      IsReturned:false,
+      DateReturned:null,
+      IsLost:false,
+      DateLost:null
     
     };
 
@@ -235,13 +217,12 @@ export class ModalUnelteComponent implements OnInit {
 
     this.GiveRecive = "a predat"
     this.Pieces=this.tol.Pieces;
-    var valo = {HistoryId:this.HistoryId,
-      Tool:this.ToolName,
-      User:this.User,
-      DateOfGiving:this.DateOfGiving,
-      ToolSerie:this.ToolSerie,
-      GiveRecive:this.GiveRecive,
-      Pieces:this.administrator
+    var valo = {
+      user_serie:this.selectedUserSimple?.UserSerie,
+      tool_serie:this.ToolSerie,
+      direction:'OUT',
+      quantity:1,
+      note:`Operat de ${this.administrator || 'administrator'}`
       };
       this.service.addHistory(valo).subscribe(res=>{
         console.log(res.toString());});
@@ -249,6 +230,18 @@ export class ModalUnelteComponent implements OnInit {
         
         this.wait()
 
+  }
+
+  private matchesName(tool: any, search: string): boolean {
+    const name = String(tool?.ToolName ?? '').toLowerCase();
+    return name.includes(String(search ?? '').trim().toLowerCase());
+  }
+
+  private matchesLocation(tool: any, search: string): boolean {
+    const wanted = String(search ?? '').trim().toLowerCase();
+    const location = String(tool?.Location ?? tool?.MainLocation ?? '').toLowerCase();
+    const assignedName = String(tool?.AssignedUserName ?? '').toLowerCase();
+    return location.includes(wanted) || assignedName.includes(wanted);
   }
 
 }

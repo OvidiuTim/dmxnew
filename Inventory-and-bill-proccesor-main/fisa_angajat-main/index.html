@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Novarion - Echipamente Angajat</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- HEADER -->
+        <div class="topbar">
+
+            <button class="back-btn">
+                ← Înapoi la lista angajați
+            </button>
+
+            <img src="logo.svg" class="logo" alt="Novarion">
+
+        </div>
+
+        <!-- CARD ANGAJAT -->
+        <div class="employee-card">
+
+            <div class="employee-left">
+
+                <div class="employee-photo">
+                    AK
+                </div>
+
+                <div class="employee-info">
+
+                    <h1>
+                        Akashdeep X8456976
+                        <span class="status">Pontat</span>
+                    </h1>
+
+                    <div class="data">
+                        <span>Firmă: VB-ROM</span>
+                        <span>Meserie: Steel fixer</span>
+                        <span>Mărime: 42 / XL</span>
+                        <span>Telefon: 0728 816 171</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="dropdown">
+
+                <button class="dropdown-btn" onclick="toggleDropdown()">
+                    Predare / preluare
+                </button>
+
+                <div id="equipmentDropdown" class="dropdown-menu">
+
+                    <div class="dropdown-item">
+                        Predare
+                    </div>
+
+                    <div class="dropdown-item">
+                        Preluare
+                    </div>
+
+                    <div class="dropdown-item">
+                        Înlocuire
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- NAVIGARE TABURI -->
+        <div class="tabs">
+
+            <div class="tab active" onclick="showTab('scule', this)">
+                Scule
+            </div>
+
+            <div class="tab" onclick="showTab('ssm', this)">
+                SSM
+            </div>
+
+            <div class="tab" onclick="showTab('scule', this)">
+                Istoric
+            </div>
+
+            <div class="tab" onclick="showTab('ssm', this)">
+                Concedii
+            </div>
+
+            <div class="tab" onclick="showTab('scule', this)">
+                Locație
+            </div>
+
+            <div class="tab" onclick="showTab('ssm', this)">
+                Documente
+            </div>
+
+            <div class="tab" onclick="showTab('scule', this)">
+                Valabilitate
+            </div>
+
+
+        </div>
+
+
+        <!-- TAB SSM -->
+        <div id="ssm-content" class="tab-content">
+
+            <div class="content">
+
+                <!-- LISTA ECHIPAMENTE -->
+                <div class="card">
+
+                    <div class="card-title">
+                        Echipamente active
+                        <span class="badge">4</span>
+                    </div>
+
+
+                    <!-- TABLE HEAD -->
+                    <div class="list-header">
+
+                        <div>Denumire</div>
+                        <div>Data primirii</div>
+                        <div>Stare</div>
+                        <div>Acțiuni</div>
+
+                    </div>
+
+
+                    <!-- LISTA ECHIPAMENTE SSM -->
+                    <div class="equipment-list">
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Cască protecție
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                15.02.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Bocanci S3
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                03.03.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Vestă reflectorizantă
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                12.05.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Ochelari protecție
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                02.02.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="results">
+                        Se afișează 1 - 4 din 4 rezultate
+                    </div>
+                </div>
+
+
+                <!-- SUMAR ECHIPAMENTE -->
+                <div class="card summary">
+
+                    <h2>Sumar echipament</h2>
+
+                    <div class="summary-row">
+                        <div class="summary-label">Activ</div>
+                        <div class="summary-desc">Sunt la angajat</div>
+                        <div class="summary-number green">4</div>
+                    </div>
+
+                    <div class="summary-row">
+                        <div class="summary-label">Predat</div>
+                        <div class="summary-desc">Nu mai sunt la angajat</div>
+                        <div class="summary-number yellow">1</div>
+                    </div>
+
+                    <div class="summary-row">
+                        <div class="summary-label">Pierdut</div>
+                        <div class="summary-desc">Nu mai sunt în posesie</div>
+                        <div class="summary-number red">1</div>
+                    </div>
+
+                    <div class="summary-row">
+                        <div class="summary-label">Total</div>
+                        <div class="summary-number white">6</div>
+                    </div>
+
+
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- TAB SCULE-->
+        <div id="scule-content" class="tab-content active">
+
+            <div class="content">
+
+                <!-- LISTA SCULE -->
+                <div class="card">
+
+                    <div class="card-title">
+                        Scule active
+                        <span class="badge">6</span>
+                    </div>
+
+
+                    <div class="list-header">
+
+                        <div>Denumire</div>
+                        <div>Data primirii</div>
+                        <div>Stare</div>
+                        <div>Acțiuni</div>
+
+                    </div>
+
+
+                    <!-- LISTA SCULE -->
+                    <div class="equipment-list">
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Ruletă Stanley 5m
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                02.01.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Patent universal 200mm
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                15.02.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Șurubelniță PH2
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                15.02.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Cutter profesional
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                21.03.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Flex unghiular 125mm
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                24.04.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="mobile-tool-card">
+
+                            <div class="mobile-tool-name">
+                                Bormașină cu percuție
+                            </div>
+
+                            <div class="mobile-tool-date">
+                                15.05.2026
+                            </div>
+
+                            <span class="tool-status">
+                                Activ
+                            </span>
+
+                            <button class="action-btn" onclick="toggleToolMenu(this)">
+                                •••
+                            </button>
+
+                            <div class="tool-menu">
+
+                                <div class="tool-menu-item">
+                                    Preluare
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Înlocuire
+                                </div>
+
+                                <div class="tool-menu-item">
+                                    Istoric
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="results">
+                        Se afișează 1 - 6 din 6 rezultate
+                    </div>
+
+                </div>
+
+                <!-- SUMAR SCULE-->
+                <div class="card summary">
+
+                    <h2>Sumar scule</h2>
+
+                    <div class="summary-row">
+                        <div class="summary-label">Activ</div>
+                        <div class="summary-desc">Sunt la angajat</div>
+                        <div class="summary-number green">6</div>
+                    </div>
+
+                    <div class="summary-row">
+                        <div class="summary-label">Predat</div>
+                        <div class="summary-desc">Nu mai sunt la angajat</div>
+                        <div class="summary-number yellow">2</div>
+                    </div>
+
+                    <div class="summary-row">
+                        <div class="summary-label">Pierdut</div>
+                        <div class="summary-desc">Nu mai sunt în posesie</div>
+                        <div class="summary-number red">1</div>
+                    </div>
+
+                    <div class="summary-row">
+                        <div class="summary-label">Total</div>
+                        <div class="summary-number white">9</div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <footer class="footer">
+            <div>© 2026 Novarion DMX Construction</div>
+        </footer>
+
+
+        <script src="script.js"></script>
+
+</body>
+
+</html>

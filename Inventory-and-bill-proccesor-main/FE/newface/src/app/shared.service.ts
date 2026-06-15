@@ -34,7 +34,18 @@ export class SharedService {
   deleteUser(id: any, force = false)   { return this.http.delete(`${this.API}/user/${id}${force ? '?force=1' : ''}`); }
 
   // --- Unelte ---
-  getTolList(): Observable<any[]>      { return this.http.get<any[]>(`${this.API}/tool/`); }
+  getTolList(params?: Record<string, string | number | boolean | null | undefined>): Observable<any[]> {
+    const options = params ? { params: this.cleanParams(params) } : {};
+    return this.http.get<any[]>(`${this.API}/tool/`, options);
+  }
+  getTool(id: number | string)         { return this.http.get<any>(`${this.API}/tool/${id}`); }
+  getEmployeeTools(userId: number | string, isSsm?: boolean): Observable<any[]> {
+    const params: Record<string, string | number | boolean> = { user_id: userId };
+    if (isSsm !== undefined) {
+      params['is_ssm'] = isSsm;
+    }
+    return this.getTolList(params);
+  }
   addTool(val: any)                    { return this.http.post(`${this.API}/tool/`, val); }
   updateTool(val: any)                 { return this.http.put(`${this.API}/tool/`, val); }
   deleteTool(id: any)                  { return this.http.delete(`${this.API}/tool/${id}`); }
@@ -156,6 +167,15 @@ getAttendanceDay(date?: string) {
 
     window.localStorage.setItem(this.manualDeviceStorageKey, generated);
     return generated;
+  }
+
+  private cleanParams(params: Record<string, string | number | boolean | null | undefined>): Record<string, string | number | boolean> {
+    return Object.entries(params).reduce((acc, [key, value]) => {
+      if (value !== null && value !== undefined && value !== '') {
+        acc[key] = value;
+      }
+      return acc;
+    }, {} as Record<string, string | number | boolean>);
   }
 
   getAttendancePresent()               { return this.http.get(`${this.API}/pontaj/present/`); }

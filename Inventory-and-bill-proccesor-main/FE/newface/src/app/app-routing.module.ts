@@ -15,6 +15,7 @@ import { PontajComponent } from './pontaj/pontaj.component';
 import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 import { RapoarteComponent } from './pontaj/rapoarte/rapoarte.component';
 import { EmployeeFormComponent } from './pontaj/employee-form/employee-form.component';
+import { FisaAngajatComponent } from './pontaj/fisa-angajat/fisa-angajat.component';
 import { ClockinandoutComponent } from './clockinandout/clockinandout.component';
 import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandoutdriver.component';
 
@@ -36,6 +37,8 @@ const routes: Routes = [
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard] },
+  { path: 'pontaj/fisa-angajat', component: FisaAngajatComponent, canActivate: [AuthGuard] },
+  { path: 'pontaj/fisa-angajat/:id', component: FisaAngajatComponent, canActivate: [AuthGuard] },
 
   // Formular angajat
   { path: 'users/new', component: EmployeeFormComponent, canActivate: [AuthGuard] },

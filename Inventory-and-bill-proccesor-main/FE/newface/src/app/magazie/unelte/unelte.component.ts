@@ -1,7 +1,53 @@
 import { Component, OnInit } from '@angular/core';
-import {SharedService} from 'src/app/shared.service';
 import { Router } from '@angular/router';
-import { DatePipe } from '@angular/common';
+import { SharedService } from 'src/app/shared.service';
+
+type ToolStatus = 'stricata' | 'in_lucru' | 'magazie';
+type CategoryFilter = 'ALL' | 'SITE' | 'SSM';
+type StatusFilter = 'ALL' | ToolStatus;
+
+interface EmployeeOption {
+  UserId: number;
+  UserName: string;
+}
+
+interface ToolItem {
+  ToolId: number;
+  ToolSerie?: string | null;
+  ToolName: string;
+  User?: string | null;
+  IsSSM?: boolean | null;
+  Status?: ToolStatus | string | null;
+  StatusLabel?: string | null;
+  Location?: string | null;
+  MainLocation?: string | null;
+  Detail?: string | null;
+  AssignedUserId?: number | null;
+  AssignedUserName?: string | null;
+  DateReceived?: string | null;
+  DateOfGiving?: string | null;
+  IsReturned?: boolean | null;
+  IsLost?: boolean | null;
+  DateReturned?: string | null;
+  DateLost?: string | null;
+  Pieces?: number | null;
+}
+
+interface ToolForm {
+  ToolId: number | null;
+  ToolSerie: string;
+  ToolName: string;
+  IsSSM: boolean;
+  Status: ToolStatus;
+  Location: string;
+  Detail: string;
+  AssignedUserId: number | null;
+  DateReceived: string;
+  IsReturned: boolean;
+  DateReturned: string;
+  IsLost: boolean;
+  DateLost: string;
+}
 
 @Component({
   selector: 'app-unelte',
@@ -9,102 +55,308 @@ import { DatePipe } from '@angular/common';
   styleUrls: ['./unelte.component.css']
 })
 export class UnelteComponent implements OnInit {
+  tools: ToolItem[] = [];
+  users: EmployeeOption[] = [];
 
-  constructor(private router: Router, private service:SharedService, private datePipe: DatePipe) { }
-  
-  NuAcelas:boolean=true;
-  DaAcelas:boolean=false;
+  loading = false;
+  saving = false;
+  error: string | null = null;
+  success: string | null = null;
 
+  searchTerm = '';
+  categoryFilter: CategoryFilter = 'ALL';
+  statusFilter: StatusFilter = 'ALL';
 
-  startingPoint:string="";
+  readonly statuses: Array<{ value: ToolStatus; label: string }> = [
+    { value: 'in_lucru', label: 'In lucru' },
+    { value: 'magazie', label: 'In magazie' },
+    { value: 'stricata', label: 'Stricata' },
+  ];
+
+  toolForm: ToolForm = this.emptyForm();
+
+  constructor(private router: Router, private service: SharedService) {}
 
   ngOnInit(): void {
-    this.startingPoint = '1';
-
-    this.refreshMatList()
-    this.DateOfGiving = (this.datePipe.transform(this.BucketDate,"yyyy-MM-dd"));
+    this.loadInitialData();
   }
 
-  
-  seeMagazie(){
-    this.router.navigateByUrl('/magazie')
-  }
-  seeAngajati(){
-    this.router.navigateByUrl('/angajati')
-  }
-  seeMateriale(){
-    this.router.navigateByUrl('/materiale')
-  }
-  seeUnelte(){
-    this.router.navigateByUrl('/unelte')
-  }
-  seeSchela(){
-    this.router.navigateByUrl('/schela')
-  }
-  seeIstoric(){
-    this.router.navigateByUrl('/history')
+  seeMagazie(): void { this.router.navigateByUrl('/magazie'); }
+  seeAngajati(): void { this.router.navigateByUrl('/angajati'); }
+  seeMateriale(): void { this.router.navigateByUrl('/materiale'); }
+  seeUnelte(): void { this.router.navigateByUrl('/unelte'); }
+  seeSchela(): void { this.router.navigateByUrl('/schela'); }
+  seeIstoric(): void { this.router.navigateByUrl('/history'); }
+
+  get isEditing(): boolean {
+    return this.toolForm.ToolId !== null;
   }
 
+  get filteredTools(): ToolItem[] {
+    const search = this.normalize(this.searchTerm);
 
-  
-  Nuacelas(){
-    this.NuAcelas=true;
-    this.DaAcelas=false;
-  
-    document.getElementById("1")!.style.backgroundColor = '#d9d9d9';
-  }
-  Daacelas(){
-    this.NuAcelas=false;
-    this.DaAcelas=true;
-  
-    document.getElementById("2")!.style.backgroundColor = '#d9d9d9';
-  }
+    return this.tools.filter((tool) => {
+      const matchesSearch = !search || [
+        tool.ToolName,
+        tool.ToolSerie,
+        tool.Location,
+        tool.MainLocation,
+        tool.AssignedUserName,
+        tool.Detail,
+      ].some(value => this.normalize(value).includes(search));
 
-  ToolList:any=[];
-  ToolListmain:any=[];
-  ToolListWithoutFilter:any=[];
+      const matchesCategory =
+        this.categoryFilter === 'ALL'
+        || (this.categoryFilter === 'SSM' && !!tool.IsSSM)
+        || (this.categoryFilter === 'SITE' && !tool.IsSSM);
 
-  refreshMatList(){
-    this.service.getTolList().subscribe(data=>{
-      this.ToolList=data;
+      const matchesStatus = this.statusFilter === 'ALL' || tool.Status === this.statusFilter;
 
+      return matchesSearch && matchesCategory && matchesStatus;
     });
   }
 
-  deleteClick(item:{ ToolId: any;}){
-    this.service.deleteTool(item.ToolId).subscribe(data=>{
-      console.log(data.toString());
-      this.refreshMatList();
-    })
+  get totalSiteTools(): number {
+    return this.tools.filter(tool => !tool.IsSSM).length;
   }
 
-  ToolId!: string;
-  ToolSerie!: string;
-  MaterialId!: string;
-  ToolName!: string;
-  Pieces!: string;
-  DateOfGiving!:any;
-  BucketDate!: Date;
+  get totalSsmTools(): number {
+    return this.tools.filter(tool => !!tool.IsSSM).length;
+  }
 
-  addUser(){
+  loadInitialData(): void {
+    this.loading = true;
+    this.error = null;
 
+    this.service.getUsrList().subscribe({
+      next: (users) => {
+        this.users = (users ?? [])
+          .map(user => ({ UserId: Number(user.UserId), UserName: String(user.UserName ?? '') }))
+          .filter(user => Number.isFinite(user.UserId) && !!user.UserName)
+          .sort((a, b) => a.UserName.localeCompare(b.UserName, 'ro'));
 
-    var val = {ToolId:this.ToolId,
-              ToolSerie:this.ToolSerie,
-              ToolName:this.ToolName,
-              User:"Magazie",
-              DateOfGiving:"1111-11-11",
-              Detail:"1",
-              Pieces:this.Pieces,
-              MainLocation:"Magazie",   
-              Provider:'1',};
-    this.service.addTool(val).subscribe(res=>{
-      console.log (res.toString());
-
+        this.refreshToolList();
+      },
+      error: () => {
+        this.users = [];
+        this.refreshToolList();
+      }
     });
   }
 
+  refreshToolList(): void {
+    this.loading = true;
+    this.service.getTolList().subscribe({
+      next: (tools) => {
+        this.tools = (tools ?? []) as ToolItem[];
+        this.loading = false;
+      },
+      error: (err) => {
+        console.error('Nu pot incarca uneltele', err);
+        this.error = 'Nu pot incarca lista de unelte.';
+        this.loading = false;
+      }
+    });
+  }
 
+  saveTool(): void {
+    this.error = null;
+    this.success = null;
 
-  
+    if (!this.toolForm.ToolName.trim()) {
+      this.error = 'Completeaza numele uneltei.';
+      return;
+    }
+
+    this.saving = true;
+    const payload = this.buildPayload();
+    const request = this.isEditing ? this.service.updateTool(payload) : this.service.addTool(payload);
+
+    request.subscribe({
+      next: () => {
+        this.saving = false;
+        this.success = this.isEditing ? 'Unealta a fost actualizata.' : 'Unealta a fost adaugata.';
+        this.cancelEdit();
+        this.refreshToolList();
+      },
+      error: (err) => {
+        console.error('Nu pot salva unealta', err);
+        this.saving = false;
+        this.error = err?.error?.details
+          ? `Nu pot salva unealta: ${JSON.stringify(err.error.details)}`
+          : 'Nu pot salva unealta acum.';
+      }
+    });
+  }
+
+  editTool(tool: ToolItem): void {
+    this.error = null;
+    this.success = null;
+    this.toolForm = {
+      ToolId: tool.ToolId,
+      ToolSerie: tool.ToolSerie ?? '',
+      ToolName: tool.ToolName ?? '',
+      IsSSM: !!tool.IsSSM,
+      Status: this.normalizeStatus(tool.Status),
+      Location: tool.Location ?? tool.MainLocation ?? '',
+      Detail: tool.Detail ?? '',
+      AssignedUserId: tool.AssignedUserId ?? null,
+      DateReceived: tool.DateReceived ?? tool.DateOfGiving ?? '',
+      IsReturned: !!tool.IsReturned,
+      DateReturned: tool.DateReturned ?? '',
+      IsLost: !!tool.IsLost,
+      DateLost: tool.DateLost ?? '',
+    };
+  }
+
+  cancelEdit(): void {
+    this.toolForm = this.emptyForm();
+  }
+
+  deleteClick(tool: ToolItem): void {
+    if (!confirm(`Stergi unealta "${tool.ToolName}"?`)) {
+      return;
+    }
+
+    this.service.deleteTool(tool.ToolId).subscribe({
+      next: () => {
+        this.success = 'Unealta a fost stearsa.';
+        this.refreshToolList();
+      },
+      error: (err) => {
+        console.error('Nu pot sterge unealta', err);
+        this.error = err?.error?.message || err?.error?.error || 'Unealta nu a putut fi stearsa.';
+      }
+    });
+  }
+
+  trackByTool(_: number, tool: ToolItem): number {
+    return tool.ToolId;
+  }
+
+  statusLabel(status: string | null | undefined): string {
+    return this.statuses.find(item => item.value === status)?.label ?? 'In lucru';
+  }
+
+  possessionLabel(tool: ToolItem): string {
+    if (tool.IsLost) {
+      return `Pierduta${tool.DateLost ? ` (${this.formatDate(tool.DateLost)})` : ''}`;
+    }
+
+    if (tool.IsReturned) {
+      return `Returnata${tool.DateReturned ? ` (${this.formatDate(tool.DateReturned)})` : ''}`;
+    }
+
+    return 'La angajat / in lucru';
+  }
+
+  formatDate(value: string | null | undefined): string {
+    if (!value) {
+      return '-';
+    }
+
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return date.toLocaleDateString('ro-RO');
+  }
+
+  onReturnedChange(value: boolean): void {
+    this.toolForm.IsReturned = value;
+    if (value) {
+      this.toolForm.IsLost = false;
+      this.toolForm.DateLost = '';
+      if (!this.toolForm.DateReturned) {
+        this.toolForm.DateReturned = this.todayISO();
+      }
+      if (this.toolForm.Status === 'in_lucru') {
+        this.toolForm.Status = 'magazie';
+      }
+    }
+  }
+
+  onLostChange(value: boolean): void {
+    this.toolForm.IsLost = value;
+    if (value) {
+      this.toolForm.IsReturned = false;
+      this.toolForm.DateReturned = '';
+      if (!this.toolForm.DateLost) {
+        this.toolForm.DateLost = this.todayISO();
+      }
+      this.toolForm.Status = 'stricata';
+    }
+  }
+
+  private buildPayload(): any {
+    const assignedUser = this.users.find(user => user.UserId === this.toolForm.AssignedUserId);
+    const location = this.toolForm.Location.trim()
+      || (assignedUser ? assignedUser.UserName : '')
+      || (this.toolForm.Status === 'magazie' ? 'Magazie' : '');
+
+    return {
+      ...(this.toolForm.ToolId ? { ToolId: this.toolForm.ToolId } : {}),
+      ToolSerie: this.normalizeOptional(this.toolForm.ToolSerie),
+      ToolName: this.toolForm.ToolName.trim(),
+      IsSSM: this.toolForm.IsSSM,
+      Status: this.toolForm.Status,
+      Location: this.normalizeOptional(location),
+      MainLocation: this.normalizeOptional(location),
+      Detail: this.normalizeOptional(this.toolForm.Detail),
+      AssignedUserId: this.toolForm.AssignedUserId,
+      DateReceived: this.normalizeOptional(this.toolForm.DateReceived),
+      DateOfGiving: this.normalizeOptional(this.toolForm.DateReceived),
+      IsReturned: this.toolForm.IsReturned,
+      DateReturned: this.toolForm.IsReturned ? this.normalizeOptional(this.toolForm.DateReturned) : null,
+      IsLost: this.toolForm.IsLost,
+      DateLost: this.toolForm.IsLost ? this.normalizeOptional(this.toolForm.DateLost) : null,
+      Pieces: 1,
+    };
+  }
+
+  private emptyForm(): ToolForm {
+    return {
+      ToolId: null,
+      ToolSerie: '',
+      ToolName: '',
+      IsSSM: false,
+      Status: 'in_lucru',
+      Location: '',
+      Detail: '',
+      AssignedUserId: null,
+      DateReceived: this.todayISO(),
+      IsReturned: false,
+      DateReturned: '',
+      IsLost: false,
+      DateLost: '',
+    };
+  }
+
+  private normalizeStatus(status: string | null | undefined): ToolStatus {
+    if (status === 'stricata' || status === 'magazie' || status === 'in_lucru') {
+      return status;
+    }
+    return 'in_lucru';
+  }
+
+  private normalizeOptional(value: string | null | undefined): string | null {
+    const normalized = (value ?? '').trim();
+    return normalized ? normalized : null;
+  }
+
+  private normalize(value: string | number | null | undefined): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  private todayISO(): string {
+    const d = new Date();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${month}-${day}`;
+  }
 }

@@ -28,6 +28,7 @@ import { NavbarComponent } from './navbar/navbar.component';
 import { PontajComponent } from './pontaj/pontaj.component';
 import { UserpontatComponent } from './pontaj/userpontat/userpontat.component';
 import { EmployeeFormComponent } from './pontaj/employee-form/employee-form.component';
+import { FisaAngajatComponent } from './pontaj/fisa-angajat/fisa-angajat.component';
 
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { AuthInterceptor } from './auth/auth.interceptor';
@@ -55,6 +56,7 @@ import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandou
     PontajComponent,
     UserpontatComponent,
     EmployeeFormComponent,
+    FisaAngajatComponent,
     RapoarteComponent,
     ClockinandoutComponent,
     ClockinandoutdriverComponent,

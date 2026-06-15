@@ -7,8 +7,13 @@ from django.utils.timezone import localdate
 
 
 class Tools(models.Model):
+    class ToolStatus(models.TextChoices):
+        STRICATA = "stricata", "Stricata"
+        IN_LUCRU = "in_lucru", "In lucru"
+        MAGAZIE = "magazie", "In magazie"
+
     ToolId = models.AutoField(primary_key=True)
-    ToolSerie = models.CharField(max_length=100, unique=True, db_index=True)  # ← UNIC + index
+    ToolSerie = models.CharField(max_length=100, unique=True, db_index=True, null=True, blank=True)  # ← UNIC + index
     ToolName = models.CharField(max_length=100)
 
     # (opțional) deconectează câmpurile care dublau istoricul (le poți păstra provizoriu):
@@ -22,6 +27,26 @@ class Tools(models.Model):
 
     # (opțional) tag RFID/NFC
     RfidTag = models.CharField(max_length=128, null=True, blank=True, unique=True)
+
+    # Modelul nou folosit de /unelte si de fisa angajatului.
+    AssignedTo = models.ForeignKey(
+        'Users',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_tools',
+    )
+    IsSSM = models.BooleanField(default=False)
+    Status = models.CharField(
+        max_length=32,
+        choices=ToolStatus.choices,
+        default=ToolStatus.IN_LUCRU,
+        db_index=True,
+    )
+    IsReturned = models.BooleanField(default=False)
+    IsLost = models.BooleanField(default=False)
+    DateReturned = models.DateField(blank=True, null=True)
+    DateLost = models.DateField(blank=True, null=True)
 
 class Users(models.Model):
     UserId = models.AutoField(primary_key=True)

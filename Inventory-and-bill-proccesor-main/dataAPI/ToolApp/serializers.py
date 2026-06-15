@@ -1,4 +1,6 @@
 # serializers.py
+import uuid
+
 from rest_framework import serializers
 from django.utils import timezone
 from ToolApp.models import (
@@ -67,6 +69,17 @@ class UserSerializer(serializers.ModelSerializer):
 
 # -------------------- TOOLS --------------------
 class ToolSerializer(serializers.ModelSerializer):
+    AssignedUserId = serializers.PrimaryKeyRelatedField(
+        source="AssignedTo",
+        queryset=Users.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    AssignedUserName = serializers.SerializerMethodField(read_only=True)
+    Location = serializers.SerializerMethodField(read_only=True)
+    DateReceived = serializers.SerializerMethodField(read_only=True)
+    StatusLabel = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Tools
         fields = (
@@ -80,7 +93,108 @@ class ToolSerializer(serializers.ModelSerializer):
             "MainLocation",
             "Provider",
             "RfidTag",        # ← nou
+            "AssignedUserId",
+            "AssignedUserName",
+            "IsSSM",
+            "Status",
+            "StatusLabel",
+            "IsReturned",
+            "IsLost",
+            "DateReturned",
+            "DateLost",
+            "Location",
+            "DateReceived",
         )
+        extra_kwargs = {
+            "ToolSerie": {"required": False, "allow_null": True, "allow_blank": True},
+            "ToolName": {"required": True, "allow_blank": False},
+            "User": {"required": False, "allow_null": True, "allow_blank": True},
+            "DateOfGiving": {"required": False, "allow_null": True},
+            "Detail": {"required": False, "allow_null": True, "allow_blank": True},
+            "Pieces": {"required": False, "allow_null": True},
+            "MainLocation": {"required": False, "allow_null": True, "allow_blank": True},
+            "Provider": {"required": False, "allow_null": True, "allow_blank": True},
+            "RfidTag": {"required": False, "allow_null": True, "allow_blank": True},
+            "IsSSM": {"required": False},
+            "Status": {"required": False},
+            "IsReturned": {"required": False},
+            "IsLost": {"required": False},
+            "DateReturned": {"required": False, "allow_null": True},
+            "DateLost": {"required": False, "allow_null": True},
+        }
+
+    def get_AssignedUserName(self, obj):
+        return obj.AssignedTo.UserName if obj.AssignedTo else None
+
+    def get_Location(self, obj):
+        return obj.MainLocation
+
+    def get_DateReceived(self, obj):
+        return obj.DateOfGiving
+
+    def get_StatusLabel(self, obj):
+        return obj.get_Status_display()
+
+    def to_internal_value(self, data):
+        mutable = data.copy()
+
+        if "Location" in mutable and "MainLocation" not in mutable:
+            mutable["MainLocation"] = mutable.get("Location")
+
+        if "DateReceived" in mutable and "DateOfGiving" not in mutable:
+            mutable["DateOfGiving"] = mutable.get("DateReceived")
+
+        for key in ("AssignedUserId", "DateOfGiving", "DateReceived", "DateReturned", "DateLost", "ToolSerie", "RfidTag"):
+            if mutable.get(key) == "":
+                mutable[key] = None
+
+        return super().to_internal_value(mutable)
+
+    def validate_Status(self, value):
+        normalized = str(value or "").strip().lower().replace(" ", "_").replace("-", "_")
+        aliases = {
+            "in_lucru": Tools.ToolStatus.IN_LUCRU,
+            "lucru": Tools.ToolStatus.IN_LUCRU,
+            "inlucru": Tools.ToolStatus.IN_LUCRU,
+            "magazie": Tools.ToolStatus.MAGAZIE,
+            "in_magazie": Tools.ToolStatus.MAGAZIE,
+            "stricata": Tools.ToolStatus.STRICATA,
+            "stricat": Tools.ToolStatus.STRICATA,
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        raise serializers.ValidationError("Valori permise: stricata, in_lucru, magazie.")
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if self.instance is None and not attrs.get("ToolSerie"):
+            attrs["ToolSerie"] = f"TOOL-{uuid.uuid4().hex[:10].upper()}"
+        elif "ToolSerie" in attrs and not attrs.get("ToolSerie"):
+            attrs.pop("ToolSerie")
+
+        if attrs.get("IsLost"):
+            attrs["IsReturned"] = False
+
+        if attrs.get("IsReturned"):
+            attrs["IsLost"] = False
+
+        assigned = attrs.get("AssignedTo")
+        if assigned:
+            attrs["User"] = assigned.UserName
+
+        status = attrs.get("Status") or (Tools.ToolStatus.IN_LUCRU if self.instance is None else None)
+        if self.instance is None and "Status" not in attrs:
+            attrs["Status"] = status
+        if status == Tools.ToolStatus.MAGAZIE and not attrs.get("MainLocation"):
+            attrs["MainLocation"] = "Magazie"
+        elif status == Tools.ToolStatus.IN_LUCRU and assigned and not attrs.get("MainLocation"):
+            attrs["MainLocation"] = assigned.UserName
+
+        if (self.instance is None or "Pieces" in attrs) and attrs.get("Pieces") in (None, ""):
+            attrs["Pieces"] = 1
+
+        return attrs
 
 
 # -------------------- HISTORIES --------------------
