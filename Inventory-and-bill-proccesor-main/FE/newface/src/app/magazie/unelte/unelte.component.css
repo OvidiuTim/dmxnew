@@ -184,7 +184,7 @@ textarea:focus {
 
 .filters {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 220px 220px 210px;
+  grid-template-columns: minmax(220px, 1fr) 220px 220px 160px;
   gap: 14px;
   padding: 16px;
   margin-bottom: 16px;
@@ -192,6 +192,7 @@ textarea:focus {
 
 .warehouse-toggle {
   align-self: end;
+  width: 100%;
   min-height: 40px;
   border: 1px solid #334054;
   border-radius: 6px;
@@ -199,27 +200,15 @@ textarea:focus {
   color: #edf2f8;
   padding: 9px 12px;
   cursor: pointer;
-}
-
-.warehouse-toggle span {
-  display: inline-flex;
-  min-width: 34px;
-  justify-content: center;
-  margin-right: 8px;
-  border-radius: 999px;
-  background: #303746;
-  color: #aeb6c4;
-  font-size: 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  white-space: nowrap;
 }
 
 .warehouse-toggle.active {
   border-color: #239363;
   background: #10251b;
-}
-
-.warehouse-toggle.active span {
-  background: #18764f;
-  color: #ffffff;
 }
 
 .state {

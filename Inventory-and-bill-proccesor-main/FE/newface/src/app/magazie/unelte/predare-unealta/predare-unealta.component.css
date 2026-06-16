@@ -53,27 +53,36 @@
 
 .pick-tool-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 18px;
   align-items: center;
 }
 
-.pick-tool-card > div:first-child {
+.pick-tool-main {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
+.pick-tool-main strong,
+.pick-tool-main span,
+.pick-tool-main small {
+  overflow-wrap: anywhere;
+}
+
 .pick-tool-side {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 250px;
 }
 
 .quantity-field {
   display: grid;
   gap: 4px;
-  width: 82px;
+  width: 88px;
+  flex: 0 0 88px;
 }
 
 .quantity-field span {
@@ -84,8 +93,19 @@
 }
 
 .quantity-field input {
-  min-height: 34px;
+  height: 36px;
+  min-height: 36px;
   padding: 6px 8px;
+  text-align: center;
+}
+
+.pick-tool-side .pill {
+  flex: 0 0 auto;
+}
+
+.pick-tool-side .btn {
+  flex: 0 0 auto;
+  min-width: 74px;
 }
 
 .selected-employee {
@@ -151,11 +171,14 @@
 @media (max-width: 680px) {
   .pick-tool-card {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .pick-tool-side {
-    align-items: stretch;
-    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 0;
+    flex-wrap: wrap;
   }
 
   .empty-with-action {
