@@ -1,9 +1,15 @@
+import uuid
+
 from django.db import models
 # ToolApp/models.py
 from django.db import models
 from django.utils import timezone
 from django.utils.timezone import localdate
 # Create your models here
+
+
+def generate_tool_batch_id():
+    return f"TOOLBATCH-{uuid.uuid4().hex[:12].upper()}"
 
 
 class Tools(models.Model):
@@ -15,6 +21,7 @@ class Tools(models.Model):
     ToolId = models.AutoField(primary_key=True)
     ToolSerie = models.CharField(max_length=100, unique=True, db_index=True, null=True, blank=True)  # ← UNIC + index
     ToolName = models.CharField(max_length=100)
+    BatchId = models.CharField(max_length=64, db_index=True, blank=True, default=generate_tool_batch_id)
 
     # (opțional) deconectează câmpurile care dublau istoricul (le poți păstra provizoriu):
     User = models.CharField(max_length=100, blank=True, null=True)            # legacy

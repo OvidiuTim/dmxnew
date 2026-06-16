@@ -124,6 +124,16 @@
 
             <div class="pick-tool-side">
               <span class="pill" [class.ssm]="tool.IsSSM">{{ statusLabel(tool) }}</span>
+              <label class="quantity-field">
+                <span>Bucati</span>
+                <input
+                  type="number"
+                  min="1"
+                  [max]="piecesCount(tool)"
+                  [ngModel]="quantityFor(tool)"
+                  (ngModelChange)="setToolQuantity(tool, $event)"
+                >
+              </label>
               <button
                 class="btn primary"
                 type="button"

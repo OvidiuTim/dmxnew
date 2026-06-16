@@ -81,6 +81,8 @@ urlpatterns = [
 
     path('api/tool/', views.toolApi),
     path('api/tool/<int:id>', views.toolApi),
+    path('api/tools/assign-quantity/', views.tool_assign_quantity),
+    path('api/tools/return-quantity/', views.tool_return_quantity),
 
     path('api/history/', views.historyApi),
     path('api/history/<int:id>', views.historyApi),

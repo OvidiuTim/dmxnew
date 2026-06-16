@@ -49,6 +49,8 @@ export class SharedService {
   addTool(val: any)                    { return this.http.post(`${this.API}/tool/`, val); }
   updateTool(val: any)                 { return this.http.put(`${this.API}/tool/`, val); }
   deleteTool(id: any)                  { return this.http.delete(`${this.API}/tool/${id}`); }
+  assignToolQuantity(val: any)         { return this.http.post(`${this.API}/tools/assign-quantity/`, val); }
+  returnToolQuantity(val: any)         { return this.http.post(`${this.API}/tools/return-quantity/`, val); }
 
   // --- Istoric ---
   getHisList(): Observable<any[]>      { return this.http.get<any[]>(`${this.API}/history/`); }

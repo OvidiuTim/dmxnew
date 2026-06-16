@@ -137,6 +137,16 @@
           <option *ngFor="let status of statuses" [value]="status.value">{{ status.label }}</option>
         </select>
       </label>
+
+      <button
+        class="warehouse-toggle"
+        type="button"
+        [class.active]="showWarehouseOnly"
+        (click)="showWarehouseOnly = !showWarehouseOnly"
+      >
+        <span>{{ showWarehouseOnly ? 'ON' : 'OFF' }}</span>
+        Arata unelte magazie
+      </button>
     </section>
 
     <div class="state" *ngIf="loading">Se incarca uneltele...</div>

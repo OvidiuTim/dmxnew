@@ -99,11 +99,12 @@
       <div class="panel">
         <div class="panel-title">
           <h2>{{ currentTitle }}</h2>
-          <span class="badge">{{ currentTools.length }}</span>
+          <span class="badge">{{ totalCount }}</span>
         </div>
 
         <div class="list-header">
           <div>Denumire</div>
+          <div>Bucati</div>
           <div>Data primirii</div>
           <div>Stare</div>
           <div>Predare</div>
@@ -125,6 +126,8 @@
               </div>
             </div>
 
+            <div class="tool-pieces">{{ piecesCount(tool) }}</div>
+
             <div class="tool-date">{{ formatDate(tool.DateReceived || tool.DateOfGiving) }}</div>
 
             <span [class]="statusClass(tool.Status)">{{ statusLabel(tool.Status) }}</span>
@@ -142,7 +145,7 @@
         </div>
 
         <div class="results">
-          Se afiseaza {{ currentTools.length }} din {{ currentTools.length }} rezultate
+          Se afiseaza {{ currentTools.length }} pozitii, {{ totalCount }} bucati
         </div>
       </div>
 

@@ -269,7 +269,7 @@
 .list-header,
 .tool-card {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 150px 120px minmax(150px, 1fr) 60px;
+  grid-template-columns: minmax(180px, 1fr) 80px 150px 120px minmax(150px, 1fr) 60px;
   gap: 14px;
   align-items: center;
 }
@@ -314,11 +314,17 @@
   font-size: 12px;
 }
 
+.tool-pieces,
 .tool-date,
 .possession,
 .results,
 .empty {
   color: #9ca3af;
+}
+
+.tool-pieces {
+  color: #ffffff;
+  font-weight: 700;
 }
 
 .tool-status {

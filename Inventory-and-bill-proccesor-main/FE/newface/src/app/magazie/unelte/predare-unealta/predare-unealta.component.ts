@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
 import { SharedService } from 'src/app/shared.service';
 
 interface EmployeeOption {
@@ -15,6 +14,7 @@ interface ToolItem {
   ToolId: number;
   ToolSerie?: string | null;
   ToolName: string;
+  BatchId?: string | null;
   User?: string | null;
   IsSSM?: boolean | null;
   Status?: string | null;
@@ -54,6 +54,7 @@ export class PredareUnealtaComponent implements OnInit {
   saving = false;
   error: string | null = null;
   success: string | null = null;
+  quantities: Record<number, number> = {};
   private preselectedUserId: number | null = null;
 
   constructor(
@@ -217,7 +218,8 @@ export class PredareUnealtaComponent implements OnInit {
       return;
     }
 
-    const confirmed = confirm(`Predai 1 bucata din "${tool.ToolName}" catre ${this.selectedUser.UserName}?`);
+    const quantity = this.quantityFor(tool);
+    const confirmed = confirm(`Predai ${quantity} ${quantity === 1 ? 'bucata' : 'bucati'} din "${tool.ToolName}" catre ${this.selectedUser.UserName}?`);
     if (!confirmed) {
       return;
     }
@@ -226,19 +228,17 @@ export class PredareUnealtaComponent implements OnInit {
     this.error = null;
     this.success = null;
 
-    const request = pieces > 1
-      ? forkJoin([
-          this.service.updateTool(this.buildWarehouseStockPayload(tool, pieces - 1)),
-          this.service.addTool(this.buildAssignedToolPayload(tool)),
-        ])
-      : this.service.updateTool(this.buildAssignedToolPayload(tool, tool.ToolId, tool.ToolSerie ?? null));
-
-    request.subscribe({
+    this.service.assignToolQuantity({
+      ToolId: tool.ToolId,
+      AssignedUserId: this.selectedUser.UserId,
+      Pieces: quantity,
+    }).subscribe({
       next: () => {
         const userName = this.selectedUser?.UserName ?? 'angajat';
         this.saving = false;
-        this.success = `Unealta a fost predata catre ${userName}. Stoc magazie: ${Math.max(0, pieces - 1)}.`;
+        this.success = `Au fost predate ${quantity} ${quantity === 1 ? 'bucata' : 'bucati'} catre ${userName}.`;
         this.toolSearchTerm = '';
+        delete this.quantities[tool.ToolId];
         this.loadTools();
       },
       error: (err) => {
@@ -258,7 +258,8 @@ export class PredareUnealtaComponent implements OnInit {
     }
 
     const statusLabel = this.returnStatus === 'stricata' ? 'stricata' : 'functionala';
-    const confirmed = confirm(`Preiei "${tool.ToolName}" de la ${this.selectedUser.UserName} ca unealta ${statusLabel}?`);
+    const quantity = this.quantityFor(tool);
+    const confirmed = confirm(`Preiei ${quantity} ${quantity === 1 ? 'bucata' : 'bucati'} din "${tool.ToolName}" de la ${this.selectedUser.UserName} ca unealta ${statusLabel}?`);
     if (!confirmed) {
       return;
     }
@@ -267,33 +268,18 @@ export class PredareUnealtaComponent implements OnInit {
     this.error = null;
     this.success = null;
 
-    const payload = {
+    this.service.returnToolQuantity({
       ToolId: tool.ToolId,
-      ToolSerie: tool.ToolSerie ?? null,
-      ToolName: tool.ToolName,
-      User: null,
-      IsSSM: !!tool.IsSSM,
+      Pieces: quantity,
       Status: this.returnStatus,
-      Location: 'Magazie',
-      MainLocation: 'Magazie',
-      Detail: tool.Detail ?? null,
-      AssignedUserId: null,
-      DateReceived: tool.DateReceived ?? tool.DateOfGiving ?? null,
-      DateOfGiving: tool.DateReceived ?? tool.DateOfGiving ?? null,
-      IsReturned: true,
-      DateReturned: this.todayISO(),
-      IsLost: false,
-      DateLost: null,
-      Pieces: this.piecesCount(tool),
-    };
-
-    this.service.updateTool(payload).subscribe({
+    }).subscribe({
       next: () => {
         this.saving = false;
         this.success = this.returnStatus === 'stricata'
-          ? 'Unealta a fost preluata in magazie ca stricata.'
-          : 'Unealta a fost preluata in magazie ca functionala.';
+          ? `Au fost preluate ${quantity} ${quantity === 1 ? 'bucata' : 'bucati'} in magazie ca stricate.`
+          : `Au fost preluate ${quantity} ${quantity === 1 ? 'bucata' : 'bucati'} in magazie ca functionale.`;
         this.toolSearchTerm = '';
+        delete this.quantities[tool.ToolId];
         this.loadTools();
       },
       error: (err) => {
@@ -348,51 +334,28 @@ export class PredareUnealtaComponent implements OnInit {
   }
 
   piecesCount(tool: Pick<ToolItem, 'Pieces'> | null | undefined): number {
-    const pieces = Number(tool?.Pieces ?? 1);
-    return Number.isFinite(pieces) && pieces > 0 ? Math.floor(pieces) : 1;
+    if (tool?.Pieces === null || tool?.Pieces === undefined) {
+      return 1;
+    }
+    const pieces = Number(tool.Pieces);
+    return Number.isFinite(pieces) ? Math.max(0, Math.floor(pieces)) : 1;
   }
 
-  private buildAssignedToolPayload(tool: ToolItem, toolId?: number, toolSerie: string | null = null): any {
-    return {
-      ...(toolId ? { ToolId: toolId } : {}),
-      ToolSerie: toolSerie,
-      ToolName: tool.ToolName,
-      IsSSM: !!tool.IsSSM,
-      Status: 'in_lucru',
-      Location: this.selectedUser?.UserName ?? '',
-      MainLocation: this.selectedUser?.UserName ?? '',
-      Detail: tool.Detail ?? null,
-      AssignedUserId: this.selectedUser?.UserId ?? null,
-      DateReceived: this.todayISO(),
-      DateOfGiving: this.todayISO(),
-      IsReturned: false,
-      DateReturned: null,
-      IsLost: false,
-      DateLost: null,
-      Pieces: 1,
-    };
+  quantityFor(tool: ToolItem): number {
+    return this.clampQuantity(tool, this.quantities[tool.ToolId] ?? 1);
   }
 
-  private buildWarehouseStockPayload(tool: ToolItem, pieces: number): any {
-    return {
-      ToolId: tool.ToolId,
-      ToolSerie: tool.ToolSerie ?? null,
-      ToolName: tool.ToolName,
-      User: null,
-      IsSSM: !!tool.IsSSM,
-      Status: 'magazie',
-      Location: 'Magazie',
-      MainLocation: 'Magazie',
-      Detail: tool.Detail ?? null,
-      AssignedUserId: null,
-      DateReceived: null,
-      DateOfGiving: null,
-      IsReturned: false,
-      DateReturned: null,
-      IsLost: false,
-      DateLost: null,
-      Pieces: Math.max(1, Math.floor(pieces)),
-    };
+  setToolQuantity(tool: ToolItem, value: string | number | null): void {
+    this.quantities[tool.ToolId] = this.clampQuantity(tool, value);
+  }
+
+  private clampQuantity(tool: ToolItem, value: string | number | null | undefined): number {
+    const max = Math.max(1, this.piecesCount(tool));
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      return 1;
+    }
+    return Math.min(max, Math.max(1, Math.floor(parsed)));
   }
 
   private todayISO(): string {

@@ -15,6 +15,7 @@ interface ToolItem {
   ToolId: number;
   ToolSerie?: string | null;
   ToolName: string;
+  BatchId?: string | null;
   User?: string | null;
   IsSSM?: boolean | null;
   Status?: ToolStatus | string | null;
@@ -67,6 +68,7 @@ export class UnelteComponent implements OnInit {
   searchTerm = '';
   categoryFilter: CategoryFilter = 'ALL';
   statusFilter: StatusFilter = 'ALL';
+  showWarehouseOnly = false;
 
   readonly statuses: Array<{ value: ToolStatus; label: string }> = [
     { value: 'in_lucru', label: 'In lucru' },
@@ -110,8 +112,13 @@ export class UnelteComponent implements OnInit {
         || (this.categoryFilter === 'SITE' && !tool.IsSSM);
 
       const matchesStatus = this.statusFilter === 'ALL' || tool.Status === this.statusFilter;
+      const matchesWarehouse = !this.showWarehouseOnly || (
+        this.normalizeStatus(tool.Status) === 'magazie'
+        && !tool.AssignedUserId
+        && this.piecesCount(tool) > 0
+      );
 
-      return matchesSearch && matchesCategory && matchesStatus;
+      return matchesSearch && matchesCategory && matchesStatus && matchesWarehouse;
     });
   }
 
@@ -359,8 +366,11 @@ export class UnelteComponent implements OnInit {
   }
 
   piecesCount(tool: Pick<ToolItem, 'Pieces'> | null | undefined): number {
-    const pieces = Number(tool?.Pieces ?? 1);
-    return Number.isFinite(pieces) && pieces > 0 ? Math.floor(pieces) : 1;
+    if (tool?.Pieces === null || tool?.Pieces === undefined) {
+      return 1;
+    }
+    const pieces = Number(tool.Pieces);
+    return Number.isFinite(pieces) ? Math.max(0, Math.floor(pieces)) : 1;
   }
 
   private normalizeOptional(value: string | null | undefined): string | null {

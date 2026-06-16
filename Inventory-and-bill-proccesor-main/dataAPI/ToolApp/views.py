@@ -2,6 +2,7 @@
 import csv, io, re
 import json, logging, math
 import hashlib
+import uuid
 import unicodedata
 from threading import Lock
 from queue import Queue, Empty
@@ -631,6 +632,57 @@ def users_purge(request):
 
 
 #api unelte
+def _truthy(value):
+    return str(value or "").lower() in ("1", "true", "yes", "on")
+
+
+def _tool_pieces(tool):
+    if tool.Pieces is None:
+        return 1
+    try:
+        return max(0, int(tool.Pieces))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _request_quantity(data):
+    raw = data.get("Pieces", data.get("pieces", data.get("quantity", 1)))
+    try:
+        quantity = int(raw)
+    except (TypeError, ValueError):
+        quantity = 1
+    return max(1, quantity)
+
+
+def _ensure_batch_id(tool):
+    if not tool.BatchId:
+        tool.BatchId = f"TOOLBATCH-{uuid.uuid4().hex[:12].upper()}"
+        tool.save(update_fields=["BatchId"])
+    return tool.BatchId
+
+
+def _tool_snapshot(source, *, pieces, status, user=None, location="Magazie"):
+    return {
+        "ToolName": source.ToolName,
+        "ToolSerie": None,
+        "BatchId": source.BatchId,
+        "User": user.UserName if user else None,
+        "DateOfGiving": localdate() if user else None,
+        "Detail": source.Detail,
+        "Pieces": max(0, int(pieces)),
+        "MainLocation": location,
+        "Provider": source.Provider,
+        "RfidTag": None,
+        "AssignedTo": user,
+        "IsSSM": source.IsSSM,
+        "Status": status,
+        "IsReturned": False,
+        "IsLost": False,
+        "DateReturned": None,
+        "DateLost": None,
+    }
+
+
 @csrf_exempt
 def toolApi(request,id=0):
     if request.method=='GET':
@@ -655,6 +707,15 @@ def toolApi(request,id=0):
                 | Q(User__iexact=user.UserName)
                 | Q(MainLocation__iexact=user.UserName)
             )
+
+        tools = tools.filter(Q(Pieces__isnull=True) | Q(Pieces__gt=0))
+
+        warehouse_only = request.GET.get("warehouse")
+        if warehouse_only not in (None, "") and _truthy(warehouse_only):
+            tools = tools.filter(
+                AssignedTo__isnull=True,
+                Status=Tools.ToolStatus.MAGAZIE,
+            ).filter(Q(Pieces__isnull=True) | Q(Pieces__gt=0))
 
         is_ssm = request.GET.get("is_ssm")
         if is_ssm not in (None, ""):
@@ -713,6 +774,158 @@ def toolApi(request,id=0):
                 status=409,
             )
         return JsonResponse({"ok": True, "message": "Deleted Successfully"}, safe=False)
+
+
+@csrf_exempt
+def tool_assign_quantity(request):
+    if request.method != "POST":
+        return JsonResponse({"msg": "Only POST allowed"}, status=405)
+
+    data = JSONParser().parse(request)
+    quantity = _request_quantity(data)
+    tool_id = data.get("ToolId") or data.get("tool_id")
+    user_id = data.get("AssignedUserId") or data.get("user_id")
+
+    if not tool_id or not user_id:
+        return JsonResponse({"error": "ToolId si AssignedUserId sunt obligatorii."}, status=400)
+
+    with transaction.atomic():
+        try:
+            source = Tools.objects.select_for_update().get(ToolId=tool_id)
+            user = Users.objects.get(UserId=user_id)
+        except Tools.DoesNotExist:
+            return JsonResponse({"error": "Tool not found"}, status=404)
+        except Users.DoesNotExist:
+            return JsonResponse({"error": "User not found"}, status=404)
+
+        source_pieces = _tool_pieces(source)
+        if source.Status != Tools.ToolStatus.MAGAZIE or source.AssignedTo_id is not None:
+            return JsonResponse({"error": "Unealta trebuie sa fie in magazie pentru predare."}, status=400)
+        if source_pieces < quantity:
+            return JsonResponse({"error": "Stoc insuficient in magazie."}, status=400)
+
+        batch_id = _ensure_batch_id(source)
+        source.Pieces = source_pieces - quantity
+        source.AssignedTo = None
+        source.User = None
+        source.MainLocation = "Magazie"
+        source.Status = Tools.ToolStatus.MAGAZIE
+        source.IsReturned = False
+        source.IsLost = False
+        source.DateReturned = None
+        source.DateLost = None
+        source.save(update_fields=[
+            "Pieces", "AssignedTo", "User", "MainLocation", "Status",
+            "IsReturned", "IsLost", "DateReturned", "DateLost",
+        ])
+
+        assigned = Tools.objects.select_for_update().filter(
+            BatchId=batch_id,
+            AssignedTo=user,
+            Status=Tools.ToolStatus.IN_LUCRU,
+            IsReturned=False,
+            IsLost=False,
+        ).order_by("ToolId").first()
+
+        if assigned:
+            assigned.Pieces = _tool_pieces(assigned) + quantity
+            assigned.User = user.UserName
+            assigned.MainLocation = user.UserName
+            assigned.DateOfGiving = localdate()
+            assigned.save(update_fields=["Pieces", "User", "MainLocation", "DateOfGiving"])
+        else:
+            assigned = Tools.objects.create(
+                **_tool_snapshot(
+                    source,
+                    pieces=quantity,
+                    status=Tools.ToolStatus.IN_LUCRU,
+                    user=user,
+                    location=user.UserName,
+                )
+            )
+
+    return JsonResponse({
+        "warehouse": ToolSerializer(source).data,
+        "assigned": ToolSerializer(assigned).data,
+    }, safe=False)
+
+
+@csrf_exempt
+def tool_return_quantity(request):
+    if request.method != "POST":
+        return JsonResponse({"msg": "Only POST allowed"}, status=405)
+
+    data = JSONParser().parse(request)
+    quantity = _request_quantity(data)
+    tool_id = data.get("ToolId") or data.get("tool_id")
+    raw_status = str(data.get("Status") or data.get("status") or Tools.ToolStatus.MAGAZIE).strip().lower()
+    target_status = Tools.ToolStatus.STRICATA if raw_status == Tools.ToolStatus.STRICATA else Tools.ToolStatus.MAGAZIE
+
+    if not tool_id:
+        return JsonResponse({"error": "ToolId este obligatoriu."}, status=400)
+
+    with transaction.atomic():
+        try:
+            source = Tools.objects.select_for_update().select_related("AssignedTo").get(ToolId=tool_id)
+        except Tools.DoesNotExist:
+            return JsonResponse({"error": "Tool not found"}, status=404)
+
+        source_pieces = _tool_pieces(source)
+        if source.Status != Tools.ToolStatus.IN_LUCRU or source.AssignedTo_id is None:
+            return JsonResponse({"error": "Unealta trebuie sa fie in lucru la un angajat pentru preluare."}, status=400)
+        if source_pieces < quantity:
+            return JsonResponse({"error": "Angajatul nu are atatea bucati de returnat."}, status=400)
+
+        batch_id = _ensure_batch_id(source)
+        warehouse = Tools.objects.select_for_update().filter(
+            BatchId=batch_id,
+            AssignedTo__isnull=True,
+            Status=target_status,
+        ).order_by("ToolId").first()
+
+        if warehouse:
+            warehouse.Pieces = _tool_pieces(warehouse) + quantity
+            warehouse.User = None
+            warehouse.MainLocation = "Magazie"
+            warehouse.IsReturned = False
+            warehouse.IsLost = False
+            warehouse.DateReturned = None
+            warehouse.DateLost = None
+            warehouse.save(update_fields=[
+                "Pieces", "User", "MainLocation", "IsReturned",
+                "IsLost", "DateReturned", "DateLost",
+            ])
+        else:
+            warehouse = Tools.objects.create(
+                **_tool_snapshot(
+                    source,
+                    pieces=quantity,
+                    status=target_status,
+                    user=None,
+                    location="Magazie",
+                )
+            )
+
+        remaining = source_pieces - quantity
+        if remaining > 0:
+            source.Pieces = remaining
+            source.save(update_fields=["Pieces"])
+            employee_tool = source
+        else:
+            employee_tool = None
+            try:
+                source.delete()
+            except ProtectedError:
+                source.Pieces = 0
+                source.Status = Tools.ToolStatus.MAGAZIE
+                source.IsReturned = True
+                source.DateReturned = localdate()
+                source.save(update_fields=["Pieces", "Status", "IsReturned", "DateReturned"])
+
+    return JsonResponse({
+        "warehouse": ToolSerializer(warehouse).data,
+        "employee": ToolSerializer(employee_tool).data if employee_tool else None,
+    }, safe=False)
 
 #api istoric
 @csrf_exempt

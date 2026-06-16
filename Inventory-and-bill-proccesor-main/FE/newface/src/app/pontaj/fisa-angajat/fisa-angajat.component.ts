@@ -32,6 +32,7 @@ interface EmployeeTool {
   AssignedUserName?: string | null;
   DateReceived?: string | null;
   DateOfGiving?: string | null;
+  Pieces?: number | null;
   IsReturned?: boolean | null;
   IsLost?: boolean | null;
   DateReturned?: string | null;
@@ -94,19 +95,25 @@ export class FisaAngajatComponent implements OnInit {
   }
 
   get inWorkCount(): number {
-    return this.currentTools.filter(tool => this.normalizeStatus(tool.Status) === 'in_lucru' && !tool.IsReturned && !tool.IsLost).length;
+    return this.currentTools
+      .filter(tool => this.normalizeStatus(tool.Status) === 'in_lucru' && !tool.IsReturned && !tool.IsLost)
+      .reduce((total, tool) => total + this.piecesCount(tool), 0);
   }
 
   get returnedCount(): number {
-    return this.currentTools.filter(tool => !!tool.IsReturned).length;
+    return this.currentTools
+      .filter(tool => !!tool.IsReturned)
+      .reduce((total, tool) => total + this.piecesCount(tool), 0);
   }
 
   get lostCount(): number {
-    return this.currentTools.filter(tool => !!tool.IsLost).length;
+    return this.currentTools
+      .filter(tool => !!tool.IsLost)
+      .reduce((total, tool) => total + this.piecesCount(tool), 0);
   }
 
   get totalCount(): number {
-    return this.currentTools.length;
+    return this.currentTools.reduce((total, tool) => total + this.piecesCount(tool), 0);
   }
 
   get profileInitials(): string {
@@ -230,6 +237,14 @@ export class FisaAngajatComponent implements OnInit {
 
   trackByTool(_: number, tool: EmployeeTool): number {
     return tool.ToolId;
+  }
+
+  piecesCount(tool: Pick<EmployeeTool, 'Pieces'> | null | undefined): number {
+    if (tool?.Pieces === null || tool?.Pieces === undefined) {
+      return 1;
+    }
+    const pieces = Number(tool.Pieces);
+    return Number.isFinite(pieces) ? Math.max(0, Math.floor(pieces)) : 1;
   }
 
   private normalizeStatus(status: string | null | undefined): string {

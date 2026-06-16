@@ -86,6 +86,7 @@ class ToolSerializer(serializers.ModelSerializer):
             "ToolId",
             "ToolSerie",
             "ToolName",
+            "BatchId",
             "User",           # legacy (read/write, dacă îl folosești încă)
             "DateOfGiving",   # legacy
             "Detail",
@@ -108,6 +109,7 @@ class ToolSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "ToolSerie": {"required": False, "allow_null": True, "allow_blank": True},
             "ToolName": {"required": True, "allow_blank": False},
+            "BatchId": {"required": False, "allow_blank": True},
             "User": {"required": False, "allow_null": True, "allow_blank": True},
             "DateOfGiving": {"required": False, "allow_null": True},
             "Detail": {"required": False, "allow_null": True, "allow_blank": True},
@@ -179,6 +181,9 @@ class ToolSerializer(serializers.ModelSerializer):
             attrs["ToolSerie"] = f"TOOL-{uuid.uuid4().hex[:10].upper()}"
         elif "ToolSerie" in attrs and not attrs.get("ToolSerie"):
             attrs.pop("ToolSerie")
+
+        if self.instance is None and not attrs.get("BatchId"):
+            attrs["BatchId"] = f"TOOLBATCH-{uuid.uuid4().hex[:12].upper()}"
 
         if attrs.get("IsLost"):
             attrs["IsReturned"] = False
