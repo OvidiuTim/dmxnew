@@ -14,10 +14,6 @@
         <p class="eyebrow">Magazie</p>
         <h2>Adauga unealta</h2>
       </div>
-      <div class="head-stats">
-        <span>Locatie: {{ computedLocation }}</span>
-        <span>Stare: {{ computedStatusLabel }}</span>
-      </div>
     </header>
 
     <section class="editor-panel add-panel">
@@ -25,7 +21,7 @@
         <h3>Unealta noua</h3>
       </div>
 
-      <div class="form-grid add-form-grid">
+      <div class="add-form-grid">
         <label>
           <span>Nume unealta</span>
           <input type="text" [(ngModel)]="form.ToolName" placeholder="Ex: Ruleta Stanley 5m">
@@ -46,30 +42,40 @@
 
         <label>
           <span>Angajat</span>
-          <select [(ngModel)]="form.AssignedUserId" [disabled]="loadingUsers">
+          <select class="employee-select" [(ngModel)]="form.AssignedUserId" [disabled]="loadingUsers">
             <option [ngValue]="null">Fara angajat</option>
             <option *ngFor="let user of users" [ngValue]="user.UserId">{{ user.UserName }}</option>
           </select>
         </label>
 
-        <label class="span-2">
+        <label>
+          <span>Numar bucati</span>
+          <input type="number" min="1" step="1" [(ngModel)]="form.Pieces">
+        </label>
+
+        <label>
+          <span>Data primirii</span>
+          <div class="readonly-field">{{ computedDateReceived }}</div>
+        </label>
+
+        <label class="details-field">
           <span>Detalii</span>
           <textarea rows="3" [(ngModel)]="form.Detail" placeholder="Detalii utile pentru magazie"></textarea>
         </label>
 
-        <div class="computed-card">
-          <span>Stare automata</span>
-          <strong>{{ computedStatusLabel }}</strong>
-        </div>
+        <div class="auto-info">
+          <div class="auto-info-title">Informatii automate</div>
+          <div class="auto-info-grid">
+            <div class="auto-card">
+              <span>Stare automata</span>
+              <strong>{{ computedStatusLabel }}</strong>
+            </div>
 
-        <div class="computed-card">
-          <span>Locatie automata</span>
-          <strong>{{ computedLocation }}</strong>
-        </div>
-
-        <div class="computed-card">
-          <span>Data primirii</span>
-          <strong>{{ computedDateReceived || 'Se seteaza cand alegi angajat' }}</strong>
+            <div class="auto-card">
+              <span>Locatie automata</span>
+              <strong>{{ computedLocation }}</strong>
+            </div>
+          </div>
         </div>
       </div>
 

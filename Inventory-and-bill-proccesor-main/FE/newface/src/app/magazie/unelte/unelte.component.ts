@@ -42,6 +42,7 @@ interface ToolForm {
   Location: string;
   Detail: string;
   AssignedUserId: number | null;
+  Pieces: number;
   DateReceived: string;
   IsReturned: boolean;
   DateReturned: string;
@@ -115,11 +116,19 @@ export class UnelteComponent implements OnInit {
   }
 
   get totalSiteTools(): number {
-    return this.tools.filter(tool => !tool.IsSSM).length;
+    return this.tools
+      .filter(tool => !tool.IsSSM)
+      .reduce((total, tool) => total + this.piecesCount(tool), 0);
   }
 
   get totalSsmTools(): number {
-    return this.tools.filter(tool => !!tool.IsSSM).length;
+    return this.tools
+      .filter(tool => !!tool.IsSSM)
+      .reduce((total, tool) => total + this.piecesCount(tool), 0);
+  }
+
+  get totalToolPieces(): number {
+    return this.tools.reduce((total, tool) => total + this.piecesCount(tool), 0);
   }
 
   loadInitialData(): void {
@@ -170,6 +179,11 @@ export class UnelteComponent implements OnInit {
       return;
     }
 
+    if (!Number.isFinite(Number(this.toolForm.Pieces)) || Number(this.toolForm.Pieces) < 1) {
+      this.error = 'Numarul de bucati trebuie sa fie cel putin 1.';
+      return;
+    }
+
     this.saving = true;
     const payload = this.buildPayload();
     const request = this.service.updateTool(payload);
@@ -203,6 +217,7 @@ export class UnelteComponent implements OnInit {
       Location: tool.Location ?? tool.MainLocation ?? '',
       Detail: tool.Detail ?? '',
       AssignedUserId: tool.AssignedUserId ?? null,
+      Pieces: this.piecesCount(tool),
       DateReceived: tool.DateReceived ?? tool.DateOfGiving ?? '',
       IsReturned: !!tool.IsReturned,
       DateReturned: tool.DateReturned ?? '',
@@ -313,7 +328,7 @@ export class UnelteComponent implements OnInit {
       DateReturned: this.toolForm.IsReturned ? this.normalizeOptional(this.toolForm.DateReturned) : null,
       IsLost: this.toolForm.IsLost,
       DateLost: this.toolForm.IsLost ? this.normalizeOptional(this.toolForm.DateLost) : null,
-      Pieces: 1,
+      Pieces: Math.max(1, Math.floor(Number(this.toolForm.Pieces) || 1)),
     };
   }
 
@@ -327,6 +342,7 @@ export class UnelteComponent implements OnInit {
       Location: '',
       Detail: '',
       AssignedUserId: null,
+      Pieces: 1,
       DateReceived: this.todayISO(),
       IsReturned: false,
       DateReturned: '',
@@ -340,6 +356,11 @@ export class UnelteComponent implements OnInit {
       return status;
     }
     return 'in_lucru';
+  }
+
+  piecesCount(tool: Pick<ToolItem, 'Pieces'> | null | undefined): number {
+    const pieces = Number(tool?.Pieces ?? 1);
+    return Number.isFinite(pieces) && pieces > 0 ? Math.floor(pieces) : 1;
   }
 
   private normalizeOptional(value: string | null | undefined): string | null {

@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { SharedService } from 'src/app/shared.service';
 
 interface EmployeeOption {
@@ -53,10 +54,21 @@ export class PredareUnealtaComponent implements OnInit {
   saving = false;
   error: string | null = null;
   success: string | null = null;
+  private preselectedUserId: number | null = null;
 
-  constructor(private router: Router, private service: SharedService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private service: SharedService
+  ) {}
 
   ngOnInit(): void {
+    const rawUserId = this.route.snapshot.queryParamMap.get('user_id');
+    const parsedUserId = Number(rawUserId);
+    if (rawUserId && Number.isFinite(parsedUserId)) {
+      this.preselectedUserId = parsedUserId;
+    }
+
     this.loadUsers();
     this.loadTools();
   }
@@ -127,6 +139,15 @@ export class PredareUnealtaComponent implements OnInit {
           }))
           .filter(user => Number.isFinite(user.UserId) && !!user.UserName)
           .sort((a, b) => a.UserName.localeCompare(b.UserName, 'ro'));
+
+        const preselectedUser = this.preselectedUserId
+          ? this.users.find(user => user.UserId === this.preselectedUserId)
+          : null;
+        if (preselectedUser) {
+          this.selectUser(preselectedUser);
+          this.activeTab = 'predare';
+        }
+
         this.loadingUsers = false;
       },
       error: (err) => {
@@ -180,7 +201,7 @@ export class PredareUnealtaComponent implements OnInit {
     }
 
     this.router.navigate(['/unelte/adauga-unealta'], {
-      queryParams: { user_id: this.selectedUser.UserId }
+      queryParams: { user_id: this.selectedUser.UserId, from: 'predare' }
     });
   }
 
@@ -190,7 +211,13 @@ export class PredareUnealtaComponent implements OnInit {
       return;
     }
 
-    const confirmed = confirm(`Predai "${tool.ToolName}" catre ${this.selectedUser.UserName}?`);
+    const pieces = this.piecesCount(tool);
+    if (pieces < 1) {
+      this.error = 'Unealta nu are stoc disponibil in magazie.';
+      return;
+    }
+
+    const confirmed = confirm(`Predai 1 bucata din "${tool.ToolName}" catre ${this.selectedUser.UserName}?`);
     if (!confirmed) {
       return;
     }
@@ -199,30 +226,18 @@ export class PredareUnealtaComponent implements OnInit {
     this.error = null;
     this.success = null;
 
-    const payload = {
-      ToolId: tool.ToolId,
-      ToolSerie: tool.ToolSerie ?? null,
-      ToolName: tool.ToolName,
-      IsSSM: !!tool.IsSSM,
-      Status: 'in_lucru',
-      Location: this.selectedUser.UserName,
-      MainLocation: this.selectedUser.UserName,
-      Detail: tool.Detail ?? null,
-      AssignedUserId: this.selectedUser.UserId,
-      DateReceived: this.todayISO(),
-      DateOfGiving: this.todayISO(),
-      IsReturned: false,
-      DateReturned: null,
-      IsLost: false,
-      DateLost: null,
-      Pieces: tool.Pieces ?? 1,
-    };
+    const request = pieces > 1
+      ? forkJoin([
+          this.service.updateTool(this.buildWarehouseStockPayload(tool, pieces - 1)),
+          this.service.addTool(this.buildAssignedToolPayload(tool)),
+        ])
+      : this.service.updateTool(this.buildAssignedToolPayload(tool, tool.ToolId, tool.ToolSerie ?? null));
 
-    this.service.updateTool(payload).subscribe({
+    request.subscribe({
       next: () => {
         const userName = this.selectedUser?.UserName ?? 'angajat';
         this.saving = false;
-        this.success = `Unealta a fost predata catre ${userName}.`;
+        this.success = `Unealta a fost predata catre ${userName}. Stoc magazie: ${Math.max(0, pieces - 1)}.`;
         this.toolSearchTerm = '';
         this.loadTools();
       },
@@ -269,7 +284,7 @@ export class PredareUnealtaComponent implements OnInit {
       DateReturned: this.todayISO(),
       IsLost: false,
       DateLost: null,
-      Pieces: tool.Pieces ?? 1,
+      Pieces: this.piecesCount(tool),
     };
 
     this.service.updateTool(payload).subscribe({
@@ -304,7 +319,7 @@ export class PredareUnealtaComponent implements OnInit {
 
   private isWarehouseTool(tool: ToolItem): boolean {
     const status = this.normalize(tool.Status);
-    return !tool.IsLost && status === 'magazie';
+    return !tool.IsLost && status === 'magazie' && this.piecesCount(tool) > 0;
   }
 
   private isToolAssignedToSelectedUser(tool: ToolItem): boolean {
@@ -330,6 +345,54 @@ export class PredareUnealtaComponent implements OnInit {
       .replace(/[\u0300-\u036f]/g, '')
       .trim()
       .toLowerCase();
+  }
+
+  piecesCount(tool: Pick<ToolItem, 'Pieces'> | null | undefined): number {
+    const pieces = Number(tool?.Pieces ?? 1);
+    return Number.isFinite(pieces) && pieces > 0 ? Math.floor(pieces) : 1;
+  }
+
+  private buildAssignedToolPayload(tool: ToolItem, toolId?: number, toolSerie: string | null = null): any {
+    return {
+      ...(toolId ? { ToolId: toolId } : {}),
+      ToolSerie: toolSerie,
+      ToolName: tool.ToolName,
+      IsSSM: !!tool.IsSSM,
+      Status: 'in_lucru',
+      Location: this.selectedUser?.UserName ?? '',
+      MainLocation: this.selectedUser?.UserName ?? '',
+      Detail: tool.Detail ?? null,
+      AssignedUserId: this.selectedUser?.UserId ?? null,
+      DateReceived: this.todayISO(),
+      DateOfGiving: this.todayISO(),
+      IsReturned: false,
+      DateReturned: null,
+      IsLost: false,
+      DateLost: null,
+      Pieces: 1,
+    };
+  }
+
+  private buildWarehouseStockPayload(tool: ToolItem, pieces: number): any {
+    return {
+      ToolId: tool.ToolId,
+      ToolSerie: tool.ToolSerie ?? null,
+      ToolName: tool.ToolName,
+      User: null,
+      IsSSM: !!tool.IsSSM,
+      Status: 'magazie',
+      Location: 'Magazie',
+      MainLocation: 'Magazie',
+      Detail: tool.Detail ?? null,
+      AssignedUserId: null,
+      DateReceived: null,
+      DateOfGiving: null,
+      IsReturned: false,
+      DateReturned: null,
+      IsLost: false,
+      DateLost: null,
+      Pieces: Math.max(1, Math.floor(pieces)),
+    };
   }
 
   private todayISO(): string {

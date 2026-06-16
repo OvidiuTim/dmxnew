@@ -117,6 +117,7 @@
             <div>
               <strong>{{ tool.ToolName }}</strong>
               <span>{{ tool.ToolSerie || 'Fara serie' }}</span>
+              <small>Bucati: {{ piecesCount(tool) }}</small>
               <small>{{ holderLabel(tool) }}</small>
               <small *ngIf="tool.Detail">{{ tool.Detail }}</small>
             </div>

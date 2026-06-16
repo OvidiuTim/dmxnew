@@ -165,6 +165,13 @@ class ToolSerializer(serializers.ModelSerializer):
             return aliases[normalized]
         raise serializers.ValidationError("Valori permise: stricata, in_lucru, magazie.")
 
+    def validate_Pieces(self, value):
+        if value in (None, ""):
+            return value
+        if int(value) < 1:
+            raise serializers.ValidationError("Numarul de bucati trebuie sa fie cel putin 1.")
+        return int(value)
+
     def validate(self, attrs):
         attrs = super().validate(attrs)
 

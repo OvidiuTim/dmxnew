@@ -17,7 +17,7 @@
       <div class="head-stats">
         <span>Scule santier: {{ totalSiteTools }}</span>
         <span>Scule SSM: {{ totalSsmTools }}</span>
-        <span>Total: {{ tools.length }}</span>
+        <span>Total bucati: {{ totalToolPieces }}</span>
       </div>
     </header>
 
@@ -59,6 +59,11 @@
             <option [ngValue]="null">Fara angajat</option>
             <option *ngFor="let user of users" [ngValue]="user.UserId">{{ user.UserName }}</option>
           </select>
+        </label>
+
+        <label>
+          <span>Numar bucati</span>
+          <input type="number" min="1" step="1" [(ngModel)]="toolForm.Pieces">
         </label>
 
         <label>
@@ -143,6 +148,7 @@
         <div>Stare</div>
         <div>Locatie</div>
         <div>Angajat</div>
+        <div>Bucati</div>
         <div>Primita</div>
         <div>Predare</div>
         <div>Actiuni</div>
@@ -166,6 +172,7 @@
         </div>
         <div>{{ tool.Location || tool.MainLocation || '-' }}</div>
         <div>{{ tool.AssignedUserName || tool.User || '-' }}</div>
+        <div>{{ piecesCount(tool) }}</div>
         <div>{{ formatDate(tool.DateReceived || tool.DateOfGiving) }}</div>
         <div>{{ possessionLabel(tool) }}</div>
         <div class="row-actions">

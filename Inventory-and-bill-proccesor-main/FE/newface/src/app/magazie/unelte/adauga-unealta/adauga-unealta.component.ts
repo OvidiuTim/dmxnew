@@ -12,6 +12,7 @@ interface AddToolForm {
   ToolSerie: string;
   IsSSM: boolean;
   AssignedUserId: number | null;
+  Pieces: number;
   Detail: string;
 }
 
@@ -29,6 +30,7 @@ export class AdaugaUnealtaComponent implements OnInit {
   error: string | null = null;
   success: string | null = null;
   private preselectedUserId: number | null = null;
+  private returnToPredare = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -37,8 +39,11 @@ export class AdaugaUnealtaComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    const rawUserId = this.route.snapshot.queryParamMap.get('user_id');
+    const params = this.route.snapshot.queryParamMap;
+    const rawUserId = params.get('user_id');
     const parsedUserId = Number(rawUserId);
+    this.returnToPredare = params.get('from') === 'predare';
+
     if (rawUserId && Number.isFinite(parsedUserId)) {
       this.preselectedUserId = parsedUserId;
       this.form.AssignedUserId = parsedUserId;
@@ -69,7 +74,7 @@ export class AdaugaUnealtaComponent implements OnInit {
   }
 
   get computedDateReceived(): string | null {
-    return this.assignedUser ? this.todayISO() : null;
+    return this.todayISO();
   }
 
   loadUsers(): void {
@@ -104,15 +109,24 @@ export class AdaugaUnealtaComponent implements OnInit {
       return;
     }
 
+    if (!Number.isFinite(Number(this.form.Pieces)) || Number(this.form.Pieces) < 1) {
+      this.error = 'Numarul de bucati trebuie sa fie cel putin 1.';
+      return;
+    }
+
     this.saving = true;
     this.service.addTool(this.buildPayload()).subscribe({
       next: () => {
         this.saving = false;
-        this.success = 'Unealta a fost adaugata.';
-        this.form = this.emptyForm();
-        if (this.preselectedUserId) {
-          this.form.AssignedUserId = this.preselectedUserId;
+
+        if (this.returnToPredare && this.preselectedUserId) {
+          this.router.navigate(['/predare-unealta'], {
+            queryParams: { user_id: this.preselectedUserId }
+          });
+          return;
         }
+
+        this.router.navigateByUrl('/unelte');
       },
       error: (err) => {
         console.error('Nu pot adauga unealta', err);
@@ -140,7 +154,7 @@ export class AdaugaUnealtaComponent implements OnInit {
       DateReturned: null,
       IsLost: false,
       DateLost: null,
-      Pieces: 1,
+      Pieces: Math.max(1, Math.floor(Number(this.form.Pieces) || 1)),
     };
   }
 
@@ -150,6 +164,7 @@ export class AdaugaUnealtaComponent implements OnInit {
       ToolSerie: '',
       IsSSM: false,
       AssignedUserId: null,
+      Pieces: 1,
       Detail: '',
     };
   }
