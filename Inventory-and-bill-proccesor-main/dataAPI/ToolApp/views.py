@@ -22,11 +22,12 @@ from django.utils.timezone import localtime, localdate
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
 from django.db.models import Sum, Min, Max, OuterRef, Subquery, Q
+from django.core import signing
 from django.core.cache import cache
 
 # --- App (ToolApp) ---
 from ToolApp.models import (
-    Users, AttendanceSession, PresenceEvent, Tools, Histories,
+    Users, AppUser, AppPagePermission, AttendanceSession, PresenceEvent, Tools, Histories,
     Shed, Unfunctional, Materials, Consumables, WorkField,
     CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas,
     SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay, LeaveDay,
@@ -52,7 +53,11 @@ from django.utils.timezone import localtime, localdate
 from datetime import date, datetime
 from django.db.models import Sum, Min, Max
 from ToolApp.models import Users, AttendanceSession
-from ToolApp.security import TOKEN_AGE, check_admin_token, get_token_from_request, make_admin_token
+from ToolApp.security import (
+    ADMIN_APP_COOKIE, APP_TOKEN_COOKIE, TOKEN_AGE,
+    app_user_has_route, check_admin_token, get_app_user_from_request,
+    get_token_from_request, make_admin_token, make_app_user_token,
+)
 
 from datetime import datetime
 from django.utils import timezone
@@ -3351,6 +3356,80 @@ def _expected_password():
         or getattr(settings, "PONTAJ_LOGIN_PASSWORD", "")
     )
 
+
+APP_PERMISSION_ROUTES = [
+    "/pontaj",
+    "/pontaj/rapoarte",
+    "/pontaj/fisa-angajat",
+    "/users/new",
+    "/user/:id",
+    "/unelte",
+    "/unelte/adauga-unealta",
+    "/predare-unealta",
+    "/magazie",
+    "/angajati",
+    "/materiale",
+    "/schela",
+    "/history",
+    "/rafturi",
+    "/dashboard",
+]
+
+ADMIN_APP_TOKEN_SALT = "dmx-admin-app-page"
+
+
+def _expected_admin_app_password():
+    return os.environ.get("ADMIN_APP_PAGE_PASSWORD") or getattr(settings, "ADMIN_APP_PAGE_PASSWORD", "")
+
+
+def _make_admin_app_token():
+    return signing.dumps({"k": "admin-app-page", "v": 1}, salt=ADMIN_APP_TOKEN_SALT)
+
+
+def _check_admin_app_token(token):
+    if not token:
+        return False
+    try:
+        data = signing.loads(token, salt=ADMIN_APP_TOKEN_SALT, max_age=TOKEN_AGE)
+    except (signing.SignatureExpired, signing.BadSignature):
+        return False
+    return data.get("k") == "admin-app-page"
+
+
+def _request_has_admin_app(request):
+    return _check_admin_app_token(request.COOKIES.get(ADMIN_APP_COOKIE) or "")
+
+
+def _serialize_app_user(app_user):
+    permissions = {
+        permission.route: permission.can_access
+        for permission in app_user.page_permissions.all()
+    }
+    return {
+        "id": app_user.AppUserId,
+        "username": app_user.username,
+        "is_active": app_user.is_active,
+        "employee": {
+            "id": app_user.employee_id,
+            "name": app_user.employee.UserName,
+            "serie": app_user.employee.UserSerie,
+            "pin": app_user.employee.UserPin,
+        },
+        "permissions": {
+            route: bool(permissions.get(route, False))
+            for route in APP_PERMISSION_ROUTES
+        },
+    }
+
+
+def _app_user_permissions(app_user):
+    return list(
+        AppPagePermission.objects
+        .filter(app_user=app_user, can_access=True)
+        .values_list("route", flat=True)
+    )
+
+
 # --- AUTH LOGIN / VERIFY ---
 @csrf_exempt
 def auth_login(request):
@@ -3378,6 +3457,7 @@ def auth_login(request):
             samesite="Lax",
             secure=getattr(settings, "SESSION_COOKIE_SECURE", True),
         )
+        resp.delete_cookie(APP_TOKEN_COOKIE, samesite="Lax")
         return resp
     return JsonResponse({"error": "Invalid password"}, status=401)
 
@@ -3389,8 +3469,190 @@ def auth_verify(request):
 
     ok = _check_token(tok or "")
     if ok:
-        return JsonResponse({"ok": True, "role": "admin"})
+        return JsonResponse({"ok": True, "role": "admin", "auth_type": "legacy"})
     return JsonResponse({"ok": False}, status=401)
+
+
+@csrf_exempt
+def auth_logout(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+    resp = JsonResponse({"ok": True})
+    resp.delete_cookie("ptj", samesite="Lax")
+    resp.delete_cookie(APP_TOKEN_COOKIE, samesite="Lax")
+    return resp
+
+
+@csrf_exempt
+def app_auth_login(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    username = str(data.get("username") or "").strip().lower()
+    pin = str(data.get("pin") or "").strip()
+    if not username or not pin:
+        return JsonResponse({"error": "Username si PIN sunt obligatorii."}, status=400)
+
+    try:
+        app_user = AppUser.objects.select_related("employee").prefetch_related("page_permissions").get(
+            username__iexact=username,
+            is_active=True,
+        )
+    except AppUser.DoesNotExist:
+        return JsonResponse({"error": "Cont invalid sau inactiv."}, status=401)
+
+    if not app_user.check_pin(pin):
+        return JsonResponse({"error": "PIN invalid."}, status=401)
+
+    resp = JsonResponse({
+        "ok": True,
+        "role": "app_user",
+        "auth_type": "app_user",
+        "app_user": _serialize_app_user(app_user),
+        "permissions": _app_user_permissions(app_user),
+        "expires_in": TOKEN_AGE,
+    })
+    resp.set_cookie(
+        APP_TOKEN_COOKIE,
+        make_app_user_token(app_user),
+        max_age=TOKEN_AGE,
+        httponly=True,
+        samesite="Lax",
+        secure=getattr(settings, "SESSION_COOKIE_SECURE", True),
+    )
+    resp.delete_cookie("ptj", samesite="Lax")
+    return resp
+
+
+@csrf_exempt
+def app_auth_verify(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+    app_user = get_app_user_from_request(request)
+    if not app_user:
+        return JsonResponse({"ok": False}, status=401)
+
+    app_user = (
+        AppUser.objects.select_related("employee")
+        .prefetch_related("page_permissions")
+        .get(AppUserId=app_user.AppUserId)
+    )
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        data = {}
+    route = str(data.get("route") or "").strip()
+    response = {
+        "ok": True,
+        "role": "app_user",
+        "auth_type": "app_user",
+        "app_user": _serialize_app_user(app_user),
+        "permissions": _app_user_permissions(app_user),
+    }
+    if route:
+        response["can_access"] = app_user_has_route(app_user, route)
+    return JsonResponse(response)
+
+
+@csrf_exempt
+def app_auth_logout(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+    resp = JsonResponse({"ok": True})
+    resp.delete_cookie(APP_TOKEN_COOKIE, samesite="Lax")
+    return resp
+
+
+@csrf_exempt
+def app_admin_login(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    expected = _expected_admin_app_password()
+    got = str(data.get("password") or "")
+    if not expected:
+        return JsonResponse({"error": "ADMIN_APP_PAGE_PASSWORD lipseste din .env"}, status=500)
+    if not hmac.compare_digest(got, expected):
+        return JsonResponse({"error": "Parola admin invalida."}, status=401)
+
+    resp = JsonResponse({"ok": True})
+    resp.set_cookie(
+        ADMIN_APP_COOKIE,
+        _make_admin_app_token(),
+        max_age=TOKEN_AGE,
+        httponly=True,
+        samesite="Lax",
+        secure=getattr(settings, "SESSION_COOKIE_SECURE", True),
+    )
+    return resp
+
+
+@csrf_exempt
+def app_admin_verify(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+    return JsonResponse({"ok": _request_has_admin_app(request)})
+
+
+@csrf_exempt
+def app_admin_users(request):
+    if not _request_has_admin_app(request):
+        return JsonResponse({"error": "Admin app page authentication required"}, status=401)
+
+    if request.method == "GET":
+        app_users = (
+            AppUser.objects.select_related("employee")
+            .prefetch_related("page_permissions")
+            .order_by("username")
+        )
+        return JsonResponse({
+            "routes": APP_PERMISSION_ROUTES,
+            "users": [_serialize_app_user(app_user) for app_user in app_users],
+        })
+
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body or "{}")
+        except Exception:
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        app_user_id = data.get("app_user_id")
+        try:
+            app_user = AppUser.objects.get(AppUserId=app_user_id)
+        except AppUser.DoesNotExist:
+            return JsonResponse({"error": "AppUser not found"}, status=404)
+
+        if "is_active" in data:
+            app_user.is_active = bool(data.get("is_active"))
+            app_user.save(update_fields=["is_active", "updated_at"])
+
+        route = str(data.get("route") or "").strip()
+        if route:
+            if route not in APP_PERMISSION_ROUTES:
+                return JsonResponse({"error": "Ruta nu este gestionata."}, status=400)
+            AppPagePermission.objects.update_or_create(
+                app_user=app_user,
+                route=route,
+                defaults={"can_access": bool(data.get("can_access"))},
+            )
+
+        app_user = (
+            AppUser.objects.select_related("employee")
+            .prefetch_related("page_permissions")
+            .get(AppUserId=app_user.AppUserId)
+        )
+        return JsonResponse({"ok": True, "user": _serialize_app_user(app_user)})
+
+    return JsonResponse({"error": "Only GET/POST allowed"}, status=405)
 
 
 

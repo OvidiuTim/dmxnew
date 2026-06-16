@@ -1,9 +1,21 @@
 <div class="login-wrap">
   <h2>Autentificare</h2>
-  <p class="muted">Introdu parola pentru a accesa pontajul.</p>
-  <form (ngSubmit)="submit()">
+  <p class="muted" *ngIf="mode === 'default'">Introdu parola pentru a accesa pontajul.</p>
+  <p class="muted" *ngIf="mode === 'account'">Intră cu utilizatorul tău de aplicație.</p>
+
+  <form (ngSubmit)="submit()" *ngIf="mode === 'default'">
     <input type="password" [(ngModel)]="password" name="password" placeholder="Parolă" autocomplete="current-password" />
     <button type="submit" [disabled]="loading || !password">Intră</button>
   </form>
+
+  <form (ngSubmit)="submit()" *ngIf="mode === 'account'" class="account-form">
+    <input type="text" [(ngModel)]="username" name="username" placeholder="Username" autocomplete="username" />
+    <input type="password" [(ngModel)]="pin" name="pin" placeholder="PIN" autocomplete="current-password" />
+    <button type="submit" [disabled]="loading || !username || !pin">Intră în cont</button>
+  </form>
+
   <div class="error" *ngIf="error">{{ error }}</div>
+
+  <button class="link-btn" type="button" *ngIf="mode === 'default'" (click)="useAccountLogin()">Intră în cont</button>
+  <button class="link-btn" type="button" *ngIf="mode === 'account'" (click)="useDefaultLogin()">Înapoi la parola generală</button>
 </div>

@@ -1,0 +1,53 @@
+<main class="admin-page">
+  <section class="login-panel" *ngIf="!authenticated">
+    <p class="eyebrow">Admin aplicație</p>
+    <h1>Administrare permisiuni</h1>
+    <form (ngSubmit)="login()">
+      <label>
+        <span>Parola admin</span>
+        <input type="password" [(ngModel)]="password" name="adminPassword" autocomplete="current-password">
+      </label>
+      <button type="submit" [disabled]="loading || !password">Intră</button>
+    </form>
+    <div class="error" *ngIf="error">{{ error }}</div>
+  </section>
+
+  <section class="content" *ngIf="authenticated">
+    <header>
+      <div>
+        <p class="eyebrow">Admin aplicație</p>
+        <h1>Permisiuni AppUser</h1>
+      </div>
+      <button type="button" (click)="loadData()" [disabled]="loading">Reîncarcă</button>
+    </header>
+
+    <div class="error" *ngIf="error">{{ error }}</div>
+    <div class="state" *ngIf="loading">Se încarcă...</div>
+
+    <div class="users-list" *ngIf="!loading">
+      <article class="user-card" *ngFor="let user of users">
+        <div class="user-head">
+          <div>
+            <strong>{{ user.employee?.name }}</strong>
+            <span>{{ user.username }} • {{ user.employee?.serie || '-' }}</span>
+          </div>
+          <label class="active-toggle">
+            <input type="checkbox" [ngModel]="user.is_active" (ngModelChange)="toggleActive(user, $event)">
+            <span>Activ</span>
+          </label>
+        </div>
+
+        <div class="routes-grid">
+          <label class="route-check" *ngFor="let route of routes">
+            <input
+              type="checkbox"
+              [ngModel]="user.permissions?.[route]"
+              (ngModelChange)="toggleRoute(user, route, $event)"
+            >
+            <span>{{ route }}</span>
+          </label>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>

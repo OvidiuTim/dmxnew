@@ -37,6 +37,8 @@ import { AuthInterceptor } from './auth/auth.interceptor';
 import { RapoarteComponent } from './pontaj/rapoarte/rapoarte.component';
 import { ClockinandoutComponent } from './clockinandout/clockinandout.component';
 import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandoutdriver.component';
+import { AdminAppPageComponent } from './admin-app-page/admin-app-page.component';
+import { NoAccessComponent } from './no-access/no-access.component';
 
 @NgModule({
   declarations: [
@@ -64,6 +66,8 @@ import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandou
     RapoarteComponent,
     ClockinandoutComponent,
     ClockinandoutdriverComponent,
+    AdminAppPageComponent,
+    NoAccessComponent,
   ],
   imports: [
     CommonModule,

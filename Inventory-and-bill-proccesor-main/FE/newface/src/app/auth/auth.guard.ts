@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { CanActivate, Router, UrlTree } from '@angular/router';
+import { ActivatedRouteSnapshot, CanActivate, Router, UrlTree } from '@angular/router';
 import { AuthService } from './auth.service';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -8,9 +8,11 @@ import { catchError, map } from 'rxjs/operators';
 export class AuthGuard implements CanActivate {
   constructor(private auth: AuthService, private router: Router) {}
 
-  canActivate(): Observable<boolean | UrlTree> {
-    return this.auth.verify().pipe(
-      map(ok => ok ? true : this.router.createUrlTree(['/login'])),
+  canActivate(route: ActivatedRouteSnapshot): Observable<boolean | UrlTree> {
+    const permissionRoute = String(route.data?.['permissionRoute'] || `/${route.routeConfig?.path || 'pontaj'}`);
+
+    return this.auth.canAccess(permissionRoute).pipe(
+      map(ok => ok ? true : this.router.createUrlTree(['/no-access'])),
       catchError(() => of(this.router.createUrlTree(['/login'])))
     );
   }

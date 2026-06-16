@@ -1,5 +1,6 @@
 import uuid
 
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 # ToolApp/models.py
 from django.db import models
@@ -97,7 +98,51 @@ class Users(models.Model):
 def build_pin_lookup(raw_pin):
     return str(raw_pin or "").strip()
 
-    
+
+class AppUser(models.Model):
+    AppUserId = models.AutoField(primary_key=True)
+    employee = models.OneToOneField(
+        Users,
+        on_delete=models.CASCADE,
+        related_name="app_user",
+    )
+    username = models.CharField(max_length=100, unique=True, db_index=True)
+    pin_hash = models.CharField(max_length=256)
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def set_pin(self, raw_pin):
+        self.pin_hash = make_password(str(raw_pin or "").strip())
+
+    def check_pin(self, raw_pin):
+        return check_password(str(raw_pin or "").strip(), self.pin_hash)
+
+    def __str__(self):
+        return f"{self.username} -> {self.employee}"
+
+
+class AppPagePermission(models.Model):
+    PermissionId = models.AutoField(primary_key=True)
+    app_user = models.ForeignKey(
+        AppUser,
+        on_delete=models.CASCADE,
+        related_name="page_permissions",
+    )
+    route = models.CharField(max_length=120, db_index=True)
+    can_access = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("app_user", "route")
+        indexes = [
+            models.Index(fields=["route", "can_access"]),
+        ]
+
+    def __str__(self):
+        return f"{self.app_user.username}: {self.route} = {self.can_access}"
+
+
 
 
 from django.utils import timezone

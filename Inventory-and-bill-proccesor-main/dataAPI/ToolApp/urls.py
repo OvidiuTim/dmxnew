@@ -137,6 +137,13 @@ urlpatterns = [
 
     path('api/auth/login/', views.auth_login),
     path('api/auth/verify/', views.auth_verify),
+    path('api/auth/logout/', views.auth_logout),
+    path('api/app-auth/login/', views.app_auth_login),
+    path('api/app-auth/verify/', views.app_auth_verify),
+    path('api/app-auth/logout/', views.app_auth_logout),
+    path('api/app-admin/login/', views.app_admin_login),
+    path('api/app-admin/verify/', views.app_admin_verify),
+    path('api/app-admin/users/', views.app_admin_users),
 
     # --- PONTAJ: editare manuală pe sesiuni (nou) ---
     path('api/pontaj/day/edit/', attendance_edit_day, name='attendance_edit_day'),                 # POST (replace cu sesiuni)
