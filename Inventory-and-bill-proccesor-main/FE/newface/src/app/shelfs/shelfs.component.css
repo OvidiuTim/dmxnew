@@ -2,15 +2,9 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-  --brand: #2b6ea6;
-  --brand-dark: #255f90;
   --bg: #f0f4f8;
   --text: #ffffff;
 }
-
-
-
-.brand { font-weight: 700; font-size: 18px; letter-spacing: .2px; }
 
 
 /* ===== PAGE ===== */
@@ -57,4 +51,3 @@ body { font-family: Arial, sans-serif; background: var(--bg); }
 
 
 }
-

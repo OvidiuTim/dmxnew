@@ -1,7 +1,7 @@
 /* You can override these per page with :root or :host-context */
 :host {
-    --brand: #2b6ea6;
-    --brand-dark: #255f90;
+    --nav-bg: #2b6ea6;
+    --nav-bg-hover: #255f90;
     --bg: #f0f4f8;
     --text: #ffffff;
   }
@@ -9,24 +9,22 @@
   /* ===== NAVBAR ===== */
   .navbar {
     position: fixed; top: 0; left: 0; right: 0;
-    height: 64px; background: var(--brand); color: var(--text);
+    height: 64px; background: var(--nav-bg); color: var(--text);
     display: flex; align-items: center; gap: 24px;
     padding: 0 20px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.34);
     z-index: 1000;
   }
   
-  .brand { font-weight: 700; font-size: 18px; letter-spacing: .2px; }
-  
   /* Desktop nav */
   .nav {
-    display: flex; align-items: center; gap: 18px; white-space: nowrap; margin-left: auto;
+    display: flex; align-items: center; gap: 18px; white-space: nowrap;
   }
   .nav a {
     color: var(--text); text-decoration: none; padding: 8px 10px;
     border-radius: 6px; font-size: 14px; opacity: .95;
     transition: background .2s, opacity .2s;
   }
-  .nav a:hover { background: var(--brand-dark); opacity: 1; }
+  .nav a:hover { background: var(--nav-bg-hover); opacity: 1; }
   .nav a.active { background: rgba(255,255,255,.18); font-weight: 600; }
   
   /* Burger (hidden on desktop) */

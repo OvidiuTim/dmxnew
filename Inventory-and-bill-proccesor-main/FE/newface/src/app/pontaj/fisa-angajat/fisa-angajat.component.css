@@ -38,12 +38,6 @@
   font-size: 15px;
 }
 
-.logo {
-  height: 88px;
-  max-width: 220px;
-  object-fit: contain;
-}
-
 .employee-card,
 .tabs,
 .panel {
@@ -464,11 +458,6 @@
   .topbar {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .logo {
-    height: 68px;
-    align-self: center;
   }
 
   .back-btn {

@@ -13,8 +13,6 @@ export type NavLink = { label: string; path: string; active?: boolean };
 export class NavbarComponent {
   @Output() linkClick = new EventEmitter<string>();
 
-  brand = 'DMX CONSTRUCTION';
-
   links: NavLink[] = [
     { label: 'Angajați', path: '/angajati' },
     { label: 'Rafturi',  path: '/rafturi' },
