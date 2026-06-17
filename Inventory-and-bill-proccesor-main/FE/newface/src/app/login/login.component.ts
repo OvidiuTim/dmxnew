@@ -8,7 +8,7 @@ import { AuthService } from '../auth/auth.service';
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent {
-  mode: 'default' | 'account' = 'default';
+  mode: 'default' | 'account' = 'account';
   password = '';
   username = '';
   pin = '';
@@ -40,13 +40,8 @@ export class LoginComponent {
     });
   }
 
-  useAccountLogin(): void {
-    this.mode = 'account';
-    this.error = null;
-  }
-
-  useDefaultLogin(): void {
-    this.mode = 'default';
+  setMode(mode: 'default' | 'account'): void {
+    this.mode = mode;
     this.error = null;
   }
 }

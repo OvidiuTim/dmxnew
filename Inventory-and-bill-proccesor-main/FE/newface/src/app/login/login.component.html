@@ -1,21 +1,44 @@
 <div class="login-wrap">
   <h2>Autentificare</h2>
-  <p class="muted" *ngIf="mode === 'default'">Introdu parola pentru a accesa pontajul.</p>
+
+  <div class="login-tabs" role="tablist" aria-label="Tip autentificare">
+    <button
+      type="button"
+      class="tab-btn"
+      role="tab"
+      aria-label="Username și PIN"
+      [attr.aria-selected]="mode === 'account'"
+      [class.active]="mode === 'account'"
+      (click)="setMode('account')"
+    >
+      <span>Username și PIN</span>
+    </button>
+    <button
+      type="button"
+      class="tab-btn"
+      role="tab"
+      aria-label="Parola generală"
+      [attr.aria-selected]="mode === 'default'"
+      [class.active]="mode === 'default'"
+      (click)="setMode('default')"
+    >
+      <span>Parola generală</span>
+    </button>
+  </div>
+
   <p class="muted" *ngIf="mode === 'account'">Intră cu utilizatorul tău de aplicație.</p>
+  <p class="muted" *ngIf="mode === 'default'">Introdu parola generală.</p>
 
-  <form (ngSubmit)="submit()" *ngIf="mode === 'default'">
-    <input type="password" [(ngModel)]="password" name="password" placeholder="Parolă" autocomplete="current-password" />
-    <button type="submit" [disabled]="loading || !password">Intră</button>
-  </form>
-
-  <form (ngSubmit)="submit()" *ngIf="mode === 'account'" class="account-form">
+  <form (ngSubmit)="submit()" *ngIf="mode === 'account'" class="login-form account-form">
     <input type="text" [(ngModel)]="username" name="username" placeholder="Username" autocomplete="username" />
     <input type="password" [(ngModel)]="pin" name="pin" placeholder="PIN" autocomplete="current-password" />
     <button type="submit" [disabled]="loading || !username || !pin">Intră în cont</button>
   </form>
 
-  <div class="error" *ngIf="error">{{ error }}</div>
+  <form (ngSubmit)="submit()" *ngIf="mode === 'default'" class="login-form general-form">
+    <input type="password" [(ngModel)]="password" name="password" placeholder="Parolă generală" autocomplete="current-password" />
+    <button type="submit" [disabled]="loading || !password">Intră</button>
+  </form>
 
-  <button class="link-btn" type="button" *ngIf="mode === 'default'" (click)="useAccountLogin()">Intră în cont</button>
-  <button class="link-btn" type="button" *ngIf="mode === 'account'" (click)="useDefaultLogin()">Înapoi la parola generală</button>
+  <div class="error" *ngIf="error">{{ error }}</div>
 </div>
