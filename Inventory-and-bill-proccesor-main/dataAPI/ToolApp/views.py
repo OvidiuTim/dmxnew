@@ -77,7 +77,7 @@ from django.utils.timezone import localdate
 from django.http import HttpResponse
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
-from openpyxl.styles import Alignment, Font
+from openpyxl.styles import Alignment, Font, PatternFill
 
 
 # --- PONTAJ: UPDATE / DELETE sesiune + DELETE zi ---
@@ -4256,6 +4256,33 @@ def attendance_day_delete(request):
 #variabile din  din openpyxl.styles pentru formatare Excel
 HEADER_FONT = Font(bold=True, size=14)
 CENTER = Alignment(horizontal="center", vertical="center")
+SHORT_WORKDAY_FILL = PatternFill(fill_type="solid", fgColor="FFFFC7CE")
+FULL_DAY_PAID_HOURS = Decimal("10.00")
+NORMAL_DAY_FULL_HOURS_TOLERANCE = Decimal("0.25")
+SATURDAY_MIN_HOURS_FOR_FULL_PAY = Decimal("6.00")
+
+
+def _hours_from_seconds(seconds) -> Decimal:
+    return (Decimal(int(seconds or 0)) / Decimal("3600")).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+
+
+def _paid_hours_for_salary(worked_hours: Decimal, day_date: _date) -> tuple[Decimal, bool]:
+    if day_date.weekday() == 5:
+        if worked_hours >= SATURDAY_MIN_HOURS_FOR_FULL_PAY:
+            return FULL_DAY_PAID_HOURS, False
+        return worked_hours, worked_hours > 0
+
+    lower_full_day = FULL_DAY_PAID_HOURS - NORMAL_DAY_FULL_HOURS_TOLERANCE
+    upper_full_day = FULL_DAY_PAID_HOURS + NORMAL_DAY_FULL_HOURS_TOLERANCE
+
+    if lower_full_day <= worked_hours <= upper_full_day:
+        return FULL_DAY_PAID_HOURS, False
+    if worked_hours < lower_full_day:
+        return worked_hours, worked_hours > 0
+    return worked_hours, False
 
 
 @csrf_exempt
@@ -4530,6 +4557,21 @@ def generate_excel(request):
     total_cm_hours_column = "AR"  # coloana pentru total ore concediu medical
     hourly_salary_column = "AP" # coloana pentru salariu orar
     total_salary_column = "AQ" # coloana pentru salariu total
+    month_names_ro = {
+        1: "IANUARIE",
+        2: "FEBRUARIE",
+        3: "MARTIE",
+        4: "APRILIE",
+        5: "MAI",
+        6: "IUNIE",
+        7: "IULIE",
+        8: "AUGUST",
+        9: "SEPTEMBRIE",
+        10: "OCTOMBRIE",
+        11: "NOIEMBRIE",
+        12: "DECEMBRIE",
+    }
+    ws[f"{total_salary_column}8"].value = f"SALAR ORE LUCRATE {month_names_ro[month_idx]} {year}"
 
     # sortăm după nume
     sorted_users = sorted(per_user.values(), key=lambda x: x["user"].UserName.lower())
@@ -4544,8 +4586,7 @@ def generate_excel(request):
         row_sites = row_hours + 2  # aici merg codurile T-A, T-B2, CO, CM etc.
         total_ll_hours = 0.0
         total_cm_hours = 0.0
-        base_salary_total = 0.0
-        total_worked_hours = 0.0
+        paid_worked_hours_for_salary = Decimal("0.00")
         rate = Decimal(str(data.get("hourly_rate"))) if data.get("hourly_rate") not in (None, "") else (user.hourly_rate or Decimal('0.00'))
       
         # numele muncitorului în col B
@@ -4598,13 +4639,25 @@ def generate_excel(request):
             if seconds <= 0:
                 continue
             
-            hours = round(seconds / 3600.0, 2)  # ore cu 2 zecimale
-            ws[f"{col_letter}{row_hours}"].value = float(hours)            
+            hours = _hours_from_seconds(seconds)  # ore cu 2 zecimale
+            paid_hours, should_highlight_short_day = _paid_hours_for_salary(hours, day_date)
+            paid_worked_hours_for_salary += paid_hours
+
+            day_hours_cell = ws[f"{col_letter}{row_hours}"]
+            day_hours_cell.value = float(hours)
+            if should_highlight_short_day:
+                day_hours_cell.fill = SHORT_WORKDAY_FILL
 
             raw_ws = per_day_site.get(day)
             label_ws = _site_label(raw_ws)
             if label_ws:
                 ws[f"{col_letter}{row_sites}"].value = label_ws
+
+        salary_total = (paid_worked_hours_for_salary * Decimal(str(rate or 0))).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+        ws[f"{total_salary_column}{row_hours}"].value = float(salary_total)
 
     # --- trimitem fișierul la download ---
     excel_buffer = io.BytesIO()
