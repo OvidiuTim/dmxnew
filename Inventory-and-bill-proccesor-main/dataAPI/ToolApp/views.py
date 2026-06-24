@@ -4258,8 +4258,7 @@ HEADER_FONT = Font(bold=True, size=14)
 CENTER = Alignment(horizontal="center", vertical="center")
 SHORT_WORKDAY_FILL = PatternFill(fill_type="solid", fgColor="FFFFC7CE")
 FULL_DAY_PAID_HOURS = Decimal("10.00")
-NORMAL_DAY_FULL_HOURS_TOLERANCE = Decimal("0.25")
-SATURDAY_MIN_HOURS_FOR_FULL_PAY = Decimal("6.00")
+SATURDAY_EXPECTED_MIN_HOURS = Decimal("6.00")
 
 
 def _hours_from_seconds(seconds) -> Decimal:
@@ -4270,18 +4269,15 @@ def _hours_from_seconds(seconds) -> Decimal:
 
 
 def _paid_hours_for_salary(worked_hours: Decimal, day_date: _date) -> tuple[Decimal, bool]:
+    if worked_hours <= 0:
+        return Decimal("0.00"), False
+
     if day_date.weekday() == 5:
-        if worked_hours >= SATURDAY_MIN_HOURS_FOR_FULL_PAY:
-            return FULL_DAY_PAID_HOURS, False
-        return worked_hours, worked_hours > 0
+        return FULL_DAY_PAID_HOURS, worked_hours < SATURDAY_EXPECTED_MIN_HOURS
 
-    lower_full_day = FULL_DAY_PAID_HOURS - NORMAL_DAY_FULL_HOURS_TOLERANCE
-    upper_full_day = FULL_DAY_PAID_HOURS + NORMAL_DAY_FULL_HOURS_TOLERANCE
+    if day_date.weekday() < 5:
+        return FULL_DAY_PAID_HOURS, worked_hours < FULL_DAY_PAID_HOURS
 
-    if lower_full_day <= worked_hours <= upper_full_day:
-        return FULL_DAY_PAID_HOURS, False
-    if worked_hours < lower_full_day:
-        return worked_hours, worked_hours > 0
     return worked_hours, False
 
 
@@ -4637,6 +4633,8 @@ def generate_excel(request):
             # 2) Fără concediu, folosim orele din AttendanceSession
             seconds = per_day_seconds.get(day, 0)
             if seconds <= 0:
+                if day_date.weekday() < 6:
+                    ws[f"{col_letter}{row_hours}"].fill = SHORT_WORKDAY_FILL
                 continue
             
             hours = _hours_from_seconds(seconds)  # ore cu 2 zecimale
