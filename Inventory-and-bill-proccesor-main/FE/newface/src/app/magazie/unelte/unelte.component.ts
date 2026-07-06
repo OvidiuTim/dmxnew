@@ -23,6 +23,14 @@ interface ToolItem {
   Location?: string | null;
   MainLocation?: string | null;
   Detail?: string | null;
+  SourceInventoryNumber?: number | null;
+  Category?: string | null;
+  Brand?: string | null;
+  Model?: string | null;
+  SerialNumber?: string | null;
+  SourceStatus?: string | null;
+  RequiresVerification?: boolean | null;
+  SourcePhoto?: string | null;
   AssignedUserId?: number | null;
   AssignedUserName?: string | null;
   DateReceived?: string | null;
@@ -100,6 +108,11 @@ export class UnelteComponent implements OnInit {
       const matchesSearch = !search || [
         tool.ToolName,
         tool.ToolSerie,
+        tool.SourceInventoryNumber,
+        tool.Category,
+        tool.Brand,
+        tool.Model,
+        tool.SerialNumber,
         tool.Location,
         tool.MainLocation,
         tool.AssignedUserName,

@@ -169,7 +169,12 @@
         <div class="tool-name">
           <strong>{{ tool.ToolName }}</strong>
           <span>{{ tool.ToolSerie || 'Fara serie' }}</span>
+          <small *ngIf="tool.Brand || tool.Model || tool.Category">
+            {{ tool.Brand || 'Fara marca' }}<ng-container *ngIf="tool.Model"> · {{ tool.Model }}</ng-container><ng-container *ngIf="tool.Category"> · {{ tool.Category }}</ng-container>
+          </small>
+          <small *ngIf="tool.SerialNumber">SN fizic: {{ tool.SerialNumber }}</small>
           <small *ngIf="tool.Detail">{{ tool.Detail }}</small>
+          <small class="verification" *ngIf="tool.RequiresVerification">Necesita verificare</small>
         </div>
         <div>
           <span class="pill" [class.ssm]="tool.IsSSM">{{ tool.IsSSM ? 'SSM' : 'Santier' }}</span>

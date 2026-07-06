@@ -33,6 +33,16 @@ class Tools(models.Model):
     MainLocation = models.CharField(max_length=500, null=True, blank=True)
     Provider = models.CharField(max_length=500, null=True, blank=True)
 
+    # Date structurate păstrate din inventarele importate.
+    SourceInventoryNumber = models.IntegerField(null=True, blank=True, db_index=True)
+    Category = models.CharField(max_length=200, null=True, blank=True, db_index=True)
+    Brand = models.CharField(max_length=100, null=True, blank=True, db_index=True)
+    Model = models.CharField(max_length=100, null=True, blank=True)
+    SerialNumber = models.CharField(max_length=200, null=True, blank=True, db_index=True)
+    SourceStatus = models.CharField(max_length=100, null=True, blank=True)
+    RequiresVerification = models.BooleanField(default=False, db_index=True)
+    SourcePhoto = models.CharField(max_length=255, null=True, blank=True)
+
     # (opțional) tag RFID/NFC
     RfidTag = models.CharField(max_length=128, null=True, blank=True, unique=True)
 
@@ -136,7 +146,10 @@ class AppPagePermission(models.Model):
     class Meta:
         unique_together = ("app_user", "route")
         indexes = [
-            models.Index(fields=["route", "can_access"]),
+            models.Index(
+                fields=["route", "can_access"],
+                name="ToolApp_app_route_c_0ba3c1_idx",
+            ),
         ]
 
     def __str__(self):

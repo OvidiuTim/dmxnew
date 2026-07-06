@@ -735,6 +735,10 @@ def toolApi(request,id=0):
             tools = tools.filter(
                 Q(ToolName__icontains=search)
                 | Q(ToolSerie__icontains=search)
+                | Q(Category__icontains=search)
+                | Q(Brand__icontains=search)
+                | Q(Model__icontains=search)
+                | Q(SerialNumber__icontains=search)
                 | Q(MainLocation__icontains=search)
                 | Q(Detail__icontains=search)
             )

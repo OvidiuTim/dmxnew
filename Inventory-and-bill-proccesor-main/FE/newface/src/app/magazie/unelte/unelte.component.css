@@ -301,6 +301,15 @@ textarea:focus {
   color: #98a3b5;
 }
 
+.tool-name .verification {
+  width: fit-content;
+  color: #ffd58a;
+  border: 1px solid #735a2c;
+  border-radius: 999px;
+  background: #2c2212;
+  padding: 3px 7px;
+}
+
 .pill,
 .status {
   display: inline-flex;
