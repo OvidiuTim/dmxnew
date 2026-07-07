@@ -12,7 +12,7 @@ from ToolApp.models import Users, AttendanceSession, LeaveDay
 
 
 DEFAULT_RECIPIENTS = [
-    "achizitii3@dmxconstruction.ro",
+    "achizitii2@dmxconstruction.ro",
     "hr@xuxinvestment.ro",
     "ovidiu.pirvu@novarion.ro",
 ]
