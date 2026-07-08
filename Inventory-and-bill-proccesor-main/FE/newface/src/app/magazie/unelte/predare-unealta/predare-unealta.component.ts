@@ -13,6 +13,12 @@ interface EmployeeOption {
 interface ToolItem {
   ToolId: number;
   ToolSerie?: string | null;
+  DisplaySerie?: string | null;
+  SerialNumber?: string | null;
+  serial?: string | null;
+  serial_number?: string | null;
+  cod_serie?: string | null;
+  toolSerial?: string | null;
   ToolName: string;
   BatchId?: string | null;
   User?: string | null;
@@ -118,7 +124,14 @@ export class PredareUnealtaComponent implements OnInit {
 
     return tools.filter(tool => [
       tool.ToolName,
+      this.displayToolSerie(tool),
       tool.ToolSerie,
+      tool.DisplaySerie,
+      tool.SerialNumber,
+      tool.serial,
+      tool.serial_number,
+      tool.cod_serie,
+      tool.toolSerial,
       tool.Location,
       tool.MainLocation,
       tool.AssignedUserName,
@@ -303,6 +316,10 @@ export class PredareUnealtaComponent implements OnInit {
     return tool.AssignedUserName || tool.User || tool.Location || tool.MainLocation || 'Magazie';
   }
 
+  displayToolSerie(tool: ToolItem): string {
+    return this.serieCandidates(tool).find(value => value.length > 0) || 'Fara serie';
+  }
+
   private isWarehouseTool(tool: ToolItem): boolean {
     const status = this.normalize(tool.Status);
     return !tool.IsLost && status === 'magazie' && this.piecesCount(tool) > 0;
@@ -331,6 +348,18 @@ export class PredareUnealtaComponent implements OnInit {
       .replace(/[\u0300-\u036f]/g, '')
       .trim()
       .toLowerCase();
+  }
+
+  private serieCandidates(tool: ToolItem): string[] {
+    return [
+      tool.ToolSerie,
+      tool.DisplaySerie,
+      tool.SerialNumber,
+      tool.serial,
+      tool.serial_number,
+      tool.cod_serie,
+      tool.toolSerial,
+    ].map(value => String(value ?? '').trim());
   }
 
   piecesCount(tool: Pick<ToolItem, 'Pieces'> | null | undefined): number {

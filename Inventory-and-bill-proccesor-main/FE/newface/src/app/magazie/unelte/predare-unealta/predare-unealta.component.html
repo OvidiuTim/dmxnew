@@ -116,7 +116,7 @@
           <div class="pick-tool-card" *ngFor="let tool of filteredTools">
             <div class="pick-tool-main">
               <strong>{{ tool.ToolName }}</strong>
-              <span>Cod/serie: {{ tool.ToolSerie || 'Fara serie' }}</span>
+              <span>Cod/serie: {{ displayToolSerie(tool) }}</span>
               <small>Bucati disponibile: {{ piecesCount(tool) }}</small>
               <small>{{ holderLabel(tool) }}</small>
               <small *ngIf="tool.Detail">Detalii: {{ tool.Detail }}</small>

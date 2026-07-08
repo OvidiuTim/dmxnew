@@ -79,12 +79,14 @@ class ToolSerializer(serializers.ModelSerializer):
     Location = serializers.SerializerMethodField(read_only=True)
     DateReceived = serializers.SerializerMethodField(read_only=True)
     StatusLabel = serializers.SerializerMethodField(read_only=True)
+    DisplaySerie = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Tools
         fields = (
             "ToolId",
             "ToolSerie",
+            "DisplaySerie",
             "ToolName",
             "BatchId",
             "User",           # legacy (read/write, dacă îl folosești încă)
@@ -152,6 +154,29 @@ class ToolSerializer(serializers.ModelSerializer):
 
     def get_StatusLabel(self, obj):
         return obj.get_Status_display()
+
+    def get_DisplaySerie(self, obj):
+        serie = str(obj.ToolSerie or "").strip()
+        if serie:
+            return serie
+
+        serial_number = str(getattr(obj, "SerialNumber", "") or "").strip()
+        if serial_number:
+            return serial_number
+
+        batch_id = str(getattr(obj, "BatchId", "") or "").strip()
+        if not batch_id:
+            return None
+
+        batch_tool = (
+            Tools.objects
+            .filter(BatchId=batch_id)
+            .exclude(ToolSerie__isnull=True)
+            .exclude(ToolSerie__exact="")
+            .order_by("AssignedTo_id", "ToolId")
+            .first()
+        )
+        return batch_tool.ToolSerie if batch_tool else None
 
     def to_internal_value(self, data):
         mutable = data.copy()

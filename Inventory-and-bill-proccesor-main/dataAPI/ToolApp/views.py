@@ -677,6 +677,14 @@ def _tool_snapshot(source, *, pieces, status, user=None, location="Magazie"):
         "Pieces": max(0, int(pieces)),
         "MainLocation": location,
         "Provider": source.Provider,
+        "SourceInventoryNumber": source.SourceInventoryNumber,
+        "Category": source.Category,
+        "Brand": source.Brand,
+        "Model": source.Model,
+        "SerialNumber": source.SerialNumber,
+        "SourceStatus": source.SourceStatus,
+        "RequiresVerification": source.RequiresVerification,
+        "SourcePhoto": source.SourcePhoto,
         "RfidTag": None,
         "AssignedTo": user,
         "IsSSM": source.IsSSM,
@@ -732,9 +740,15 @@ def toolApi(request,id=0):
 
         search = (request.GET.get("search") or "").strip()
         if search:
+            matching_batch_ids = Tools.objects.filter(
+                Q(ToolSerie__icontains=search)
+                | Q(SerialNumber__icontains=search)
+            ).exclude(BatchId__exact="").values_list("BatchId", flat=True)
+
             tools = tools.filter(
                 Q(ToolName__icontains=search)
                 | Q(ToolSerie__icontains=search)
+                | Q(BatchId__in=matching_batch_ids)
                 | Q(Category__icontains=search)
                 | Q(Brand__icontains=search)
                 | Q(Model__icontains=search)
