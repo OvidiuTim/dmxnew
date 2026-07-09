@@ -119,6 +119,7 @@ class AppUser(models.Model):
     username = models.CharField(max_length=100, unique=True, db_index=True)
     pin_hash = models.CharField(max_length=256)
     is_active = models.BooleanField(default=True, db_index=True)
+    login_redirect_path = models.CharField(max_length=160, default="/pontaj")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

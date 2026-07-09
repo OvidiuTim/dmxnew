@@ -53,7 +53,10 @@ export class AdminAppPageComponent implements OnInit {
     this.auth.getAdminAppUsers().subscribe({
       next: (res) => {
         this.routes = res.routes || [];
-        this.users = res.users || [];
+        this.users = (res.users || []).map((user) => ({
+          ...user,
+          _savedLoginRedirectPath: user.login_redirect_path || '/pontaj',
+        }));
         this.loading = false;
       },
       error: () => {
@@ -92,5 +95,35 @@ export class AdminAppPageComponent implements OnInit {
         this.error = 'Nu pot salva statusul.';
       }
     });
+  }
+
+  saveLoginRedirect(user: any): void {
+    const nextPath = this.normalizeLoginRedirect(user.login_redirect_path);
+    const previous = user._savedLoginRedirectPath || '/pontaj';
+    user.login_redirect_path = nextPath;
+    if (nextPath === previous) {
+      return;
+    }
+    this.auth.updateAdminAppUser({
+      app_user_id: user.id,
+      login_redirect_path: nextPath,
+    }).subscribe({
+      next: (res) => {
+        Object.assign(user, res.user);
+        user._savedLoginRedirectPath = res.user.login_redirect_path || '/pontaj';
+      },
+      error: () => {
+        user.login_redirect_path = previous;
+        this.error = 'Nu pot salva redirectul după login.';
+      }
+    });
+  }
+
+  private normalizeLoginRedirect(value: string): string {
+    const path = String(value || '').trim();
+    if (!path || path.includes('://') || path.startsWith('//')) {
+      return '/pontaj';
+    }
+    return path.startsWith('/') ? path : `/${path}`;
   }
 }

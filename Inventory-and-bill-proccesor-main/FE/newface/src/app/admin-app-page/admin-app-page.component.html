@@ -37,6 +37,18 @@
           </label>
         </div>
 
+        <label class="redirect-field">
+          <span>Redirect după login</span>
+          <input
+            type="text"
+            [ngModel]="user.login_redirect_path"
+            (ngModelChange)="user.login_redirect_path = $event"
+            (blur)="saveLoginRedirect(user)"
+            (keyup.enter)="saveLoginRedirect(user)"
+            placeholder="/pontaj"
+          >
+        </label>
+
         <div class="routes-grid">
           <label class="route-check" *ngFor="let route of routes">
             <input

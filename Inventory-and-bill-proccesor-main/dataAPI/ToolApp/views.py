@@ -3418,6 +3418,17 @@ def _request_has_admin_app(request):
     return _check_admin_app_token(request.COOKIES.get(ADMIN_APP_COOKIE) or "")
 
 
+def _normalize_login_redirect_path(value):
+    path = str(value or "").strip()
+    if not path:
+        return "/pontaj"
+    if "://" in path or path.startswith("//"):
+        return "/pontaj"
+    if not path.startswith("/"):
+        path = f"/{path}"
+    return path[:160]
+
+
 def _serialize_app_user(app_user):
     permissions = {
         permission.route: permission.can_access
@@ -3427,6 +3438,7 @@ def _serialize_app_user(app_user):
         "id": app_user.AppUserId,
         "username": app_user.username,
         "is_active": app_user.is_active,
+        "login_redirect_path": app_user.login_redirect_path or "/pontaj",
         "employee": {
             "id": app_user.employee_id,
             "name": app_user.employee.UserName,
@@ -3532,6 +3544,7 @@ def app_auth_login(request):
         "auth_type": "app_user",
         "app_user": _serialize_app_user(app_user),
         "permissions": _app_user_permissions(app_user),
+        "login_redirect_path": app_user.login_redirect_path or "/pontaj",
         "expires_in": TOKEN_AGE,
     })
     resp.set_cookie(
@@ -3571,6 +3584,7 @@ def app_auth_verify(request):
         "auth_type": "app_user",
         "app_user": _serialize_app_user(app_user),
         "permissions": _app_user_permissions(app_user),
+        "login_redirect_path": app_user.login_redirect_path or "/pontaj",
     }
     if route:
         response["can_access"] = app_user_has_route(app_user, route)
@@ -3652,6 +3666,10 @@ def app_admin_users(request):
         if "is_active" in data:
             app_user.is_active = bool(data.get("is_active"))
             app_user.save(update_fields=["is_active", "updated_at"])
+
+        if "login_redirect_path" in data:
+            app_user.login_redirect_path = _normalize_login_redirect_path(data.get("login_redirect_path"))
+            app_user.save(update_fields=["login_redirect_path", "updated_at"])
 
         route = str(data.get("route") or "").strip()
         if route:

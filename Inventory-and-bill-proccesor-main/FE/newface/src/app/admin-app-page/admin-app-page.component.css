@@ -99,10 +99,24 @@ button:disabled {
 }
 
 .active-toggle,
-.route-check {
+.route-check,
+.redirect-field {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.redirect-field {
+  align-items: flex-start;
+  border-bottom: 1px solid #273142;
+  display: grid;
+  grid-template-columns: 180px minmax(220px, 420px);
+  margin: -2px 0 14px;
+  padding-bottom: 14px;
+}
+
+.redirect-field span {
+  padding-top: 10px;
 }
 
 .active-toggle input,
@@ -138,6 +152,10 @@ button:disabled {
 
 @media (max-width: 860px) {
   .routes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .redirect-field {
     grid-template-columns: 1fr;
   }
 }

@@ -35,7 +35,10 @@ export class LoginComponent {
     this.loading = true;
     this.error = null;
     this.auth.appLogin(this.username, this.pin).subscribe({
-      next: () => { this.loading = false; this.router.navigate(['/pontaj']); },
+      next: (session) => {
+        this.loading = false;
+        this.router.navigateByUrl(this.loginRedirectPath(session));
+      },
       error: (e) => { this.loading = false; this.error = 'Username sau PIN invalid'; console.error(e); }
     });
   }
@@ -43,5 +46,13 @@ export class LoginComponent {
   setMode(mode: 'default' | 'account'): void {
     this.mode = mode;
     this.error = null;
+  }
+
+  private loginRedirectPath(session: any): string {
+    const path = String(session?.login_redirect_path || session?.app_user?.login_redirect_path || '/pontaj').trim();
+    if (!path || path.includes('://') || path.startsWith('//')) {
+      return '/pontaj';
+    }
+    return path.startsWith('/') ? path : `/${path}`;
   }
 }

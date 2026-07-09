@@ -9,6 +9,7 @@ export interface AuthSession {
   auth_type: 'legacy' | 'app_user';
   permissions?: string[];
   can_access?: boolean;
+  login_redirect_path?: string;
   app_user?: any;
 }
 
