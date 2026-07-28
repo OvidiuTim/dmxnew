@@ -23,6 +23,7 @@ pip install -r dataAPI\requirements.txt
 cd dataAPI
 python manage.py migrate
 python manage.py createsuperuser   # opțional
+#admin admin
 python manage.py runserver
 # Deschide http://127.0.0.1:8000/
 ```
