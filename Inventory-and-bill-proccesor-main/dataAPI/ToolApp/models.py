@@ -1,6 +1,10 @@
 import uuid
+from datetime import timedelta
+from decimal import Decimal
 
+from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
+from django.core.exceptions import ValidationError
 from django.db import models
 # ToolApp/models.py
 from django.db import models
@@ -82,6 +86,8 @@ class Users(models.Model):
     phone_number = models.CharField(max_length=50, null=True, blank=True)
     photo = models.TextField(null=True, blank=True)
     trade = models.CharField(max_length=100, null=True, blank=True)
+    hire_date = models.DateField(null=True, blank=True)
+    housing_location = models.CharField(max_length=255, blank=True, default="")
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
 
@@ -403,17 +409,26 @@ class LeaveDay(models.Model):
     class Reason(models.TextChoices):
         CO  = "CO",  "Concediu odihnă"
         CM  = "CM",  "Concediu medical"
+        UNPAID = "UNPAID", "Concediu fără plată"
+        UNEXCUSED = "UNEXCUSED", "Absență nemotivată"
         ALT = "ALT", "Alt motiv"
 
     id = models.AutoField(primary_key=True)
     user_fk = models.ForeignKey('Users', on_delete=models.PROTECT, related_name='leaves')
     work_date = models.DateField(db_index=True)
-    reason = models.CharField(max_length=8, choices=Reason.choices)
+    reason = models.CharField(max_length=16, choices=Reason.choices)
     hours = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('8.00'))      # ex. 8.00 ore
     multiplier = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('1.00')) # ex. 0.75 pt. CM
     hourly_rate_snapshot = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0.00'))
     pay_amount = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
     note = models.CharField(max_length=255, null=True, blank=True)
+    source_leave_request = models.ForeignKey(
+        'LeaveRequest',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='attendance_leave_days',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -441,3 +456,148 @@ class PinAttemptLog(models.Model):
             models.Index(fields=["ip_address", "device_key", "created_at"]),
             models.Index(fields=["success", "blocked", "created_at"]),
         ]
+
+
+class EmployeeSalaryProfile(models.Model):
+    employee = models.OneToOneField(
+        Users,
+        on_delete=models.CASCADE,
+        related_name="salary_profile",
+    )
+    net_salary_eur = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    net_salary_ron = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    salary_advance_ron = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    food_money_enabled = models.BooleanField(default=False)
+    food_money_ron = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
+    def __str__(self):
+        return f"Profil salarial - {self.employee}"
+
+
+class LeaveRequest(models.Model):
+    class LeaveType(models.TextChoices):
+        PAID_LEAVE = "paid_leave", "Concediu de odihnă"
+        UNPAID_LEAVE = "unpaid_leave", "Concediu fără plată"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "În așteptare"
+        APPROVED = "approved", "Aprobat"
+        REJECTED = "rejected", "Respins"
+        CANCELLED = "cancelled", "Anulat"
+
+    employee = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="leave_requests")
+    leave_type = models.CharField(max_length=32, choices=LeaveType.choices)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_employee_leave_requests",
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=("employee", "start_date", "end_date"))]
+
+    def clean(self):
+        super().clean()
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            raise ValidationError({"end_date": "Data finală nu poate fi înaintea datei de început."})
+        if self.employee_id and self.start_date and self.end_date and self.status != self.Status.CANCELLED:
+            overlap = LeaveRequest.objects.filter(
+                employee_id=self.employee_id,
+                start_date__lte=self.end_date,
+                end_date__gte=self.start_date,
+            ).exclude(status__in=(self.Status.CANCELLED, self.Status.REJECTED))
+            if self.pk:
+                overlap = overlap.exclude(pk=self.pk)
+            if overlap.exists():
+                raise ValidationError("Cererea de concediu se suprapune cu o cerere existentă.")
+        if (
+            self.employee_id
+            and self.leave_type == self.LeaveType.PAID_LEAVE
+            and self.status == self.Status.APPROVED
+            and self.start_date
+            and self.end_date
+            and self.end_date >= self.start_date
+        ):
+            from ToolApp.mobile_services import calculate_available_leave_days, count_salary_days_in_range
+
+            requested_days = count_salary_days_in_range(self.start_date, self.end_date)
+            available_days = calculate_available_leave_days(
+                self.employee,
+                timezone.localdate(),
+                exclude_request_id=self.pk,
+            )
+            if requested_days > available_days:
+                raise ValidationError("Concediul plătit depășește numărul de zile disponibile.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        result = super().save(*args, **kwargs)
+        if self.status == self.Status.APPROVED:
+            reason_map = {
+                self.LeaveType.PAID_LEAVE: LeaveDay.Reason.CO,
+                self.LeaveType.UNPAID_LEAVE: LeaveDay.Reason.UNPAID,
+            }
+            current = self.start_date
+            hourly_rate = self.employee.hourly_rate or Decimal("0.00")
+            while current <= self.end_date:
+                if current.isoweekday() <= 6:
+                    LeaveDay.objects.get_or_create(
+                        user_fk=self.employee,
+                        work_date=current,
+                        defaults={
+                            "reason": reason_map[self.leave_type],
+                            "hours": Decimal("8.00"),
+                            "multiplier": Decimal("1.00"),
+                            "hourly_rate_snapshot": hourly_rate,
+                            "pay_amount": hourly_rate * Decimal("8.00"),
+                            "note": "",
+                            "source_leave_request": self,
+                        },
+                    )
+                current += timedelta(days=1)
+        else:
+            self.attendance_leave_days.all().delete()
+        return result
+
+    def __str__(self):
+        return f"{self.employee} {self.start_date} - {self.end_date} ({self.status})"
+
+
+class EmployeeTeam(models.Model):
+    name = models.CharField(max_length=160)
+    leader = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="led_employee_teams")
+    active = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.name
+
+
+class EmployeeTeamMember(models.Model):
+    team = models.ForeignKey(EmployeeTeam, on_delete=models.CASCADE, related_name="memberships")
+    employee = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="team_memberships")
+    active = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        ordering = ("employee__UserName",)
+        constraints = [
+            models.UniqueConstraint(fields=("team", "employee"), name="unique_employee_team_member"),
+            models.UniqueConstraint(
+                fields=("employee",),
+                condition=models.Q(active=True),
+                name="unique_active_employee_team_membership",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.team}: {self.employee}"

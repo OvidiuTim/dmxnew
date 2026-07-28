@@ -1,5 +1,6 @@
 from django.urls import path, re_path as url
 from ToolApp import views
+from ToolApp import mobile_views
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -59,6 +60,10 @@ urlpatterns = [
     path('api/nfc/scan/', nfc_scan, name='nfc_scan'),
     path('api/pontaj/login/', views.pontaj_login, name='pontaj_login'),
     path('api/pontaj/clock/', pontaj_clock, name='pontaj_clock'),
+    path('api/mobile/employee-dashboard/', mobile_views.employee_dashboard, name='mobile_employee_dashboard'),
+    path('api/mobile/leave-requests/', mobile_views.leave_request_create, name='mobile_leave_request_create'),
+    path('api/mobile/leave-requests/list/', mobile_views.leave_request_list, name='mobile_leave_request_list'),
+    path('api/mobile/leave-requests/<int:request_id>/cancel/', mobile_views.leave_request_cancel, name='mobile_leave_request_cancel'),
     path('api/pontaj/day/', attendance_day, name='attendance_day'),              # GET day aggregate
     path('api/pontaj/present/', attendance_present, name='attendance_present'),
     path('api/pontaj/range/', attendance_range, name='attendance_range'),

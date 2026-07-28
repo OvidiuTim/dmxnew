@@ -3037,7 +3037,7 @@ def leave_upsert(request):
     {
       "user_id" | "user_pin" | "user_serie",
       "date": "YYYY-MM-DD",
-      "reason": "CO"|"CM"|"ALT",
+      "reason": "CO"|"CM"|"UNPAID"|"UNEXCUSED"|"ALT",
       "hours": 8,
       "hourly_rate": 25.0,   # opțional; default = Users.hourly_rate
       "multiplier": 1.0,     # ex. 0.75 pt. CM
@@ -3069,8 +3069,8 @@ def leave_upsert(request):
         return JsonResponse({"error": "Bad 'date' (YYYY-MM-DD)"}, status=400)
 
     reason = (data.get("reason") or "CO").upper()
-    if reason not in ("CO", "CM", "ALT"):
-        return JsonResponse({"error": "reason must be CO|CM|ALT"}, status=400)
+    if reason not in LeaveDay.Reason.values:
+        return JsonResponse({"error": "reason must be CO|CM|UNPAID|UNEXCUSED|ALT"}, status=400)
 
     def _snap_leave(x):
         if not x:

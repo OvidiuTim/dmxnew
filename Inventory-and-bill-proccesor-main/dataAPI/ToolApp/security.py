@@ -23,6 +23,7 @@ PUBLIC_API_PREFIXES = (
     "/api/pontaj/login/",
     "/api/pontaj/clock/",
     "/api/pontaj/stream/",
+    "/api/mobile/",
 )
 
 API_ROUTE_REQUIREMENTS = (
