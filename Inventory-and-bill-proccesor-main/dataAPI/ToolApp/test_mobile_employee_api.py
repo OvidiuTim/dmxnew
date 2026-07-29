@@ -19,6 +19,9 @@ from ToolApp.mobile_services import (
     completed_full_months,
     count_required_work_days,
     count_salary_days_in_range,
+    dashboard_salary_period,
+    first_full_salary_month,
+    first_payment_date,
     normalize_trade_code,
     serialize_leave_request,
 )
@@ -160,6 +163,8 @@ class MobileEmployeeApiTests(TestCase):
         self.assertEqual(payroll["worked_days"], 0)
         self.assertEqual(payroll["payable_days"], 0)
         self.assertEqual(payroll["salary_due"], "0.00")
+        self.assertEqual(payroll["food_money"], "0.00")
+        self.assertEqual(payroll["grand_total"], "0.00")
 
     def test_attendance_and_paid_leave_same_day_are_not_counted_twice(self):
         day = date(2026, 7, 6)
@@ -213,14 +218,23 @@ class MobileEmployeeApiTests(TestCase):
         self.assertEqual(payroll["absence_deduction"], "129.63")
         self.assertEqual(payroll["payable_days"], 0)
 
-    def test_hired_june_20_has_no_july_payments_and_first_payment_in_august(self):
+    def test_hired_june_20_schedules_first_august_payments(self):
         self.employee.hire_date = date(2026, 6, 20)
         self.employee.save(update_fields=("hire_date",))
 
         with patch("ToolApp.mobile_views.localdate", return_value=date(2026, 7, 15)):
             july_response = self.post("/api/mobile/employee-dashboard/", self.credentials())
         july_payload = july_response.json()
-        self.assertEqual(july_payload["salary_payments"], [])
+        self.assertEqual(july_payload["payroll"]["salary_year"], 2026)
+        self.assertEqual(july_payload["payroll"]["salary_month"], 7)
+        self.assertEqual(
+            [(item["payment_date"], item["type"], item["amount"]) for item in july_payload["salary_payments"]],
+            [
+                ("2026-08-05", "salary_advance", "0.00"),
+                ("2026-08-20", "salary_remainder", "0.00"),
+                ("2026-08-20", "food_money", "0.00"),
+            ],
+        )
         self.assertEqual(july_payload["first_payment_date"], "2026-08-05")
         self.assertEqual(july_payload["message_code"], "first_salary_after_full_month")
 
@@ -235,6 +249,61 @@ class MobileEmployeeApiTests(TestCase):
                 ("2026-08-20", "food_money"),
             ],
         )
+
+    def test_first_full_salary_month_rules_use_exact_hire_dates(self):
+        self.assertEqual(first_full_salary_month(date(2026, 7, 1)), date(2026, 7, 1))
+        self.assertEqual(first_payment_date(date(2026, 7, 1)), date(2026, 8, 5))
+        self.assertEqual(first_full_salary_month(date(2026, 6, 20)), date(2026, 7, 1))
+        self.assertEqual(first_payment_date(date(2026, 6, 20)), date(2026, 8, 5))
+        self.assertEqual(first_full_salary_month(date(2026, 7, 2)), date(2026, 8, 1))
+        self.assertEqual(first_payment_date(date(2026, 7, 2)), date(2026, 9, 5))
+
+    def test_hired_july_1_dashboard_on_july_29_uses_july_salary_period(self):
+        self.employee.hire_date = date(2026, 7, 1)
+        self.employee.save(update_fields=("hire_date",))
+        with patch("ToolApp.mobile_views.localdate", return_value=date(2026, 7, 29)):
+            response = self.post("/api/mobile/employee-dashboard/", self.credentials())
+        payload = response.json()
+        self.assertEqual(dashboard_salary_period(date(2026, 7, 29), self.employee.hire_date), (2026, 7))
+        self.assertEqual(payload["payroll"]["salary_year"], 2026)
+        self.assertEqual(payload["payroll"]["salary_month"], 7)
+        self.assertEqual(payload["payroll"]["required_days"], 27)
+        self.assertEqual(payload["payroll"]["food_money"], "0.00")
+        self.assertEqual(payload["payroll"]["grand_total"], "0.00")
+        self.assertEqual(
+            [(item["payment_date"], item["type"], item["amount"]) for item in payload["salary_payments"]],
+            [
+                ("2026-08-05", "salary_advance", "0.00"),
+                ("2026-08-20", "salary_remainder", "0.00"),
+                ("2026-08-20", "food_money", "0.00"),
+            ],
+        )
+        self.assertEqual(payload["first_payment_date"], "2026-08-05")
+
+    def test_hired_july_2_dashboard_uses_august_as_first_full_month(self):
+        self.employee.hire_date = date(2026, 7, 2)
+        self.employee.save(update_fields=("hire_date",))
+        with patch("ToolApp.mobile_views.localdate", return_value=date(2026, 7, 29)):
+            response = self.post("/api/mobile/employee-dashboard/", self.credentials())
+        payload = response.json()
+        self.assertEqual(payload["payroll"]["salary_year"], 2026)
+        self.assertEqual(payload["payroll"]["salary_month"], 8)
+        self.assertEqual(payload["first_payment_date"], "2026-09-05")
+        self.assertEqual(
+            [(item["payment_date"], item["type"], item["amount"]) for item in payload["salary_payments"]],
+            [
+                ("2026-09-05", "salary_advance", "0.00"),
+                ("2026-09-20", "salary_remainder", "0.00"),
+                ("2026-09-20", "food_money", "0.00"),
+            ],
+        )
+
+    def test_salary_period_before_hire_has_all_payment_amounts_zero(self):
+        self.employee.hire_date = date(2026, 7, 2)
+        self.employee.save(update_fields=("hire_date",))
+        payroll = calculate_payroll(self.employee, self.profile, 2026, 6)
+        for key in ("salary_due", "advance", "remainder", "food_money", "grand_total"):
+            self.assertEqual(payroll[key], "0.00")
 
     def test_leave_accrual_and_flooring(self):
         self.employee.hire_date = date(2026, 6, 20)
@@ -365,6 +434,8 @@ class MobileEmployeeApiTests(TestCase):
         self.assertEqual(normalize_trade_code("Electrician"), "electrician")
         self.assertEqual(normalize_trade_code("Dulgher"), "carpenter")
         self.assertEqual(normalize_trade_code("Șef de echipă"), "team_leader")
+        self.assertEqual(normalize_trade_code("Șef șantier"), "site_manager")
+        self.assertEqual(normalize_trade_code("S\u0326ef s\u0326antier"), "site_manager")
 
     def test_dashboard_has_final_shape_without_permanent_worksite_or_payment_status(self):
         response = self.post("/api/mobile/employee-dashboard/", self.credentials())

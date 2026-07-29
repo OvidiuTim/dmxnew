@@ -12,9 +12,10 @@ from ToolApp.mobile_services import (
     build_salary_payments,
     build_team,
     calculate_payroll,
+    dashboard_salary_period,
     first_payment_date,
     normalize_trade_code,
-    previous_month,
+    salary_period_payment_month,
     salary_period_is_eligible,
     seniority_months,
     serialize_leave_request,
@@ -73,10 +74,15 @@ def employee_dashboard(request):
         return error
     today = localdate()
     profile = EmployeeSalaryProfile.objects.filter(employee=employee).first()
-    salary_year, salary_month = previous_month(today.year, today.month)
+    salary_year, salary_month = dashboard_salary_period(today, employee.hire_date)
     payroll = calculate_payroll(employee, profile, salary_year, salary_month)
     eligible = salary_period_is_eligible(employee.hire_date, salary_year, salary_month)
-    salary_payments = build_salary_payments(profile, payroll, today.year, today.month) if eligible else []
+    payment_year, payment_month = salary_period_payment_month(salary_year, salary_month)
+    salary_payments = (
+        build_salary_payments(profile, payroll, payment_year, payment_month)
+        if eligible
+        else []
+    )
     equipment, tools = build_inventory(employee)
     payload = {
         "success": True,
@@ -96,10 +102,10 @@ def employee_dashboard(request):
         "tools": tools,
         "team": build_team(employee),
     }
-    if not eligible:
-        first_date = first_payment_date(employee.hire_date)
+    first_date = first_payment_date(employee.hire_date)
+    if first_date and today < first_date:
         payload.update({
-            "first_payment_date": first_date.isoformat() if first_date else None,
+            "first_payment_date": first_date.isoformat(),
             "message_code": "first_salary_after_full_month",
         })
     return JsonResponse(payload)
@@ -158,4 +164,3 @@ def leave_request_cancel(request, request_id):
     item.status = LeaveRequest.Status.CANCELLED
     item.save(update_fields=("status",))
     return JsonResponse({"success": True, "leave_request": serialize_leave_request(item)})
-

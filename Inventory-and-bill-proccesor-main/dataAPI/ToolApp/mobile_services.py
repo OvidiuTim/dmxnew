@@ -1,4 +1,5 @@
 import calendar
+import unicodedata
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_UP
@@ -25,6 +26,10 @@ TRADE_CODE_MAP = {
     "sef-echipa": "team_leader",
     "team-leader": "team_leader",
     "team_leader": "team_leader",
+    "sef-santier": "site_manager",
+    "sef-de-santier": "site_manager",
+    "site-manager": "site_manager",
+    "site_manager": "site_manager",
 }
 
 
@@ -37,7 +42,11 @@ def money_string(value):
 
 
 def normalize_trade_code(raw_trade):
-    normalized = slugify(str(raw_trade or "").strip())
+    unicode_normalized = unicodedata.normalize("NFKD", str(raw_trade or "").strip())
+    without_combining_marks = "".join(
+        character for character in unicode_normalized if not unicodedata.combining(character)
+    )
+    normalized = slugify(without_combining_marks)
     return TRADE_CODE_MAP.get(normalized, "worker")
 
 
@@ -73,6 +82,8 @@ def count_required_work_days(year, month):
 def first_full_salary_month(hire_date):
     if not hire_date:
         return None
+    if hire_date.day == 1:
+        return date(hire_date.year, hire_date.month, 1)
     year, month = next_month(hire_date.year, hire_date.month)
     return date(year, month, 1)
 
@@ -89,6 +100,18 @@ def salary_period_is_eligible(hire_date, year, month):
     if not hire_date:
         return True
     return date(year, month, 1) >= first_full_salary_month(hire_date)
+
+
+def dashboard_salary_period(today, hire_date):
+    previous_year, previous_month_number = previous_month(today.year, today.month)
+    regular_period = date(previous_year, previous_month_number, 1)
+    first_period = first_full_salary_month(hire_date)
+    selected_period = max(regular_period, first_period) if first_period else regular_period
+    return selected_period.year, selected_period.month
+
+
+def salary_period_payment_month(year, month):
+    return next_month(year, month)
 
 
 def _salary_dates(start_date, end_date, values):
@@ -110,6 +133,27 @@ def _request_dates(queryset, start_date=None, end_date=None):
 def calculate_payroll(employee, profile, year, month):
     start_date, end_date = month_bounds(year, month)
     required_days = count_required_work_days(year, month)
+
+    if not salary_period_is_eligible(employee.hire_date, year, month):
+        return {
+            "salary_year": year,
+            "salary_month": month,
+            "net_salary_eur": money_string(profile.net_salary_eur if profile else 0),
+            "net_salary_ron": money_string(profile.net_salary_ron if profile else 0),
+            "required_days": required_days,
+            "worked_days": 0,
+            "paid_leave_days": 0,
+            "unpaid_leave_days": 0,
+            "unexcused_absence_days": 0,
+            "payable_days": 0,
+            "daily_rate": "0.00",
+            "salary_due": "0.00",
+            "absence_deduction": "0.00",
+            "advance": "0.00",
+            "remainder": "0.00",
+            "food_money": "0.00",
+            "grand_total": "0.00",
+        }
 
     attendance_dates = _salary_dates(
         start_date,
@@ -179,7 +223,11 @@ def calculate_payroll(employee, profile, year, month):
     configured_advance = Decimal(profile.salary_advance_ron if profile else 0)
     advance = money(min(configured_advance, salary_due))
     remainder = money(max(salary_due - advance, Decimal("0.00")))
-    food_money = money(profile.food_money_ron if profile and profile.food_money_enabled else 0)
+    food_money = money(
+        profile.food_money_ron
+        if payable_days > 0 and profile and profile.food_money_enabled
+        else 0
+    )
     grand_total = money(salary_due + food_money)
 
     return {
@@ -216,12 +264,11 @@ def build_salary_payments(profile, payroll, payment_year, payment_month):
             "amount": payroll["remainder"],
         },
     ]
-    if profile and profile.food_money_enabled:
-        payments.append({
-            "payment_date": date(payment_year, payment_month, 20).isoformat(),
-            "type": FOOD_MONEY,
-            "amount": payroll["food_money"],
-        })
+    payments.append({
+        "payment_date": date(payment_year, payment_month, 20).isoformat(),
+        "type": FOOD_MONEY,
+        "amount": payroll["food_money"],
+    })
     return payments
 
 
