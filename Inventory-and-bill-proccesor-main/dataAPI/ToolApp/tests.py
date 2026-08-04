@@ -42,6 +42,93 @@ class MonitorPontajTests(TestCase):
 
 
 class ManualAttendanceSecurityTests(TestCase):
+    def test_checkout_allows_a_different_browser_for_manual_and_driver(self):
+        now = timezone.now()
+
+        for index, mode in enumerate(("manual", "driver"), start=1):
+            with self.subTest(mode=mode):
+                pin = f"81{index}0"
+                user = Users(UserName=f"Muncitor checkout {mode}", UserSerie=f"SER-21{index}")
+                user.set_pin(pin)
+                user.save()
+                session = AttendanceSession.objects.create(
+                    user_fk=user,
+                    work_date=localdate(now),
+                    in_time=now - timedelta(hours=8),
+                    source="manual-driver" if mode == "driver" else "manual-web",
+                    worksite="Tractorului Bloc B2",
+                    manual_device_key="browser-normal-dimineata",
+                )
+
+                payload = {
+                    "pin": pin,
+                    "device_key": "browser-privat-seara",
+                    "timestamp": now.isoformat(),
+                    "worksite": "Tractorului Bloc B2",
+                    "mode": mode,
+                }
+                if mode == "driver":
+                    payload["gps"] = {
+                        "lat": 45.81,
+                        "lng": 24.13,
+                        "accuracy": 10,
+                        "captured_at": now.isoformat(),
+                    }
+
+                response = self.client.post(
+                    "/api/pontaj/clock/",
+                    data=json.dumps(payload),
+                    content_type="application/json",
+                    REMOTE_ADDR="1.2.3.4",
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["state"], "EXIT")
+                session.refresh_from_db()
+                self.assertIsNotNone(session.out_time)
+
+    def test_checkout_is_allowed_even_if_current_browser_has_another_open_session(self):
+        now = timezone.now()
+        target = Users(UserName="Muncitor de depontat", UserSerie="SER-213")
+        target.set_pin("8130")
+        target.save()
+        other = Users(UserName="Alt muncitor", UserSerie="SER-214")
+        other.set_pin("8140")
+        other.save()
+
+        target_session = AttendanceSession.objects.create(
+            user_fk=target,
+            work_date=localdate(now),
+            in_time=now - timedelta(hours=8),
+            source="manual-web",
+            manual_device_key="browser-dimineata",
+        )
+        other_session = AttendanceSession.objects.create(
+            user_fk=other,
+            work_date=localdate(now),
+            in_time=now - timedelta(hours=1),
+            source="manual-web",
+            manual_device_key="browser-privat-seara",
+        )
+
+        response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({
+                "pin": "8130",
+                "device_key": "browser-privat-seara",
+                "timestamp": now.isoformat(),
+                "mode": "manual",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["state"], "EXIT")
+        target_session.refresh_from_db()
+        other_session.refresh_from_db()
+        self.assertIsNotNone(target_session.out_time)
+        self.assertIsNone(other_session.out_time)
+
     def test_same_ip_different_devices_can_clock_in(self):
         first = Users(UserName="Muncitor 1", UserSerie="SER-201")
         first.set_pin("1201")

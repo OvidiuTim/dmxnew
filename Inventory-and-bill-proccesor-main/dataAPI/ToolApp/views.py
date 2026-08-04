@@ -1804,22 +1804,6 @@ def _find_user_by_pin(raw_pin):
     return user
 
 
-def _client_owns_manual_session(session, client_ip=None, device_key=None):
-    if not session:
-        return False
-
-    if not session.manual_device_key and not session.manual_client_ip:
-        return True
-
-    if device_key and session.manual_device_key:
-        return session.manual_device_key == device_key
-
-    if client_ip and session.manual_client_ip:
-        return session.manual_client_ip == client_ip
-
-    return False
-
-
 def _parse_float_or_none(value):
     if value in (None, ""):
         return None
@@ -2008,20 +1992,15 @@ def nfc_scan(request):
                                            .order_by('-in_time')
                                            .first())
 
-            if matching_client_session and matching_client_session.user_fk_id != user.UserId:
+            target_has_open_session_today = bool(open_sess and open_sess.work_date == today)
+            if (
+                not target_has_open_session_today
+                and matching_client_session
+                and matching_client_session.user_fk_id != user.UserId
+            ):
                 return JsonResponse({
                     "error": "Telefonul sau browserul acesta are deja un check-in activ pentru alt muncitor. Pe acest dispozitiv poti face acum doar check-out pentru muncitorul pontat primul.",
                     "error_code": "MANUAL_DEVICE_LOCKED"
-                }, status=409)
-
-            if open_sess and open_sess.work_date == today and not _client_owns_manual_session(
-                open_sess,
-                client_ip=None,
-                device_key=manual_device_key
-            ):
-                return JsonResponse({
-                    "error": "Check-out-ul pentru acest muncitor trebuie facut de pe acelasi telefon sau browser folosit la check-in.",
-                    "error_code": "MANUAL_CHECKOUT_DEVICE_MISMATCH"
                 }, status=409)
 
         if open_sess:
