@@ -233,8 +233,8 @@ class ToolSerializer(serializers.ModelSerializer):
             attrs["IsLost"] = False
 
         assigned = attrs.get("AssignedTo")
-        if assigned:
-            attrs["User"] = assigned.UserName
+        if "AssignedTo" in attrs:
+            attrs["User"] = assigned.UserName if assigned else None
 
         status = attrs.get("Status") or (Tools.ToolStatus.IN_LUCRU if self.instance is None else None)
         if self.instance is None and "Status" not in attrs:

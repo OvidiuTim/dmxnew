@@ -1,12 +1,11 @@
 from datetime import timedelta, date as _date
+from collections import OrderedDict
+from html import escape
 import os
 
 from django.core.management.base import BaseCommand
 from django.utils.timezone import localdate
 from django.conf import settings
-
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
 
 from ToolApp.models import Users, AttendanceSession, LeaveDay
 
@@ -50,28 +49,64 @@ def get_missing_users_for_day(target_day):
     return list(users)
 
 
+def group_users_by_company(missing_users):
+    """Grupeaza angajatii dupa firma, cu firmele in ordine alfabetica."""
+    groups = {}
+    for user in missing_users:
+        company = str(getattr(user, "Company", "") or "").strip() or "Fără firmă"
+        groups.setdefault(company, []).append(user)
+
+    return OrderedDict(
+        sorted(
+            groups.items(),
+            key=lambda item: (item[0] == "Fără firmă", item[0].casefold()),
+        )
+    )
+
+
+def build_company_table(company, users):
+    rows = []
+    for idx, user in enumerate(users, start=1):
+        user_name = escape(str(getattr(user, "UserName", "") or ""))
+        user_serie = escape(str(getattr(user, "UserSerie", "") or "-"))
+        rows.append(
+            f"""
+            <tr>
+              <td style="padding:8px;border:1px solid #ddd;">{idx}</td>
+              <td style="padding:8px;border:1px solid #ddd;">{user_name}</td>
+              <td style="padding:8px;border:1px solid #ddd;">{user_serie}</td>
+            </tr>
+            """
+        )
+
+    company_name = escape(company)
+    return f"""
+      <section style="margin-top:24px;">
+        <h3 style="margin:0 0 10px;">{company_name} — lipsă: {len(users)}</h3>
+        <table style="border-collapse:collapse;min-width:700px;">
+          <thead>
+            <tr>
+              <th style="padding:8px;border:1px solid #ddd;text-align:left;">#</th>
+              <th style="padding:8px;border:1px solid #ddd;text-align:left;">Nume</th>
+              <th style="padding:8px;border:1px solid #ddd;text-align:left;">Serie</th>
+            </tr>
+          </thead>
+          <tbody>{''.join(rows)}</tbody>
+        </table>
+      </section>
+    """
+
+
 def build_html(target_day, missing_users):
     count = len(missing_users)
 
     if count == 0:
-        rows_html = """
-        <tr>
-          <td style="padding:8px;border:1px solid #ddd;">Toți angajații au fost pontați sau au leave înregistrat.</td>
-        </tr>
-        """
+        companies_html = "<p>Toți angajații au fost pontați sau au leave înregistrat.</p>"
     else:
-        rows = []
-        for idx, user in enumerate(missing_users, start=1):
-            rows.append(
-                f"""
-                <tr>
-                  <td style="padding:8px;border:1px solid #ddd;">{idx}</td>
-                  <td style="padding:8px;border:1px solid #ddd;">{getattr(user, 'UserName', '')}</td>
-                  <td style="padding:8px;border:1px solid #ddd;">{getattr(user, 'UserSerie', '') or '-'}</td>
-                </tr>
-                """
-            )
-        rows_html = "".join(rows)
+        companies_html = "".join(
+            build_company_table(company, users)
+            for company, users in group_users_by_company(missing_users).items()
+        )
 
     return f"""
     <html>
@@ -82,18 +117,7 @@ def build_html(target_day, missing_users):
           <strong>{target_day.isoformat()}</strong>: <strong>{count}</strong>
         </p>
 
-        <table style="border-collapse:collapse;min-width:700px;">
-          <thead>
-            <tr>
-              <th style="padding:8px;border:1px solid #ddd;text-align:left;">#</th>
-              <th style="padding:8px;border:1px solid #ddd;text-align:left;">Nume</th>
-              <th style="padding:8px;border:1px solid #ddd;text-align:left;">Serie</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows_html}
-          </tbody>
-        </table>
+        {companies_html}
 
         <p style="margin-top:20px;color:#666;">
           Generat automat din sistemul de pontaj.
@@ -113,18 +137,24 @@ def build_text(target_day, missing_users):
     lines = [
         f"Raport pontaj lipsă - {target_day.isoformat()}",
         "",
-        "Angajați fără pontaj și fără leave înregistrat:",
+        f"Angajați fără pontaj și fără leave înregistrat: {len(missing_users)}",
         "",
     ]
-    for idx, user in enumerate(missing_users, start=1):
-        lines.append(
-            f"{idx}. {getattr(user, 'UserName', '')} | "
-            f"Serie: {getattr(user, 'UserSerie', '') or '-'}"
-        )
+    for company, users in group_users_by_company(missing_users).items():
+        lines.append(f"{company} — lipsă: {len(users)}")
+        for idx, user in enumerate(users, start=1):
+            lines.append(
+                f"{idx}. {getattr(user, 'UserName', '')} | "
+                f"Serie: {getattr(user, 'UserSerie', '') or '-'}"
+            )
+        lines.append("")
     return "\n".join(lines)
 
 
 def send_email(subject, html_content, text_content, recipients):
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail
+
     api_key = (
         os.environ.get("SENDGRID_API_KEY")
         or getattr(settings, "SENDGRID_API_KEY", "")

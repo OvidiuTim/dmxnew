@@ -244,6 +244,10 @@ export class UnelteComponent implements OnInit {
       IsLost: !!tool.IsLost,
       DateLost: tool.DateLost ?? '',
     };
+
+    setTimeout(() => {
+      document.querySelector('.editor-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
   cancelEdit(): void {
