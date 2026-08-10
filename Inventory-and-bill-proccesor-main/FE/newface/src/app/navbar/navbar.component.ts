@@ -4,7 +4,7 @@ import { filter } from 'rxjs/operators';
 import { AuthService } from '../auth/auth.service';
 
 export type NavLink = { label: string; path: string; icon: string; permissionRoute?: string; active?: boolean };
-export type NavGroup = { label: string; links: NavLink[] };
+export type NavGroup = { label: string; moduleCode: string; links: NavLink[] };
 
 @Component({
   selector: 'app-navbar',
@@ -16,28 +16,28 @@ export class NavbarComponent {
 
   groups: NavGroup[] = [
     {
-      label: 'General',
-      links: [{ label: 'Dashboard', path: '/dashboard', icon: 'dashboard', permissionRoute: '/dashboard' }]
-    },
-    {
       label: 'Pontaj',
+      moduleCode: 'attendance',
       links: [
+        { label: 'Dashboard', path: '/dashboard', icon: 'dashboard', permissionRoute: '/dashboard' },
         { label: 'Prezență zilnică', path: '/pontaj', icon: 'schedule', permissionRoute: '/pontaj' },
         { label: 'Rapoarte', path: '/pontaj/rapoarte', icon: 'bar_chart', permissionRoute: '/pontaj/rapoarte' },
         { label: 'Fișe angajați', path: '/pontaj/fisa-angajat', icon: 'badge', permissionRoute: '/pontaj/fisa-angajat' },
-      ]
-    },
-    {
-      label: 'Echipe și program',
-      links: [
-        { label: 'Echipe permanente', path: '/pontaj/echipe', icon: 'groups', permissionRoute: '/pontaj/echipe' },
-        { label: 'Echipele de azi', path: '/pontaj/echipe-azi', icon: 'today', permissionRoute: '/pontaj/echipe-azi' },
-        { label: 'Personal disponibil', path: '/pontaj/personal-disponibil', icon: 'person_add', permissionRoute: '/pontaj/personal-disponibil' },
         { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar_month', permissionRoute: '/pontaj' },
       ]
     },
     {
+      label: 'Echipe și program',
+      moduleCode: 'teams_schedule',
+      links: [
+        { label: 'Echipe permanente', path: '/pontaj/echipe', icon: 'groups', permissionRoute: '/pontaj/echipe' },
+        { label: 'Echipele de azi', path: '/pontaj/echipe-azi', icon: 'today', permissionRoute: '/pontaj/echipe-azi' },
+        { label: 'Personal disponibil', path: '/pontaj/personal-disponibil', icon: 'person_add', permissionRoute: '/pontaj/personal-disponibil' },
+      ]
+    },
+    {
       label: 'Magazie',
+      moduleCode: 'warehouse',
       links: [
         { label: 'Privire generală', path: '/magazie', icon: 'warehouse', permissionRoute: '/magazie' },
         { label: 'Scule', path: '/magazie/scule', icon: 'tool', permissionRoute: '/unelte' },
@@ -47,7 +47,13 @@ export class NavbarComponent {
     },
     {
       label: 'Resurse umane',
-      links: [{ label: 'Documente', path: '/hr/documente', icon: 'document', permissionRoute: '/pontaj/fisa-angajat' }]
+      moduleCode: 'human_resources',
+      links: [{ label: 'Documente', path: '/hr/documente', icon: 'description', permissionRoute: '/hr/documente' }]
+    },
+    {
+      label: 'Unelte',
+      moduleCode: 'tools',
+      links: [{ label: 'Registru unelte', path: '/unelte', icon: 'construction', permissionRoute: '/unelte' }]
     }
   ];
 
@@ -83,9 +89,14 @@ export class NavbarComponent {
     return this.userName.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part.charAt(0).toUpperCase()).join('') || 'DM';
   }
 
+  get brandRoute(): string {
+    return this.auth.firstAvailableModuleRoute() || '/no-access?reason=no-modules';
+  }
+
   visibleLinks(group: NavGroup): NavLink[] {
     const session = this.auth.currentSession();
     if (!session || session.role === 'admin' || session.auth_type === 'legacy') return group.links;
+    if (!session.modules?.includes(group.moduleCode)) return [];
     return group.links.filter(link => session.permissions?.includes(link.permissionRoute || link.path));
   }
 

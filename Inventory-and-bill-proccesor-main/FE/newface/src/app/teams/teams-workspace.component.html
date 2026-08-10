@@ -50,14 +50,14 @@
           <button *ngIf="team.can_edit" type="button" class="icon-button" (click)="openEditTeam(team)" [attr.aria-label]="'Editează ' + team.name" title="Editează echipa"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button>
         </div>
         <div class="leader-row">
-          <span class="avatar">{{ team.leader.name.charAt(0) }}</span>
+          <app-employee-avatar [employee]="team.leader"></app-employee-avatar>
           <div><small>Șef de echipă</small><strong>{{ team.leader.name }}</strong><span>{{ team.leader.trade || 'Rol necompletat' }}</span></div>
         </div>
         <div class="worksite"><span class="material-symbols-rounded" aria-hidden="true">location_on</span><span><small>Șantier implicit</small><strong>{{ team.default_worksite || 'Neconfigurat' }}</strong></span></div>
         <div class="member-head"><strong>Membri</strong><span>{{ team.members.length }} persoane</span></div>
         <div class="member-list">
           <div class="member-row" *ngFor="let member of team.members; trackBy: trackById">
-            <span class="avatar small">{{ member.name.charAt(0) }}</span>
+            <app-employee-avatar [employee]="member" size="small"></app-employee-avatar>
             <span class="member-copy"><strong>{{ member.name }}</strong><small>{{ member.id === team.leader.id ? 'Șef de echipă' : (member.trade || 'Meserie necompletată') }}</small></span>
             <button *ngIf="team.can_edit && member.id !== team.leader.id" type="button" class="icon-button compact danger" (click)="removeMember(team, member)" [attr.aria-label]="'Elimină ' + member.name" title="Elimină din echipă"><span class="material-symbols-rounded" aria-hidden="true">person_remove</span></button>
           </div>
@@ -95,14 +95,14 @@
     <section class="daily-grid">
       <article class="daily-card" *ngFor="let team of filteredDailyTeams; trackBy: trackById">
         <div class="team-card-head"><div><span class="eyebrow">{{ team.default_worksite || 'Fără șantier implicit' }}</span><h2>{{ team.name }}</h2></div><span class="count-badge">{{ team.permanent.length + team.received.length + 1 }}</span></div>
-        <div class="person-strip leader"><span class="avatar">{{ team.leader.name.charAt(0) }}</span><span><strong>{{ team.leader.name }}</strong><small>Șef de echipă · {{ statusLabel(team.leader) }}</small></span></div>
-        <div class="daily-section" *ngIf="team.permanent.length"><h3>Membri permanenți prezenți</h3><div class="person-strip" *ngFor="let person of team.permanent"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>{{ person.worksite || team.default_worksite || 'Șantier necompletat' }}</small></span><span class="type-chip permanent">Permanent</span></div></div>
-        <div class="daily-section" *ngIf="team.received.length"><h3>Primiți temporar</h3><div class="person-strip" *ngFor="let person of team.received"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>{{ statusLabel(person) }}</small></span><span class="type-chip received">Primit</span></div></div>
-        <div class="daily-section" *ngIf="team.sent.length"><h3>Trimiși către alte echipe</h3><div class="person-strip" *ngFor="let person of team.sent"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>Alocare temporară activă</small></span><span class="type-chip sent">Trimis</span></div></div>
-        <div class="daily-section" *ngIf="team.absent.length"><h3>Absenți sau în concediu</h3><div class="person-strip" *ngFor="let person of team.absent"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>{{ statusLabel(person) }}</small></span><span class="type-chip absent">Indisponibil</span></div></div>
+        <div class="person-strip leader"><app-employee-avatar [employee]="team.leader"></app-employee-avatar><span><strong>{{ team.leader.name }}</strong><small>Șef de echipă · {{ statusLabel(team.leader) }}</small></span></div>
+        <div class="daily-section" *ngIf="team.permanent.length"><h3>Membri permanenți prezenți</h3><div class="person-strip" *ngFor="let person of team.permanent"><app-employee-avatar [employee]="person" size="small"></app-employee-avatar><span><strong>{{ person.name }}</strong><small>{{ person.worksite || team.default_worksite || 'Șantier necompletat' }}</small></span><span class="type-chip permanent">Permanent</span></div></div>
+        <div class="daily-section" *ngIf="team.received.length"><h3>Primiți temporar</h3><div class="person-strip" *ngFor="let person of team.received"><app-employee-avatar [employee]="person" size="small"></app-employee-avatar><span><strong>{{ person.name }}</strong><small>{{ statusLabel(person) }}</small></span><span class="type-chip received">Primit</span></div></div>
+        <div class="daily-section" *ngIf="team.sent.length"><h3>Trimiși către alte echipe</h3><div class="person-strip" *ngFor="let person of team.sent"><app-employee-avatar [employee]="person" size="small"></app-employee-avatar><span><strong>{{ person.name }}</strong><small>Alocare temporară activă</small></span><span class="type-chip sent">Trimis</span></div></div>
+        <div class="daily-section" *ngIf="team.absent.length"><h3>Absenți sau în concediu</h3><div class="person-strip" *ngFor="let person of team.absent"><app-employee-avatar [employee]="person" size="small"></app-employee-avatar><span><strong>{{ person.name }}</strong><small>{{ statusLabel(person) }}</small></span><span class="type-chip absent">Indisponibil</span></div></div>
       </article>
     </section>
-    <section class="available-strip"><div class="section-head"><div><span class="eyebrow">Nealocați</span><h2>Angajați disponibili</h2></div><span>{{ dailyAvailable.length }}</span></div><div class="mini-grid"><div class="person-strip" *ngFor="let person of dailyAvailable; trackBy: trackById"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>{{ person.trade || 'Meserie necompletată' }} · {{ statusLabel(person) }}</small></span></div></div></section>
+    <section class="available-strip"><div class="section-head"><div><span class="eyebrow">Nealocați</span><h2>Angajați disponibili</h2></div><span>{{ dailyAvailable.length }}</span></div><div class="mini-grid"><div class="person-strip" *ngFor="let person of dailyAvailable; trackBy: trackById"><app-employee-avatar [employee]="person" size="small"></app-employee-avatar><span><strong>{{ person.name }}</strong><small>{{ person.trade || 'Meserie necompletată' }} · {{ statusLabel(person) }}</small></span></div></div></section>
   </ng-container>
 
   <ng-container *ngIf="!loading && mode === 'available'">
@@ -113,7 +113,7 @@
     <section class="requests-card">
       <div class="table-scroll"><table class="personnel-table"><thead><tr><th>Angajat</th><th>Echipă permanentă</th><th>Meserie</th><th>Șantier curent</th><th>Stare</th><th>Acțiuni</th></tr></thead>
         <tbody><tr *ngFor="let employee of filteredAvailable; trackBy: trackById">
-          <td><div class="employee-cell"><span class="avatar small">{{ employee.name.charAt(0) }}</span><span><strong>{{ employee.name }}</strong><small>{{ employee.company || employee.serie }}</small></span></div></td>
+          <td><div class="employee-cell"><app-employee-avatar [employee]="employee" size="small"></app-employee-avatar><span><strong>{{ employee.name }}</strong><small>{{ employee.company || employee.serie }}</small></span></div></td>
           <td>{{ employee.team?.name || 'Fără echipă' }}</td><td>{{ employee.trade || 'Necompletată' }}</td><td>{{ employee.worksite || '—' }}</td>
           <td><span class="status-chip" [attr.data-status]="employee.leave ? 'rejected' : employee.presence === 'present' ? 'approved' : 'pending'">{{ statusLabel(employee) }}</span></td>
           <td><div class="inline-actions">
@@ -140,7 +140,7 @@
         <label class="toggle-row"><input type="checkbox" [(ngModel)]="teamForm.active" name="team-active" [disabled]="teamForm.id && !teamForm.can_manage_settings"><span><strong>Echipă activă</strong><small>Echipele inactive nu apar în alocarea zilnică.</small></span></label>
       </div>
       <div class="member-picker"><div class="member-picker-head"><div><strong>Selectează muncitorii</strong><small>Un angajat poate aparține unei singure echipe permanente active.</small></div><label class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="memberSearch" name="member-search" placeholder="Caută muncitor"></label></div>
-        <div class="member-options"><label *ngFor="let employee of selectableMembers; trackBy: trackById"><input type="checkbox" [checked]="isMemberSelected(employee.id)" (change)="toggleMember(employee.id, $any($event.target).checked)" [disabled]="employee.id === teamForm.leader_id"><span class="avatar small">{{ employee.name.charAt(0) }}</span><span><strong>{{ employee.name }}</strong><small>{{ employee.trade || 'Meserie necompletată' }}<ng-container *ngIf="employee.team"> · {{ employee.team.name }}</ng-container></small></span></label></div>
+        <div class="member-options"><label *ngFor="let employee of selectableMembers; trackBy: trackById"><input type="checkbox" [checked]="isMemberSelected(employee.id)" (change)="toggleMember(employee.id, $any($event.target).checked)" [disabled]="employee.id === teamForm.leader_id"><app-employee-avatar [employee]="employee" size="small"></app-employee-avatar><span><strong>{{ employee.name }}</strong><small>{{ employee.trade || 'Meserie necompletată' }}<ng-container *ngIf="employee.team"> · {{ employee.team.name }}</ng-container></small></span></label></div>
       </div>
       <div class="dialog-actions"><button type="button" class="button secondary" (click)="closeTeamDialog()">Renunță</button><button type="submit" class="button primary" [disabled]="saving || !teamForm.name || !teamForm.leader_id"><span class="material-symbols-rounded" aria-hidden="true">save</span>{{ saving ? 'Se salvează…' : 'Salvează echipa' }}</button></div>
     </form>

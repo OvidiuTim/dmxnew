@@ -44,6 +44,8 @@ import { AppIconComponent } from './app-icon/app-icon.component';
 import { InventoryCatalogComponent } from './inventory-catalog/inventory-catalog.component';
 import { InventoryHistoryComponent } from './inventory-history/inventory-history.component';
 import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
+import { EmployeeAvatarComponent } from './teams/employee-avatar.component';
+import { ToolsNavComponent } from './magazie/unelte/tools-nav.component';
 
 @NgModule({
   declarations: [
@@ -78,6 +80,8 @@ import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
     InventoryCatalogComponent,
     InventoryHistoryComponent,
     TeamsWorkspaceComponent,
+    EmployeeAvatarComponent,
+    ToolsNavComponent,
   ],
   imports: [
     CommonModule,

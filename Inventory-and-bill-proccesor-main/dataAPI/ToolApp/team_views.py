@@ -74,6 +74,7 @@ def _employee_payload(employee, team=None):
         "serie": employee.UserSerie,
         "company": employee.Company or "",
         "trade": employee.trade or "",
+        "photo": employee.photo or None,
         "active": employee.active,
         "team": {"id": team.pk, "name": team.name} if team else None,
     }

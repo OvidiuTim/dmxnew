@@ -146,10 +146,13 @@ urlpatterns = [
     path('api/auth/logout/', views.auth_logout),
     path('api/app-auth/login/', views.app_auth_login),
     path('api/app-auth/verify/', views.app_auth_verify),
+    path('api/app-auth/modules/', views.app_auth_modules),
     path('api/app-auth/logout/', views.app_auth_logout),
     path('api/app-admin/login/', views.app_admin_login),
     path('api/app-admin/verify/', views.app_admin_verify),
     path('api/app-admin/users/', views.app_admin_users),
+    path('api/app-admin/modules/', views.app_admin_modules),
+    path('api/app-admin/modules/<str:module_code>/access/', views.app_admin_module_access),
 
     # Echipe permanente, împrumuturi temporare și situația zilnică
     path('api/teams/', team_views.teams_collection, name='teams_collection'),

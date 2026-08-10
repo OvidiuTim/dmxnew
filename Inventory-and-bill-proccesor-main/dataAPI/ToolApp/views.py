@@ -27,7 +27,7 @@ from django.core.cache import cache
 
 # --- App (ToolApp) ---
 from ToolApp.models import (
-    Users, AppUser, AppPagePermission, AttendanceSession, PresenceEvent, Tools, Histories,
+    Users, AppUser, AppPagePermission, AppModuleAccess, AttendanceSession, PresenceEvent, Tools, Histories,
     Shed, Unfunctional, Materials, Consumables, WorkField,
     CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas,
     SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay, LeaveDay,
@@ -56,7 +56,11 @@ from ToolApp.models import Users, AttendanceSession
 from ToolApp.security import (
     ADMIN_APP_COOKIE, APP_TOKEN_COOKIE, TOKEN_AGE,
     app_user_has_route, check_admin_token, get_app_user_from_request,
-    get_token_from_request, make_admin_token, make_app_user_token,
+    get_token_from_request, make_admin_token, make_app_user_token, request_has_admin,
+)
+from ToolApp.module_access import (
+    MODULE_DEFINITIONS, MODULE_ORDER, app_user_has_module, default_module_route,
+    effective_module_codes, serialize_module_definitions,
 )
 
 from datetime import datetime
@@ -1454,8 +1458,23 @@ def rfid_entry_exit(request):
 
 
 #MAGAIE UNELTE - ISSUE / RETURN
+def _tool_legacy_access_error(request, route):
+    if request_has_admin(request):
+        return None
+    app_user = get_app_user_from_request(request)
+    if not app_user:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    has_tool_module = app_user_has_module(app_user, "tools") or app_user_has_module(app_user, "warehouse")
+    if not has_tool_module or not app_user_has_route(app_user, route):
+        return JsonResponse({"error": "Forbidden for this app user"}, status=403)
+    return None
+
+
 @csrf_exempt
 def issue_tool(request):
+    access_error = _tool_legacy_access_error(request, "/predare-unealta")
+    if access_error:
+        return access_error
     if request.method != 'POST':
         return JsonResponse({"msg": "Only POST allowed"}, status=405)
     data = JSONParser().parse(request)
@@ -1487,6 +1506,9 @@ def issue_tool(request):
 #-- MAGAZIE UNELTE - RETURN ---
 @csrf_exempt
 def return_tool(request):
+    access_error = _tool_legacy_access_error(request, "/predare-unealta")
+    if access_error:
+        return access_error
     if request.method != 'POST':
         return JsonResponse({"msg": "Only POST allowed"}, status=405)
     data = JSONParser().parse(request)
@@ -1514,6 +1536,9 @@ def return_tool(request):
 #-- MAGAZIE UNELTE - STATUS TOOLS ---
 @csrf_exempt
 def tools_status(request):
+    access_error = _tool_legacy_access_error(request, "/unelte")
+    if access_error:
+        return access_error
     if request.method != 'GET':
         return JsonResponse({"msg": "Only GET allowed"}, status=405)
 
@@ -3358,6 +3383,7 @@ APP_PERMISSION_ROUTES = [
     "/pontaj",
     "/pontaj/rapoarte",
     "/pontaj/fisa-angajat",
+    "/hr/documente",
     "/pontaj/echipe",
     "/pontaj/echipe-azi",
     "/pontaj/personal-disponibil",
@@ -3413,6 +3439,10 @@ def _normalize_login_redirect_path(value):
 
 def _serialize_app_user(app_user):
     permissions = set(_app_user_permissions(app_user))
+    modules = effective_module_codes(app_user)
+    inherited_modules = []
+    if app_user.employee.led_employee_teams.filter(active=True).exists():
+        inherited_modules.append("teams_schedule")
     return {
         "id": app_user.AppUserId,
         "username": app_user.username,
@@ -3428,6 +3458,10 @@ def _serialize_app_user(app_user):
             route: route in permissions
             for route in APP_PERMISSION_ROUTES
         },
+        "modules": modules,
+        "module_access": {code: code in modules for code in MODULE_ORDER},
+        "inherited_modules": inherited_modules,
+        "default_module_route": default_module_route(app_user),
     }
 
 
@@ -3460,7 +3494,13 @@ def auth_login(request):
 
     if hmac.compare_digest(got, exp):
         tok = _make_token()
-        resp = JsonResponse({"ok": True, "role": "admin", "expires_in": TOKEN_AGE})
+        resp = JsonResponse({
+            "ok": True,
+            "role": "admin",
+            "modules": list(MODULE_ORDER),
+            "default_module_route": "/dashboard",
+            "expires_in": TOKEN_AGE,
+        })
         resp.set_cookie(
             "ptj",
             tok,
@@ -3481,7 +3521,13 @@ def auth_verify(request):
 
     ok = _check_token(tok or "")
     if ok:
-        return JsonResponse({"ok": True, "role": "admin", "auth_type": "legacy"})
+        return JsonResponse({
+            "ok": True,
+            "role": "admin",
+            "auth_type": "legacy",
+            "modules": list(MODULE_ORDER),
+            "default_module_route": "/dashboard",
+        })
     return JsonResponse({"ok": False}, status=401)
 
 
@@ -3526,6 +3572,8 @@ def app_auth_login(request):
         "auth_type": "app_user",
         "app_user": _serialize_app_user(app_user),
         "permissions": _app_user_permissions(app_user),
+        "modules": effective_module_codes(app_user),
+        "default_module_route": default_module_route(app_user),
         "login_redirect_path": app_user.login_redirect_path or "/pontaj",
         "expires_in": TOKEN_AGE,
     })
@@ -3560,17 +3608,44 @@ def app_auth_verify(request):
     except Exception:
         data = {}
     route = str(data.get("route") or "").strip()
+    module_code = str(data.get("module_code") or "").strip()
     response = {
         "ok": True,
         "role": "app_user",
         "auth_type": "app_user",
         "app_user": _serialize_app_user(app_user),
         "permissions": _app_user_permissions(app_user),
+        "modules": effective_module_codes(app_user),
+        "default_module_route": default_module_route(app_user),
         "login_redirect_path": app_user.login_redirect_path or "/pontaj",
     }
     if route:
         response["can_access"] = app_user_has_route(app_user, route)
+    if module_code:
+        response["can_access_module"] = app_user_has_module(app_user, module_code)
     return JsonResponse(response)
+
+
+@csrf_exempt
+def app_auth_modules(request):
+    if request.method not in ("GET", "POST"):
+        return JsonResponse({"error": "Only GET/POST allowed"}, status=405)
+
+    if request_has_admin(request):
+        return JsonResponse({
+            "modules": serialize_module_definitions(),
+            "granted_modules": list(MODULE_ORDER),
+            "default_module_route": "/dashboard",
+        })
+
+    app_user = get_app_user_from_request(request)
+    if not app_user:
+        return JsonResponse({"error": "Authentication required"}, status=401)
+    return JsonResponse({
+        "modules": serialize_module_definitions(),
+        "granted_modules": effective_module_codes(app_user),
+        "default_module_route": default_module_route(app_user),
+    })
 
 
 @csrf_exempt
@@ -3657,10 +3732,19 @@ def app_admin_users(request):
         if route:
             if route not in APP_PERMISSION_ROUTES:
                 return JsonResponse({"error": "Ruta nu este gestionata."}, status=400)
+            requested_access = bool(data.get("can_access"))
+            landing_module = next(
+                (code for code, definition in MODULE_DEFINITIONS.items() if definition["main_route"] == route),
+                None,
+            )
+            if not requested_access and landing_module and app_user_has_module(app_user, landing_module):
+                return JsonResponse({
+                    "error": "Ruta principală rămâne activă cât timp utilizatorul are acces la modul."
+                }, status=400)
             AppPagePermission.objects.update_or_create(
                 app_user=app_user,
                 route=route,
-                defaults={"can_access": bool(data.get("can_access"))},
+                defaults={"can_access": requested_access},
             )
 
         app_user = (
@@ -3671,6 +3755,85 @@ def app_admin_users(request):
         return JsonResponse({"ok": True, "user": _serialize_app_user(app_user)})
 
     return JsonResponse({"error": "Only GET/POST allowed"}, status=405)
+
+
+def _request_can_manage_modules(request):
+    return _request_has_admin_app(request) or request_has_admin(request)
+
+
+@csrf_exempt
+def app_admin_modules(request):
+    if not _request_can_manage_modules(request):
+        return JsonResponse({"error": "Admin authentication required"}, status=401)
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    app_users = (
+        AppUser.objects.select_related("employee")
+        .prefetch_related("page_permissions", "module_accesses")
+        .order_by("username")
+    )
+    return JsonResponse({
+        "modules": serialize_module_definitions(),
+        "routes": APP_PERMISSION_ROUTES,
+        "users": [_serialize_app_user(app_user) for app_user in app_users],
+    })
+
+
+@csrf_exempt
+def app_admin_module_access(request, module_code):
+    if not _request_can_manage_modules(request):
+        return JsonResponse({"error": "Admin authentication required"}, status=401)
+    if request.method not in ("POST", "PUT"):
+        return JsonResponse({"error": "Only POST/PUT allowed"}, status=405)
+    if module_code not in MODULE_DEFINITIONS:
+        return JsonResponse({"error": "Modul necunoscut."}, status=404)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    raw_ids = data.get("app_user_ids")
+    if not isinstance(raw_ids, list):
+        return JsonResponse({"error": "app_user_ids trebuie sa fie o lista."}, status=400)
+    try:
+        selected_ids = {int(value) for value in raw_ids}
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "app_user_ids contine valori invalide."}, status=400)
+
+    all_users = list(AppUser.objects.select_related("employee").order_by("username"))
+    known_ids = {user.AppUserId for user in all_users}
+    unknown_ids = selected_ids - known_ids
+    if unknown_ids:
+        return JsonResponse({"error": "Unul sau mai multe conturi nu exista."}, status=400)
+
+    landing_route = MODULE_DEFINITIONS[module_code]["main_route"]
+    with transaction.atomic():
+        for app_user in all_users:
+            enabled = app_user.AppUserId in selected_ids
+            AppModuleAccess.objects.update_or_create(
+                app_user=app_user,
+                module_code=module_code,
+                defaults={"can_access": enabled},
+            )
+            if enabled:
+                AppPagePermission.objects.update_or_create(
+                    app_user=app_user,
+                    route=landing_route,
+                    defaults={"can_access": True},
+                )
+
+    refreshed_users = (
+        AppUser.objects.select_related("employee")
+        .prefetch_related("page_permissions", "module_accesses")
+        .order_by("username")
+    )
+    return JsonResponse({
+        "ok": True,
+        "module_code": module_code,
+        "users": [_serialize_app_user(app_user) for app_user in refreshed_users],
+    })
 
 
 

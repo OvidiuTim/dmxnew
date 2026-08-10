@@ -37,7 +37,8 @@ export class LoginComponent {
     this.auth.appLogin(this.username, this.pin).subscribe({
       next: (session) => {
         this.loading = false;
-        this.router.navigateByUrl(this.loginRedirectPath(session));
+        const target = this.auth.firstAvailableModuleRoute(session);
+        this.router.navigateByUrl(target || '/no-access?reason=no-modules');
       },
       error: (e) => { this.loading = false; this.error = 'Username sau PIN invalid'; console.error(e); }
     });
@@ -48,11 +49,4 @@ export class LoginComponent {
     this.error = null;
   }
 
-  private loginRedirectPath(session: any): string {
-    const path = String(session?.login_redirect_path || session?.app_user?.login_redirect_path || '/dashboard').trim();
-    if (!path || path.includes('://') || path.startsWith('//')) {
-      return '/dashboard';
-    }
-    return path.startsWith('/') ? path : `/${path}`;
-  }
 }

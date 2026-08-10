@@ -39,23 +39,23 @@ export const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
-  { path: 'pontaj', component: PontajComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj' } },
+  { path: 'pontaj', component: PontajComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj', moduleCode: 'attendance', moduleEntry: true } },
 
   // Pontaj manual separat
   { path: 'clockinandout', component: ClockinandoutComponent },
   { path: 'clockinandoutdriver', component: ClockinandoutdriverComponent },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
-  { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte' } },
-  { path: 'pontaj/fisa-angajat', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat' } },
-  { path: 'pontaj/fisa-angajat/:id', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat' } },
-  { path: 'pontaj/echipe', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe', teamMode: 'permanent' } },
-  { path: 'pontaj/echipe-azi', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe-azi', teamMode: 'today' } },
-  { path: 'pontaj/personal-disponibil', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/personal-disponibil', teamMode: 'available' } },
+  { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte', moduleCode: 'attendance' } },
+  { path: 'pontaj/fisa-angajat', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat', moduleCode: 'attendance' } },
+  { path: 'pontaj/fisa-angajat/:id', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat', moduleCode: 'attendance' } },
+  { path: 'pontaj/echipe', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe', moduleCode: 'teams_schedule', teamMode: 'permanent' } },
+  { path: 'pontaj/echipe-azi', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe-azi', moduleCode: 'teams_schedule', teamMode: 'today' } },
+  { path: 'pontaj/personal-disponibil', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/personal-disponibil', moduleCode: 'teams_schedule', teamMode: 'available' } },
   {
     path: 'pontaj/concedii', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
     data: {
-      permissionRoute: '/pontaj', title: 'Concedii și absențe', icon: 'calendar',
+      permissionRoute: '/pontaj', moduleCode: 'attendance', title: 'Concedii și absențe', icon: 'calendar',
       description: 'Administrarea cererilor, zilelor de concediu și absențelor într-un singur loc.',
       missingData: 'Modelele LeaveDay și LeaveRequest există în backend, însă în frontend nu există un contract API clar pentru listare și aprobare.'
     }
@@ -63,38 +63,38 @@ export const routes: Routes = [
   {
     path: 'hr/documente', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
     data: {
-      permissionRoute: '/pontaj/fisa-angajat', title: 'Documente angajați', icon: 'document',
+      permissionRoute: '/hr/documente', moduleCode: 'human_resources', title: 'Documente angajați', icon: 'document',
       description: 'Evidența documentelor și a termenelor de valabilitate pentru personal.',
       missingData: 'Nu există în serviciul frontend endpoint-uri confirmate pentru documente, tipuri de document și expirări.'
     }
   },
 
   // Formular angajat
-  { path: 'users/new', component: EmployeeFormComponent, canActivate: [AuthGuard], data: { permissionRoute: '/users/new' } },
-  { path: 'users/:id/edit', component: EmployeeFormComponent, canActivate: [AuthGuard], data: { permissionRoute: '/user/:id' } },
+  { path: 'users/new', component: EmployeeFormComponent, canActivate: [AuthGuard], data: { permissionRoute: '/users/new', moduleCode: 'attendance' } },
+  { path: 'users/:id/edit', component: EmployeeFormComponent, canActivate: [AuthGuard], data: { permissionRoute: '/user/:id', moduleCode: 'attendance' } },
 
   // Pagina utilizator protejată (/pontaj/user/:id)
-  { path: 'user/:id', component: UserpontatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/user/:id' } },
+  { path: 'user/:id', component: UserpontatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/user/:id', moduleCode: 'attendance' } },
 
-  { path: 'magazie', component: MagazieComponent, canActivate: [AuthGuard], data: { permissionRoute: '/magazie' } },
+  { path: 'magazie', component: MagazieComponent, canActivate: [AuthGuard], data: { permissionRoute: '/magazie', moduleCode: 'warehouse' } },
   {
     path: 'magazie/scule', component: InventoryCatalogComponent, canActivate: [AuthGuard],
-    data: { permissionRoute: '/unelte', isSsm: false, title: 'Scule', description: 'Inventarul sculelor de șantier, separat de echipamentele pentru protecția muncii.' }
+    data: { permissionRoute: '/unelte', moduleCode: 'warehouse', isSsm: false, title: 'Scule', description: 'Inventarul sculelor de șantier, separat de echipamentele pentru protecția muncii.' }
   },
   {
     path: 'magazie/echipamente-ssm', component: InventoryCatalogComponent, canActivate: [AuthGuard],
-    data: { permissionRoute: '/unelte', isSsm: true, title: 'Echipamente SSM', description: 'Echipamentele individuale de protecție urmărite separat prin marcajul SSM din backend.' }
+    data: { permissionRoute: '/unelte', moduleCode: 'warehouse', isSsm: true, title: 'Echipamente SSM', description: 'Echipamentele individuale de protecție urmărite separat prin marcajul SSM din backend.' }
   },
-  { path: 'magazie/istoric', component: InventoryHistoryComponent, canActivate: [AuthGuard], data: { permissionRoute: '/history' } },
-  { path: 'angajati', component: AngajatiComponent, canActivate: [AuthGuard], data: { permissionRoute: '/angajati' } },
-  { path: 'materiale', component: MaterialeComponent, canActivate: [AuthGuard], data: { permissionRoute: '/materiale' } },
-  { path: 'schela', component: SchelaComponent, canActivate: [AuthGuard], data: { permissionRoute: '/schela' } },
-  { path: 'unelte', component: UnelteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/unelte' } },
-  { path: 'unelte/adauga-unealta', component: AdaugaUnealtaComponent, canActivate: [AuthGuard], data: { permissionRoute: '/unelte/adauga-unealta' } },
-  { path: 'predare-unealta', component: PredareUnealtaComponent, canActivate: [AuthGuard], data: { permissionRoute: '/predare-unealta' } },
-  { path: 'history', component: HistoryComponent, canActivate: [AuthGuard], data: { permissionRoute: '/history' } },
-  { path: 'rafturi', component: ShelfsComponent, canActivate: [AuthGuard], data: { permissionRoute: '/rafturi' } },
-  { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard], data: { permissionRoute: '/dashboard' } },
+  { path: 'magazie/istoric', component: InventoryHistoryComponent, canActivate: [AuthGuard], data: { permissionRoute: '/history', moduleCode: 'warehouse' } },
+  { path: 'angajati', component: AngajatiComponent, canActivate: [AuthGuard], data: { permissionRoute: '/angajati', moduleCode: 'warehouse' } },
+  { path: 'materiale', component: MaterialeComponent, canActivate: [AuthGuard], data: { permissionRoute: '/materiale', moduleCode: 'warehouse' } },
+  { path: 'schela', component: SchelaComponent, canActivate: [AuthGuard], data: { permissionRoute: '/schela', moduleCode: 'warehouse' } },
+  { path: 'unelte', component: UnelteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/unelte', moduleCode: 'tools' } },
+  { path: 'unelte/adauga-unealta', component: AdaugaUnealtaComponent, canActivate: [AuthGuard], data: { permissionRoute: '/unelte/adauga-unealta', moduleCode: 'tools' } },
+  { path: 'predare-unealta', component: PredareUnealtaComponent, canActivate: [AuthGuard], data: { permissionRoute: '/predare-unealta', moduleCode: 'tools' } },
+  { path: 'history', component: HistoryComponent, canActivate: [AuthGuard], data: { permissionRoute: '/history', moduleCode: 'warehouse' } },
+  { path: 'rafturi', component: ShelfsComponent, canActivate: [AuthGuard], data: { permissionRoute: '/rafturi', moduleCode: 'warehouse' } },
+  { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard], data: { permissionRoute: '/dashboard', moduleCode: 'attendance' } },
 
   // 404 → dashboard
   { path: '**', redirectTo: 'dashboard' }

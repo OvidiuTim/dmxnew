@@ -164,6 +164,34 @@ class AppPagePermission(models.Model):
         return f"{self.app_user.username}: {self.route} = {self.can_access}"
 
 
+class AppModuleAccess(models.Model):
+    class ModuleCode(models.TextChoices):
+        ATTENDANCE = "attendance", "Pontaj"
+        TEAMS_SCHEDULE = "teams_schedule", "Echipe și program"
+        WAREHOUSE = "warehouse", "Magazie"
+        HUMAN_RESOURCES = "human_resources", "Resurse umane"
+        TOOLS = "tools", "Unelte"
+
+    AccessId = models.AutoField(primary_key=True)
+    app_user = models.ForeignKey(
+        AppUser,
+        on_delete=models.CASCADE,
+        related_name="module_accesses",
+    )
+    module_code = models.CharField(max_length=32, choices=ModuleCode.choices, db_index=True)
+    can_access = models.BooleanField(default=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("app_user", "module_code")
+        indexes = [
+            models.Index(fields=("module_code", "can_access"), name="app_module_access_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.app_user.username}: {self.module_code} = {self.can_access}"
+
+
 
 
 from django.utils import timezone

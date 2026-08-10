@@ -4,6 +4,8 @@ from django.conf import settings
 from django.core import signing
 from django.http import JsonResponse
 
+from ToolApp.module_access import app_user_has_module
+
 
 TOKEN_SALT = "pontaj-auth"
 APP_TOKEN_SALT = "dmx-app-user-auth"
@@ -17,6 +19,7 @@ PUBLIC_API_PREFIXES = (
     "/api/auth/logout/",
     "/api/app-auth/login/",
     "/api/app-auth/verify/",
+    "/api/app-auth/modules/",
     "/api/app-auth/logout/",
     "/api/app-admin/",
     "/api/nfc/scan/",
@@ -27,11 +30,13 @@ PUBLIC_API_PREFIXES = (
 )
 
 API_ROUTE_REQUIREMENTS = (
+    ("/api/tools/assign-quantity/", ("/predare-unealta",)),
+    ("/api/tools/return-quantity/", ("/predare-unealta",)),
     ("/api/teams/", ("/pontaj/echipe", "/pontaj/echipe-azi", "/pontaj/personal-disponibil")),
     ("/api/tools/", ("/unelte", "/unelte/adauga-unealta", "/predare-unealta")),
     ("/api/tool/", ("/unelte", "/unelte/adauga-unealta", "/predare-unealta")),
-    ("/api/user/", ("/pontaj", "/users/new", "/user/:id", "/angajati", "/pontaj/fisa-angajat")),
-    ("/api/users/", ("/pontaj", "/users/new", "/angajati")),
+    ("/api/user/", ("/pontaj", "/users/new", "/user/:id", "/angajati", "/pontaj/fisa-angajat", "/hr/documente", "/unelte", "/unelte/adauga-unealta", "/predare-unealta")),
+    ("/api/users/", ("/pontaj", "/users/new", "/angajati", "/unelte", "/unelte/adauga-unealta", "/predare-unealta")),
     ("/api/pontaj/reports/", ("/pontaj/rapoarte",)),
     ("/api/pontaj/day/", ("/pontaj", "/pontaj/rapoarte")),
     ("/api/pontaj/present/", ("/pontaj", "/pontaj/rapoarte")),
@@ -50,6 +55,27 @@ API_ROUTE_REQUIREMENTS = (
     ("/api/mijloacefixe/", ("/magazie",)),
     ("/api/combustibil/", ("/magazie",)),
     ("/api/istoric_schele/", ("/history", "/schela")),
+)
+
+API_MODULE_REQUIREMENTS = (
+    ("/api/teams/", ("teams_schedule",)),
+    ("/api/pontaj/", ("attendance",)),
+    ("/api/tools/", ("warehouse", "tools")),
+    ("/api/tool/", ("warehouse", "tools")),
+    ("/api/history/", ("warehouse", "tools")),
+    ("/api/user/", ("attendance", "human_resources", "warehouse", "tools")),
+    ("/api/users/", ("attendance", "warehouse", "tools")),
+    ("/api/material/", ("warehouse",)),
+    ("/api/consumable/", ("warehouse",)),
+    ("/api/shed/", ("warehouse",)),
+    ("/api/workfield/", ("warehouse",)),
+    ("/api/unfunctional/", ("warehouse",)),
+    ("/api/cofraj", ("warehouse",)),
+    ("/api/popi/", ("warehouse",)),
+    ("/api/schela", ("warehouse",)),
+    ("/api/mijloacefixe/", ("warehouse",)),
+    ("/api/combustibil/", ("warehouse",)),
+    ("/api/istoric_schele/", ("warehouse",)),
 )
 
 
@@ -150,8 +176,13 @@ def app_user_can_access_any(app_user, routes) -> bool:
     return any(app_user_has_route(app_user, route) for route in routes)
 
 
-def app_user_can_access_api_path(app_user, path: str) -> bool:
+def app_user_can_access_api_path(app_user, path: str, method: str = "GET") -> bool:
     normalized = _normalize_public_path(path)
+    for prefix, module_codes in API_MODULE_REQUIREMENTS:
+        if normalized.startswith(prefix) and not any(app_user_has_module(app_user, code) for code in module_codes):
+            return False
+    if normalized.startswith("/api/tool/") and str(method or "GET").upper() == "POST":
+        return app_user_has_route(app_user, "/unelte/adauga-unealta")
     for prefix, routes in API_ROUTE_REQUIREMENTS:
         if normalized.startswith(prefix):
             return app_user_can_access_any(app_user, routes)
@@ -179,7 +210,7 @@ class ApiAuthMiddleware:
 
         app_user = get_app_user_from_request(request)
         if app_user:
-            if app_user_can_access_api_path(app_user, path):
+            if app_user_can_access_api_path(app_user, path, request.method):
                 request.dmx_role = "app_user"
                 request.app_user = app_user
                 return self.get_response(request)

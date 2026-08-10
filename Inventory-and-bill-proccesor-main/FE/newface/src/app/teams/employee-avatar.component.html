@@ -1,0 +1,4 @@
+<span class="employee-avatar" [class.small]="size === 'small'" [attr.aria-label]="employee?.name || 'Angajat'">
+  <img *ngIf="photo && !imageFailed" [src]="photo" [alt]="employee?.name || 'Angajat'" (error)="onImageError()">
+  <span *ngIf="!photo || imageFailed" aria-hidden="true">{{ initial }}</span>
+</span>

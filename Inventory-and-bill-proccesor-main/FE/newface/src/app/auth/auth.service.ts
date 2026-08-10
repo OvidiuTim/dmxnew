@@ -9,12 +9,22 @@ export interface AuthSession {
   auth_type: 'legacy' | 'app_user';
   permissions?: string[];
   can_access?: boolean;
+  can_access_module?: boolean;
+  modules?: string[];
+  default_module_route?: string | null;
   login_redirect_path?: string;
   app_user?: any;
 }
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  readonly moduleRoutes: Record<string, string> = {
+    attendance: '/pontaj',
+    teams_schedule: '/pontaj/echipe',
+    warehouse: '/magazie',
+    human_resources: '/hr/documente',
+    tools: '/unelte'
+  };
   private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api';
   private authenticated = false;
   private session: AuthSession | null = null;
@@ -44,23 +54,26 @@ export class AuthService {
     return this.verifySession().pipe(map(() => true));
   }
 
-  verifySession(route?: string): Observable<AuthSession> {
+  verifySession(route?: string, moduleCode?: string): Observable<AuthSession> {
     return this.http.post<AuthSession>(`${this.API}/auth/verify/`, {}, { withCredentials: true })
       .pipe(
         tap((session) => this.setSession({ ...session, auth_type: 'legacy' })),
         catchError(() => this.http.post<AuthSession>(
           `${this.API}/app-auth/verify/`,
-          { route },
+          { route, module_code: moduleCode },
           { withCredentials: true }
         ).pipe(tap((session) => this.setSession(session))))
       );
   }
 
-  canAccess(route: string): Observable<boolean> {
-    return this.verifySession(route).pipe(
+  canAccess(route: string, moduleCode?: string): Observable<boolean> {
+    return this.verifySession(route, moduleCode).pipe(
       map((session) => {
         if (session.auth_type === 'legacy' || session.role === 'admin') {
           return true;
+        }
+        if (moduleCode && !(session.can_access_module ?? session.modules?.includes(moduleCode))) {
+          return false;
         }
         if (session.can_access !== undefined) {
           return !!session.can_access;
@@ -80,6 +93,34 @@ export class AuthService {
 
   getAdminAppUsers() {
     return this.http.get<{ routes: string[]; users: any[] }>(`${this.API}/app-admin/users/`, { withCredentials: true });
+  }
+
+  getAdminModules() {
+    return this.http.get<{ modules: any[]; routes: string[]; users: any[] }>(
+      `${this.API}/app-admin/modules/`,
+      { withCredentials: true }
+    );
+  }
+
+  saveAdminModuleAccess(moduleCode: string, appUserIds: number[]) {
+    return this.http.post<{ ok: boolean; module_code: string; users: any[] }>(
+      `${this.API}/app-admin/modules/${moduleCode}/access/`,
+      { app_user_ids: appUserIds },
+      { withCredentials: true }
+    );
+  }
+
+  hasModule(moduleCode: string, session = this.session): boolean {
+    return !!session && (session.role === 'admin' || session.auth_type === 'legacy' || !!session.modules?.includes(moduleCode));
+  }
+
+  firstAvailableModuleRoute(session = this.session): string | null {
+    if (!session) return null;
+    if (session.role === 'admin' || session.auth_type === 'legacy') return '/dashboard';
+    if (session.default_module_route) return session.default_module_route;
+    return Object.keys(this.moduleRoutes)
+      .filter(code => session.modules?.includes(code))
+      .map(code => this.moduleRoutes[code])[0] || null;
   }
 
   updateAdminAppUser(payload: any) {

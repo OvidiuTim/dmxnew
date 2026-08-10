@@ -1,6 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { AuthService } from '../auth/auth.service';
 
+export interface AdminModuleDefinition {
+  code: string;
+  label: string;
+  description: string;
+  icon: string;
+  main_route: string;
+}
+
 @Component({
   selector: 'app-admin-app-page',
   templateUrl: './admin-app-page.component.html',
@@ -11,32 +19,32 @@ export class AdminAppPageComponent implements OnInit {
   authenticated = false;
   loading = false;
   error: string | null = null;
+  success: string | null = null;
   routes: string[] = [];
   users: any[] = [];
+  modules: AdminModuleDefinition[] = [];
+  moduleSelections: Record<string, Set<number>> = {};
+  searches: Record<string, string> = {};
+  savingModule: string | null = null;
 
   constructor(private auth: AuthService) {}
 
   ngOnInit(): void {
     this.auth.adminAppVerify().subscribe({
-      next: (res) => {
-        this.authenticated = !!res.ok;
-        if (this.authenticated) {
-          this.loadData();
-        }
+      next: ({ ok }) => {
+        this.authenticated = !!ok;
+        if (ok) this.loadData();
       },
-      error: () => {
-        this.authenticated = false;
-      }
+      error: () => this.authenticated = false
     });
   }
 
   login(): void {
     if (!this.password) return;
     this.loading = true;
-    this.error = null;
+    this.clearMessages();
     this.auth.adminAppLogin(this.password).subscribe({
       next: () => {
-        this.loading = false;
         this.authenticated = true;
         this.password = '';
         this.loadData();
@@ -50,18 +58,73 @@ export class AdminAppPageComponent implements OnInit {
 
   loadData(): void {
     this.loading = true;
-    this.auth.getAdminAppUsers().subscribe({
+    this.clearMessages();
+    this.auth.getAdminModules().subscribe({
       next: (res) => {
         this.routes = res.routes || [];
-        this.users = (res.users || []).map((user) => ({
-          ...user,
-          _savedLoginRedirectPath: user.login_redirect_path || '/pontaj',
-        }));
+        this.modules = res.modules || [];
+        this.setUsers(res.users || []);
         this.loading = false;
       },
       error: () => {
-        this.error = 'Nu pot încărca utilizatorii aplicației.';
+        this.error = 'Nu pot încărca modulele și utilizatorii aplicației.';
         this.loading = false;
+      }
+    });
+  }
+
+  filteredUsers(module: AdminModuleDefinition): any[] {
+    const query = String(this.searches[module.code] || '').trim().toLocaleLowerCase('ro-RO');
+    if (!query) return this.users;
+    return this.users.filter(user => [user.employee?.name, user.username, user.employee?.serie]
+      .some(value => String(value || '').toLocaleLowerCase('ro-RO').includes(query)));
+  }
+
+  selectedUsers(moduleCode: string): any[] {
+    const selection = this.moduleSelections[moduleCode] || new Set<number>();
+    return this.users.filter(user => selection.has(user.id));
+  }
+
+  isSelected(moduleCode: string, userId: number): boolean {
+    return !!this.moduleSelections[moduleCode]?.has(userId);
+  }
+
+  isInherited(moduleCode: string, user: any): boolean {
+    return !!user.inherited_modules?.includes(moduleCode);
+  }
+
+  isLandingRouteLocked(user: any, route: string): boolean {
+    const module = this.modules.find(item => item.main_route === route);
+    return !!module && !!user.module_access?.[module.code];
+  }
+
+  toggleModuleUser(moduleCode: string, user: any, checked: boolean): void {
+    if (this.isInherited(moduleCode, user) && !checked) return;
+    const selection = this.moduleSelections[moduleCode] || new Set<number>();
+    checked ? selection.add(user.id) : selection.delete(user.id);
+    this.moduleSelections[moduleCode] = new Set(selection);
+    this.success = null;
+  }
+
+  addVisible(module: AdminModuleDefinition): void {
+    const selection = this.moduleSelections[module.code] || new Set<number>();
+    this.filteredUsers(module).forEach(user => selection.add(user.id));
+    this.moduleSelections[module.code] = new Set(selection);
+  }
+
+  saveModule(module: AdminModuleDefinition): void {
+    this.savingModule = module.code;
+    this.clearMessages();
+    const ids = Array.from(this.moduleSelections[module.code] || []);
+    this.auth.saveAdminModuleAccess(module.code, ids).subscribe({
+      next: (res) => {
+        this.setUsers(res.users || []);
+        this.savingModule = null;
+        this.success = `Accesul pentru modulul „${module.label}” a fost salvat.`;
+      },
+      error: (response) => {
+        this.savingModule = null;
+        this.error = response?.error?.error || `Nu pot salva modulul „${module.label}”.`;
       }
     });
   }
@@ -69,15 +132,11 @@ export class AdminAppPageComponent implements OnInit {
   toggleRoute(user: any, route: string, checked: boolean): void {
     const previous = !!user.permissions?.[route];
     user.permissions[route] = checked;
-    this.auth.updateAdminAppUser({
-      app_user_id: user.id,
-      route,
-      can_access: checked,
-    }).subscribe({
+    this.auth.updateAdminAppUser({ app_user_id: user.id, route, can_access: checked }).subscribe({
       next: (res) => Object.assign(user, res.user),
       error: () => {
         user.permissions[route] = previous;
-        this.error = 'Nu pot salva permisiunea.';
+        this.error = 'Nu pot salva permisiunea granulară.';
       }
     });
   }
@@ -85,45 +144,29 @@ export class AdminAppPageComponent implements OnInit {
   toggleActive(user: any, checked: boolean): void {
     const previous = !!user.is_active;
     user.is_active = checked;
-    this.auth.updateAdminAppUser({
-      app_user_id: user.id,
-      is_active: checked,
-    }).subscribe({
+    this.auth.updateAdminAppUser({ app_user_id: user.id, is_active: checked }).subscribe({
       next: (res) => Object.assign(user, res.user),
       error: () => {
         user.is_active = previous;
-        this.error = 'Nu pot salva statusul.';
+        this.error = 'Nu pot salva statusul contului.';
       }
     });
   }
 
-  saveLoginRedirect(user: any): void {
-    const nextPath = this.normalizeLoginRedirect(user.login_redirect_path);
-    const previous = user._savedLoginRedirectPath || '/pontaj';
-    user.login_redirect_path = nextPath;
-    if (nextPath === previous) {
-      return;
-    }
-    this.auth.updateAdminAppUser({
-      app_user_id: user.id,
-      login_redirect_path: nextPath,
-    }).subscribe({
-      next: (res) => {
-        Object.assign(user, res.user);
-        user._savedLoginRedirectPath = res.user.login_redirect_path || '/pontaj';
-      },
-      error: () => {
-        user.login_redirect_path = previous;
-        this.error = 'Nu pot salva redirectul după login.';
-      }
+  trackByCode(_index: number, item: AdminModuleDefinition): string { return item.code; }
+  trackById(_index: number, item: any): number { return item.id; }
+
+  private setUsers(users: any[]): void {
+    this.users = users;
+    this.modules.forEach(module => {
+      this.moduleSelections[module.code] = new Set(
+        users.filter(user => user.module_access?.[module.code]).map(user => user.id)
+      );
     });
   }
 
-  private normalizeLoginRedirect(value: string): string {
-    const path = String(value || '').trim();
-    if (!path || path.includes('://') || path.startsWith('//')) {
-      return '/pontaj';
-    }
-    return path.startsWith('/') ? path : `/${path}`;
+  private clearMessages(): void {
+    this.error = null;
+    this.success = null;
   }
 }

@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from ToolApp.models import (
     EmployeeSalaryProfile,
+    AppModuleAccess,
     EmployeeTeam,
     EmployeeTeamMember,
     LeaveDay,
@@ -11,6 +12,13 @@ from ToolApp.models import (
     Tools,
     Users,
 )
+
+
+@admin.register(AppModuleAccess)
+class AppModuleAccessAdmin(admin.ModelAdmin):
+    list_display = ("app_user", "module_code", "can_access", "updated_at")
+    list_filter = ("module_code", "can_access")
+    search_fields = ("app_user__username", "app_user__employee__UserName")
 
 
 @admin.register(Tools)

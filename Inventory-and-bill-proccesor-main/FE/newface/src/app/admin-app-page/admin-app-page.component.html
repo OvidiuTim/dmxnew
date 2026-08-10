@@ -1,65 +1,68 @@
 <main class="admin-page">
   <section class="login-panel" *ngIf="!authenticated">
-    <p class="eyebrow">Admin aplicație</p>
-    <h1>Administrare permisiuni</h1>
+    <p class="eyebrow">bloom-in · Admin aplicație</p>
+    <h1>Administrare acces</h1>
+    <p class="muted">Autentifică-te pentru a aloca module conturilor existente.</p>
     <form (ngSubmit)="login()">
-      <label>
-        <span>Parola admin</span>
-        <input type="password" [(ngModel)]="password" name="adminPassword" autocomplete="current-password">
-      </label>
-      <button type="submit" [disabled]="loading || !password">Intră</button>
+      <label><span>Parola admin</span><input type="password" [(ngModel)]="password" name="adminPassword" autocomplete="current-password"></label>
+      <button class="primary" type="submit" [disabled]="loading || !password">Intră</button>
     </form>
-    <div class="error" *ngIf="error">{{ error }}</div>
+    <div class="notice error" *ngIf="error"><span class="material-symbols-rounded" aria-hidden="true">warning</span>{{ error }}</div>
   </section>
 
   <section class="content" *ngIf="authenticated">
-    <header>
-      <div>
-        <p class="eyebrow">Admin aplicație</p>
-        <h1>Permisiuni AppUser</h1>
-      </div>
-      <button type="button" (click)="loadData()" [disabled]="loading">Reîncarcă</button>
+    <header class="page-header">
+      <div><p class="eyebrow">bloom-in · Control acces</p><h1>Modulele aplicației</h1><p>Alocă unul sau mai multe module fiecărui cont. Permisiunile pe pagini rămân disponibile în zona avansată.</p></div>
+      <button type="button" class="secondary" (click)="loadData()" [disabled]="loading"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Reîncarcă</button>
     </header>
 
-    <div class="error" *ngIf="error">{{ error }}</div>
-    <div class="state" *ngIf="loading">Se încarcă...</div>
+    <div class="notice error" *ngIf="error"><span class="material-symbols-rounded" aria-hidden="true">warning</span>{{ error }}</div>
+    <div class="notice success" *ngIf="success"><span class="material-symbols-rounded" aria-hidden="true">task_alt</span>{{ success }}</div>
+    <div class="state" *ngIf="loading"><span class="spinner"></span>Se încarcă datele…</div>
 
-    <div class="users-list" *ngIf="!loading">
-      <article class="user-card" *ngFor="let user of users">
-        <div class="user-head">
-          <div>
-            <strong>{{ user.employee?.name }}</strong>
-            <span>{{ user.username }} • {{ user.employee?.serie || '-' }}</span>
-          </div>
-          <label class="active-toggle">
-            <input type="checkbox" [ngModel]="user.is_active" (ngModelChange)="toggleActive(user, $event)">
-            <span>Activ</span>
-          </label>
+    <section class="modules-grid" *ngIf="!loading" aria-label="Module disponibile">
+      <article class="module-card" *ngFor="let module of modules; trackBy: trackByCode">
+        <div class="module-head">
+          <span class="module-icon material-symbols-rounded" aria-hidden="true">{{ module.icon }}</span>
+          <div><h2>{{ module.label }}</h2><p>{{ module.description }}</p></div>
+          <span class="count" [attr.aria-label]="selectedUsers(module.code).length + ' conturi selectate'">{{ selectedUsers(module.code).length }}</span>
         </div>
 
-        <label class="redirect-field">
-          <span>Redirect după login</span>
-          <input
-            type="text"
-            [ngModel]="user.login_redirect_path"
-            (ngModelChange)="user.login_redirect_path = $event"
-            (blur)="saveLoginRedirect(user)"
-            (keyup.enter)="saveLoginRedirect(user)"
-            placeholder="/pontaj"
-          >
-        </label>
+        <div class="selected-list" *ngIf="selectedUsers(module.code).length; else emptySelection">
+          <span class="user-chip" *ngFor="let user of selectedUsers(module.code); trackBy: trackById">
+            <span>{{ user.employee?.name || user.username }}</span>
+            <button type="button" (click)="toggleModuleUser(module.code, user, false)" [disabled]="isInherited(module.code, user)" [attr.aria-label]="'Elimină ' + (user.employee?.name || user.username)" [title]="isInherited(module.code, user) ? 'Acces inclus pentru șeful unei echipe active' : 'Elimină din modul'">
+              <span class="material-symbols-rounded" aria-hidden="true">close</span>
+            </button>
+          </span>
+        </div>
+        <ng-template #emptySelection><p class="empty">Niciun cont selectat.</p></ng-template>
 
-        <div class="routes-grid">
-          <label class="route-check" *ngFor="let route of routes">
-            <input
-              type="checkbox"
-              [ngModel]="user.permissions?.[route]"
-              (ngModelChange)="toggleRoute(user, route, $event)"
-            >
-            <span>{{ route }}</span>
+        <div class="picker-head">
+          <label class="search"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="searches[module.code]" [placeholder]="'Caută cont pentru ' + module.label" [attr.aria-label]="'Caută conturi pentru ' + module.label"></label>
+          <button type="button" class="text-button" (click)="addVisible(module)">Selectează rezultatele</button>
+        </div>
+        <div class="user-options">
+          <label *ngFor="let user of filteredUsers(module); trackBy: trackById" [class.inactive]="!user.is_active">
+            <input type="checkbox" [checked]="isSelected(module.code, user.id)" (change)="toggleModuleUser(module.code, user, $any($event.target).checked)" [disabled]="isInherited(module.code, user)">
+            <span><strong>{{ user.employee?.name || user.username }}</strong><small>{{ user.username }} · {{ user.employee?.serie || 'fără serie' }}<ng-container *ngIf="!user.is_active"> · inactiv</ng-container></small></span>
+            <span *ngIf="isInherited(module.code, user)" class="inherited" title="Acces inclus prin rolul de șef de echipă">Inclus</span>
           </label>
         </div>
+        <button type="button" class="primary save" (click)="saveModule(module)" [disabled]="savingModule === module.code">
+          <span class="material-symbols-rounded" aria-hidden="true">save</span>{{ savingModule === module.code ? 'Se salvează…' : 'Salvează modulul' }}
+        </button>
       </article>
-    </div>
+    </section>
+
+    <details class="advanced" *ngIf="!loading">
+      <summary><span class="material-symbols-rounded" aria-hidden="true">tune</span><span><strong>Permisiuni avansate pe pagini</strong><small>Modulele controlează intrarea, iar aceste opțiuni controlează paginile din interior.</small></span></summary>
+      <div class="users-list">
+        <article class="user-card" *ngFor="let user of users; trackBy: trackById">
+          <div class="user-head"><div><strong>{{ user.employee?.name }}</strong><span>{{ user.username }} · {{ user.employee?.serie || '-' }}</span></div><label class="active-toggle"><input type="checkbox" [ngModel]="user.is_active" (ngModelChange)="toggleActive(user, $event)"><span>Cont activ</span></label></div>
+          <div class="routes-grid"><label class="route-check" *ngFor="let route of routes" [title]="isLandingRouteLocked(user, route) ? 'Ruta principală este inclusă prin accesul la modul.' : ''"><input type="checkbox" [ngModel]="user.permissions?.[route]" (ngModelChange)="toggleRoute(user, route, $event)" [disabled]="isLandingRouteLocked(user, route)"><span>{{ route }}</span></label></div>
+        </article>
+      </div>
+    </details>
   </section>
 </main>

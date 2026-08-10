@@ -8,6 +8,7 @@ export interface TeamEmployee {
   serie: string;
   company: string;
   trade: string;
+  photo?: string | null;
   active: boolean;
   team?: { id: number; name: string } | null;
   category?: 'leader' | 'permanent' | 'received' | 'sent' | 'available';

@@ -6,7 +6,7 @@
 </header>
 
 <aside id="main-nav" class="sidebar-shell" [ngClass]="{ open: menuOpen }">
-  <a class="brand" routerLink="/dashboard" (click)="closeMenu()" aria-label="bloom-in Dashboard">
+  <a class="brand" [routerLink]="brandRoute" (click)="closeMenu()" aria-label="bloom-in">
     <span class="brand-mark">B</span>
     <span><strong>bloom-in</strong><small>DMX Construction</small></span>
   </a>

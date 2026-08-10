@@ -1,7 +1,8 @@
 <main class="no-access">
   <section>
     <p>Acces restricționat</p>
-    <h1>Nu ai acces la această pagină.</h1>
+    <h1>{{ noModules ? 'Nu ai acces la niciun modul.' : 'Nu ai acces la această pagină.' }}</h1>
+    <p *ngIf="noModules">Contactează administratorul pentru a primi acces la un modul.</p>
     <button type="button" (click)="goToLogin()">Înapoi la login</button>
   </section>
 </main>

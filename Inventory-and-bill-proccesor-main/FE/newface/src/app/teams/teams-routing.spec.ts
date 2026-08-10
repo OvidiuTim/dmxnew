@@ -12,6 +12,7 @@ describe('Rutele echipelor', () => {
       const route = routes.find(item => item.path === path);
       expect(route?.component).toBe(TeamsWorkspaceComponent);
       expect(route?.data?.['teamMode']).toBe(mode);
+      expect(route?.data?.['moduleCode']).toBe('teams_schedule');
     });
   });
 });

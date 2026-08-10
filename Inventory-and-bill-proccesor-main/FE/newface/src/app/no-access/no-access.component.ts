@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'app-no-access',
@@ -7,7 +7,11 @@ import { Router } from '@angular/router';
   styleUrls: ['./no-access.component.css']
 })
 export class NoAccessComponent {
-  constructor(private router: Router) {}
+  readonly noModules: boolean;
+
+  constructor(private router: Router, route: ActivatedRoute) {
+    this.noModules = route.snapshot.queryParamMap.get('reason') === 'no-modules';
+  }
 
   goToLogin(): void {
     this.router.navigate(['/login']);

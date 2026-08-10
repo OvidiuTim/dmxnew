@@ -1,0 +1,16 @@
+:host { display: block; min-width: 0; }
+.tools-nav { position: sticky; top: 0; display: flex; flex-direction: column; min-height: 100vh; border-right: 1px solid #232d39; background: #0a111a; padding: 28px 18px; }
+.brand { display: flex; align-items: center; gap: 11px; min-height: 50px; padding: 0 8px 25px; border-bottom: 1px solid #22303d; }
+.brand-mark { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 13px; background: #31d68f; color: #062116; font-size: 20px; font-weight: 900; line-height: 1; }
+.brand strong, .brand small { display: block; }
+.brand strong { letter-spacing: .02em; }
+.brand small { margin-top: 3px; color: #718495; font-size: 11px; }
+nav { display: grid; gap: 7px; margin-top: 24px; }
+a, button { display: flex; align-items: center; gap: 11px; min-height: 44px; border: 1px solid transparent; border-radius: 11px; background: transparent; color: #9cacba; padding: 9px 11px; text-align: left; text-decoration: none; cursor: pointer; }
+a:hover, button:hover, a.active { border-color: #263846; background: #101e29; color: #f3f7f5; }
+a.active { border-color: rgba(49, 214, 143, .25); background: rgba(49, 214, 143, .1); color: #69e5b1; }
+.material-symbols-rounded { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 20px; line-height: 1; }
+.nav-footer { display: grid; gap: 6px; margin-top: auto; padding-top: 24px; border-top: 1px solid #22303d; }
+.nav-footer button { width: 100%; font: inherit; }
+@media (max-width: 1180px) { :host { width: 100%; } .tools-nav { position: static; min-height: auto; border-right: 0; border-bottom: 1px solid #232d39; padding: 14px 20px; } .brand { padding: 0 0 12px; border: 0; } nav, .nav-footer { display: flex; flex-wrap: wrap; margin-top: 8px; padding-top: 0; border: 0; } .nav-footer { margin-top: 8px; } }
+@media (max-width: 680px) { .tools-nav { padding: 12px; } .brand { min-height: 44px; } nav, .nav-footer { display: grid; grid-template-columns: 1fr; width: 100%; } a, button { min-height: 42px; } }

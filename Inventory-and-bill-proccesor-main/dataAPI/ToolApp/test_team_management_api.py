@@ -62,6 +62,21 @@ class TeamManagementApiTests(TestCase):
             {self.leader_a.pk, self.worker_a.pk, self.worker_b.pk},
         )
 
+    def test_team_payload_contains_employee_photos_for_leader_and_members(self):
+        self.leader_a.photo = "https://example.test/leader.jpg"
+        self.leader_a.save(update_fields=["photo"])
+        self.worker_a.photo = "data:image/png;base64,worker"
+        self.worker_a.save(update_fields=["photo"])
+        self.create_team("Echipa Foto", self.leader_a, [self.worker_a])
+
+        response = self.admin.get(reverse("teams_collection"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        team = response.json()["teams"][0]
+        self.assertEqual(team["leader"]["photo"], "https://example.test/leader.jpg")
+        worker = next(member for member in team["members"] if member["id"] == self.worker_a.pk)
+        self.assertEqual(worker["photo"], "data:image/png;base64,worker")
+
     def test_edit_team(self):
         team = self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])
         response = self.admin.put(

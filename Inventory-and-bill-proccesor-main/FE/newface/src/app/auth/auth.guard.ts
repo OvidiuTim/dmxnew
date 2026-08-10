@@ -10,9 +10,23 @@ export class AuthGuard implements CanActivate {
 
   canActivate(route: ActivatedRouteSnapshot): Observable<boolean | UrlTree> {
     const permissionRoute = String(route.data?.['permissionRoute'] || `/${route.routeConfig?.path || 'pontaj'}`);
+    const moduleCode = String(route.data?.['moduleCode'] || '');
+    const isModuleEntry = !!route.data?.['moduleEntry'];
 
-    return this.auth.canAccess(permissionRoute).pipe(
-      map(ok => ok ? true : this.router.createUrlTree(['/no-access'])),
+    return this.auth.verifySession(permissionRoute, moduleCode || undefined).pipe(
+      map(session => {
+        if (session.role === 'admin' || session.auth_type === 'legacy') return true;
+        const hasModule = !moduleCode || !!(session.can_access_module ?? session.modules?.includes(moduleCode));
+        if (!hasModule && isModuleEntry) {
+          const fallback = this.auth.firstAvailableModuleRoute(session);
+          return fallback
+            ? this.router.parseUrl(fallback)
+            : this.router.createUrlTree(['/no-access'], { queryParams: { reason: 'no-modules' } });
+        }
+        if (!hasModule) return this.router.createUrlTree(['/no-access']);
+        const hasPage = session.can_access ?? !!session.permissions?.includes(permissionRoute);
+        return hasPage ? true : this.router.createUrlTree(['/no-access']);
+      }),
       catchError(() => of(this.router.createUrlTree(['/login'])))
     );
   }

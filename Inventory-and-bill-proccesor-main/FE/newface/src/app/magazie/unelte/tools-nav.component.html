@@ -1,0 +1,12 @@
+<aside class="tools-nav">
+  <div class="brand"><span class="brand-mark">B</span><span><strong>bloom-in</strong><small>Registru unelte</small></span></div>
+  <nav aria-label="Navigație unelte">
+    <a routerLink="/unelte" [class.active]="active === 'list'"><span class="material-symbols-rounded" aria-hidden="true">construction</span><span>Unelte</span></a>
+    <a *ngIf="canRoute('/unelte/adauga-unealta')" routerLink="/unelte/adauga-unealta" [class.active]="active === 'add'"><span class="material-symbols-rounded" aria-hidden="true">add_circle</span><span>Adaugă unealtă</span></a>
+    <a *ngIf="canRoute('/predare-unealta')" routerLink="/predare-unealta" [class.active]="active === 'handover'"><span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span><span>Predare / primire</span></a>
+  </nav>
+  <div class="nav-footer">
+    <a *ngIf="mainAppRoute" [routerLink]="mainAppRoute"><span class="material-symbols-rounded" aria-hidden="true">apps</span><span>Aplicația principală</span></a>
+    <button type="button" (click)="logout()"><span class="material-symbols-rounded" aria-hidden="true">logout</span><span>Deconectare</span></button>
+  </div>
+</aside>
