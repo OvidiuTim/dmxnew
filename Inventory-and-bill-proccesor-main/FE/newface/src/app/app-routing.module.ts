@@ -25,10 +25,11 @@ import { NoAccessComponent } from './no-access/no-access.component';
 import { PortalPlaceholderComponent } from './portal-placeholder/portal-placeholder.component';
 import { InventoryCatalogComponent } from './inventory-catalog/inventory-catalog.component';
 import { InventoryHistoryComponent } from './inventory-history/inventory-history.component';
+import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
-const routes: Routes = [
+export const routes: Routes = [
   // Login deschis
   { path: 'login', component: LoginComponent },
   { path: 'no-access', component: NoAccessComponent },
@@ -48,14 +49,9 @@ const routes: Routes = [
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte' } },
   { path: 'pontaj/fisa-angajat', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat' } },
   { path: 'pontaj/fisa-angajat/:id', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat' } },
-  {
-    path: 'pontaj/echipe', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
-    data: {
-      permissionRoute: '/pontaj', title: 'Echipe și program', icon: 'team',
-      description: 'Spațiu unificat pentru echipe permanente, alocări zilnice și programul de lucru.',
-      missingData: 'Lipsesc endpoint-urile confirmate pentru echipe, alocări pe șantier și program. Nu au fost introduse date mock.'
-    }
-  },
+  { path: 'pontaj/echipe', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe', teamMode: 'permanent' } },
+  { path: 'pontaj/echipe-azi', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe-azi', teamMode: 'today' } },
+  { path: 'pontaj/personal-disponibil', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/personal-disponibil', teamMode: 'available' } },
   {
     path: 'pontaj/concedii', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
     data: {

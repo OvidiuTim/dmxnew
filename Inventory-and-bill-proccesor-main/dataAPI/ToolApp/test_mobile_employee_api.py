@@ -421,9 +421,10 @@ class MobileEmployeeApiTests(TestCase):
         self.assertTrue(payload["members"][-1]["is_current_user"])
 
     def test_only_one_active_team_membership_is_allowed(self):
-        leader = Users.objects.create(UserName="Lider", UserSerie="TEAM-3")
-        first_team = EmployeeTeam.objects.create(name="Echipa 1", leader=leader)
-        second_team = EmployeeTeam.objects.create(name="Echipa 2", leader=leader)
+        first_leader = Users.objects.create(UserName="Lider 1", UserSerie="TEAM-3")
+        second_leader = Users.objects.create(UserName="Lider 2", UserSerie="TEAM-4")
+        first_team = EmployeeTeam.objects.create(name="Echipa 1", leader=first_leader)
+        second_team = EmployeeTeam.objects.create(name="Echipa 2", leader=second_leader)
         EmployeeTeamMember.objects.create(team=first_team, employee=self.employee)
         with self.assertRaises(IntegrityError):
             with transaction.atomic():

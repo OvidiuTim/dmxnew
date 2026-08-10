@@ -7,6 +7,7 @@ from ToolApp.models import (
     EmployeeTeamMember,
     LeaveDay,
     LeaveRequest,
+    TemporaryWorkerRequest,
     Tools,
     Users,
 )
@@ -43,8 +44,8 @@ class EmployeeSalaryProfileInline(admin.StackedInline):
 
 @admin.register(Users)
 class UsersAdmin(admin.ModelAdmin):
-    list_display = ("UserName", "UserSerie", "Company", "trade", "hire_date", "housing_location")
-    list_filter = ("Company", "trade")
+    list_display = ("UserName", "UserSerie", "Company", "trade", "active", "hire_date", "housing_location")
+    list_filter = ("active", "Company", "trade")
     search_fields = ("UserName", "UserSerie", "phone_number", "housing_location")
     inlines = (EmployeeSalaryProfileInline,)
 
@@ -95,7 +96,15 @@ class EmployeeTeamMemberInline(admin.TabularInline):
 
 @admin.register(EmployeeTeam)
 class EmployeeTeamAdmin(admin.ModelAdmin):
-    list_display = ("name", "leader", "active")
+    list_display = ("name", "leader", "default_worksite", "active")
     list_filter = ("active",)
     search_fields = ("name", "leader__UserName")
     inlines = (EmployeeTeamMemberInline,)
+
+
+@admin.register(TemporaryWorkerRequest)
+class TemporaryWorkerRequestAdmin(admin.ModelAdmin):
+    list_display = ("employee", "source_team", "requester_team", "start_date", "end_date", "status")
+    list_filter = ("status", "start_date", "source_team", "requester_team")
+    search_fields = ("employee__UserName", "source_team__name", "requester_team__name", "reason")
+    readonly_fields = ("created_at", "updated_at", "resolved_at")

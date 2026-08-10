@@ -88,6 +88,7 @@ class Users(models.Model):
     trade = models.CharField(max_length=100, null=True, blank=True)
     hire_date = models.DateField(null=True, blank=True)
     housing_location = models.CharField(max_length=255, blank=True, default="")
+    active = models.BooleanField(default=True, db_index=True)
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
 
@@ -574,10 +575,29 @@ class LeaveRequest(models.Model):
 class EmployeeTeam(models.Model):
     name = models.CharField(max_length=160)
     leader = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="led_employee_teams")
+    default_worksite = models.CharField(max_length=160, blank=True, default="")
     active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
         ordering = ("name",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("leader",),
+                condition=models.Q(active=True),
+                name="unique_active_employee_team_leader",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.active and self.leader_id:
+            if not self.leader.active:
+                raise ValidationError({"leader": "Șeful de echipă este inactiv."})
+            duplicate = EmployeeTeam.objects.filter(active=True, leader_id=self.leader_id)
+            if self.pk:
+                duplicate = duplicate.exclude(pk=self.pk)
+            if duplicate.exists():
+                raise ValidationError({"leader": "Angajatul conduce deja o echipă activă."})
 
     def __str__(self):
         return self.name
@@ -601,3 +621,109 @@ class EmployeeTeamMember(models.Model):
 
     def __str__(self):
         return f"{self.team}: {self.employee}"
+
+
+class TemporaryWorkerRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "În așteptare"
+        APPROVED = "approved", "Aprobată"
+        REJECTED = "rejected", "Respinsă"
+        CANCELLED = "cancelled", "Anulată"
+        EXPIRED = "expired", "Expirată"
+
+    requester_team = models.ForeignKey(
+        EmployeeTeam,
+        on_delete=models.CASCADE,
+        related_name="temporary_requests_sent",
+    )
+    source_team = models.ForeignKey(
+        EmployeeTeam,
+        on_delete=models.CASCADE,
+        related_name="temporary_requests_received",
+    )
+    employee = models.ForeignKey(
+        Users,
+        on_delete=models.PROTECT,
+        related_name="temporary_team_requests",
+    )
+    start_date = models.DateField(db_index=True)
+    end_date = models.DateField(db_index=True)
+    reason = models.CharField(max_length=500, blank=True, default="")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    requested_by = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="temporary_worker_requests_created",
+    )
+    resolved_by = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="temporary_worker_requests_resolved",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("employee", "start_date", "end_date"), name="team_tmp_emp_dates_idx"),
+            models.Index(fields=("status", "start_date", "end_date"), name="team_tmp_status_dates_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.start_date and self.end_date and self.end_date < self.start_date:
+            errors["end_date"] = "Data finală nu poate fi înaintea datei de început."
+        if self.requester_team_id and self.source_team_id and self.requester_team_id == self.source_team_id:
+            errors["requester_team"] = "Echipa solicitantă trebuie să fie diferită de echipa sursă."
+        if self.employee_id and not self.employee.active:
+            errors["employee"] = "Angajatul este inactiv."
+        if self.requester_team_id and not self.requester_team.active:
+            errors["requester_team"] = "Echipa solicitantă este inactivă."
+        if self.source_team_id and not self.source_team.active:
+            errors["source_team"] = "Echipa sursă este inactivă."
+        if self.employee_id and self.source_team_id:
+            belongs_to_source = EmployeeTeamMember.objects.filter(
+                team_id=self.source_team_id,
+                employee_id=self.employee_id,
+                active=True,
+            ).exists()
+            if not belongs_to_source:
+                errors["employee"] = "Angajatul nu aparține activ echipei sursă."
+        if (
+            self.employee_id
+            and self.start_date
+            and self.end_date
+            and self.status in (self.Status.PENDING, self.Status.APPROVED)
+        ):
+            leave_exists = LeaveDay.objects.filter(
+                user_fk_id=self.employee_id,
+                work_date__range=(self.start_date, self.end_date),
+            ).exists()
+            if leave_exists:
+                errors["employee"] = "Angajatul are concediu sau indisponibilitate în intervalul ales."
+            overlap = TemporaryWorkerRequest.objects.filter(
+                employee_id=self.employee_id,
+                start_date__lte=self.end_date,
+                end_date__gte=self.start_date,
+                status__in=(self.Status.PENDING, self.Status.APPROVED),
+            )
+            if self.pk:
+                overlap = overlap.exclude(pk=self.pk)
+            if overlap.exists():
+                errors["employee"] = "Angajatul are deja o solicitare suprapusă."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.employee} → {self.requester_team} ({self.start_date}–{self.end_date})"

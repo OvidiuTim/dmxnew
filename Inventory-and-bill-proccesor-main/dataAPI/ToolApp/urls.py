@@ -1,6 +1,7 @@
 from django.urls import path, re_path as url
 from ToolApp import views
 from ToolApp import mobile_views
+from ToolApp import team_views
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -149,6 +150,15 @@ urlpatterns = [
     path('api/app-admin/login/', views.app_admin_login),
     path('api/app-admin/verify/', views.app_admin_verify),
     path('api/app-admin/users/', views.app_admin_users),
+
+    # Echipe permanente, împrumuturi temporare și situația zilnică
+    path('api/teams/', team_views.teams_collection, name='teams_collection'),
+    path('api/teams/today/', team_views.teams_today, name='teams_today'),
+    path('api/teams/available/', team_views.available_personnel, name='available_personnel'),
+    path('api/teams/requests/', team_views.temporary_requests, name='temporary_worker_requests'),
+    path('api/teams/requests/<int:request_id>/action/', team_views.temporary_request_action, name='temporary_worker_request_action'),
+    path('api/teams/<int:team_id>/', team_views.team_detail, name='team_detail'),
+    path('api/teams/<int:team_id>/members/', team_views.team_members, name='team_members'),
 
     # --- PONTAJ: editare manuală pe sesiuni (nou) ---
     path('api/pontaj/day/edit/', attendance_edit_day, name='attendance_edit_day'),                 # POST (replace cu sesiuni)

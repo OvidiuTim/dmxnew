@@ -3358,6 +3358,9 @@ APP_PERMISSION_ROUTES = [
     "/pontaj",
     "/pontaj/rapoarte",
     "/pontaj/fisa-angajat",
+    "/pontaj/echipe",
+    "/pontaj/echipe-azi",
+    "/pontaj/personal-disponibil",
     "/users/new",
     "/user/:id",
     "/unelte",
@@ -3409,10 +3412,7 @@ def _normalize_login_redirect_path(value):
 
 
 def _serialize_app_user(app_user):
-    permissions = {
-        permission.route: permission.can_access
-        for permission in app_user.page_permissions.all()
-    }
+    permissions = set(_app_user_permissions(app_user))
     return {
         "id": app_user.AppUserId,
         "username": app_user.username,
@@ -3425,18 +3425,21 @@ def _serialize_app_user(app_user):
             "pin": app_user.employee.UserPin,
         },
         "permissions": {
-            route: bool(permissions.get(route, False))
+            route: route in permissions
             for route in APP_PERMISSION_ROUTES
         },
     }
 
 
 def _app_user_permissions(app_user):
-    return list(
+    permissions = set(
         AppPagePermission.objects
         .filter(app_user=app_user, can_access=True)
         .values_list("route", flat=True)
     )
+    if app_user.employee.led_employee_teams.filter(active=True).exists():
+        permissions.update({"/pontaj/echipe", "/pontaj/echipe-azi", "/pontaj/personal-disponibil"})
+    return sorted(permissions)
 
 
 # --- AUTH LOGIN / VERIFY ---

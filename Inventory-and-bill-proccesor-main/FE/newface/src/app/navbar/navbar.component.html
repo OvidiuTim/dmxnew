@@ -2,13 +2,13 @@
   <button class="burger" type="button" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen" aria-controls="main-nav" aria-label="Deschide meniul">
     <span></span><span></span><span></span>
   </button>
-  <div class="mobile-brand"><span class="brand-mark">N</span><strong>Novarion</strong></div>
+  <div class="mobile-brand"><span class="brand-mark">B</span><strong>bloom-in</strong></div>
 </header>
 
 <aside id="main-nav" class="sidebar-shell" [ngClass]="{ open: menuOpen }">
-  <a class="brand" routerLink="/dashboard" (click)="closeMenu()" aria-label="Novarion Dashboard">
-    <span class="brand-mark">N</span>
-    <span><strong>NOVARION</strong><small>DMX Construction</small></span>
+  <a class="brand" routerLink="/dashboard" (click)="closeMenu()" aria-label="bloom-in Dashboard">
+    <span class="brand-mark">B</span>
+    <span><strong>bloom-in</strong><small>DMX Construction</small></span>
   </a>
 
   <nav class="sidebar-nav" aria-label="Navigația principală">

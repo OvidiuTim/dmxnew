@@ -43,6 +43,7 @@ import { PortalPlaceholderComponent } from './portal-placeholder/portal-placehol
 import { AppIconComponent } from './app-icon/app-icon.component';
 import { InventoryCatalogComponent } from './inventory-catalog/inventory-catalog.component';
 import { InventoryHistoryComponent } from './inventory-history/inventory-history.component';
+import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
 
 @NgModule({
   declarations: [
@@ -76,6 +77,7 @@ import { InventoryHistoryComponent } from './inventory-history/inventory-history
     AppIconComponent,
     InventoryCatalogComponent,
     InventoryHistoryComponent,
+    TeamsWorkspaceComponent,
   ],
   imports: [
     CommonModule,

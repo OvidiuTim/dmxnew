@@ -22,11 +22,18 @@ export class NavbarComponent {
     {
       label: 'Pontaj',
       links: [
-        { label: 'Prezență zilnică', path: '/pontaj', icon: 'clock', permissionRoute: '/pontaj' },
-        { label: 'Rapoarte', path: '/pontaj/rapoarte', icon: 'chart', permissionRoute: '/pontaj/rapoarte' },
+        { label: 'Prezență zilnică', path: '/pontaj', icon: 'schedule', permissionRoute: '/pontaj' },
+        { label: 'Rapoarte', path: '/pontaj/rapoarte', icon: 'bar_chart', permissionRoute: '/pontaj/rapoarte' },
         { label: 'Fișe angajați', path: '/pontaj/fisa-angajat', icon: 'badge', permissionRoute: '/pontaj/fisa-angajat' },
-        { label: 'Echipe și program', path: '/pontaj/echipe', icon: 'team', permissionRoute: '/pontaj' },
-        { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar', permissionRoute: '/pontaj' },
+      ]
+    },
+    {
+      label: 'Echipe și program',
+      links: [
+        { label: 'Echipe permanente', path: '/pontaj/echipe', icon: 'groups', permissionRoute: '/pontaj/echipe' },
+        { label: 'Echipele de azi', path: '/pontaj/echipe-azi', icon: 'today', permissionRoute: '/pontaj/echipe-azi' },
+        { label: 'Personal disponibil', path: '/pontaj/personal-disponibil', icon: 'person_add', permissionRoute: '/pontaj/personal-disponibil' },
+        { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar_month', permissionRoute: '/pontaj' },
       ]
     },
     {
@@ -58,8 +65,7 @@ export class NavbarComponent {
 
   private markActive(currentUrl: string) {
     this.groups.forEach(group => group.links.forEach(link => {
-      const exactSectionRoot = (link.path === '/pontaj' || link.path === '/magazie') && currentUrl === link.path;
-      link.active = exactSectionRoot || (!['/pontaj', '/magazie'].includes(link.path) && currentUrl.startsWith(link.path));
+      link.active = currentUrl === link.path || currentUrl.startsWith(`${link.path}/`);
     }));
   }
 

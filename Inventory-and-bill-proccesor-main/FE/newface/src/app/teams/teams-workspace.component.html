@@ -1,0 +1,161 @@
+<section class="teams-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Echipe și program</span>
+      <h1>{{ title }}</h1>
+      <p>{{ subtitle }}</p>
+    </div>
+    <div class="header-actions">
+      <label class="date-control" *ngIf="mode !== 'permanent'">
+        <span class="material-symbols-rounded" aria-hidden="true">calendar_today</span>
+        <input type="date" [(ngModel)]="selectedDate" (change)="onDateChange()" aria-label="Data situației echipelor">
+      </label>
+      <button type="button" class="button secondary" (click)="load()">
+        <span class="material-symbols-rounded" aria-hidden="true">refresh</span>Actualizează
+      </button>
+      <button *ngIf="mode === 'permanent' && requesterTeams.length" type="button" class="button secondary" (click)="openRequest()">
+        <span class="material-symbols-rounded" aria-hidden="true">person_add</span>Solicită muncitor
+      </button>
+      <button *ngIf="mode === 'permanent' && canManageAll" type="button" class="button primary" (click)="openCreateTeam()">
+        <span class="material-symbols-rounded" aria-hidden="true">group_add</span>Echipă nouă
+      </button>
+    </div>
+  </header>
+
+  <div class="notice success" *ngIf="notice"><span class="material-symbols-rounded" aria-hidden="true">task_alt</span>{{ notice }}</div>
+  <div class="notice error" *ngIf="error"><span class="material-symbols-rounded" aria-hidden="true">warning</span>{{ error }}</div>
+
+  <div class="loading-state" *ngIf="loading"><span></span>Se încarcă datele echipelor…</div>
+
+  <ng-container *ngIf="!loading && mode === 'permanent'">
+    <section class="stats-grid" aria-label="Indicatori echipe">
+      <article><span class="stat-icon green material-symbols-rounded" aria-hidden="true">groups</span><div><strong>{{ activeTeams.length }}</strong><small>Echipe active</small></div></article>
+      <article><span class="stat-icon blue material-symbols-rounded" aria-hidden="true">engineering</span><div><strong>{{ employees.length }}</strong><small>Angajați în registru</small></div></article>
+      <article><span class="stat-icon violet material-symbols-rounded" aria-hidden="true">person_off</span><div><strong>{{ unassignedCount }}</strong><small>Fără echipă permanentă</small></div></article>
+      <article><span class="stat-icon amber material-symbols-rounded" aria-hidden="true">pending_actions</span><div><strong>{{ filteredRequests.length }}</strong><small>Solicitări vizibile</small></div></article>
+    </section>
+
+    <section class="toolbar">
+      <label class="search-control">
+        <span class="material-symbols-rounded" aria-hidden="true">search</span>
+        <input type="search" [(ngModel)]="searchTerm" placeholder="Caută echipă, șef sau muncitor" aria-label="Caută în echipe">
+      </label>
+      <label><span>Status echipă</span><select [(ngModel)]="teamStatus"><option value="all">Toate</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
+    </section>
+
+    <section class="team-grid" *ngIf="filteredTeams.length; else noTeams">
+      <article class="team-card" *ngFor="let team of filteredTeams; trackBy: trackById" [class.inactive]="!team.active">
+        <div class="team-card-head">
+          <div><span class="status-dot" [class.off]="!team.active"></span><small>{{ team.active ? 'Echipă activă' : 'Echipă inactivă' }}</small><h2>{{ team.name }}</h2></div>
+          <button *ngIf="team.can_edit" type="button" class="icon-button" (click)="openEditTeam(team)" [attr.aria-label]="'Editează ' + team.name" title="Editează echipa"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button>
+        </div>
+        <div class="leader-row">
+          <span class="avatar">{{ team.leader.name.charAt(0) }}</span>
+          <div><small>Șef de echipă</small><strong>{{ team.leader.name }}</strong><span>{{ team.leader.trade || 'Rol necompletat' }}</span></div>
+        </div>
+        <div class="worksite"><span class="material-symbols-rounded" aria-hidden="true">location_on</span><span><small>Șantier implicit</small><strong>{{ team.default_worksite || 'Neconfigurat' }}</strong></span></div>
+        <div class="member-head"><strong>Membri</strong><span>{{ team.members.length }} persoane</span></div>
+        <div class="member-list">
+          <div class="member-row" *ngFor="let member of team.members; trackBy: trackById">
+            <span class="avatar small">{{ member.name.charAt(0) }}</span>
+            <span class="member-copy"><strong>{{ member.name }}</strong><small>{{ member.id === team.leader.id ? 'Șef de echipă' : (member.trade || 'Meserie necompletată') }}</small></span>
+            <button *ngIf="team.can_edit && member.id !== team.leader.id" type="button" class="icon-button compact danger" (click)="removeMember(team, member)" [attr.aria-label]="'Elimină ' + member.name" title="Elimină din echipă"><span class="material-symbols-rounded" aria-hidden="true">person_remove</span></button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <ng-template #noTeams><div class="empty-state"><span class="material-symbols-rounded" aria-hidden="true">groups</span><strong>Nu există echipe pentru filtrul selectat.</strong></div></ng-template>
+
+    <section class="requests-card">
+      <div class="section-head"><div><span class="eyebrow">Transfer temporar</span><h2>Solicitări trimise și primite</h2></div></div>
+      <div class="table-scroll" *ngIf="filteredRequests.length; else noRequests">
+        <table>
+          <thead><tr><th>Muncitor</th><th>Din echipa</th><th>Către echipa</th><th>Perioadă</th><th>Status</th><th>Motiv</th><th>Acțiuni</th></tr></thead>
+          <tbody><tr *ngFor="let item of filteredRequests; trackBy: trackById">
+            <td><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || '—' }}</small></td>
+            <td>{{ item.source_team.name }}</td><td>{{ item.requester_team.name }}</td>
+            <td class="mono">{{ item.start_date }} – {{ item.end_date }}</td>
+            <td><span class="status-chip" [attr.data-status]="item.status">{{ item.status_label }}</span></td>
+            <td>{{ item.reason || '—' }}</td>
+            <td><div class="row-actions">
+              <button *ngIf="item.can_approve" type="button" (click)="requestAction(item, 'approve')" aria-label="Aprobă solicitarea" title="Aprobă"><span class="material-symbols-rounded" aria-hidden="true">check</span></button>
+              <button *ngIf="item.can_reject" type="button" (click)="requestAction(item, 'reject')" aria-label="Respinge solicitarea" title="Respinge"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+              <button *ngIf="item.can_cancel" type="button" (click)="requestAction(item, 'cancel')" aria-label="Anulează solicitarea" title="Anulează"><span class="material-symbols-rounded" aria-hidden="true">cancel</span></button>
+            </div></td>
+          </tr></tbody>
+        </table>
+      </div>
+      <ng-template #noRequests><div class="empty-inline">Nu există solicitări relevante.</div></ng-template>
+    </section>
+  </ng-container>
+
+  <ng-container *ngIf="!loading && mode === 'today'">
+    <section class="toolbar one-column"><label class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="searchTerm" placeholder="Caută echipa sau șeful" aria-label="Caută echipa zilei"></label></section>
+    <section class="daily-grid">
+      <article class="daily-card" *ngFor="let team of filteredDailyTeams; trackBy: trackById">
+        <div class="team-card-head"><div><span class="eyebrow">{{ team.default_worksite || 'Fără șantier implicit' }}</span><h2>{{ team.name }}</h2></div><span class="count-badge">{{ team.permanent.length + team.received.length + 1 }}</span></div>
+        <div class="person-strip leader"><span class="avatar">{{ team.leader.name.charAt(0) }}</span><span><strong>{{ team.leader.name }}</strong><small>Șef de echipă · {{ statusLabel(team.leader) }}</small></span></div>
+        <div class="daily-section" *ngIf="team.permanent.length"><h3>Membri permanenți prezenți</h3><div class="person-strip" *ngFor="let person of team.permanent"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>{{ person.worksite || team.default_worksite || 'Șantier necompletat' }}</small></span><span class="type-chip permanent">Permanent</span></div></div>
+        <div class="daily-section" *ngIf="team.received.length"><h3>Primiți temporar</h3><div class="person-strip" *ngFor="let person of team.received"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>{{ statusLabel(person) }}</small></span><span class="type-chip received">Primit</span></div></div>
+        <div class="daily-section" *ngIf="team.sent.length"><h3>Trimiși către alte echipe</h3><div class="person-strip" *ngFor="let person of team.sent"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>Alocare temporară activă</small></span><span class="type-chip sent">Trimis</span></div></div>
+        <div class="daily-section" *ngIf="team.absent.length"><h3>Absenți sau în concediu</h3><div class="person-strip" *ngFor="let person of team.absent"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>{{ statusLabel(person) }}</small></span><span class="type-chip absent">Indisponibil</span></div></div>
+      </article>
+    </section>
+    <section class="available-strip"><div class="section-head"><div><span class="eyebrow">Nealocați</span><h2>Angajați disponibili</h2></div><span>{{ dailyAvailable.length }}</span></div><div class="mini-grid"><div class="person-strip" *ngFor="let person of dailyAvailable; trackBy: trackById"><span class="avatar small">{{ person.name.charAt(0) }}</span><span><strong>{{ person.name }}</strong><small>{{ person.trade || 'Meserie necompletată' }} · {{ statusLabel(person) }}</small></span></div></div></section>
+  </ng-container>
+
+  <ng-container *ngIf="!loading && mode === 'available'">
+    <section class="toolbar">
+      <label class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="searchTerm" placeholder="Caută angajat, meserie sau șantier" aria-label="Caută personal disponibil"></label>
+      <label><span>Disponibilitate</span><select [(ngModel)]="availabilityFilter"><option value="all">Toți angajații</option><option value="unassigned">Fără echipă permanentă</option><option value="requestable">Pot fi solicitați</option><option value="present">Prezenți</option><option value="leave">Concediu / indisponibili</option></select></label>
+    </section>
+    <section class="requests-card">
+      <div class="table-scroll"><table class="personnel-table"><thead><tr><th>Angajat</th><th>Echipă permanentă</th><th>Meserie</th><th>Șantier curent</th><th>Stare</th><th>Acțiuni</th></tr></thead>
+        <tbody><tr *ngFor="let employee of filteredAvailable; trackBy: trackById">
+          <td><div class="employee-cell"><span class="avatar small">{{ employee.name.charAt(0) }}</span><span><strong>{{ employee.name }}</strong><small>{{ employee.company || employee.serie }}</small></span></div></td>
+          <td>{{ employee.team?.name || 'Fără echipă' }}</td><td>{{ employee.trade || 'Necompletată' }}</td><td>{{ employee.worksite || '—' }}</td>
+          <td><span class="status-chip" [attr.data-status]="employee.leave ? 'rejected' : employee.presence === 'present' ? 'approved' : 'pending'">{{ statusLabel(employee) }}</span></td>
+          <td><div class="inline-actions">
+            <ng-container *ngIf="!employee.team && employee.can_add_permanent">
+              <select [(ngModel)]="assignmentTeam[employee.id]" [attr.aria-label]="'Selectează echipa pentru ' + employee.name"><option [ngValue]="null">Alege echipa</option><option *ngFor="let team of manageableTeams" [ngValue]="team.id">{{ team.name }}</option></select>
+              <button type="button" class="button compact primary" (click)="addPermanent(employee)" [disabled]="!assignmentTeam[employee.id]">Adaugă permanent</button>
+            </ng-container>
+            <button *ngIf="employee.can_request" type="button" class="button compact secondary" (click)="openRequest(employee)"><span class="material-symbols-rounded" aria-hidden="true">person_add</span>Solicită temporar</button>
+          </div></td>
+        </tr></tbody>
+      </table></div>
+    </section>
+  </ng-container>
+</section>
+
+<div class="modal-backdrop" *ngIf="teamDialogOpen" (click)="closeTeamDialog()">
+  <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="team-dialog-title" (click)="$event.stopPropagation()">
+    <div class="dialog-head"><div><span class="eyebrow">Echipă permanentă</span><h2 id="team-dialog-title">{{ teamForm.id ? 'Editează echipa' : 'Creează echipă' }}</h2></div><button type="button" class="icon-button" (click)="closeTeamDialog()" aria-label="Închide dialogul"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
+    <form (ngSubmit)="saveTeam()">
+      <div class="form-grid">
+        <label><span>Denumirea echipei</span><input required [(ngModel)]="teamForm.name" name="team-name" [disabled]="teamForm.id && !teamForm.can_manage_settings"></label>
+        <label><span>Șef de echipă</span><select required [(ngModel)]="teamForm.leader_id" name="team-leader" [disabled]="teamForm.id && !teamForm.can_manage_settings"><option [ngValue]="null">Selectează șeful</option><option *ngFor="let employee of selectableLeaders" [ngValue]="employee.id">{{ employee.name }} · {{ employee.trade || 'fără rol' }}</option></select></label>
+        <label><span>Șantier implicit</span><input [(ngModel)]="teamForm.default_worksite" name="team-worksite" placeholder="Ex: Șantier Nord" [disabled]="teamForm.id && !teamForm.can_manage_settings"></label>
+        <label class="toggle-row"><input type="checkbox" [(ngModel)]="teamForm.active" name="team-active" [disabled]="teamForm.id && !teamForm.can_manage_settings"><span><strong>Echipă activă</strong><small>Echipele inactive nu apar în alocarea zilnică.</small></span></label>
+      </div>
+      <div class="member-picker"><div class="member-picker-head"><div><strong>Selectează muncitorii</strong><small>Un angajat poate aparține unei singure echipe permanente active.</small></div><label class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="memberSearch" name="member-search" placeholder="Caută muncitor"></label></div>
+        <div class="member-options"><label *ngFor="let employee of selectableMembers; trackBy: trackById"><input type="checkbox" [checked]="isMemberSelected(employee.id)" (change)="toggleMember(employee.id, $any($event.target).checked)" [disabled]="employee.id === teamForm.leader_id"><span class="avatar small">{{ employee.name.charAt(0) }}</span><span><strong>{{ employee.name }}</strong><small>{{ employee.trade || 'Meserie necompletată' }}<ng-container *ngIf="employee.team"> · {{ employee.team.name }}</ng-container></small></span></label></div>
+      </div>
+      <div class="dialog-actions"><button type="button" class="button secondary" (click)="closeTeamDialog()">Renunță</button><button type="submit" class="button primary" [disabled]="saving || !teamForm.name || !teamForm.leader_id"><span class="material-symbols-rounded" aria-hidden="true">save</span>{{ saving ? 'Se salvează…' : 'Salvează echipa' }}</button></div>
+    </form>
+  </section>
+</div>
+
+<div class="modal-backdrop" *ngIf="requestDialogOpen" (click)="closeRequestDialog()">
+  <section class="dialog narrow" role="dialog" aria-modal="true" aria-labelledby="request-dialog-title" (click)="$event.stopPropagation()">
+    <div class="dialog-head"><div><span class="eyebrow">Transfer temporar</span><h2 id="request-dialog-title">Solicită un muncitor</h2></div><button type="button" class="icon-button" (click)="closeRequestDialog()" aria-label="Închide dialogul"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
+    <form (ngSubmit)="saveRequest()" class="request-form">
+      <label><span>Echipa solicitantă</span><select required [(ngModel)]="requestForm.requester_team_id" name="requester-team"><option [ngValue]="null">Selectează echipa</option><option *ngFor="let team of requesterTeams" [ngValue]="team.id">{{ team.name }}</option></select></label>
+      <label><span>Muncitor</span><select required [(ngModel)]="requestForm.employee_id" name="requested-employee"><option [ngValue]="null">Selectează muncitorul</option><option *ngFor="let employee of requestableEmployees" [ngValue]="employee.id">{{ employee.name }} · {{ employee.team?.name }}</option></select></label>
+      <div class="form-grid"><label><span>De la</span><input required type="date" [(ngModel)]="requestForm.start_date" name="request-start"></label><label><span>Până la</span><input required type="date" [(ngModel)]="requestForm.end_date" name="request-end"></label></div>
+      <label><span>Motiv sau observație</span><textarea rows="4" [(ngModel)]="requestForm.reason" name="request-reason" placeholder="Opțional"></textarea></label>
+      <div class="dialog-actions"><button type="button" class="button secondary" (click)="closeRequestDialog()">Renunță</button><button type="submit" class="button primary" [disabled]="saving || !requestForm.requester_team_id || !requestForm.employee_id"><span class="material-symbols-rounded" aria-hidden="true">send</span>{{ saving ? 'Se trimite…' : 'Trimite solicitarea' }}</button></div>
+    </form>
+  </section>
+</div>

@@ -27,6 +27,7 @@ PUBLIC_API_PREFIXES = (
 )
 
 API_ROUTE_REQUIREMENTS = (
+    ("/api/teams/", ("/pontaj/echipe", "/pontaj/echipe-azi", "/pontaj/personal-disponibil")),
     ("/api/tools/", ("/unelte", "/unelte/adauga-unealta", "/predare-unealta")),
     ("/api/tool/", ("/unelte", "/unelte/adauga-unealta", "/predare-unealta")),
     ("/api/user/", ("/pontaj", "/users/new", "/user/:id", "/angajati", "/pontaj/fisa-angajat")),
@@ -134,6 +135,9 @@ def request_has_admin(request) -> bool:
 def app_user_has_route(app_user, route: str) -> bool:
     if not app_user or not route:
         return False
+    team_routes = {"/pontaj/echipe", "/pontaj/echipe-azi", "/pontaj/personal-disponibil"}
+    if route in team_routes and app_user.employee.led_employee_teams.filter(active=True).exists():
+        return True
     from ToolApp.models import AppPagePermission
     return AppPagePermission.objects.filter(
         app_user=app_user,

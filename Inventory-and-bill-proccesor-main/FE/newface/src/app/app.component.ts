@@ -18,7 +18,7 @@ export class AppComponent {
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event: any) => this.updateShell(event.urlAfterRedirects));
   }
-  title = 'newface';
+  title = 'bloom-in';
 
   private updateShell(url: string): void {
     const path = (url || '/').split('?')[0].split('#')[0];

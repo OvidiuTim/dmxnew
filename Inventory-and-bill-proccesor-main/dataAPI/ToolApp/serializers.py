@@ -32,6 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
             "phone_number",
             "photo",
             "trade",
+            "active",
         )
         extra_kwargs = {
             "NameAndSerie": {"required": False, "allow_null": True, "allow_blank": True},
@@ -43,6 +44,7 @@ class UserSerializer(serializers.ModelSerializer):
             "phone_number": {"required": False, "allow_null": True, "allow_blank": True},
             "photo": {"required": False, "allow_null": True, "allow_blank": True},
             "trade": {"required": False, "allow_null": True, "allow_blank": True},
+            "active": {"required": False},
         }
 
     def get_has_pin(self, obj):

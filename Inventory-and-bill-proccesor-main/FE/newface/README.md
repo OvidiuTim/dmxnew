@@ -1,4 +1,4 @@
-# Newface — portalul Angular Novarion
+# bloom-in — portalul Angular DMX Construction
 
 Frontend Angular 15 pentru dashboard, pontaj, fișe de angajat și magazie. Rulează pe aceeași origine cu backend-ul și folosește prefixul `/api`.
 
