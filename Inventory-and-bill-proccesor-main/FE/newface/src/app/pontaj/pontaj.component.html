@@ -2,33 +2,33 @@
   <header class="page-header">
     <div class="page-title"><span class="eyebrow">Pontaj</span><h1>Prezență zilnică</h1><p>Monitorizează intrările, ieșirile și orele lucrate · {{ displayDate }}</p></div>
     <div class="header-actions">
-      <button class="btn ghost date-button" type="button" (click)="togglePicker()"><span>▦</span>{{ selectedDate }}</button>
+      <button class="btn ghost date-button" type="button" (click)="togglePicker()"><span class="material-symbols-rounded" aria-hidden="true">calendar_today</span>{{ selectedDate }}</button>
       <input *ngIf="showDatePicker" class="date-input" type="date" [max]="todayISO()" [value]="selectedDate" (change)="onDatePicked($event)" />
       <button class="btn ghost" type="button" (click)="goToReports()">Rapoarte</button>
-      <button class="btn primary" type="button" (click)="addEmployee()">＋ Adaugă angajat</button>
+      <button class="btn primary" type="button" (click)="addEmployee()"><span class="material-symbols-rounded" aria-hidden="true">person_add</span>Adaugă angajat</button>
     </div>
   </header>
 
   <section class="stats-grid">
-    <article class="stat-card"><span class="stat-icon green">♙</span><div><strong>{{ presentNow }}</strong><small>În lucru acum</small></div></article>
-    <article class="stat-card"><span class="stat-icon blue">✓</span><div><strong>{{ finishedToday }}</strong><small>Program încheiat</small></div></article>
-    <article class="stat-card"><span class="stat-icon red">○</span><div><strong>{{ absentToday }}</strong><small>Fără pontaj</small></div></article>
-    <article class="stat-card"><span class="stat-icon violet">Σ</span><div><strong>{{ totalUsers }}</strong><small>Total angajați</small></div></article>
+    <article class="stat-card"><span class="stat-icon green material-symbols-rounded" aria-hidden="true">engineering</span><div><strong>{{ presentNow }}</strong><small>În lucru acum</small></div></article>
+    <article class="stat-card"><span class="stat-icon blue material-symbols-rounded" aria-hidden="true">task_alt</span><div><strong>{{ finishedToday }}</strong><small>Program încheiat</small></div></article>
+    <article class="stat-card"><span class="stat-icon red material-symbols-rounded" aria-hidden="true">person_off</span><div><strong>{{ absentToday }}</strong><small>Fără pontaj</small></div></article>
+    <article class="stat-card"><span class="stat-icon violet material-symbols-rounded" aria-hidden="true">groups</span><div><strong>{{ totalUsers }}</strong><small>Total angajați</small></div></article>
   </section>
 
   <section class="filter-bar">
-    <div class="search-control"><span>⌕</span><input type="search" [value]="searchTerm" (input)="onSearchChange($event)" placeholder="Caută după numele angajatului…" autocomplete="off" /></div>
+    <div class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" aria-label="Caută angajat" [value]="searchTerm" (input)="onSearchChange($event)" placeholder="Caută după numele angajatului…" autocomplete="off" /></div>
     <label><span>Firmă</span><select [value]="selectedCompany" (change)="onCompanyChange($event)"><option value="ALL">Toate firmele</option><option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option></select></label>
     <label><span>Status</span><select [value]="selectedStatus" (change)="onStatusChange($event)"><option value="ALL">Toate statusurile</option><option value="IN">În lucru</option><option value="OUT">Ieșit</option><option value="ABSENT">Absent</option></select></label>
-    <button class="icon-button" type="button" (click)="refresh()" [disabled]="loading" title="Actualizează">↻</button>
+    <button class="icon-button" type="button" (click)="refresh()" [disabled]="loading" aria-label="Actualizează pontajul" title="Actualizează"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button>
   </section>
 
   <div class="state-card loading" *ngIf="loading"><span></span><strong>Se încarcă pontajul…</strong></div>
-  <div class="state-card error" *ngIf="error"><span>!</span><strong>{{ error }}</strong><button class="btn ghost" (click)="refresh()">Reîncearcă</button></div>
+  <div class="state-card error" *ngIf="error"><span class="error-icon material-symbols-rounded" aria-hidden="true">warning</span><strong>{{ error }}</strong><button class="btn ghost" (click)="refresh()"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Reîncearcă</button></div>
 
   <section class="table-card" *ngIf="!loading && !error">
     <div class="table-meta"><div><strong>Registrul zilei</strong><span>{{ filteredRows.length }} din {{ totalUsers }} angajați</span></div><span class="live-indicator"><i></i> Date actuale</span></div>
-    <div class="empty-state" *ngIf="filteredRows.length === 0"><span>⌕</span><strong>Niciun rezultat</strong><p>Schimbă filtrele sau termenul de căutare.</p></div>
+    <div class="empty-state" *ngIf="filteredRows.length === 0"><span class="material-symbols-rounded" aria-hidden="true">search_off</span><strong>Niciun rezultat</strong><p>Schimbă filtrele sau termenul de căutare.</p></div>
     <div class="table-scroll" *ngIf="filteredRows.length">
       <table>
         <thead><tr><th>Angajat</th><th>Firmă</th><th>Prima intrare</th><th>Ultima ieșire</th><th>Sesiuni</th><th>Total</th><th>Status</th><th>Acțiuni</th></tr></thead>
@@ -41,7 +41,7 @@
             <td><div class="sessions"><span *ngFor="let s of r.sessions">{{ hm(s.in_time) }}–{{ s.out_time ? hm(s.out_time) : (s.missing_exit ? '—' : 'acum') }}</span><span class="muted" *ngIf="!r.sessions.length">Nicio sesiune</span></div></td>
             <td><strong class="worked">{{ durataOre(r.total_hms) }}</strong></td>
             <td><span [class]="statusChipClass(r.status)">{{ r.status === 'IN' ? 'În lucru' : (r.status === 'OUT' ? 'Ieșit' : 'Absent') }}</span></td>
-            <td><div class="row-actions"><button type="button" title="Editează angajat" (click)="editEmployee(r.UserId)">✎</button><button type="button" title="Detalii pontaj" (click)="seeAngajat(r.UserId)">◷</button><button type="button" title="Fișa angajat" (click)="seeFisaAngajat(r.UserId)">▣</button></div></td>
+            <td><div class="row-actions"><button type="button" aria-label="Editează angajat" title="Editează angajat" (click)="editEmployee(r.UserId)"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button><button type="button" aria-label="Detalii pontaj" title="Detalii pontaj" (click)="seeAngajat(r.UserId)"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></button><button type="button" aria-label="Fișa angajat" title="Fișa angajat" (click)="seeFisaAngajat(r.UserId)"><span class="material-symbols-rounded" aria-hidden="true">badge</span></button></div></td>
           </tr>
         </tbody>
       </table>

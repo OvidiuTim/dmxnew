@@ -24,7 +24,7 @@
         <div class="searchbox">
 
             <button type="button" class="btn btn-success btnAdd" data-toggle="modal" data-target="#addAngajatModal"
-                (click)="addClick()" data-backdrop="static" data-keyboard="false"><img src="./../../../assets/media/icons/plus-circle.svg" alt="">
+                (click)="addClick()" data-backdrop="static" data-keyboard="false"><span class="material-symbols-rounded" aria-hidden="true">add_circle</span>
                 Adauga Angajat
             </button>
             <button (click)="toggleScanner()" class="btn btn-warning">Scaneaza angajat</button>
@@ -48,12 +48,12 @@
                     
                 </div>
                 <div class="buttons">
-                    <button #userButton (click)="modalunelte(dataItem)" type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"><img src="./../../../assets/media/icons/unelte.svg" alt="" > Unelte</button>
+                    <button #userButton (click)="modalunelte(dataItem)" type="button" class="unelte" data-toggle="modal" data-target="#modalUnelte"><span class="material-symbols-rounded" aria-hidden="true">construction</span> Unelte</button>
                     <!-- <button (click)="modalmaterial(dataItem)" type="button"  class="materiale" data-toggle="modal"
-                        data-target="#modalMateriale"><img src="./../../../assets/media/icons/materiale.svg" alt="">materiale</button>-->
-                    <button  (click)="modalshecla(dataItem)" type="button" class="schela" data-toggle="modal" data-target="#modalSchela"  ><img src="./../../../assets/media/icons/schela.svg" alt="">schela</button>
+                        data-target="#modalMateriale"><span class="material-symbols-rounded" aria-hidden="true">inventory_2</span>materiale</button>-->
+                    <button  (click)="modalshecla(dataItem)" type="button" class="schela" data-toggle="modal" data-target="#modalSchela"  ><span class="material-symbols-rounded" aria-hidden="true">account_tree</span>schela</button>
                 </div>
-                <button type="button" class="stergebtn btn btn-danger" (click)="deleteClick(dataItem)"> <img src="./../../../assets/media/icons/trash.svg" alt=""  > Sterge</button>
+                <button type="button" class="stergebtn btn btn-danger" (click)="deleteClick(dataItem)"> <span class="material-symbols-rounded" aria-hidden="true"  >delete</span> Sterge</button>
             </div>
 
         </div>
@@ -68,7 +68,7 @@
                 <div class="modal-header">
                     <h5 class="modal-title" id="modaladdAngajatModal">Adauga Angajat</h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
+                        <span class="material-symbols-rounded" aria-hidden="true">close</span>
                     </button>
                 </div>
                 <div class="modal-body bodyaddangaj">
@@ -104,9 +104,9 @@
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="modalUnelteLabel"><img src="./../../../assets/media/icons/unelte.svg" alt="">Unelte - {{modalTitluUsername}}</h5>
+                    <h5 class="modal-title" id="modalUnelteLabel"><span class="material-symbols-rounded" aria-hidden="true">construction</span>Unelte - {{modalTitluUsername}}</h5>
                     <button type="button" class="close" data-dismiss="modal" (click)="closemodals()" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
+                        <span class="material-symbols-rounded" aria-hidden="true">close</span>
                     </button>
                 </div>
                 <div class="modal-body">
@@ -126,9 +126,9 @@
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="modalMaterialeLabel"><img src="./../../../assets/media/icons/materiale.svg" alt="">Materiale</h5>
+                    <h5 class="modal-title" id="modalMaterialeLabel"><span class="material-symbols-rounded" aria-hidden="true">inventory_2</span>Materiale</h5>
                     <button type="button" class="close" data-dismiss="modal" (click)="closemodals()" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
+                        <span class="material-symbols-rounded" aria-hidden="true">close</span>
                     </button>
                 </div>
                 <div class="modal-body">
@@ -148,9 +148,9 @@
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="modalSchelaLabel"><img src="./../../../assets/media/icons/schela.svg" alt="">Schela</h5>
+                    <h5 class="modal-title" id="modalSchelaLabel"><span class="material-symbols-rounded" aria-hidden="true">account_tree</span>Schela</h5>
                     <button (click)="closemodals()" type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
+                        <span class="material-symbols-rounded" aria-hidden="true">close</span>
                     </button>
                 </div>
                 <div class="modal-body">

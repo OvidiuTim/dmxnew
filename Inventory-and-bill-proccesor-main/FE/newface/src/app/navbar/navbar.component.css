@@ -53,7 +53,7 @@
 .nav-item.active { color: #fff; background: #101f29; border-color: rgba(49, 214, 143, .16); box-shadow: inset 3px 0 #31d68f; }
 .active-dot { width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: #31d68f; box-shadow: 0 0 0 4px rgba(49,214,143,.1); }
 
-.nav-icon { width: 19px; height: 19px; display: inline-grid; place-items: center; flex: 0 0 19px; color: currentColor; }
+.nav-icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; line-height: 1; color: currentColor; }
 
 .sidebar-footer { padding: 14px; border-top: 1px solid #1a2333; }
 .user-card { display: flex; align-items: center; gap: 11px; padding: 12px; margin-bottom: 7px; border: 1px solid #1a2333; border-radius: 12px; background: #0d1727; }

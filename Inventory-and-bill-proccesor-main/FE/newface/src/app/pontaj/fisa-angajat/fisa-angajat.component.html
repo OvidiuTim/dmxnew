@@ -7,7 +7,7 @@
     <button type="button" *ngFor="let person of employeeDirectory" (click)="openEmployeeSheet(person)">
       <span class="directory-avatar">{{ (person.UserName || '?').charAt(0) }}</span>
       <span class="directory-copy"><strong>{{ displayText(person.UserName) }}</strong><small>{{ displayText(person.trade) }} · {{ displayText(person.Company) }}</small></span>
-      <i>→</i>
+      <i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i>
     </button>
   </section>
 </div>

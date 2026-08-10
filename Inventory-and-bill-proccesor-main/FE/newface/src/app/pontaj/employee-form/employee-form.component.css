@@ -36,10 +36,14 @@
 .back-link {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
+  display: inline-flex;
+  align-items: center;
   margin-bottom: 16px;
   color: #c9d2df;
   text-decoration: none;
 }
+.back-link .material-symbols-rounded { font-size: 18px; }
 
 .back-link:hover {
   color: #ffffff;

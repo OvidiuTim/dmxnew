@@ -14,7 +14,8 @@
   padding:12px 14px; box-shadow: 0 0 0 1px #111 inset;
 }
 .title { display:flex; align-items:center; gap:12px; }
-.back { color:#bcbcbc; text-decoration:none; border:1px solid #2b2b2f; padding:4px 8px; border-radius:8px; }
+.back { display:inline-flex; align-items:center; gap:5px; color:#bcbcbc; text-decoration:none; border:1px solid #2b2b2f; padding:4px 8px; border-radius:8px; }
+.back .material-symbols-rounded, .arrow .material-symbols-rounded { font-size:18px; }
 .back:hover { color:#fff; border-color:#3a3d49; }
 h2 { margin:0; font-size:18px; }
 .picker { display:flex; align-items:center; gap:8px; }
@@ -60,7 +61,7 @@ h2 { margin:0; font-size:18px; }
   background:#17181c; border:1px solid #2b2b2f; border-radius:14px;
   padding:12px 14px; box-shadow:0 0 0 1px #111 inset; }
 .title { display:flex; align-items:center; gap:12px; }
-.back { color:#bcbcbc; text-decoration:none; border:1px solid #2b2b2f; padding:4px 8px; border-radius:8px; }
+.back { display:inline-flex; align-items:center; gap:5px; color:#bcbcbc; text-decoration:none; border:1px solid #2b2b2f; padding:4px 8px; border-radius:8px; }
 .back:hover { color:#fff; border-color:#3a3d49; }
 h2 { margin:0; font-size:18px; }
 .picker { display:flex; align-items:center; gap:8px; }

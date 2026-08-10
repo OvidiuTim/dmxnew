@@ -29,6 +29,10 @@ Rutele integrate de inventar sunt:
 
 Ambele liste de inventar au indicatori, căutare, filtre, paginare și stări explicite de loading/error/empty. Istoricul afișează numai operațiunile reale `OUT`, `IN` și `ADJ`; nu inventează transferuri, service sau casări dacă backend-ul nu le oferă.
 
+## Iconuri
+
+Interfața folosește exclusiv familia Google `Material Symbols Rounded` pentru iconurile funcționale. Fontul este importat o singură dată în `src/styles.css`; componentele refolosesc clasa globală `material-symbols-rounded` sau componenta `app-icon`, care mapează semantic aceleași simboluri. Imaginile de profil și elementele de brand rămân resurse grafice separate.
+
 ## Modulul legacy de unelte
 
 Rutele `/unelte`, `/unelte/adauga-unealta`, `/predare-unealta` și `/history` rămân standalone. Ele nu sunt încadrate de shell-ul global și își păstrează structura, meniul și fluxurile proprii. Butonul „Modul complet de gestiune” din listele integrate deschide `/unelte`.

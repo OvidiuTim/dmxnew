@@ -8,7 +8,7 @@
 .legacy-link:hover { border-color: var(--primary); }
 .stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin-bottom: 16px; }
 .stat-card { min-width: 0; display: flex; align-items: center; gap: 14px; padding: 18px; border: 1px solid var(--border); border-radius: 15px; background: var(--card); box-shadow: var(--shadow); }
-.stat-icon { width: 48px; height: 48px; display: grid; place-items: center; flex: 0 0 48px; border-radius: 13px; background: var(--primary-soft); color: var(--primary); }
+.stat-icon { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 44px; line-height: 1; border-radius: 13px; background: var(--primary-soft); color: var(--primary); }
 .stat-icon.warning { background: rgba(255,184,77,.1); color: var(--warning); }
 .stat-card strong, .stat-card span { display: block; }
 .stat-card strong { color: var(--text); font-size: 25px; line-height: 1; }
@@ -18,8 +18,8 @@
 .toolbar input, .toolbar select { width: 100%; min-height: 44px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); padding: 10px 12px; outline: 0; }
 .toolbar input:focus, .toolbar select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
 .search-box { position: relative; }
-.search-box app-icon { position: absolute; left: 13px; top: 13px; z-index: 1; color: var(--text-muted); }
-.search-box input { padding-left: 42px; }
+.search-box app-icon { width: 20px; height: 20px; position: absolute; left: 14px; top: 50%; z-index: 1; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.toolbar .search-box input { padding-left: 48px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
 .inventory-table { overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: var(--shadow); }
 .table-scroll { max-width: 100%; overflow-x: auto; }

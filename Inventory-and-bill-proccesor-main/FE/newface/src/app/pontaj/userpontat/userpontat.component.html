@@ -1,7 +1,7 @@
 <div class="wrap">
   <div class="bar">
     <div class="title">
-      <a routerLink="/pontaj" class="back">← Înapoi</a>
+      <a routerLink="/pontaj" class="back"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Înapoi</a>
       <h2>{{ userName || 'Utilizator' }}</h2>
     </div>
     <div class="picker">
@@ -11,7 +11,7 @@
   </div>
 
   <div class="summary">
-    <div class="badge">Perioadă: {{ startISO }} → {{ endISO }}</div>
+    <div class="badge">Perioadă: {{ startISO }} – {{ endISO }}</div>
     <div class="badge">Total ore lună: {{ durataOre(monthTotal) }}</div>
     <div class="badge strong">
       Salariu lună:
@@ -54,7 +54,7 @@
     <div class="thead">
       <div>Zi</div>
       <div>Locație (zi)</div>
-      <div>Sesiuni (Intrare → Ieșire)</div>
+      <div>Sesiuni (Intrare–Ieșire)</div>
       <div>Total zi</div>
       <div>#Intrări / #Ieșiri</div>
       <div>Acțiuni</div>
@@ -103,7 +103,7 @@
               {{ s.in_gps ? 'Vezi check-in' : 'Fara GPS' }}
             </button>
           </div>
-          <div class="arrow">→</div>
+          <div class="arrow"><span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></div>
           <div class="time-stack">
             <ng-container *ngIf="s.out_time; else outFallback">{{ hm(s.out_time) }}</ng-container>
             <ng-template #outFallback>

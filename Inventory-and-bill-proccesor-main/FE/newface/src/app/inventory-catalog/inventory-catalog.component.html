@@ -13,19 +13,19 @@
 
   <section class="stats-grid" aria-label="Indicatori inventar">
     <article class="stat-card">
-      <span class="stat-icon"><app-icon [name]="isSsm ? 'shield' : 'tool'" [size]="26"></app-icon></span>
+      <span class="stat-icon"><app-icon [name]="isSsm ? 'shield' : 'tool'" [size]="24"></app-icon></span>
       <div><strong>{{ totalPieces }}</strong><span>Bucăți în evidență</span></div>
     </article>
     <article class="stat-card">
-      <span class="stat-icon"><app-icon name="user-check" [size]="26"></app-icon></span>
+      <span class="stat-icon"><app-icon name="user-check" [size]="24"></app-icon></span>
       <div><strong>{{ assignedPieces }}</strong><span>Alocate angajaților</span></div>
     </article>
     <article class="stat-card">
-      <span class="stat-icon"><app-icon name="warehouse" [size]="26"></app-icon></span>
+      <span class="stat-icon"><app-icon name="warehouse" [size]="24"></app-icon></span>
       <div><strong>{{ warehousePieces }}</strong><span>Disponibile în magazie</span></div>
     </article>
     <article class="stat-card">
-      <span class="stat-icon warning"><app-icon name="alert" [size]="26"></app-icon></span>
+      <span class="stat-icon warning"><app-icon name="alert" [size]="24"></app-icon></span>
       <div><strong>{{ verificationCount }}</strong><span>Necesită verificare</span></div>
     </article>
   </section>

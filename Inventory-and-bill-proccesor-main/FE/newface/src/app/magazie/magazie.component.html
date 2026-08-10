@@ -1,24 +1,24 @@
 <div class="warehouse-page">
   <header class="page-header">
     <div><span class="eyebrow">Operațiuni și inventar</span><h1>Magazie</h1><p>Administrează oamenii, inventarul și toate mișcările de materiale dintr-un singur loc.</p></div>
-    <button type="button" class="primary-action" (click)="seePredare()">⇄ Predare / primire</button>
+    <button type="button" class="primary-action" (click)="seePredare()"><span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span>Predare / primire</button>
   </header>
 
   <div class="state error" *ngIf="error">{{ error }}</div>
 
   <section class="stats-grid">
-    <article><span class="icon green">⚒</span><div><strong>{{ loading ? '—' : counts.tools }}</strong><small>Unelte înregistrate</small></div></article>
-    <article><span class="icon blue">♙</span><div><strong>{{ loading ? '—' : counts.employees }}</strong><small>Angajați</small></div></article>
-    <article><span class="icon amber">□</span><div><strong>{{ loading ? '—' : counts.materials }}</strong><small>Materiale</small></div></article>
-    <article><span class="icon violet">↶</span><div><strong>{{ loading ? '—' : counts.movements }}</strong><small>Mișcări în istoric</small></div></article>
+    <article><span class="icon green material-symbols-rounded" aria-hidden="true">construction</span><div><strong>{{ loading ? '—' : counts.tools }}</strong><small>Unelte înregistrate</small></div></article>
+    <article><span class="icon blue material-symbols-rounded" aria-hidden="true">engineering</span><div><strong>{{ loading ? '—' : counts.employees }}</strong><small>Angajați</small></div></article>
+    <article><span class="icon amber material-symbols-rounded" aria-hidden="true">inventory_2</span><div><strong>{{ loading ? '—' : counts.materials }}</strong><small>Materiale</small></div></article>
+    <article><span class="icon violet material-symbols-rounded" aria-hidden="true">history</span><div><strong>{{ loading ? '—' : counts.movements }}</strong><small>Mișcări în istoric</small></div></article>
   </section>
 
   <section class="modules-grid">
-    <button type="button" (click)="seeUnelte()"><span class="module-icon">⚒</span><div><strong>Unelte și echipamente</strong><p>Inventar, stare, locație și alocare.</p></div><i>→</i></button>
-    <button type="button" (click)="seeAngajati()"><span class="module-icon">♙</span><div><strong>Angajați</strong><p>Echipamentele aflate în posesia fiecărui angajat.</p></div><i>→</i></button>
-    <button type="button" (click)="seeMateriale()"><span class="module-icon">□</span><div><strong>Materiale</strong><p>Stocuri, cantități și informații de achiziție.</p></div><i>→</i></button>
-    <button type="button" (click)="seeSchela()"><span class="module-icon">≋</span><div><strong>Schelă și cofraje</strong><p>Componente, popi și mijloace fixe.</p></div><i>→</i></button>
-    <button type="button" (click)="seeIstoric()"><span class="module-icon">↶</span><div><strong>Istoric mișcări</strong><p>Trasabilitate pentru unelte, materiale și schelă.</p></div><i>→</i></button>
-    <button type="button" routerLink="/rafturi"><span class="module-icon">▤</span><div><strong>Rafturi</strong><p>Organizarea fizică a spațiilor de depozitare.</p></div><i>→</i></button>
+    <button type="button" (click)="seeUnelte()"><span class="module-icon material-symbols-rounded" aria-hidden="true">construction</span><div><strong>Unelte și echipamente</strong><p>Inventar, stare, locație și alocare.</p></div><i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i></button>
+    <button type="button" (click)="seeAngajati()"><span class="module-icon material-symbols-rounded" aria-hidden="true">engineering</span><div><strong>Angajați</strong><p>Echipamentele aflate în posesia fiecărui angajat.</p></div><i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i></button>
+    <button type="button" (click)="seeMateriale()"><span class="module-icon material-symbols-rounded" aria-hidden="true">inventory_2</span><div><strong>Materiale</strong><p>Stocuri, cantități și informații de achiziție.</p></div><i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i></button>
+    <button type="button" (click)="seeSchela()"><span class="module-icon material-symbols-rounded" aria-hidden="true">account_tree</span><div><strong>Schelă și cofraje</strong><p>Componente, popi și mijloace fixe.</p></div><i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i></button>
+    <button type="button" (click)="seeIstoric()"><span class="module-icon material-symbols-rounded" aria-hidden="true">history</span><div><strong>Istoric mișcări</strong><p>Trasabilitate pentru unelte, materiale și schelă.</p></div><i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i></button>
+    <button type="button" routerLink="/rafturi"><span class="module-icon material-symbols-rounded" aria-hidden="true">shelves</span><div><strong>Rafturi</strong><p>Organizarea fizică a spațiilor de depozitare.</p></div><i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i></button>
   </section>
 </div>

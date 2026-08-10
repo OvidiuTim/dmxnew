@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded&display=block');
 @import 'leaflet/dist/leaflet.css';
 
 :root {
@@ -27,6 +28,62 @@ body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--app-bg)
 button, input, select, textarea { font: inherit; }
 button { touch-action: manipulation; }
 a { color: inherit; }
+.material-symbols-rounded {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+.icon-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+button > .material-symbols-rounded,
+a > .material-symbols-rounded,
+.modal-title > .material-symbols-rounded {
+  flex-shrink: 0;
+  font-size: 19px;
+}
+.btnAdd,
+.iconbtn,
+.download-btn button,
+.modal-title,
+.unelte,
+.schela,
+.stergebtn {
+  align-items: center;
+  gap: 8px;
+}
+.searchbox > .search-icon {
+  width: 20px;
+  height: 20px;
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  z-index: 1;
+  transform: translateY(-50%);
+  color: var(--text-muted, #727b89);
+  font-size: 20px;
+  pointer-events: none;
+}
+.searchbox > input { padding-left: 42px !important; }
+.close .material-symbols-rounded { width: 24px; height: 24px; font-size: 22px; }
 ::selection { color: #04110b; background: var(--primary); }
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: #070d16; }
