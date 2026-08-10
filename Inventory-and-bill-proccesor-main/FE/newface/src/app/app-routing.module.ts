@@ -23,6 +23,8 @@ import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandou
 import { AdminAppPageComponent } from './admin-app-page/admin-app-page.component';
 import { NoAccessComponent } from './no-access/no-access.component';
 import { PortalPlaceholderComponent } from './portal-placeholder/portal-placeholder.component';
+import { InventoryCatalogComponent } from './inventory-catalog/inventory-catalog.component';
+import { InventoryHistoryComponent } from './inventory-history/inventory-history.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -49,7 +51,7 @@ const routes: Routes = [
   {
     path: 'pontaj/echipe', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
     data: {
-      permissionRoute: '/pontaj/echipe', title: 'Echipe și program', icon: '♙',
+      permissionRoute: '/pontaj', title: 'Echipe și program', icon: 'team',
       description: 'Spațiu unificat pentru echipe permanente, alocări zilnice și programul de lucru.',
       missingData: 'Lipsesc endpoint-urile confirmate pentru echipe, alocări pe șantier și program. Nu au fost introduse date mock.'
     }
@@ -57,7 +59,7 @@ const routes: Routes = [
   {
     path: 'pontaj/concedii', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
     data: {
-      permissionRoute: '/pontaj/concedii', title: 'Concedii și absențe', icon: '▦',
+      permissionRoute: '/pontaj', title: 'Concedii și absențe', icon: 'calendar',
       description: 'Administrarea cererilor, zilelor de concediu și absențelor într-un singur loc.',
       missingData: 'Modelele LeaveDay și LeaveRequest există în backend, însă în frontend nu există un contract API clar pentru listare și aprobare.'
     }
@@ -65,7 +67,7 @@ const routes: Routes = [
   {
     path: 'hr/documente', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
     data: {
-      permissionRoute: '/hr/documente', title: 'Documente angajați', icon: '▧',
+      permissionRoute: '/pontaj/fisa-angajat', title: 'Documente angajați', icon: 'document',
       description: 'Evidența documentelor și a termenelor de valabilitate pentru personal.',
       missingData: 'Nu există în serviciul frontend endpoint-uri confirmate pentru documente, tipuri de document și expirări.'
     }
@@ -79,6 +81,15 @@ const routes: Routes = [
   { path: 'user/:id', component: UserpontatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/user/:id' } },
 
   { path: 'magazie', component: MagazieComponent, canActivate: [AuthGuard], data: { permissionRoute: '/magazie' } },
+  {
+    path: 'magazie/scule', component: InventoryCatalogComponent, canActivate: [AuthGuard],
+    data: { permissionRoute: '/unelte', isSsm: false, title: 'Scule', description: 'Inventarul sculelor de șantier, separat de echipamentele pentru protecția muncii.' }
+  },
+  {
+    path: 'magazie/echipamente-ssm', component: InventoryCatalogComponent, canActivate: [AuthGuard],
+    data: { permissionRoute: '/unelte', isSsm: true, title: 'Echipamente SSM', description: 'Echipamentele individuale de protecție urmărite separat prin marcajul SSM din backend.' }
+  },
+  { path: 'magazie/istoric', component: InventoryHistoryComponent, canActivate: [AuthGuard], data: { permissionRoute: '/history' } },
   { path: 'angajati', component: AngajatiComponent, canActivate: [AuthGuard], data: { permissionRoute: '/angajati' } },
   { path: 'materiale', component: MaterialeComponent, canActivate: [AuthGuard], data: { permissionRoute: '/materiale' } },
   { path: 'schela', component: SchelaComponent, canActivate: [AuthGuard], data: { permissionRoute: '/schela' } },

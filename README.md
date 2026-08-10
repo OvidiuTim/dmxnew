@@ -90,6 +90,11 @@ Frontend-ul din `FE/newface` oferă:
 - pontaj șoferi (`/clockinandoutdriver`): introducere PIN cu GPS obligatoriu, fără limitare la perimetrul unui șantier, dar cu poziția salvată;
 - rute protejate cu `AuthGuard` pentru pontaj, rapoarte, fișă angajat și formularele de angajat;
 - folosire `window.location.origin + /api`, deci frontend-ul este gândit să ruleze pe aceeași origine cu backend-ul în deploy.
+- shell global cu navigație restrânsă la Dashboard, Pontaj, Magazie și Resurse umane, plus iconografie SVG reutilizabilă;
+- liste integrate și separate pentru Scule (`/magazie/scule`) și Echipamente SSM (`/magazie/echipamente-ssm`), filtrate de backend prin `is_ssm`;
+- istoric integrat de magazie la `/magazie/istoric`, construit numai din endpointurile reale de istoric, unelte și utilizatori;
+- modul legacy de unelte păstrat standalone pe `/unelte`, `/unelte/adauga-unealta`, `/predare-unealta` și `/history`, în afara shell-ului global;
+- documentația tehnică detaliată a rutelor, permisiunilor și limitărilor backend pentru echipe/program/concedii se află în `Inventory-and-bill-proccesor-main/FE/newface/README.md`.
 
 ### Modele principale din baza de date
 

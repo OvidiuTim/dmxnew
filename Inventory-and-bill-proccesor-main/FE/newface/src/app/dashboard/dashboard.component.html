@@ -63,7 +63,7 @@
 
   <section class="dashboard-grid lower-grid">
     <article class="panel activity-panel">
-      <div class="panel-head"><div><span class="eyebrow">Magazie</span><h2>Activitate recentă</h2></div><a routerLink="/history">Vezi istoricul →</a></div>
+      <div class="panel-head"><div><span class="eyebrow">Magazie</span><h2>Activitate recentă</h2></div><a routerLink="/magazie/istoric">Vezi istoricul →</a></div>
       <div class="state-box" *ngIf="loadingHistory">Se încarcă activitatea…</div>
       <div class="state-box error" *ngIf="historyError">{{ historyError }}</div>
       <div class="activity-list" *ngIf="!loadingHistory && !historyError && recentHistory.length">

@@ -9,7 +9,7 @@ import { ActivatedRoute } from '@angular/router';
 export class PortalPlaceholderComponent implements OnInit {
   title = '';
   description = '';
-  icon = '◇';
+  icon = 'circle';
   missingData = '';
 
   constructor(private route: ActivatedRoute) {}
@@ -18,7 +18,7 @@ export class PortalPlaceholderComponent implements OnInit {
     this.route.data.subscribe(data => {
       this.title = data['title'] || 'Modul nou';
       this.description = data['description'] || '';
-      this.icon = data['icon'] || '◇';
+      this.icon = data['icon'] || 'circle';
       this.missingData = data['missingData'] || '';
     });
   }

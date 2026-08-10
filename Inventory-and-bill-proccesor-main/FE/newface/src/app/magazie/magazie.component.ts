@@ -54,7 +54,7 @@ export class MagazieComponent implements OnInit {
     this.router.navigateByUrl('/schela')
   }
   seeIstoric(){
-    this.router.navigateByUrl('/history')
+    this.router.navigateByUrl('/magazie/istoric')
   }
   seePredare(){
     this.router.navigateByUrl('/predare-unealta')

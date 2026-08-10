@@ -10,6 +10,7 @@ import { filter } from 'rxjs/operators';
 export class AppComponent {
   shellVisible = false;
   private readonly publicRoutes = ['/login', '/clockinandout', '/clockinandoutdriver', '/admin-app-page', '/no-access'];
+  private readonly legacyRoutes = ['/unelte', '/predare-unealta', '/history'];
 
   constructor(private router: Router) {
     this.updateShell(this.router.url);
@@ -21,6 +22,7 @@ export class AppComponent {
 
   private updateShell(url: string): void {
     const path = (url || '/').split('?')[0].split('#')[0];
-    this.shellVisible = !this.publicRoutes.some(route => path === route || path.startsWith(`${route}/`));
+    const standaloneRoutes = [...this.publicRoutes, ...this.legacyRoutes];
+    this.shellVisible = !standaloneRoutes.some(route => path === route || path.startsWith(`${route}/`));
   }
 }

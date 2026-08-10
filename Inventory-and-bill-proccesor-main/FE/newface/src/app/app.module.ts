@@ -40,6 +40,9 @@ import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandou
 import { AdminAppPageComponent } from './admin-app-page/admin-app-page.component';
 import { NoAccessComponent } from './no-access/no-access.component';
 import { PortalPlaceholderComponent } from './portal-placeholder/portal-placeholder.component';
+import { AppIconComponent } from './app-icon/app-icon.component';
+import { InventoryCatalogComponent } from './inventory-catalog/inventory-catalog.component';
+import { InventoryHistoryComponent } from './inventory-history/inventory-history.component';
 
 @NgModule({
   declarations: [
@@ -70,6 +73,9 @@ import { PortalPlaceholderComponent } from './portal-placeholder/portal-placehol
     AdminAppPageComponent,
     NoAccessComponent,
     PortalPlaceholderComponent,
+    AppIconComponent,
+    InventoryCatalogComponent,
+    InventoryHistoryComponent,
   ],
   imports: [
     CommonModule,

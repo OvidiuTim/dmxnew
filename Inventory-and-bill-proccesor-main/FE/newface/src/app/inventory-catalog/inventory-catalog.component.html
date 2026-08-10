@@ -1,0 +1,109 @@
+<section class="catalog-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Magazie · {{ isSsm ? 'protecția muncii' : 'inventar tehnic' }}</p>
+      <h1>{{ title }}</h1>
+      <p>{{ description }}</p>
+    </div>
+    <button class="legacy-link" type="button" (click)="openLegacy()">
+      <app-icon name="tool" [size]="18"></app-icon>
+      Modul complet de gestiune
+    </button>
+  </header>
+
+  <section class="stats-grid" aria-label="Indicatori inventar">
+    <article class="stat-card">
+      <span class="stat-icon"><app-icon [name]="isSsm ? 'shield' : 'tool'" [size]="26"></app-icon></span>
+      <div><strong>{{ totalPieces }}</strong><span>Bucăți în evidență</span></div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon"><app-icon name="user-check" [size]="26"></app-icon></span>
+      <div><strong>{{ assignedPieces }}</strong><span>Alocate angajaților</span></div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon"><app-icon name="warehouse" [size]="26"></app-icon></span>
+      <div><strong>{{ warehousePieces }}</strong><span>Disponibile în magazie</span></div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon warning"><app-icon name="alert" [size]="26"></app-icon></span>
+      <div><strong>{{ verificationCount }}</strong><span>Necesită verificare</span></div>
+    </article>
+  </section>
+
+  <section class="toolbar" aria-label="Filtre inventar">
+    <label class="search-box">
+      <span class="sr-only">Caută</span>
+      <app-icon name="search" [size]="18"></app-icon>
+      <input type="search" [(ngModel)]="searchTerm" (ngModelChange)="filtersChanged()" placeholder="Caută după nume, serie, marcă sau angajat">
+    </label>
+    <label>
+      <span class="sr-only">Categorie</span>
+      <select [(ngModel)]="categoryFilter" (ngModelChange)="filtersChanged()">
+        <option value="ALL">Toate categoriile</option>
+        <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Stare</span>
+      <select [(ngModel)]="statusFilter" (ngModelChange)="filtersChanged()">
+        <option value="ALL">Toate stările</option>
+        <option value="magazie">În magazie</option>
+        <option value="in_lucru">În lucru</option>
+        <option value="stricata">Defect</option>
+      </select>
+    </label>
+    <label>
+      <span class="sr-only">Locație</span>
+      <select [(ngModel)]="locationFilter" (ngModelChange)="filtersChanged()">
+        <option value="ALL">Toate locațiile</option>
+        <option *ngFor="let location of locations" [value]="location">{{ location }}</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="state-card" *ngIf="loading" aria-live="polite">
+    <span class="spinner"></span><strong>Se încarcă inventarul...</strong>
+  </section>
+  <section class="state-card error" *ngIf="!loading && error" role="alert">
+    <app-icon name="alert" [size]="24"></app-icon><div><strong>Inventarul nu este disponibil</strong><p>{{ error }}</p></div>
+    <button type="button" (click)="loadTools()">Reîncearcă</button>
+  </section>
+
+  <ng-container *ngIf="!loading && !error">
+    <section class="inventory-table" *ngIf="filteredTools.length; else emptyState">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Articol</th><th>Categorie</th><th>Stare</th><th>Locație</th><th>Responsabil</th><th>Bucăți</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let tool of pagedTools; trackBy: trackByTool">
+              <td>
+                <div class="tool-cell"><span class="tool-symbol"><app-icon [name]="isSsm ? 'shield' : 'tool'" [size]="20"></app-icon></span>
+                  <div><strong>{{ tool.ToolName }}</strong><span>{{ tool.DisplaySerie || tool.ToolSerie || tool.SerialNumber || 'Fără serie' }}</span>
+                    <small *ngIf="tool.Brand || tool.Model">{{ tool.Brand }}<ng-container *ngIf="tool.Brand && tool.Model"> · </ng-container>{{ tool.Model }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>{{ tool.Category || 'Necategorizat' }}</td>
+              <td><span class="status-pill" [ngClass]="tool.Status || 'unknown'">{{ statusLabel(tool) }}</span><small class="verify" *ngIf="tool.RequiresVerification">Verificare necesară</small></td>
+              <td>{{ locationOf(tool) }}</td>
+              <td>{{ employeeOf(tool) }}</td>
+              <td><strong>{{ piecesOf(tool) }}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <footer class="pagination">
+        <span>{{ firstVisible }}–{{ lastVisible }} din {{ filteredTools.length }}</span>
+        <div><button type="button" [disabled]="page === 1" (click)="changePage(page - 1)" aria-label="Pagina anterioară">‹</button><strong>Pagina {{ page }} / {{ totalPages }}</strong><button type="button" [disabled]="page === totalPages" (click)="changePage(page + 1)" aria-label="Pagina următoare">›</button></div>
+      </footer>
+    </section>
+
+    <ng-template #emptyState>
+      <section class="state-card empty">
+        <span class="empty-icon"><app-icon [name]="isSsm ? 'shield' : 'package'" [size]="32"></app-icon></span>
+        <div><strong>Niciun rezultat</strong><p>{{ tools.length ? 'Nu există articole pentru filtrele selectate.' : 'Backend-ul nu a returnat articole pentru această categorie.' }}</p></div>
+        <button type="button" *ngIf="tools.length" (click)="clearFilters()">Resetează filtrele</button>
+      </section>
+    </ng-template>
+  </ng-container>
+</section>

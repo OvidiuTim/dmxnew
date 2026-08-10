@@ -53,23 +53,7 @@
 .nav-item.active { color: #fff; background: #101f29; border-color: rgba(49, 214, 143, .16); box-shadow: inset 3px 0 #31d68f; }
 .active-dot { width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: #31d68f; box-shadow: 0 0 0 4px rgba(49,214,143,.1); }
 
-.nav-icon { width: 19px; height: 19px; display: inline-grid; place-items: center; flex: 0 0 19px; color: currentColor; font-size: 16px; }
-.nav-icon::before { font-family: Arial, sans-serif; line-height: 1; }
-.icon-dashboard::before { content: '◇'; font-size: 20px; }
-.icon-clock::before { content: '◷'; font-size: 22px; }
-.icon-chart::before { content: '⌁'; font-size: 23px; transform: rotate(-18deg); }
-.icon-badge::before { content: '▣'; }
-.icon-team::before, .icon-users::before { content: '♙'; font-size: 20px; }
-.icon-calendar::before { content: '▦'; }
-.icon-warehouse::before { content: '⌂'; font-size: 21px; }
-.icon-tool::before { content: '⚒'; font-size: 17px; }
-.icon-transfer::before { content: '⇄'; font-size: 20px; }
-.icon-box::before { content: '□'; font-size: 22px; }
-.icon-layers::before { content: '≋'; font-size: 23px; }
-.icon-shelf::before { content: '▤'; }
-.icon-history::before { content: '↶'; font-size: 21px; }
-.icon-document::before { content: '▧'; }
-.icon-logout::before { content: '↪'; font-size: 20px; }
+.nav-icon { width: 19px; height: 19px; display: inline-grid; place-items: center; flex: 0 0 19px; color: currentColor; }
 
 .sidebar-footer { padding: 14px; border-top: 1px solid #1a2333; }
 .user-card { display: flex; align-items: center; gap: 11px; padding: 12px; margin-bottom: 7px; border: 1px solid #1a2333; border-radius: 12px; background: #0d1727; }

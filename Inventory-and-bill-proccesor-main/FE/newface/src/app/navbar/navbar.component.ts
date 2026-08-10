@@ -17,34 +17,30 @@ export class NavbarComponent {
   groups: NavGroup[] = [
     {
       label: 'General',
-      links: [{ label: 'Dashboard', path: '/dashboard', icon: 'dashboard' }]
+      links: [{ label: 'Dashboard', path: '/dashboard', icon: 'dashboard', permissionRoute: '/dashboard' }]
     },
     {
       label: 'Pontaj',
       links: [
-        { label: 'Prezență zilnică', path: '/pontaj', icon: 'clock' },
-        { label: 'Rapoarte', path: '/pontaj/rapoarte', icon: 'chart' },
-        { label: 'Fișe angajați', path: '/pontaj/fisa-angajat', icon: 'badge' },
-        { label: 'Echipe și program', path: '/pontaj/echipe', icon: 'team' },
-        { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar' },
+        { label: 'Prezență zilnică', path: '/pontaj', icon: 'clock', permissionRoute: '/pontaj' },
+        { label: 'Rapoarte', path: '/pontaj/rapoarte', icon: 'chart', permissionRoute: '/pontaj/rapoarte' },
+        { label: 'Fișe angajați', path: '/pontaj/fisa-angajat', icon: 'badge', permissionRoute: '/pontaj/fisa-angajat' },
+        { label: 'Echipe și program', path: '/pontaj/echipe', icon: 'team', permissionRoute: '/pontaj' },
+        { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar', permissionRoute: '/pontaj' },
       ]
     },
     {
       label: 'Magazie',
       links: [
-        { label: 'Privire generală', path: '/magazie', icon: 'warehouse' },
-        { label: 'Angajați', path: '/angajati', icon: 'users' },
-        { label: 'Unelte', path: '/unelte', icon: 'tool' },
-        { label: 'Predare / primire', path: '/predare-unealta', icon: 'transfer' },
-        { label: 'Materiale', path: '/materiale', icon: 'box' },
-        { label: 'Schelă și cofraje', path: '/schela', icon: 'layers' },
-        { label: 'Rafturi', path: '/rafturi', icon: 'shelf' },
-        { label: 'Istoric', path: '/history', icon: 'history' },
+        { label: 'Privire generală', path: '/magazie', icon: 'warehouse', permissionRoute: '/magazie' },
+        { label: 'Scule', path: '/magazie/scule', icon: 'tool', permissionRoute: '/unelte' },
+        { label: 'Echipamente SSM', path: '/magazie/echipamente-ssm', icon: 'shield', permissionRoute: '/unelte' },
+        { label: 'Istoric', path: '/magazie/istoric', icon: 'history', permissionRoute: '/history' },
       ]
     },
     {
       label: 'Resurse umane',
-      links: [{ label: 'Documente', path: '/hr/documente', icon: 'document' }]
+      links: [{ label: 'Documente', path: '/hr/documente', icon: 'document', permissionRoute: '/pontaj/fisa-angajat' }]
     }
   ];
 
@@ -62,8 +58,8 @@ export class NavbarComponent {
 
   private markActive(currentUrl: string) {
     this.groups.forEach(group => group.links.forEach(link => {
-      const exactPontaj = link.path === '/pontaj' && currentUrl === '/pontaj';
-      link.active = exactPontaj || (link.path !== '/pontaj' && currentUrl.startsWith(link.path));
+      const exactSectionRoot = (link.path === '/pontaj' || link.path === '/magazie') && currentUrl === link.path;
+      link.active = exactSectionRoot || (!['/pontaj', '/magazie'].includes(link.path) && currentUrl.startsWith(link.path));
     }));
   }
 

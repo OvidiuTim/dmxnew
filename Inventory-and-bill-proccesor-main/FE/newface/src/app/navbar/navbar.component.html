@@ -16,7 +16,7 @@
       <section class="nav-group" *ngIf="visibleLinks(group).length">
         <span class="nav-title">{{ group.label }}</span>
         <a *ngFor="let link of visibleLinks(group)" [href]="link.path" class="nav-item" [ngClass]="{ active: link.active }" (click)="onLinkClick(link, $event)">
-          <span class="nav-icon" [ngClass]="'icon-' + link.icon" aria-hidden="true"></span>
+          <span class="nav-icon" aria-hidden="true"><app-icon [name]="link.icon" [size]="19"></app-icon></span>
           <span>{{ link.label }}</span>
           <span class="active-dot" *ngIf="link.active"></span>
         </a>
@@ -29,7 +29,7 @@
       <span class="avatar">{{ initials }}</span>
       <span class="user-copy"><strong>{{ userName }}</strong><small>{{ userRole }}</small></span>
     </div>
-    <button type="button" class="logout" (click)="logout()"><span class="nav-icon icon-logout"></span><span>Deconectare</span></button>
+    <button type="button" class="logout" (click)="logout()"><span class="nav-icon"><app-icon name="logout" [size]="19"></app-icon></span><span>Deconectare</span></button>
   </div>
 </aside>
 

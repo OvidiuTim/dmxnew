@@ -1,0 +1,46 @@
+<section class="history-page">
+  <header class="page-header">
+    <div><p class="eyebrow">Magazie · trasabilitate</p><h1>Istoric</h1><p>Toate predările, returnările și ajustările înregistrate de backend pentru scule și echipamente SSM.</p></div>
+  </header>
+
+  <section class="stats-grid" aria-label="Indicatori istoric">
+    <article class="stat-card"><span class="stat-icon"><app-icon name="arrow-up" [size]="25"></app-icon></span><div><strong>{{ outCount }}</strong><span>Predări</span></div></article>
+    <article class="stat-card"><span class="stat-icon"><app-icon name="arrow-down" [size]="25"></app-icon></span><div><strong>{{ inCount }}</strong><span>Returnări</span></div></article>
+    <article class="stat-card"><span class="stat-icon"><app-icon name="adjust" [size]="25"></app-icon></span><div><strong>{{ adjustmentCount }}</strong><span>Ajustări</span></div></article>
+    <article class="stat-card"><span class="stat-icon"><app-icon name="shield" [size]="25"></app-icon></span><div><strong>{{ ssmCount }}</strong><span>Operațiuni SSM</span></div></article>
+  </section>
+
+  <section class="toolbar" aria-label="Filtre istoric">
+    <label class="search-box"><span class="sr-only">Caută</span><app-icon name="search" [size]="18"></app-icon><input type="search" [(ngModel)]="searchTerm" (ngModelChange)="filtersChanged()" placeholder="Caută unealtă, serie, angajat sau observație"></label>
+    <label><span class="sr-only">Tip inventar</span><select [(ngModel)]="typeFilter" (ngModelChange)="filtersChanged()"><option value="ALL">Scule și SSM</option><option value="TOOLS">Doar scule</option><option value="SSM">Doar echipamente SSM</option></select></label>
+    <label><span class="sr-only">Operațiune</span><select [(ngModel)]="directionFilter" (ngModelChange)="filtersChanged()"><option value="ALL">Toate operațiunile</option><option value="OUT">Predări</option><option value="IN">Returnări</option><option value="ADJ">Ajustări</option></select></label>
+    <label><span class="sr-only">Perioadă</span><select [(ngModel)]="periodFilter" (ngModelChange)="filtersChanged()"><option value="ALL">Toată perioada</option><option value="7">Ultimele 7 zile</option><option value="30">Ultimele 30 zile</option><option value="90">Ultimele 90 zile</option></select></label>
+  </section>
+
+  <section class="state-card" *ngIf="loading"><span class="spinner"></span><strong>Se încarcă istoricul...</strong></section>
+  <section class="state-card error" *ngIf="!loading && error" role="alert"><app-icon name="alert" [size]="24"></app-icon><div><strong>Istoricul nu este disponibil</strong><p>{{ error }}</p></div><button type="button" (click)="loadHistory()">Reîncearcă</button></section>
+
+  <ng-container *ngIf="!loading && !error">
+    <section class="history-table" *ngIf="filteredHistories.length; else emptyState">
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Data</th><th>Articol</th><th>Operațiune</th><th>De la</th><th>Către</th><th>Operator</th><th>Cantitate</th><th>Detalii</th></tr></thead>
+          <tbody>
+            <ng-container *ngFor="let item of pagedHistories; trackBy: trackByHistory">
+              <tr>
+                <td><strong>{{ dateOf(item) | date:'dd.MM.yyyy' }}</strong><span class="subline">{{ dateOf(item) | date:'HH:mm' }}</span></td>
+                <td><div class="tool-cell"><span class="tool-symbol"><app-icon [name]="isSsm(item) ? 'shield' : 'tool'" [size]="19"></app-icon></span><div><strong>{{ toolName(item) }}</strong><span>{{ toolSerie(item) }} · {{ category(item) }}</span></div></div></td>
+                <td><span class="direction" [ngClass]="item.direction"><app-icon [name]="directionIcon(item)" [size]="15"></app-icon>{{ directionLabel(item) }}</span></td>
+                <td>{{ origin(item) }}</td><td>{{ destination(item) }}</td><td>{{ operatorName(item) }}</td><td><strong>{{ quantity(item) }}</strong></td>
+                <td><button class="detail-button" type="button" (click)="select(item)" [attr.aria-expanded]="selected?.HistoryId === item.HistoryId" [attr.aria-label]="'Detalii pentru ' + toolName(item)"><app-icon name="list" [size]="17"></app-icon></button></td>
+              </tr>
+              <tr class="detail-row" *ngIf="selected?.HistoryId === item.HistoryId"><td colspan="8"><div><span><strong>Observații</strong>{{ item.note || 'Fără observații' }}</span><span><strong>ID operațiune</strong>#{{ item.HistoryId }}</span><span><strong>Tip inventar</strong>{{ isSsm(item) ? 'Echipament SSM' : 'Sculă' }}</span></div></td></tr>
+            </ng-container>
+          </tbody>
+        </table>
+      </div>
+      <footer class="pagination"><span>{{ firstVisible }}–{{ lastVisible }} din {{ filteredHistories.length }}</span><div><button type="button" [disabled]="page === 1" (click)="changePage(page - 1)" aria-label="Pagina anterioară">‹</button><strong>Pagina {{ page }} / {{ totalPages }}</strong><button type="button" [disabled]="page === totalPages" (click)="changePage(page + 1)" aria-label="Pagina următoare">›</button></div></footer>
+    </section>
+    <ng-template #emptyState><section class="state-card empty"><span class="empty-icon"><app-icon name="history" [size]="31"></app-icon></span><div><strong>Nicio operațiune</strong><p>{{ histories.length ? 'Nu există înregistrări pentru filtrele selectate.' : 'Endpointul de istoric nu a returnat înregistrări.' }}</p></div></section></ng-template>
+  </ng-container>
+</section>
