@@ -1,133 +1,50 @@
-<div class="wrap">
-  <!-- Header bar -->
-  <div class="bar">
-    <div class="date">
-      <span class="weekday">{{ displayDate }}</span>
+<div class="attendance-page">
+  <header class="page-header">
+    <div class="page-title"><span class="eyebrow">Pontaj</span><h1>Prezență zilnică</h1><p>Monitorizează intrările, ieșirile și orele lucrate · {{ displayDate }}</p></div>
+    <div class="header-actions">
+      <button class="btn ghost date-button" type="button" (click)="togglePicker()"><span>▦</span>{{ selectedDate }}</button>
+      <input *ngIf="showDatePicker" class="date-input" type="date" [max]="todayISO()" [value]="selectedDate" (change)="onDatePicked($event)" />
+      <button class="btn ghost" type="button" (click)="goToReports()">Rapoarte</button>
+      <button class="btn primary" type="button" (click)="addEmployee()">＋ Adaugă angajat</button>
     </div>
+  </header>
 
-    <div class="actions">
-      <button class="btn primary" (click)="addEmployee()">Adauga angajat</button>
-      <button class="btn" (click)="togglePicker()">Alege ziua</button>
-      <button class="btn ghost" (click)="goToReports()">Rapoarte</button>
-      <input
-        *ngIf="showDatePicker"
-        class="date-input"
-        type="date"
-        [max]="todayISO()"
-        [value]="selectedDate"
-        (change)="onDatePicked($event)"
-      />
+  <section class="stats-grid">
+    <article class="stat-card"><span class="stat-icon green">♙</span><div><strong>{{ presentNow }}</strong><small>În lucru acum</small></div></article>
+    <article class="stat-card"><span class="stat-icon blue">✓</span><div><strong>{{ finishedToday }}</strong><small>Program încheiat</small></div></article>
+    <article class="stat-card"><span class="stat-icon red">○</span><div><strong>{{ absentToday }}</strong><small>Fără pontaj</small></div></article>
+    <article class="stat-card"><span class="stat-icon violet">Σ</span><div><strong>{{ totalUsers }}</strong><small>Total angajați</small></div></article>
+  </section>
+
+  <section class="filter-bar">
+    <div class="search-control"><span>⌕</span><input type="search" [value]="searchTerm" (input)="onSearchChange($event)" placeholder="Caută după numele angajatului…" autocomplete="off" /></div>
+    <label><span>Firmă</span><select [value]="selectedCompany" (change)="onCompanyChange($event)"><option value="ALL">Toate firmele</option><option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option></select></label>
+    <label><span>Status</span><select [value]="selectedStatus" (change)="onStatusChange($event)"><option value="ALL">Toate statusurile</option><option value="IN">În lucru</option><option value="OUT">Ieșit</option><option value="ABSENT">Absent</option></select></label>
+    <button class="icon-button" type="button" (click)="refresh()" [disabled]="loading" title="Actualizează">↻</button>
+  </section>
+
+  <div class="state-card loading" *ngIf="loading"><span></span><strong>Se încarcă pontajul…</strong></div>
+  <div class="state-card error" *ngIf="error"><span>!</span><strong>{{ error }}</strong><button class="btn ghost" (click)="refresh()">Reîncearcă</button></div>
+
+  <section class="table-card" *ngIf="!loading && !error">
+    <div class="table-meta"><div><strong>Registrul zilei</strong><span>{{ filteredRows.length }} din {{ totalUsers }} angajați</span></div><span class="live-indicator"><i></i> Date actuale</span></div>
+    <div class="empty-state" *ngIf="filteredRows.length === 0"><span>⌕</span><strong>Niciun rezultat</strong><p>Schimbă filtrele sau termenul de căutare.</p></div>
+    <div class="table-scroll" *ngIf="filteredRows.length">
+      <table>
+        <thead><tr><th>Angajat</th><th>Firmă</th><th>Prima intrare</th><th>Ultima ieșire</th><th>Sesiuni</th><th>Total</th><th>Status</th><th>Acțiuni</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let r of filteredRows; trackBy: trackByUser">
+            <td><div class="employee-cell"><span class="avatar">{{ r.UserName.charAt(0) }}</span><strong>{{ r.UserName }}</strong></div></td>
+            <td><span class="company">{{ r.Company || 'Fără firmă' }}</span></td>
+            <td class="mono">{{ r.first_in ? (r.first_in | date:'HH:mm') : '—' }}</td>
+            <td class="mono">{{ r.last_out ? (r.last_out | date:'HH:mm') : '—' }}</td>
+            <td><div class="sessions"><span *ngFor="let s of r.sessions">{{ hm(s.in_time) }}–{{ s.out_time ? hm(s.out_time) : (s.missing_exit ? '—' : 'acum') }}</span><span class="muted" *ngIf="!r.sessions.length">Nicio sesiune</span></div></td>
+            <td><strong class="worked">{{ durataOre(r.total_hms) }}</strong></td>
+            <td><span [class]="statusChipClass(r.status)">{{ r.status === 'IN' ? 'În lucru' : (r.status === 'OUT' ? 'Ieșit' : 'Absent') }}</span></td>
+            <td><div class="row-actions"><button type="button" title="Editează angajat" (click)="editEmployee(r.UserId)">✎</button><button type="button" title="Detalii pontaj" (click)="seeAngajat(r.UserId)">◷</button><button type="button" title="Fișa angajat" (click)="seeFisaAngajat(r.UserId)">▣</button></div></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </div>
-
-
-
-  <!-- Summary -->
-  <div class="summary">
-    <div class="badge">Total angajați: {{ totalUsers }}</div>
-    <div class="badge live">În lucru acum: {{ presentNow }}</div>
-    <div class="badge date-badge">Zi: {{ selectedDate }}</div>
-    <div class="badge date-badge">Afișați: {{ filteredRows.length }}</div>
-  </div>
-
-  <div class="filters">
-    <div class="filter-field">
-      <label for="company-filter">Filtru firmă</label>
-      <select
-        id="company-filter"
-        class="filter-input"
-        [value]="selectedCompany"
-        (change)="onCompanyChange($event)"
-      >
-        <option value="ALL">Toate firmele</option>
-        <option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option>
-      </select>
-    </div>
-
-    <div class="filter-field">
-      <label for="status-filter">Filtru status</label>
-      <select
-        id="status-filter"
-        class="filter-input"
-        [value]="selectedStatus"
-        (change)="onStatusChange($event)"
-      >
-        <option value="ALL">Toate statusurile</option>
-        <option value="IN">IN</option>
-        <option value="OUT">OUT</option>
-        <option value="ABSENT">ABSENT</option>
-      </select>
-    </div>
-
-    <div class="filter-field search-field">
-      <label for="name-search">Caută după nume</label>
-      <input
-        id="name-search"
-        class="filter-input"
-        type="search"
-        [value]="searchTerm"
-        (input)="onSearchChange($event)"
-        placeholder="Scrie numele muncitorului"
-        autocomplete="off"
-      />
-    </div>
-  </div>
-
-  <!-- Loading / Error -->
-  <div class="state" *ngIf="loading">Se încarcă…</div>
-  <div class="state error" *ngIf="error">{{ error }}</div>
-
-  <!-- List -->
-  <div class="list" *ngIf="!loading && !error">
-    <div class="state" *ngIf="filteredRows.length === 0">Nu am găsit angajați pentru filtrele selectate.</div>
-
-    <div class="card" *ngFor="let r of filteredRows; trackBy: trackByUser">
-      <div class="card-head">
-        <div class="who">
-          <div class="name">{{ r.UserName }}</div>
-          <div class="meta">
-            <span>Firmă: <b>{{ r.Company || '—' }}</b></span>
-            <span>Prima intrare: <b>{{ r.first_in ? (r.first_in | date:'HH:mm:ss') : '—' }}</b></span>
-            <span>Ultima ieșire: <b>{{ r.last_out ? (r.last_out | date:'HH:mm:ss') : '—' }}</b></span>
-          </div>
-        </div>
-        <div class="totals">
-          <button class="btn small ghost" type="button" (click)="editEmployee(r.UserId)">Editeaza</button>
-          <a class="btn small" href (click)="seeAngajat(r.UserId); $event.preventDefault()">Detalii pontaj</a>
-          <button class="btn small primary-soft" type="button" (click)="seeFisaAngajat(r.UserId)">Fisa angajat</button>
-          <span class="total">{{ durataOre(r.total_hms) }}</span>
-          <span [class]="statusChipClass(r.status)">{{ r.status }}</span>
-        </div>
-      </div>
-
-      <!-- sessions table -->
-      <div class="sess">
-        <div class="sess-head">
-          <div>Intrare</div>
-          <div>Ieșire</div>
-          <div>Durată</div>
-        </div>
-        <div class="sess-row" *ngIf="r.sessions.length === 0">
-          <div class="muted">—</div>
-          <div class="muted">—</div>
-          <div class="muted">0:00 ore</div>
-        </div>
-        <div class="sess-row" *ngFor="let s of r.sessions">
-          <div>{{ hm(s.in_time) }}</div>
-          <div>
-            <ng-container *ngIf="s.out_time; else outFallback">
-              {{ hm(s.out_time) }}
-            </ng-container>
-            <ng-template #outFallback>
-              <span *ngIf="s.missing_exit; else openTag" class="muted">—</span>
-            </ng-template>
-            <ng-template #openTag>
-              <span class="open">deschis</span>
-            </ng-template>
-          </div>
-          <div>{{ durataOre(s.duration_hms) }}</div>
-        </div>
-      </div>
-    </div>
-  </div>
+  </section>
 </div>

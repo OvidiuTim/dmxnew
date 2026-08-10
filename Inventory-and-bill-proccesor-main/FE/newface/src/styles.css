@@ -1,1 +1,277 @@
 @import 'leaflet/dist/leaflet.css';
+
+:root {
+  --app-bg: #060b13;
+  --card: #0b1220;
+  --surface: #0d1727;
+  --surface-hover: #121f32;
+  --border: #1a2638;
+  --border-strong: #2a394f;
+  --primary: #31d68f;
+  --primary-hover: #52e4a7;
+  --primary-soft: rgba(49, 214, 143, .1);
+  --warning: #ffb84d;
+  --danger: #ff6464;
+  --text: #f2f5f9;
+  --text-muted: #8490a3;
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 9px;
+  --shadow: 0 14px 38px rgba(0, 0, 0, .13);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { min-width: 320px; min-height: 100%; background: var(--app-bg); }
+body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--app-bg); color: var(--text); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; }
+button { touch-action: manipulation; }
+a { color: inherit; }
+::selection { color: #04110b; background: var(--primary); }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: #070d16; }
+::-webkit-scrollbar-thumb { background: #263248; border: 2px solid #070d16; border-radius: 99px; }
+
+/* Sistem vizual comun pentru toate paginile post-login. */
+.app-shell .app-content .sidebar,
+.app-shell .app-content .hamburger-btn { display: none !important; }
+.app-shell .app-content .pages-content,
+.app-shell .app-content .tools-page,
+.app-shell .app-content .wrap,
+.app-shell .app-content .employee-page,
+.app-shell .app-content .employee-sheet,
+.app-shell .app-content .page,
+.app-shell .app-content .background,
+.app-shell .app-content .admin-page {
+  width: 100% !important;
+  max-width: 1420px !important;
+  min-height: 0 !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: var(--text) !important;
+}
+.app-shell .app-content .tools-layout { display: block !important; min-height: 0 !important; background: transparent !important; }
+.app-shell .app-content body { display: block !important; min-height: 0 !important; margin: 0 !important; background: transparent !important; color: var(--text) !important; }
+
+/* Headere de pagină vechi aduse în același limbaj vizual. */
+.app-shell .app-content .page-head,
+.app-shell .app-content .bar,
+.app-shell .app-content .topbar,
+.app-shell .app-content .employee-shell > .hero-card {
+  min-height: auto !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+  margin: 0 0 24px !important;
+  padding: 0 0 20px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
+}
+.app-shell .app-content .page-head h2,
+.app-shell .app-content .bar h2,
+.app-shell .app-content .bar .weekday,
+.app-shell .app-content .employee-sheet h1,
+.app-shell .app-content .employee-page h1 {
+  color: var(--text) !important;
+  font-size: clamp(27px, 4vw, 37px) !important;
+  font-weight: 750 !important;
+  letter-spacing: -.7px !important;
+}
+.app-shell .app-content .eyebrow { color: var(--primary) !important; font-size: 10px !important; font-weight: 800 !important; letter-spacing: 1.25px !important; text-transform: uppercase !important; }
+
+/* Butoane și controale. */
+.app-shell .app-content .btn,
+.app-shell .app-content button.btn,
+.app-shell .app-content .action-btn,
+.app-shell .app-content .download-btn button {
+  min-height: 41px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 10px !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease, background .16s ease;
+}
+.app-shell .app-content .btn:hover,
+.app-shell .app-content .action-btn:hover { transform: translateY(-1px); border-color: var(--primary) !important; }
+.app-shell .app-content .btn-primary,
+.app-shell .app-content .btn-success,
+.app-shell .app-content .btn.primary,
+.app-shell .app-content .btnAdd {
+  border-color: var(--primary) !important;
+  background: var(--primary) !important;
+  color: #04130c !important;
+}
+.app-shell .app-content .btn-danger,
+.app-shell .app-content .btn.danger { border-color: rgba(255,100,100,.24) !important; background: rgba(255,100,100,.09) !important; color: #ff9696 !important; }
+.app-shell .app-content .btn-warning { border-color: rgba(255,184,77,.25) !important; background: rgba(255,184,77,.1) !important; color: #ffc66d !important; }
+.app-shell .app-content button:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+.app-shell .app-content input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+.app-shell .app-content select,
+.app-shell .app-content textarea {
+  min-height: 43px;
+  padding: 10px 12px;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  outline: 0;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+.app-shell .app-content input:focus,
+.app-shell .app-content select:focus,
+.app-shell .app-content textarea:focus { border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(49,214,143,.08) !important; }
+.app-shell .app-content label { color: #9aa6b8; font-size: 11px; font-weight: 650; }
+
+/* Carduri, formulare, filtre și stări. */
+.app-shell .app-content .editor-panel,
+.app-shell .app-content .editor-card,
+.app-shell .app-content .section-card,
+.app-shell .app-content .section-body,
+.app-shell .app-content .profile-card,
+.app-shell .app-content .panel,
+.app-shell .app-content .general-panel,
+.app-shell .app-content .salary-card,
+.app-shell .app-content .table,
+.app-shell .app-content .tools-table {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--card) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow) !important;
+}
+.app-shell .app-content .filters,
+.app-shell .app-content .searchbox,
+.app-shell .app-content .employee-toolbar,
+.app-shell .app-content .worksite-filters,
+.app-shell .app-content .salary-filters {
+  border: 1px solid var(--border) !important;
+  border-radius: 14px !important;
+  background: var(--card) !important;
+  color: var(--text) !important;
+}
+.app-shell .app-content .state,
+.app-shell .app-content .empty,
+.app-shell .app-content .empty-state {
+  border-color: var(--border) !important;
+  border-radius: 12px !important;
+  background: var(--surface) !important;
+  color: var(--text-muted) !important;
+}
+.app-shell .app-content .state.error,
+.app-shell .app-content .hint,
+.app-shell .app-content .error { color: #ff9292 !important; }
+
+/* Tabele vechi și moderne. */
+.app-shell .app-content .table-responsive,
+.app-shell .app-content .worksite-table-wrap,
+.app-shell .app-content .magazie-table,
+.app-shell .app-content .personal-table,
+.app-shell .app-content .schela-table,
+.app-shell .app-content .predare-table { max-width: 100%; overflow-x: auto; }
+.app-shell .app-content table { width: 100%; border-collapse: collapse; color: var(--text) !important; }
+.app-shell .app-content table thead,
+.app-shell .app-content .table-head,
+.app-shell .app-content .thead { background: var(--surface) !important; color: var(--text-muted) !important; }
+.app-shell .app-content table th { padding: 13px 15px !important; border: 0 !important; color: #8290a5 !important; background: var(--surface) !important; font-size: 10px !important; font-weight: 800 !important; letter-spacing: .55px; text-align: left; text-transform: uppercase; white-space: nowrap; }
+.app-shell .app-content table td { padding: 13px 15px !important; border-color: var(--border) !important; background: transparent !important; color: var(--text) !important; font-size: 11px !important; vertical-align: middle; }
+.app-shell .app-content table tbody tr { border-color: var(--border) !important; background: transparent !important; }
+.app-shell .app-content table tbody tr:hover { background: var(--surface-hover) !important; }
+.app-shell .app-content .table-striped > tbody > tr:nth-of-type(odd) > * { --bs-table-accent-bg: rgba(255,255,255,.012); color: var(--text); }
+
+/* Pagini vechi de magazie. */
+.app-shell .app-content .pages-content::before {
+  content: 'Magazie';
+  display: block;
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: clamp(29px, 4vw, 38px);
+  font-weight: 750;
+  letter-spacing: -.7px;
+}
+.app-shell .app-content app-angajati .pages-content::before { content: 'Angajați și echipamente alocate'; }
+.app-shell .app-content app-materiale .pages-content::before { content: 'Materiale și stocuri'; }
+.app-shell .app-content app-schela .pages-content::before { content: 'Schelă, cofraje și mijloace fixe'; }
+.app-shell .app-content app-history .pages-content::before { content: 'Istoricul mișcărilor'; }
+.app-shell .app-content app-magazie .pages-content { min-height: 520px !important; position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: linear-gradient(145deg, rgba(49,214,143,.055), var(--card) 44%); }
+.app-shell .app-content app-magazie .pages-content::before { content: 'Magazie · centru operațional'; margin: 0; padding: 44px; border: 0; }
+.app-shell .app-content app-magazie .pages-content::after { content: 'Folosește navigația din stânga pentru angajați, unelte, materiale, schelă, rafturi și istoricul mișcărilor.'; position: absolute; top: 110px; left: 44px; max-width: 560px; color: var(--text-muted); font-size: 14px; line-height: 1.7; }
+.app-shell .app-content .angajati { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important; gap: 14px !important; margin-top: 18px !important; }
+.app-shell .app-content .angajati .tag { width: auto !important; min-height: 190px; margin: 0 !important; padding: 18px !important; border: 1px solid var(--border) !important; border-radius: 15px !important; background: var(--card) !important; box-shadow: none !important; color: var(--text) !important; }
+.app-shell .app-content .angajati .info img { width: 46px !important; height: 46px !important; border-radius: 12px !important; object-fit: cover; }
+.app-shell .app-content .angajati .buttons { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 7px !important; }
+.app-shell .app-content .angajati .buttons button,
+.app-shell .app-content .stergebtn { width: 100% !important; min-height: 39px !important; margin: 5px 0 0 !important; border: 1px solid var(--border) !important; border-radius: 9px !important; background: var(--surface) !important; color: var(--text) !important; }
+.app-shell .app-content .angajati button img { width: 17px !important; height: 17px !important; filter: grayscale(1) brightness(2); }
+.app-shell .app-content .searchbox { min-height: 70px; display: flex !important; align-items: center; gap: 9px; padding: 13px !important; }
+.app-shell .app-content .searchbox input { flex: 1; }
+
+/* Modaluri Bootstrap armonizate. */
+.modal { --bs-modal-width: min(920px, calc(100vw - 32px)); }
+.modal-backdrop { background: #02060c !important; }
+.modal-content { overflow: hidden; border: 1px solid var(--border-strong) !important; border-radius: var(--radius-lg) !important; background: var(--card) !important; color: var(--text) !important; box-shadow: 0 28px 90px rgba(0,0,0,.55) !important; }
+.modal-header, .modal-footer { border-color: var(--border) !important; background: var(--surface) !important; }
+.modal-title { color: var(--text) !important; }
+.modal-body { background: var(--card) !important; color: var(--text) !important; }
+.modal .close { border: 0; background: transparent; color: var(--text); font-size: 25px; }
+
+/* Rapoarte: grilă coerentă și tabele utilizabile. */
+.app-shell app-rapoarte .sections { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 16px !important; }
+.app-shell app-rapoarte .section-card { margin: 0 0 16px !important; padding: 22px !important; }
+.app-shell app-rapoarte .worksite-report-card,
+.app-shell app-rapoarte .day-cost-card { display: block !important; }
+.app-shell app-rapoarte .summary-grid { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 10px !important; }
+.app-shell app-rapoarte .summary-card { border: 1px solid var(--border) !important; border-radius: 13px !important; background: var(--surface) !important; color: var(--text) !important; }
+.app-shell app-rapoarte h2 { color: var(--text) !important; }
+.app-shell app-rapoarte p, .app-shell app-rapoarte .section-sub { color: var(--text-muted) !important; }
+
+/* Fișă angajat, formular și detalii pontaj. */
+.app-shell app-fisa-angajat .employee-card { border: 1px solid var(--border) !important; border-radius: var(--radius-lg) !important; background: var(--card) !important; color: var(--text) !important; box-shadow: var(--shadow) !important; }
+.app-shell app-fisa-angajat .tabs { border-color: var(--border) !important; background: var(--card) !important; }
+.app-shell app-fisa-angajat .tab { color: var(--text-muted) !important; }.app-shell app-fisa-angajat .tab.active { color: var(--primary) !important; border-color: var(--primary) !important; }
+.app-shell app-fisa-angajat .general-item,
+.app-shell app-fisa-angajat .tool-card { border-color: var(--border) !important; background: var(--surface) !important; color: var(--text) !important; }
+.app-shell app-employee-form .employee-shell { width: 100% !important; max-width: 1100px !important; margin: 0 auto !important; padding: 0 !important; }
+.app-shell app-employee-form .editor-card { padding: clamp(18px, 3vw, 30px) !important; }
+.app-shell app-userpontat .profile-card,
+.app-shell app-userpontat .editor { border-color: var(--border) !important; background: var(--card) !important; color: var(--text) !important; }
+.app-shell app-userpontat .row { border-color: var(--border) !important; background: transparent !important; color: var(--text) !important; }
+
+/* Rafturi. */
+.app-shell app-shelfs .page { min-height: 560px !important; padding: 34px !important; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card) !important; }
+.app-shell app-shelfs h1 { color: var(--text) !important; }
+.app-shell app-shelfs .raft { border-color: var(--border-strong) !important; border-radius: 14px !important; background: var(--surface) !important; color: var(--text) !important; box-shadow: none !important; }
+
+@media (max-width: 900px) {
+  .app-shell app-rapoarte .sections { grid-template-columns: 1fr !important; }
+  .app-shell app-rapoarte .summary-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .app-shell .app-content .page-head, .app-shell .app-content .bar, .app-shell .app-content .topbar { align-items: stretch !important; flex-direction: column !important; }
+}
+
+@media (max-width: 620px) {
+  .app-shell .app-content .angajati { grid-template-columns: 1fr !important; }
+  .app-shell app-rapoarte .summary-grid { grid-template-columns: 1fr !important; }
+  .app-shell .app-content .searchbox { align-items: stretch; flex-direction: column; }
+  .app-shell .app-content .searchbox .btn { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

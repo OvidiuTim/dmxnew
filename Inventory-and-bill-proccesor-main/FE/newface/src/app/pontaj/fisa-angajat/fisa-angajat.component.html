@@ -1,4 +1,18 @@
-<div class="employee-sheet">
+<div class="employee-directory" *ngIf="!userId">
+  <header class="directory-header"><div><span>Resurse umane</span><h1>Fișe angajați</h1><p>Selectează un angajat pentru profil, date generale și echipamentele alocate.</p></div><button type="button" (click)="goBack()">Înapoi la pontaj</button></header>
+  <div class="state error" *ngIf="error">{{ error }}</div>
+  <div class="state" *ngIf="loading">Se încarcă angajații…</div>
+  <div class="directory-empty" *ngIf="!loading && !error && !employeeDirectory.length"><strong>Nu există angajați</strong><span>Adaugă primul angajat din pagina de pontaj.</span></div>
+  <section class="directory-grid" *ngIf="!loading && employeeDirectory.length">
+    <button type="button" *ngFor="let person of employeeDirectory" (click)="openEmployeeSheet(person)">
+      <span class="directory-avatar">{{ (person.UserName || '?').charAt(0) }}</span>
+      <span class="directory-copy"><strong>{{ displayText(person.UserName) }}</strong><small>{{ displayText(person.trade) }} · {{ displayText(person.Company) }}</small></span>
+      <i>→</i>
+    </button>
+  </section>
+</div>
+
+<div class="employee-sheet" *ngIf="userId">
   <div class="topbar">
     <button class="back-btn" type="button" (click)="goBack()">Inapoi la lista angajati</button>
   </div>

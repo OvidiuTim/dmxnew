@@ -1,0 +1,14 @@
+:host { display: block; }
+.portal-page { max-width: 1180px; margin: 0 auto; }
+.page-header { margin-bottom: 26px; }
+.page-header h1 { margin: 8px 0 8px; color: var(--text); font-size: clamp(28px, 4vw, 38px); }
+.page-header p { margin: 0; color: var(--text-muted); }
+.eyebrow { color: var(--primary); font-size: 11px; font-weight: 800; letter-spacing: 1.3px; text-transform: uppercase; }
+.placeholder-card { min-height: 430px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 42px; text-align: center; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.placeholder-icon { width: 72px; height: 72px; display: grid; place-items: center; margin-bottom: 20px; border-radius: 20px; color: var(--primary); background: var(--primary-soft); border: 1px solid rgba(49,214,143,.2); font-size: 34px; }
+.status-badge { padding: 6px 10px; border-radius: 999px; color: var(--primary); background: var(--primary-soft); font-size: 11px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; }
+.placeholder-card h2 { margin: 18px 0 8px; color: var(--text); font-size: 24px; }
+.placeholder-card > p { max-width: 620px; margin: 0; color: var(--text-muted); line-height: 1.7; }
+.integration-note { max-width: 680px; display: grid; gap: 5px; margin-top: 28px; padding: 17px 20px; text-align: left; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); }
+.integration-note strong { color: var(--text); font-size: 13px; }
+.integration-note span { color: var(--text-muted); font-size: 12px; line-height: 1.5; }

@@ -1,21 +1,18 @@
 import { Component, OnInit } from '@angular/core';
-import { SharedService } from 'src/app/shared.service';
+import { forkJoin } from 'rxjs';
+import { SharedService } from '../shared.service';
 
 type RawHistory = {
-  // câmpuri posibile din serializer (nou + legacy)
   direction?: 'OUT' | 'IN' | string;
   quantity?: number;
-  note?: string;
-  timestamp?: string; // ISO
-  DateOfGiving?: string; // fallback legacy
-
-  User?: string;  // legacy
-  Tool?: string;  // legacy
-  ToolSerie?: string; // legacy
-  GiveRecive?: string; // legacy
-
-  user?: { UserId: number; UserName: string; UserSerie: string }; // nested read-only (nou)
-  tool?: { ToolId: number; ToolName: string; ToolSerie: string }; // nested read-only (nou)
+  timestamp?: string;
+  DateOfGiving?: string;
+  User?: string;
+  Tool?: string;
+  ToolSerie?: string;
+  GiveRecive?: string;
+  user?: { UserId: number; UserName: string; UserSerie: string };
+  tool?: { ToolId: number; ToolName: string; ToolSerie: string };
 };
 
 type ViewHistory = {
@@ -25,7 +22,6 @@ type ViewHistory = {
   isOut: boolean;
   quantity: number;
   timestamp: Date;
-  raw: RawHistory;
 };
 
 @Component({
@@ -34,91 +30,138 @@ type ViewHistory = {
   styleUrls: ['./dashboard.component.css'],
 })
 export class DashboardComponent implements OnInit {
-  // listă completă (normalizată & sortată desc)
   histToolList: ViewHistory[] = [];
-
-  // paginare
-  pageSize = 20;
-  currentPage = 1;
+  attendanceRows: any[] = [];
+  totalEmployees = 0;
+  presentNow = 0;
+  clockedToday = 0;
+  finishedToday = 0;
+  totalWorkedSeconds = 0;
+  worksitesCount = 0;
+  totalDayCost = 0;
+  loadingAttendance = true;
+  loadingHistory = true;
+  loadingReports = true;
+  attendanceError: string | null = null;
+  historyError: string | null = null;
+  reportsError: string | null = null;
 
   constructor(private service: SharedService) {}
 
-  ngOnInit(): void {
+  ngOnInit(): void { this.refreshAll(); }
+
+  refreshAll(): void {
+    this.loadAttendance();
+    this.loadReports();
     this.refreshHisList();
   }
 
-  refreshHisList() {
-    this.service.getHisList().subscribe((data: RawHistory[]) => {
-      const normalized = data.map((it) => this.normalizeHistory(it));
-      // sort desc după timestamp
-      normalized.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      this.histToolList = normalized;
-      // dacă eram pe o pagină mai „mare” decât noul număr de pagini, ajustează
-      if (this.currentPage > this.totalPages) {
-        this.currentPage = this.totalPages || 1;
+  private loadAttendance(): void {
+    this.loadingAttendance = true;
+    this.attendanceError = null;
+    forkJoin({ day: this.service.getAttendanceDay(this.todayISO), users: this.service.getUsrList() }).subscribe({
+      next: ({ day, users }) => {
+        this.attendanceRows = day?.rows ?? [];
+        this.totalEmployees = users?.length ?? 0;
+        this.presentNow = this.attendanceRows.filter(row => row.status === 'IN').length;
+        this.clockedToday = this.attendanceRows.filter(row => row.status !== 'ABSENT').length;
+        this.finishedToday = this.attendanceRows.filter(row => row.status === 'OUT').length;
+        this.totalWorkedSeconds = this.attendanceRows.reduce((sum, row) => sum + this.secondsFromRow(row), 0);
+        this.loadingAttendance = false;
+      },
+      error: () => {
+        this.loadingAttendance = false;
+        this.attendanceError = 'Datele de prezență nu au putut fi încărcate.';
       }
     });
   }
 
-  // ------- helpers pentru normalizare -------
-  private normalizeHistory(it: RawHistory): ViewHistory {
-    // 1) direcție
-    const dir = this.resolveDirection(it);
-    const isOut = dir === 'OUT';
-    const displayAction: 'a preluat' | 'a predat' = isOut ? 'a preluat' : 'a predat';
-
-    // 2) user / tool
-    const displayUser = this.pickUserName(it);
-    const displayTool = this.pickToolName(it);
-
-    // 3) timestamp (preferă noul "timestamp", altfel pica pe "DateOfGiving")
-    const ts = it.timestamp || it.DateOfGiving || new Date().toISOString();
-    const timestamp = new Date(ts);
-
-    // 4) cantitate
-    const quantity = (typeof it.quantity === 'number' && !isNaN(it.quantity)) ? it.quantity : 1;
-
-    return { displayUser, displayTool, displayAction, isOut, quantity, timestamp, raw: it };
+  private loadReports(): void {
+    this.loadingReports = true;
+    this.reportsError = null;
+    forkJoin({
+      worksites: this.service.getAttendanceWorksiteReport(this.monthStartISO, this.todayISO),
+      dayCost: this.service.getAttendanceDayCostReport(this.todayISO)
+    }).subscribe({
+      next: ({ worksites, dayCost }) => {
+        this.worksitesCount = Number(worksites?.summary?.worksites_count ?? worksites?.rows?.length ?? 0);
+        this.totalDayCost = Number(dayCost?.summary?.total_cost ?? 0);
+        this.loadingReports = false;
+      },
+      error: () => {
+        this.loadingReports = false;
+        this.reportsError = 'Rezumatul financiar și cel pe șantiere nu sunt disponibile momentan.';
+      }
+    });
   }
 
-  private resolveDirection(it: RawHistory): 'OUT' | 'IN' {
-    // nou: direction
-    if (it.direction) {
-      const d = String(it.direction).toUpperCase();
-      if (d.startsWith('OUT')) return 'OUT';
-      if (d.startsWith('IN')) return 'IN';
-    }
-    // legacy: GiveRecive (română veche)
-    const gr = (it.GiveRecive || '').toLowerCase();
-    if (gr.includes('luat') || gr.includes('predare') || gr.includes('iesire')) return 'OUT';
-    if (gr.includes('adus') || gr.includes('predat') || gr.includes('intrare')) return 'IN';
-    // fallback
-    return 'OUT';
+  refreshHisList(): void {
+    this.loadingHistory = true;
+    this.historyError = null;
+    this.service.getHisList().subscribe({
+      next: (data: RawHistory[]) => {
+        this.histToolList = (data ?? [])
+          .map(item => this.normalizeHistory(item))
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+        this.loadingHistory = false;
+      },
+      error: () => {
+        this.loadingHistory = false;
+        this.historyError = 'Activitatea recentă din magazie nu a putut fi încărcată.';
+      }
+    });
   }
 
-  private pickUserName(it: RawHistory): string {
-    return it.user?.UserName || it.User || 'Utilizator necunoscut';
+  get recentHistory(): ViewHistory[] { return this.histToolList.slice(0, 6); }
+  get absentToday(): number { return Math.max(0, this.totalEmployees - this.clockedToday); }
+  get presencePercent(): number { return this.totalEmployees ? Math.round((this.clockedToday / this.totalEmployees) * 100) : 0; }
+  get totalWorkedLabel(): string {
+    const hours = Math.floor(this.totalWorkedSeconds / 3600);
+    const minutes = Math.floor((this.totalWorkedSeconds % 3600) / 60);
+    return `${hours}h ${String(minutes).padStart(2, '0')}m`;
+  }
+  get averageWorkedLabel(): string {
+    if (!this.clockedToday) return '0h 00m';
+    const seconds = Math.round(this.totalWorkedSeconds / this.clockedToday);
+    return `${Math.floor(seconds / 3600)}h ${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')}m`;
+  }
+  get todayLabel(): string {
+    return new Date().toLocaleDateString('ro-RO', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   }
 
-  private pickToolName(it: RawHistory): string {
-    return it.tool?.ToolName || it.Tool || it.ToolSerie || 'Unealtă necunoscută';
+  private get todayISO(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   }
 
-  // ------- paginare -------
-  get totalPages(): number {
-    return Math.ceil(this.histToolList.length / this.pageSize);
+  private get monthStartISO(): string { return `${this.todayISO.slice(0, 8)}01`; }
+
+  private secondsFromRow(row: any): number {
+    if (Number.isFinite(Number(row?.total_seconds))) return Number(row.total_seconds);
+    const parts = String(row?.total_hms || '0:0:0').split(':').map(Number);
+    return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
   }
 
-  get pagedHistory(): ViewHistory[] {
-    const start = (this.currentPage - 1) * this.pageSize;
-    return this.histToolList.slice(start, start + this.pageSize);
+  private normalizeHistory(item: RawHistory): ViewHistory {
+    const direction = this.resolveDirection(item);
+    const isOut = direction === 'OUT';
+    const rawTimestamp = item.timestamp || item.DateOfGiving;
+    const parsed = rawTimestamp ? new Date(rawTimestamp) : new Date();
+    return {
+      displayUser: item.user?.UserName || item.User || 'Utilizator necunoscut',
+      displayTool: item.tool?.ToolName || item.Tool || item.ToolSerie || 'Unealtă necunoscută',
+      displayAction: isOut ? 'a preluat' : 'a predat',
+      isOut,
+      quantity: Number.isFinite(Number(item.quantity)) ? Number(item.quantity) : 1,
+      timestamp: Number.isNaN(parsed.getTime()) ? new Date() : parsed,
+    };
   }
 
-  nextPage() {
-    if (this.currentPage < this.totalPages) this.currentPage++;
-  }
-
-  prevPage() {
-    if (this.currentPage > 1) this.currentPage--;
+  private resolveDirection(item: RawHistory): 'OUT' | 'IN' {
+    const direction = String(item.direction || '').toUpperCase();
+    if (direction.startsWith('IN')) return 'IN';
+    if (direction.startsWith('OUT')) return 'OUT';
+    const legacy = String(item.GiveRecive || '').toLowerCase();
+    return legacy.includes('adus') || legacy.includes('predat') || legacy.includes('intrare') ? 'IN' : 'OUT';
   }
 }

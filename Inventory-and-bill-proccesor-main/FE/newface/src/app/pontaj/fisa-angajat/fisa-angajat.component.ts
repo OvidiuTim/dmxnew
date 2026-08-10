@@ -46,6 +46,7 @@ interface EmployeeTool {
 })
 export class FisaAngajatComponent implements OnInit {
   userId: number | null = null;
+  employeeDirectory: EmployeeProfile[] = [];
   employee: EmployeeProfile | null = null;
   siteTools: EmployeeTool[] = [];
   ssmTools: EmployeeTool[] = [];
@@ -68,12 +69,33 @@ export class FisaAngajatComponent implements OnInit {
     const parsedId = Number(rawId);
 
     if (!rawId || !Number.isFinite(parsedId)) {
-      this.error = 'Lipseste angajatul pentru fisa.';
+      this.loadEmployeeDirectory();
       return;
     }
 
     this.userId = parsedId;
     this.loadEmployeeSheet(parsedId);
+  }
+
+  loadEmployeeDirectory(): void {
+    this.loading = true;
+    this.error = null;
+    this.api.getUsrList().subscribe({
+      next: users => {
+        this.employeeDirectory = (users ?? []).slice().sort((a: EmployeeProfile, b: EmployeeProfile) =>
+          String(a.UserName || '').localeCompare(String(b.UserName || ''), 'ro')
+        );
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+        this.error = 'Nu pot încărca lista angajaților.';
+      }
+    });
+  }
+
+  openEmployeeSheet(employee: EmployeeProfile): void {
+    if (employee.UserId) this.router.navigate(['/pontaj/fisa-angajat', employee.UserId]);
   }
 
   get currentTools(): EmployeeTool[] {

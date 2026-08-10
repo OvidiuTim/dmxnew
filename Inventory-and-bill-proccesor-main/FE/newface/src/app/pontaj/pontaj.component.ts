@@ -161,6 +161,10 @@ seeFisaAngajat(id: number): void {
     });
   }
 
+  get clockedToday(): number { return this.rows.filter(row => row.status !== 'ABSENT').length; }
+  get finishedToday(): number { return this.rows.filter(row => row.status === 'OUT').length; }
+  get absentToday(): number { return this.rows.filter(row => row.status === 'ABSENT').length; }
+
   onCompanyChange(event: Event): void {
     this.selectedCompany = (event.target as HTMLSelectElement).value || 'ALL';
   }

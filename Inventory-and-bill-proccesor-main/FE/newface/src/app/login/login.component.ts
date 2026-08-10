@@ -25,7 +25,7 @@ export class LoginComponent {
     if (!this.password) return;
     this.loading = true; this.error = null;
     this.auth.login(this.password).subscribe({
-      next: () => { this.loading = false; this.router.navigate(['/pontaj']); },
+      next: () => { this.loading = false; this.router.navigate(['/dashboard']); },
       error: (e) => { this.loading = false; this.error = 'Parolă invalidă'; console.error(e); }
     });
   }
@@ -49,9 +49,9 @@ export class LoginComponent {
   }
 
   private loginRedirectPath(session: any): string {
-    const path = String(session?.login_redirect_path || session?.app_user?.login_redirect_path || '/pontaj').trim();
+    const path = String(session?.login_redirect_path || session?.app_user?.login_redirect_path || '/dashboard').trim();
     if (!path || path.includes('://') || path.startsWith('//')) {
-      return '/pontaj';
+      return '/dashboard';
     }
     return path.startsWith('/') ? path : `/${path}`;
   }

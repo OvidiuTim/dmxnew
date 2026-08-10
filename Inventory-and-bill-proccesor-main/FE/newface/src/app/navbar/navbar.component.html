@@ -1,27 +1,37 @@
-<header class="navbar">
-    <!-- Burger on mobile -->
-    <button
-      class="burger"
-      (click)="toggleMenu()"
-      [attr.aria-expanded]="menuOpen"
-      aria-controls="main-nav"
-      aria-label="Deschide meniul"
-    >
-      <span></span>
-      <span></span>
-      <span></span>
-    </button>
-  
-    <nav id="main-nav" class="nav" [ngClass]="{ open: menuOpen }">
-      <a *ngFor="let l of links"
-         [href]="l.path || '#'"
-         [ngClass]="{ active: l.active }"
-         (click)="onLinkClick(l, $event)">
-        {{ l.label }}
-      </a>
-    </nav>
-  </header>
-  
-  <!-- Backdrop on mobile when menu is open -->
-  <div class="backdrop" *ngIf="menuOpen" (click)="closeMenu()"></div>
+<header class="mobile-topbar">
+  <button class="burger" type="button" (click)="toggleMenu()" [attr.aria-expanded]="menuOpen" aria-controls="main-nav" aria-label="Deschide meniul">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="mobile-brand"><span class="brand-mark">N</span><strong>Novarion</strong></div>
+</header>
+
+<aside id="main-nav" class="sidebar-shell" [ngClass]="{ open: menuOpen }">
+  <a class="brand" routerLink="/dashboard" (click)="closeMenu()" aria-label="Novarion Dashboard">
+    <span class="brand-mark">N</span>
+    <span><strong>NOVARION</strong><small>DMX Construction</small></span>
+  </a>
+
+  <nav class="sidebar-nav" aria-label="Navigația principală">
+    <ng-container *ngFor="let group of groups">
+      <section class="nav-group" *ngIf="visibleLinks(group).length">
+        <span class="nav-title">{{ group.label }}</span>
+        <a *ngFor="let link of visibleLinks(group)" [href]="link.path" class="nav-item" [ngClass]="{ active: link.active }" (click)="onLinkClick(link, $event)">
+          <span class="nav-icon" [ngClass]="'icon-' + link.icon" aria-hidden="true"></span>
+          <span>{{ link.label }}</span>
+          <span class="active-dot" *ngIf="link.active"></span>
+        </a>
+      </section>
+    </ng-container>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <span class="avatar">{{ initials }}</span>
+      <span class="user-copy"><strong>{{ userName }}</strong><small>{{ userRole }}</small></span>
+    </div>
+    <button type="button" class="logout" (click)="logout()"><span class="nav-icon icon-logout"></span><span>Deconectare</span></button>
+  </div>
+</aside>
+
+<div class="backdrop" *ngIf="menuOpen" (click)="closeMenu()"></div>
   

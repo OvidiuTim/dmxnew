@@ -1,21 +1,7 @@
-<app-navbar></app-navbar>
-  
-  <main class="page">
-    <!-- Buton stânga -->
-    <button class="arrow left">&#8249;</button>
-  <h1></h1>
-    <div class="container">
-      <button class="raft">Raftul 1</button>
-      <button class="raft">Raftul 2</button>
-      <button class="raft">Raftul 3</button>
-      <button class="raft">Raftul 4</button>
-      <button class="raft">Raftul 5</button>
-      <button class="raft">Raftul 6</button>
-    </div>
-  
-    <!-- Buton dreapta -->
-    <button class="arrow right">&#8250;</button>
-  </main>
-  
-
-  
+<div class="shelves-page">
+  <header class="page-header"><div><span class="eyebrow">Organizare magazie</span><h1>Rafturi</h1><p>Selectează o zonă de depozitare pentru a continua.</p></div></header>
+  <section class="shelf-grid">
+    <button class="shelf" *ngFor="let shelf of [1,2,3,4,5,6]"><span class="shelf-icon">▤</span><div><strong>Raftul {{ shelf }}</strong><small>Zonă de depozitare</small></div><i>→</i></button>
+  </section>
+  <div class="integration-note"><span>i</span><p><strong>Interfață pregătită.</strong> Acțiunile pentru conținutul rafturilor nu sunt conectate deoarece proiectul nu definește un endpoint sau un model frontend pentru rafturi.</p></div>
+</div>

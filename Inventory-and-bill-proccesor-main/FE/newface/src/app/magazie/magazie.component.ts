@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import {SharedService} from 'src/app/shared.service';
 import { Router } from '@angular/router';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-magazie',
@@ -8,13 +9,33 @@ import { Router } from '@angular/router';
   styleUrls: ['./magazie.component.css']
 })
 export class MagazieComponent implements OnInit {
+  counts = { employees: 0, tools: 0, materials: 0, movements: 0 };
+  loading = true;
+  error: string | null = null;
 
   constructor(private router: Router, private service:SharedService) { }
 
   ngOnInit(): void {
-    
-    console.log(this.service.admin)
-    alert(this.service.admin)
+    forkJoin({
+      employees: this.service.getUsrList(),
+      tools: this.service.getTolList(),
+      materials: this.service.getMatList(),
+      movements: this.service.getHisList(),
+    }).subscribe({
+      next: data => {
+        this.counts = {
+          employees: data.employees?.length ?? 0,
+          tools: data.tools?.length ?? 0,
+          materials: data.materials?.length ?? 0,
+          movements: data.movements?.length ?? 0,
+        };
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+        this.error = 'Rezumatul magaziei nu a putut fi încărcat.';
+      }
+    });
   }
   
   seeMagazie(){
@@ -34,5 +55,8 @@ export class MagazieComponent implements OnInit {
   }
   seeIstoric(){
     this.router.navigateByUrl('/history')
+  }
+  seePredare(){
+    this.router.navigateByUrl('/predare-unealta')
   }
 }

@@ -1,37 +1,89 @@
-<div class="background">
-  <div class="container">
-    <h1>Monitor Activitate Magazie</h1>
-
-    <!-- Pager -->
-    <div class="pager">
-      <button (click)="prevPage()" [disabled]="currentPage === 1">‹ Anterior</button>
-      <span>Pagina {{ currentPage }} / {{ totalPages || 1 }}</span>
-      <button (click)="nextPage()" [disabled]="currentPage === totalPages || totalPages === 0">Următor ›</button>
+<div class="dashboard-page">
+  <header class="page-header">
+    <div class="page-title">
+      <span class="eyebrow">Privire generală</span>
+      <h1>Dashboard</h1>
+      <p>{{ todayLabel | titlecase }} · situația operațională actualizată</p>
     </div>
+    <div class="header-actions">
+      <a class="btn ghost" routerLink="/pontaj/rapoarte">Vezi toate rapoartele</a>
+      <button class="btn primary" type="button" (click)="refreshAll()" [disabled]="loadingAttendance || loadingReports">Actualizează datele</button>
+    </div>
+  </header>
 
-    <div id="activity-log">
-      <div
-        *ngFor="let item of pagedHistory"
-        class="activity-card"
-        [ngClass]="{ 'taken': item.isOut, 'returned': !item.isOut }"
-      >
-        <span class="worker">{{ item.displayUser }}</span>
+  <div class="inline-alert error" *ngIf="attendanceError">{{ attendanceError }}</div>
 
-        <span class="action">
-          {{ item.displayAction }}
-          <span class="emoji">
-            {{ item.isOut ? '🔧' : '↩️' }}
-          </span>
-        </span>
+  <section class="stats-grid" aria-label="Indicatori principali">
+    <article class="stat-card accent">
+      <span class="stat-icon">♙</span>
+      <div><strong>{{ loadingAttendance ? '—' : presentNow }}</strong><span>Prezenți acum</span></div>
+      <small>{{ presencePercent }}% au pontat azi</small>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon blue">◷</span>
+      <div><strong>{{ loadingAttendance ? '—' : totalWorkedLabel }}</strong><span>Ore lucrate azi</span></div>
+      <small>Medie {{ averageWorkedLabel }} / angajat</small>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon amber">○</span>
+      <div><strong>{{ loadingAttendance ? '—' : absentToday }}</strong><span>Absenți azi</span></div>
+      <small>Din {{ totalEmployees }} angajați activi</small>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon violet">⌂</span>
+      <div><strong>{{ loadingReports ? '—' : worksitesCount }}</strong><span>Șantiere active</span></div>
+      <small>În luna curentă</small>
+    </article>
+  </section>
 
-        <span class="tool">{{ item.displayTool }}</span>
-
-        <span class="qty" *ngIf="item.quantity && item.quantity > 1">
-          ×{{ item.quantity }}
-        </span>
-
-        <span class="time">{{ item.timestamp | date:'HH:mm · dd.MM' }}</span>
+  <section class="dashboard-grid">
+    <article class="panel attendance-panel">
+      <div class="panel-head"><div><span class="eyebrow">Pontaj astăzi</span><h2>Prezența echipei</h2></div><a routerLink="/pontaj">Deschide pontajul →</a></div>
+      <div class="attendance-content">
+        <div class="presence-ring" [style.--progress]="presencePercent">
+          <div><strong>{{ presencePercent }}%</strong><span>prezență</span></div>
+        </div>
+        <div class="presence-breakdown">
+          <div><span class="legend-dot live"></span><span>În lucru acum</span><strong>{{ presentNow }}</strong></div>
+          <div><span class="legend-dot done"></span><span>Au încheiat programul</span><strong>{{ finishedToday }}</strong></div>
+          <div><span class="legend-dot absent"></span><span>Fără pontaj</span><strong>{{ absentToday }}</strong></div>
+        </div>
       </div>
-    </div>
-  </div>
+      <div class="loading-line" *ngIf="loadingAttendance"><span></span></div>
+    </article>
+
+    <article class="panel cost-panel">
+      <div class="panel-head"><div><span class="eyebrow">Cost operațional</span><h2>Cost estimat azi</h2></div><span class="live-pill"><i></i> Actual</span></div>
+      <div class="cost-value">{{ loadingReports ? '—' : (totalDayCost | number:'1.2-2') }} <small>lei</small></div>
+      <p>Calculat din orele pontate și salariul orar configurat pentru fiecare angajat.</p>
+      <a class="btn ghost wide" routerLink="/pontaj/rapoarte">Analizează costurile</a>
+      <div class="inline-alert compact" *ngIf="reportsError">{{ reportsError }}</div>
+    </article>
+  </section>
+
+  <section class="dashboard-grid lower-grid">
+    <article class="panel activity-panel">
+      <div class="panel-head"><div><span class="eyebrow">Magazie</span><h2>Activitate recentă</h2></div><a routerLink="/history">Vezi istoricul →</a></div>
+      <div class="state-box" *ngIf="loadingHistory">Se încarcă activitatea…</div>
+      <div class="state-box error" *ngIf="historyError">{{ historyError }}</div>
+      <div class="activity-list" *ngIf="!loadingHistory && !historyError && recentHistory.length">
+        <div class="activity-row" *ngFor="let item of recentHistory">
+          <span class="activity-icon" [class.returned]="!item.isOut">{{ item.isOut ? '↗' : '↙' }}</span>
+          <div class="activity-copy"><strong>{{ item.displayUser }}</strong><span>{{ item.displayAction }} {{ item.displayTool }}<ng-container *ngIf="item.quantity > 1"> · {{ item.quantity }} buc.</ng-container></span></div>
+          <time>{{ item.timestamp | date:'HH:mm' }}<small>{{ item.timestamp | date:'dd.MM' }}</small></time>
+        </div>
+      </div>
+      <div class="empty-state" *ngIf="!loadingHistory && !historyError && !recentHistory.length"><span>↶</span><strong>Nicio activitate recentă</strong><p>Mișcările de unelte vor apărea aici.</p></div>
+    </article>
+
+    <article class="panel quick-panel">
+      <div class="panel-head"><div><span class="eyebrow">Acces rapid</span><h2>Acțiuni frecvente</h2></div></div>
+      <div class="quick-grid">
+        <a routerLink="/users/new"><span>＋</span><div><strong>Angajat nou</strong><small>Adaugă în registru</small></div></a>
+        <a routerLink="/unelte/adauga-unealta"><span>⚒</span><div><strong>Unealtă nouă</strong><small>Înregistrează inventar</small></div></a>
+        <a routerLink="/predare-unealta"><span>⇄</span><div><strong>Predare / primire</strong><small>Mișcă o unealtă</small></div></a>
+        <a routerLink="/pontaj/rapoarte"><span>⌁</span><div><strong>Exportă raport</strong><small>Pontaj și costuri</small></div></a>
+      </div>
+    </article>
+  </section>
 </div>

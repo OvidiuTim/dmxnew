@@ -22,6 +22,7 @@ import { ClockinandoutComponent } from './clockinandout/clockinandout.component'
 import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandoutdriver.component';
 import { AdminAppPageComponent } from './admin-app-page/admin-app-page.component';
 import { NoAccessComponent } from './no-access/no-access.component';
+import { PortalPlaceholderComponent } from './portal-placeholder/portal-placeholder.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -31,8 +32,8 @@ const routes: Routes = [
   { path: 'no-access', component: NoAccessComponent },
   { path: 'admin-app-page', component: AdminAppPageComponent },
 
-  // Pontaj protejat (acoperă /pontaj/ - ruta goală)
-  { path: '', component: PontajComponent, pathMatch: 'full', canActivate: [AuthGuard], data: { permissionRoute: '/pontaj' } },
+  // După autentificare intrarea principală este Dashboard.
+  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj', component: PontajComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj' } },
@@ -45,6 +46,30 @@ const routes: Routes = [
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte' } },
   { path: 'pontaj/fisa-angajat', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat' } },
   { path: 'pontaj/fisa-angajat/:id', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat' } },
+  {
+    path: 'pontaj/echipe', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
+    data: {
+      permissionRoute: '/pontaj/echipe', title: 'Echipe și program', icon: '♙',
+      description: 'Spațiu unificat pentru echipe permanente, alocări zilnice și programul de lucru.',
+      missingData: 'Lipsesc endpoint-urile confirmate pentru echipe, alocări pe șantier și program. Nu au fost introduse date mock.'
+    }
+  },
+  {
+    path: 'pontaj/concedii', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
+    data: {
+      permissionRoute: '/pontaj/concedii', title: 'Concedii și absențe', icon: '▦',
+      description: 'Administrarea cererilor, zilelor de concediu și absențelor într-un singur loc.',
+      missingData: 'Modelele LeaveDay și LeaveRequest există în backend, însă în frontend nu există un contract API clar pentru listare și aprobare.'
+    }
+  },
+  {
+    path: 'hr/documente', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
+    data: {
+      permissionRoute: '/hr/documente', title: 'Documente angajați', icon: '▧',
+      description: 'Evidența documentelor și a termenelor de valabilitate pentru personal.',
+      missingData: 'Nu există în serviciul frontend endpoint-uri confirmate pentru documente, tipuri de document și expirări.'
+    }
+  },
 
   // Formular angajat
   { path: 'users/new', component: EmployeeFormComponent, canActivate: [AuthGuard], data: { permissionRoute: '/users/new' } },
@@ -64,12 +89,12 @@ const routes: Routes = [
   { path: 'rafturi', component: ShelfsComponent, canActivate: [AuthGuard], data: { permissionRoute: '/rafturi' } },
   { path: 'dashboard', component: DashboardComponent, canActivate: [AuthGuard], data: { permissionRoute: '/dashboard' } },
 
-  // 404 → pontaj (va declanșa și guard-ul)
-  { path: '**', redirectTo: '' }
+  // 404 → dashboard
+  { path: '**', redirectTo: 'dashboard' }
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes), ZXingScannerModule],
+  imports: [RouterModule.forRoot(routes, { scrollPositionRestoration: 'top' }), ZXingScannerModule],
   exports: [RouterModule],
 })
 export class AppRoutingModule {}

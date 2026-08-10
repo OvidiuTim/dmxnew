@@ -39,6 +39,7 @@ import { ClockinandoutComponent } from './clockinandout/clockinandout.component'
 import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandoutdriver.component';
 import { AdminAppPageComponent } from './admin-app-page/admin-app-page.component';
 import { NoAccessComponent } from './no-access/no-access.component';
+import { PortalPlaceholderComponent } from './portal-placeholder/portal-placeholder.component';
 
 @NgModule({
   declarations: [
@@ -68,6 +69,7 @@ import { NoAccessComponent } from './no-access/no-access.component';
     ClockinandoutdriverComponent,
     AdminAppPageComponent,
     NoAccessComponent,
+    PortalPlaceholderComponent,
   ],
   imports: [
     CommonModule,
