@@ -156,10 +156,21 @@ def teams_collection(request):
     if request.method == "GET":
         teams = list(_teams_queryset().order_by("name"))
         membership = _membership_map()
-        employees = [
-            _employee_payload(employee, membership.get(employee.pk))
-            for employee in Users.objects.order_by("UserName")
-        ]
+        today = timezone.localdate()
+        unavailable_ids = set(LeaveDay.objects.filter(work_date=today).values_list("user_fk_id", flat=True))
+        unavailable_ids.update(TemporaryWorkerRequest.objects.filter(
+            status__in=(TemporaryWorkerRequest.Status.PENDING, TemporaryWorkerRequest.Status.APPROVED),
+            start_date__lte=today,
+            end_date__gte=today,
+        ).values_list("employee_id", flat=True))
+        leader_ids = {team.leader_id for team in teams if team.active}
+        employees = []
+        for employee in Users.objects.order_by("UserName"):
+            row = _employee_payload(employee, membership.get(employee.pk))
+            row["can_request"] = bool(
+                employee.active and row["team"] and employee.pk not in leader_ids and employee.pk not in unavailable_ids
+            )
+            employees.append(row)
         return JsonResponse({
             "teams": [_team_payload(team, app_user, can_manage_all) for team in teams],
             "employees": employees,
@@ -532,15 +543,21 @@ def available_personnel(request):
     day = _parse_date(request.GET.get("date"))
     present_ids, worksites, leaves = _presence_maps(day)
     memberships = _membership_map()
+    active_requests = list(TemporaryWorkerRequest.objects.select_related("requester_team").filter(
+        status__in=(TemporaryWorkerRequest.Status.PENDING, TemporaryWorkerRequest.Status.APPROVED),
+        start_date__lte=day,
+        end_date__gte=day,
+    ))
     transfers = {
         item.employee_id: item
-        for item in TemporaryWorkerRequest.objects.select_related("requester_team").filter(
-            status=TemporaryWorkerRequest.Status.APPROVED,
-            start_date__lte=day,
-            end_date__gte=day,
-        )
+        for item in active_requests
+        if item.status == TemporaryWorkerRequest.Status.APPROVED
     }
+    reserved_ids = {item.employee_id for item in active_requests}
     leader_ids = set(EmployeeTeam.objects.filter(active=True).values_list("leader_id", flat=True))
+    actor_can_allocate = bool(
+        can_manage_all or (app_user and app_user.employee.led_employee_teams.filter(active=True).exists())
+    )
     employees = []
     for employee in Users.objects.filter(active=True).order_by("UserName"):
         team = memberships.get(employee.pk)
@@ -550,10 +567,10 @@ def available_personnel(request):
         row.update({
             "temporary_team": ({"id": transfer.requester_team_id, "name": transfer.requester_team.name} if transfer else None),
             "is_team_leader": employee.pk in leader_ids,
-            "can_add_permanent": can_manage_all or bool(app_user and app_user.employee.led_employee_teams.filter(active=True).exists()),
+            "can_add_permanent": actor_can_allocate,
             "can_request": bool(
-                (can_manage_all or (app_user and app_user.employee.led_employee_teams.filter(active=True).exists()))
-                and team and employee.pk not in leader_ids and not leave and not transfer
+                actor_can_allocate
+                and team and employee.pk not in leader_ids and not leave and employee.pk not in reserved_ids
             ),
         })
         employees.append(row)

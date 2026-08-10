@@ -65,7 +65,8 @@ export class NavbarComponent {
 
   private markActive(currentUrl: string) {
     this.groups.forEach(group => group.links.forEach(link => {
-      link.active = currentUrl === link.path || currentUrl.startsWith(`${link.path}/`);
+      const sectionRoot = link.path === '/pontaj' || link.path === '/magazie';
+      link.active = currentUrl === link.path || (!sectionRoot && currentUrl.startsWith(`${link.path}/`));
     }));
   }
 

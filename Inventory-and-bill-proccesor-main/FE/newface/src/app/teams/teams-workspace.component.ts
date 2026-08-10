@@ -106,7 +106,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
 
   get requestableEmployees(): TeamEmployee[] {
     const leaders = new Set(this.activeTeams.map(team => team.leader.id));
-    return this.employees.filter(item => item.active && item.team && !leaders.has(item.id) && item.team.id !== Number(this.requestForm.requester_team_id));
+    return this.employees.filter(item => item.active && item.team && item.can_request !== false && !leaders.has(item.id) && item.team.id !== Number(this.requestForm.requester_team_id));
   }
 
   get selectableLeaders(): TeamEmployee[] {
