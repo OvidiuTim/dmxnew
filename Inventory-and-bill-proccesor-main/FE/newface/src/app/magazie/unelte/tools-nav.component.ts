@@ -17,14 +17,6 @@ export class ToolsNavComponent {
     return !!session && (session.role === 'admin' || session.auth_type === 'legacy' || !!session.modules?.includes('tools'));
   }
 
-  get mainAppRoute(): string | null {
-    const session = this.auth.currentSession();
-    if (!session || session.role === 'admin' || session.auth_type === 'legacy') return '/dashboard';
-    const nonTools = ['attendance', 'teams_schedule', 'warehouse', 'human_resources']
-      .find(code => session.modules?.includes(code));
-    return nonTools ? this.auth.moduleRoutes[nonTools] : null;
-  }
-
   logout(): void {
     this.auth.logout();
     this.router.navigate(['/login']);

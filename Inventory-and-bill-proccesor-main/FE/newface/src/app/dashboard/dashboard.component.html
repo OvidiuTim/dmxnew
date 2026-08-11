@@ -86,4 +86,15 @@
       </div>
     </article>
   </section>
+
+  <section class="admin-shortcuts" *ngIf="isGeneralPasswordSession" aria-label="Acces aplicații administrative">
+    <a class="btn ghost" routerLink="/unelte">
+      <span class="material-symbols-rounded" aria-hidden="true">construction</span>
+      <span>Aplicație unelte</span>
+    </a>
+    <a class="btn ghost" routerLink="/admin-app-page">
+      <span class="material-symbols-rounded" aria-hidden="true">admin_panel_settings</span>
+      <span>Pagina administrare</span>
+    </a>
+  </section>
 </div>

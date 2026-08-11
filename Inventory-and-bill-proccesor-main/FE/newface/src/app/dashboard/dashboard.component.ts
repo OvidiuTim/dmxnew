@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import { SharedService } from '../shared.service';
+import { AuthService } from '../auth/auth.service';
 
 type RawHistory = {
   direction?: 'OUT' | 'IN' | string;
@@ -46,7 +47,7 @@ export class DashboardComponent implements OnInit {
   historyError: string | null = null;
   reportsError: string | null = null;
 
-  constructor(private service: SharedService) {}
+  constructor(private service: SharedService, private auth: AuthService) {}
 
   ngOnInit(): void { this.refreshAll(); }
 
@@ -113,6 +114,7 @@ export class DashboardComponent implements OnInit {
   }
 
   get recentHistory(): ViewHistory[] { return this.histToolList.slice(0, 6); }
+  get isGeneralPasswordSession(): boolean { return this.auth.currentSession()?.auth_type === 'legacy'; }
   get absentToday(): number { return Math.max(0, this.totalEmployees - this.clockedToday); }
   get presencePercent(): number { return this.totalEmployees ? Math.round((this.clockedToday / this.totalEmployees) * 100) : 0; }
   get totalWorkedLabel(): string {
