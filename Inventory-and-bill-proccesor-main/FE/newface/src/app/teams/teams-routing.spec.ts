@@ -2,9 +2,10 @@ import { routes } from '../app-routing.module';
 import { TeamsWorkspaceComponent } from './teams-workspace.component';
 
 describe('Rutele echipelor', () => {
-  it('configurează cele trei pagini fără placeholder', () => {
+  it('configurează toate paginile de echipe fără placeholder', () => {
     const expected: Record<string, string> = {
       'pontaj/echipe': 'permanent',
+      'pontaj/echipa-mea': 'mine',
       'pontaj/echipe-azi': 'today',
       'pontaj/personal-disponibil': 'available',
     };

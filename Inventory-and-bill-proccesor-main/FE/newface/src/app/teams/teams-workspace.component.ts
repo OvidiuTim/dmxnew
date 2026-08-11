@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
 import { EmployeeTeam, TeamApiService, TeamEmployee, TeamRequest } from './team-api.service';
 
-type TeamMode = 'permanent' | 'today' | 'available';
+type TeamMode = 'permanent' | 'mine' | 'today' | 'available';
 
 @Component({
   selector: 'app-teams-workspace',
@@ -18,6 +18,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   notice = '';
   searchTerm = '';
   memberSearch = '';
+  leaderSearch = '';
   teamStatus = 'all';
   availabilityFilter = 'all';
   selectedDate = this.todayISO();
@@ -30,6 +31,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   availableEmployees: TeamEmployee[] = [];
   manageableTeams: EmployeeTeam[] = [];
   canManageAll = false;
+  leaderTeamIds: number[] = [];
 
   teamDialogOpen = false;
   requestDialogOpen = false;
@@ -53,20 +55,23 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   }
 
   get title(): string {
+    if (this.mode === 'mine') return 'Echipa mea';
     return this.mode === 'today' ? 'Echipele de azi' : this.mode === 'available' ? 'Personal disponibil' : 'Echipe permanente';
   }
 
   get subtitle(): string {
     if (this.mode === 'today') return 'Situația echipelor, transferurilor și absențelor pentru data selectată.';
     if (this.mode === 'available') return 'Angajați fără echipă sau disponibili pentru repartizare temporară.';
+    if (this.mode === 'mine') return 'Vezi și actualizează membrii echipei pe care o conduci.';
     return 'Configurează echipele, șefii și apartenența permanentă a muncitorilor.';
   }
 
   get filteredTeams(): EmployeeTeam[] {
     const search = this.normalize(this.searchTerm);
     return this.teams.filter(team => {
+      const ownershipMatches = this.mode !== 'mine' || this.leaderTeamIds.includes(team.id);
       const statusMatches = this.teamStatus === 'all' || (this.teamStatus === 'active' ? team.active : !team.active);
-      return statusMatches && (!search || this.normalize(`${team.name} ${team.leader.name} ${team.members.map(item => item.name).join(' ')}`).includes(search));
+      return ownershipMatches && statusMatches && (!search || this.normalize(`${team.name} ${team.leader.name} ${team.members.map(item => item.name).join(' ')}`).includes(search));
     });
   }
 
@@ -110,7 +115,11 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   }
 
   get selectableLeaders(): TeamEmployee[] {
-    return this.employees.filter(item => item.active && (!item.team || item.team.id === this.teamForm.id || item.id === this.teamForm.leader_id));
+    const search = this.normalize(this.leaderSearch);
+    return this.employees.filter(item => {
+      const available = item.active && (!item.team || item.team.id === this.teamForm.id || item.id === this.teamForm.leader_id);
+      return available && (!search || this.normalize(`${item.name} ${item.trade} ${item.company} ${item.serie}`).includes(search));
+    });
   }
 
   get selectableMembers(): TeamEmployee[] {
@@ -151,6 +160,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
         this.teams = teams.teams || [];
         this.employees = teams.employees || [];
         this.canManageAll = !!teams.permissions?.can_manage_all;
+        this.leaderTeamIds = teams.permissions?.leader_team_ids || [];
         this.requests = requests.requests || [];
         this.loading = false;
       },
@@ -165,6 +175,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   openCreateTeam(): void {
     this.teamForm = this.emptyTeamForm();
     this.memberSearch = '';
+    this.leaderSearch = '';
     this.teamDialogOpen = true;
   }
 
@@ -179,6 +190,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       can_manage_settings: team.can_manage_settings,
     };
     this.memberSearch = '';
+    this.leaderSearch = '';
     this.teamDialogOpen = true;
   }
 

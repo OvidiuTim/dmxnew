@@ -5,7 +5,7 @@ from rest_framework import serializers
 from django.utils import timezone
 from ToolApp.models import (
     Consumables, Materials, MijloaceFixes, Shed, Tools, Histories, Unfunctional,
-    Users, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras,
+    Accommodation, Users, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras,
     SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles,DailyPay
 )
 
@@ -14,6 +14,13 @@ from ToolApp.models import (
 class UserSerializer(serializers.ModelSerializer):
     UserPin = serializers.CharField(write_only=True, required=False, allow_blank=True)
     has_pin = serializers.SerializerMethodField(read_only=True)
+    accommodation_id = serializers.PrimaryKeyRelatedField(
+        source="accommodation",
+        queryset=Accommodation.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    accommodation = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Users
@@ -32,6 +39,10 @@ class UserSerializer(serializers.ModelSerializer):
             "phone_number",
             "photo",
             "trade",
+            "hire_date",
+            "housing_location",
+            "accommodation_id",
+            "accommodation",
             "active",
         )
         extra_kwargs = {
@@ -44,14 +55,28 @@ class UserSerializer(serializers.ModelSerializer):
             "phone_number": {"required": False, "allow_null": True, "allow_blank": True},
             "photo": {"required": False, "allow_null": True, "allow_blank": True},
             "trade": {"required": False, "allow_null": True, "allow_blank": True},
+            "hire_date": {"required": False, "allow_null": True},
+            "housing_location": {"required": False, "allow_blank": True},
             "active": {"required": False},
         }
 
     def get_has_pin(self, obj):
         return bool(getattr(obj, "UserPin", None))
 
+    def get_accommodation(self, obj):
+        if not obj.accommodation_id:
+            return None
+        return {
+            "id": obj.accommodation_id,
+            "name": obj.accommodation.name,
+            "address": obj.accommodation.address,
+        }
+
     def create(self, validated_data):
         raw_pin = validated_data.pop("UserPin", None)
+        accommodation = validated_data.get("accommodation")
+        if accommodation:
+            validated_data["housing_location"] = accommodation.name
         user = Users(**validated_data)
         if raw_pin is not None:
             user.set_pin(raw_pin)
@@ -60,6 +85,9 @@ class UserSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         raw_pin = validated_data.pop("UserPin", None)
+        if "accommodation" in validated_data:
+            accommodation = validated_data.get("accommodation")
+            validated_data["housing_location"] = accommodation.name if accommodation else ""
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if raw_pin is not None:

@@ -33,6 +33,26 @@ export class SharedService {
   updateUser(val: any)                 { return this.http.put(`${this.API}/user/`, val); }
   deleteUser(id: any, force = false)   { return this.http.delete(`${this.API}/user/${id}${force ? '?force=1' : ''}`); }
 
+  // --- Cazări ---
+  getAccommodations()                  { return this.http.get<any>(`${this.API}/accommodations/`); }
+  addAccommodation(val: any)           { return this.http.post<any>(`${this.API}/accommodations/`, val); }
+  updateAccommodation(val: any)        { return this.http.put<any>(`${this.API}/accommodations/`, val); }
+  assignAccommodation(employeeId: number, accommodationId: number | null) {
+    return this.http.post<any>(`${this.API}/accommodations/assign/`, {
+      employee_id: employeeId,
+      accommodation_id: accommodationId,
+    });
+  }
+
+  // --- Documente angajați ---
+  getEmployeeDocumentTypes()           { return this.http.get<any>(`${this.API}/employee-document-types/`); }
+  addEmployeeDocumentType(val: any)    { return this.http.post<any>(`${this.API}/employee-document-types/`, val); }
+  getEmployeeDocuments(employeeId: number) { return this.http.get<any>(`${this.API}/employees/${employeeId}/documents/`); }
+  uploadEmployeeDocument(employeeId: number, formData: FormData) {
+    return this.http.post<any>(`${this.API}/employees/${employeeId}/documents/`, formData);
+  }
+  deleteEmployeeDocument(documentId: number) { return this.http.delete<any>(`${this.API}/employee-documents/${documentId}/`); }
+
   // --- Unelte ---
   getTolList(params?: Record<string, string | number | boolean | null | undefined>): Observable<any[]> {
     const options = params ? { params: this.cleanParams(params) } : {};

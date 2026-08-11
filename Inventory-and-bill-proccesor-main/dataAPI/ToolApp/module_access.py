@@ -12,7 +12,7 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/pontaj", "label": "Prezență zilnică", "icon": "schedule"},
             {"path": "/pontaj/rapoarte", "label": "Rapoarte", "icon": "bar_chart"},
             {"path": "/pontaj/fisa-angajat", "label": "Fișe angajați", "icon": "badge"},
-            {"path": "/pontaj/concedii", "label": "Concedii", "icon": "calendar_month"},
+            {"path": "/pontaj/cazari", "label": "Cazări", "icon": "apartment"},
         ],
     }),
     ("teams_schedule", {
@@ -22,6 +22,8 @@ MODULE_DEFINITIONS = OrderedDict([
         "main_route": "/pontaj/echipe",
         "routes": [
             {"path": "/pontaj/echipe", "label": "Echipe permanente", "icon": "groups"},
+            {"path": "/pontaj/echipa-mea", "label": "Echipa mea", "icon": "group"},
+            {"path": "/pontaj/concedii", "label": "Concedii", "icon": "calendar_month"},
             {"path": "/pontaj/echipe-azi", "label": "Echipele de azi", "icon": "today"},
             {"path": "/pontaj/personal-disponibil", "label": "Personal disponibil", "icon": "person_add"},
         ],

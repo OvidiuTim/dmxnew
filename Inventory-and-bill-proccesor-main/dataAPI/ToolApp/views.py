@@ -2370,6 +2370,7 @@ def attendance_day(request):
             rows_by_user[key] = {
                 "UserId": u.UserId,
                 "UserName": u.UserName,
+                "trade": u.trade or "",
                 "sessions": [],
                 "first_in": None,
                 "last_out": None,
@@ -2417,6 +2418,7 @@ def attendance_day(request):
         rows.append({
             "UserId": row["UserId"],
             "UserName": row["UserName"],
+            "trade": row["trade"],
             "first_in": row["first_in"],
             "last_out": row["last_out"],
             "total_hms": _fmt_hms(row["total_seconds"]),
@@ -3384,8 +3386,11 @@ APP_PERMISSION_ROUTES = [
     "/pontaj",
     "/pontaj/rapoarte",
     "/pontaj/fisa-angajat",
+    "/pontaj/cazari",
     "/hr/documente",
     "/pontaj/echipe",
+    "/pontaj/echipa-mea",
+    "/pontaj/concedii",
     "/pontaj/echipe-azi",
     "/pontaj/personal-disponibil",
     "/users/new",

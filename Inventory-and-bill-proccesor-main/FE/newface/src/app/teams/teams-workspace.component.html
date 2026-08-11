@@ -6,7 +6,7 @@
       <p>{{ subtitle }}</p>
     </div>
     <div class="header-actions">
-      <label class="date-control" *ngIf="mode !== 'permanent'">
+      <label class="date-control" *ngIf="mode === 'today' || mode === 'available'">
         <span class="material-symbols-rounded" aria-hidden="true">calendar_today</span>
         <input type="date" [(ngModel)]="selectedDate" (change)="onDateChange()" aria-label="Data situației echipelor">
       </label>
@@ -27,9 +27,9 @@
 
   <div class="loading-state" *ngIf="loading"><span></span>Se încarcă datele echipelor…</div>
 
-  <ng-container *ngIf="!loading && mode === 'permanent'">
+  <ng-container *ngIf="!loading && (mode === 'permanent' || mode === 'mine')">
     <section class="stats-grid" aria-label="Indicatori echipe">
-      <article><span class="stat-icon green material-symbols-rounded" aria-hidden="true">groups</span><div><strong>{{ activeTeams.length }}</strong><small>Echipe active</small></div></article>
+      <article><span class="stat-icon green material-symbols-rounded" aria-hidden="true">groups</span><div><strong>{{ mode === 'mine' ? filteredTeams.length : activeTeams.length }}</strong><small>{{ mode === 'mine' ? 'Echipa condusă' : 'Echipe active' }}</small></div></article>
       <article><span class="stat-icon blue material-symbols-rounded" aria-hidden="true">engineering</span><div><strong>{{ employees.length }}</strong><small>Angajați în registru</small></div></article>
       <article><span class="stat-icon violet material-symbols-rounded" aria-hidden="true">person_off</span><div><strong>{{ unassignedCount }}</strong><small>Fără echipă permanentă</small></div></article>
       <article><span class="stat-icon amber material-symbols-rounded" aria-hidden="true">pending_actions</span><div><strong>{{ filteredRequests.length }}</strong><small>Solicitări vizibile</small></div></article>
@@ -67,7 +67,7 @@
 
     <ng-template #noTeams><div class="empty-state"><span class="material-symbols-rounded" aria-hidden="true">groups</span><strong>Nu există echipe pentru filtrul selectat.</strong></div></ng-template>
 
-    <section class="requests-card">
+    <section class="requests-card" *ngIf="mode === 'permanent'">
       <div class="section-head"><div><span class="eyebrow">Transfer temporar</span><h2>Solicitări trimise și primite</h2></div></div>
       <div class="table-scroll" *ngIf="filteredRequests.length; else noRequests">
         <table>
@@ -135,7 +135,7 @@
     <form (ngSubmit)="saveTeam()">
       <div class="form-grid">
         <label><span>Denumirea echipei</span><input required [(ngModel)]="teamForm.name" name="team-name" [disabled]="teamForm.id && !teamForm.can_manage_settings"></label>
-        <label><span>Șef de echipă</span><select required [(ngModel)]="teamForm.leader_id" name="team-leader" [disabled]="teamForm.id && !teamForm.can_manage_settings"><option [ngValue]="null">Selectează șeful</option><option *ngFor="let employee of selectableLeaders" [ngValue]="employee.id">{{ employee.name }} · {{ employee.trade || 'fără rol' }}</option></select></label>
+        <label><span>Șef de echipă</span><div class="leader-select"><div class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="leaderSearch" name="leader-search" placeholder="Caută după nume sau profesie" [disabled]="teamForm.id && !teamForm.can_manage_settings" aria-label="Caută șeful de echipă"></div><select required [(ngModel)]="teamForm.leader_id" name="team-leader" [disabled]="teamForm.id && !teamForm.can_manage_settings"><option [ngValue]="null">Selectează șeful</option><option *ngFor="let employee of selectableLeaders" [ngValue]="employee.id">{{ employee.name }} · {{ employee.trade || 'fără rol' }}</option></select></div></label>
         <label><span>Șantier implicit</span><input [(ngModel)]="teamForm.default_worksite" name="team-worksite" placeholder="Ex: Șantier Nord" [disabled]="teamForm.id && !teamForm.can_manage_settings"></label>
         <label class="toggle-row"><input type="checkbox" [(ngModel)]="teamForm.active" name="team-active" [disabled]="teamForm.id && !teamForm.can_manage_settings"><span><strong>Echipă activă</strong><small>Echipele inactive nu apar în alocarea zilnică.</small></span></label>
       </div>

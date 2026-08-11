@@ -2,6 +2,7 @@ from django.urls import path, re_path as url
 from ToolApp import views
 from ToolApp import mobile_views
 from ToolApp import team_views
+from ToolApp import employee_views
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -153,6 +154,14 @@ urlpatterns = [
     path('api/app-admin/users/', views.app_admin_users),
     path('api/app-admin/modules/', views.app_admin_modules),
     path('api/app-admin/modules/<str:module_code>/access/', views.app_admin_module_access),
+
+    # Cazări și documentele din fișa angajatului
+    path('api/accommodations/', employee_views.accommodations, name='accommodations'),
+    path('api/accommodations/assign/', employee_views.accommodation_assignment, name='accommodation_assignment'),
+    path('api/employee-document-types/', employee_views.employee_document_types, name='employee_document_types'),
+    path('api/employees/<int:employee_id>/documents/', employee_views.employee_documents, name='employee_documents'),
+    path('api/employee-documents/<int:document_id>/', employee_views.employee_document_detail, name='employee_document_detail'),
+    path('api/employee-documents/<int:document_id>/download/', employee_views.employee_document_download, name='employee_document_download'),
 
     # Echipe permanente, împrumuturi temporare și situația zilnică
     path('api/teams/', team_views.teams_collection, name='teams_collection'),

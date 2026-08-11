@@ -142,6 +142,16 @@ class TeamManagementApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    def test_leader_response_identifies_own_team_for_my_team_page(self):
+        own_team = self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])
+        self.create_team("Echipa Beta", self.leader_b, [self.worker_b])
+        client, _ = self.leader_client(self.leader_a, "lider-propriu")
+
+        response = client.get(reverse("teams_collection"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["permissions"]["leader_team_ids"], [own_team.pk])
+
     def setup_transfer(self):
         team_a = self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])
         team_b = self.create_team("Echipa Beta", self.leader_b, [self.worker_b])

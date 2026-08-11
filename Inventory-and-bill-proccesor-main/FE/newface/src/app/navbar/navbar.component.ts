@@ -23,7 +23,7 @@ export class NavbarComponent {
         { label: 'Prezență zilnică', path: '/pontaj', icon: 'schedule', permissionRoute: '/pontaj' },
         { label: 'Rapoarte', path: '/pontaj/rapoarte', icon: 'bar_chart', permissionRoute: '/pontaj/rapoarte' },
         { label: 'Fișe angajați', path: '/pontaj/fisa-angajat', icon: 'badge', permissionRoute: '/pontaj/fisa-angajat' },
-        { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar_month', permissionRoute: '/pontaj/concedii' },
+        { label: 'Cazări', path: '/pontaj/cazari', icon: 'apartment', permissionRoute: '/pontaj/cazari' },
       ]
     },
     {
@@ -31,6 +31,8 @@ export class NavbarComponent {
       moduleCode: 'teams_schedule',
       links: [
         { label: 'Echipe permanente', path: '/pontaj/echipe', icon: 'groups', permissionRoute: '/pontaj/echipe' },
+        { label: 'Echipa mea', path: '/pontaj/echipa-mea', icon: 'group', permissionRoute: '/pontaj/echipa-mea' },
+        { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar_month', permissionRoute: '/pontaj/concedii' },
         { label: 'Echipele de azi', path: '/pontaj/echipe-azi', icon: 'today', permissionRoute: '/pontaj/echipe-azi' },
         { label: 'Personal disponibil', path: '/pontaj/personal-disponibil', icon: 'person_add', permissionRoute: '/pontaj/personal-disponibil' },
       ]

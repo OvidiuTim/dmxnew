@@ -2,6 +2,9 @@ from django.contrib import admin
 from django.utils import timezone
 
 from ToolApp.models import (
+    Accommodation,
+    EmployeeDocument,
+    EmployeeDocumentType,
     EmployeeSalaryProfile,
     AppModuleAccess,
     EmployeeTeam,
@@ -12,6 +15,27 @@ from ToolApp.models import (
     Tools,
     Users,
 )
+
+
+@admin.register(Accommodation)
+class AccommodationAdmin(admin.ModelAdmin):
+    list_display = ("name", "address", "active", "updated_at")
+    list_filter = ("active",)
+    search_fields = ("name", "address", "notes")
+
+
+@admin.register(EmployeeDocumentType)
+class EmployeeDocumentTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "category", "active")
+    list_filter = ("category", "active")
+    search_fields = ("name",)
+
+
+@admin.register(EmployeeDocument)
+class EmployeeDocumentAdmin(admin.ModelAdmin):
+    list_display = ("employee", "document_type", "has_expiry", "expiry_date", "uploaded_at")
+    list_filter = ("document_type__category", "has_expiry", "expiry_date")
+    search_fields = ("employee__UserName", "employee__UserSerie", "document_type__name", "original_file_name")
 
 
 @admin.register(AppModuleAccess)
@@ -52,7 +76,7 @@ class EmployeeSalaryProfileInline(admin.StackedInline):
 
 @admin.register(Users)
 class UsersAdmin(admin.ModelAdmin):
-    list_display = ("UserName", "UserSerie", "Company", "trade", "active", "hire_date", "housing_location")
+    list_display = ("UserName", "UserSerie", "Company", "trade", "active", "hire_date", "accommodation")
     list_filter = ("active", "Company", "trade")
     search_fields = ("UserName", "UserSerie", "phone_number", "housing_location")
     inlines = (EmployeeSalaryProfileInline,)

@@ -3,7 +3,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { SharedService } from '../../shared.service';
 
-type SheetTab = 'general' | 'site' | 'ssm';
+type SheetTab = 'general' | 'documents' | 'site' | 'ssm';
+type DocumentCategory = 'personal' | 'employment';
 
 interface EmployeeProfile {
   UserId?: number;
@@ -17,6 +18,25 @@ interface EmployeeProfile {
   phone_number?: string | null;
   photo?: string | null;
   trade?: string | null;
+  housing_location?: string | null;
+  accommodation?: { id: number; name: string; address?: string } | null;
+}
+
+interface EmployeeDocumentType {
+  id: number;
+  name: string;
+  category: DocumentCategory;
+  category_label: string;
+}
+
+interface EmployeeDocument {
+  id: number;
+  document_type: EmployeeDocumentType;
+  original_file_name: string;
+  has_expiry: boolean;
+  expiry_date: string | null;
+  uploaded_at: string;
+  download_url: string;
 }
 
 interface EmployeeTool {
@@ -50,6 +70,8 @@ export class FisaAngajatComponent implements OnInit {
   employee: EmployeeProfile | null = null;
   siteTools: EmployeeTool[] = [];
   ssmTools: EmployeeTool[] = [];
+  documents: EmployeeDocument[] = [];
+  documentTypes: EmployeeDocumentType[] = [];
 
   activeTab: SheetTab = 'general';
   dropdownOpen = false;
@@ -57,6 +79,18 @@ export class FisaAngajatComponent implements OnInit {
 
   loading = false;
   error: string | null = null;
+  documentError: string | null = null;
+  documentNotice: string | null = null;
+  uploadingDocument = false;
+  selectedDocumentFile: File | null = null;
+  selectedDocumentFileName = '';
+  documentForm: {
+    category: DocumentCategory;
+    document_type_id: number | null;
+    document_type_name: string;
+    has_expiry: boolean;
+    expiry_date: string;
+  } = this.emptyDocumentForm();
 
   constructor(
     private route: ActivatedRoute,
@@ -159,11 +193,15 @@ export class FisaAngajatComponent implements OnInit {
       employee: this.api.getUser(userId),
       siteTools: this.api.getEmployeeTools(userId, false),
       ssmTools: this.api.getEmployeeTools(userId, true),
+      documents: this.api.getEmployeeDocuments(userId),
+      documentTypes: this.api.getEmployeeDocumentTypes(),
     }).subscribe({
-      next: ({ employee, siteTools, ssmTools }) => {
+      next: ({ employee, siteTools, ssmTools, documents, documentTypes }) => {
         this.employee = employee ?? null;
         this.siteTools = (siteTools ?? []) as EmployeeTool[];
         this.ssmTools = (ssmTools ?? []) as EmployeeTool[];
+        this.documents = documents?.documents ?? [];
+        this.documentTypes = documentTypes?.types ?? [];
         this.loading = false;
       },
       error: (err) => {
@@ -177,6 +215,85 @@ export class FisaAngajatComponent implements OnInit {
   setTab(tab: SheetTab): void {
     this.activeTab = tab;
     this.openToolMenuId = null;
+  }
+
+  documentTypesFor(category: DocumentCategory): EmployeeDocumentType[] {
+    return this.documentTypes.filter(item => item.category === category);
+  }
+
+  documentsFor(category: DocumentCategory): EmployeeDocument[] {
+    return this.documents.filter(item => item.document_type.category === category);
+  }
+
+  onDocumentTypeChange(value: string): void {
+    this.documentForm.document_type_id = value ? Number(value) : null;
+    if (this.documentForm.document_type_id) this.documentForm.document_type_name = '';
+  }
+
+  onNewDocumentType(value: string): void {
+    this.documentForm.document_type_name = value;
+    if (value.trim()) this.documentForm.document_type_id = null;
+  }
+
+  onDocumentFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.selectedDocumentFile = input.files?.[0] ?? null;
+    this.selectedDocumentFileName = this.selectedDocumentFile?.name ?? '';
+  }
+
+  uploadDocument(): void {
+    if (!this.userId || !this.selectedDocumentFile) {
+      this.documentError = 'Selectează scanarea documentului.';
+      return;
+    }
+    if (!this.documentForm.document_type_id && !this.documentForm.document_type_name.trim()) {
+      this.documentError = 'Selectează sau creează tipul documentului.';
+      return;
+    }
+    if (this.documentForm.has_expiry && !this.documentForm.expiry_date) {
+      this.documentError = 'Completează data expirării.';
+      return;
+    }
+    const payload = new FormData();
+    payload.append('file', this.selectedDocumentFile);
+    payload.append('category', this.documentForm.category);
+    payload.append('has_expiry', String(this.documentForm.has_expiry));
+    if (this.documentForm.document_type_id) payload.append('document_type_id', String(this.documentForm.document_type_id));
+    if (this.documentForm.document_type_name.trim()) payload.append('document_type_name', this.documentForm.document_type_name.trim());
+    if (this.documentForm.has_expiry) payload.append('expiry_date', this.documentForm.expiry_date);
+
+    this.uploadingDocument = true;
+    this.documentError = null;
+    this.documentNotice = null;
+    this.api.uploadEmployeeDocument(this.userId, payload).subscribe({
+      next: response => {
+        this.uploadingDocument = false;
+        this.documents = [...this.documents, response.document];
+        const type = response.document?.document_type as EmployeeDocumentType | undefined;
+        if (type && !this.documentTypes.some(item => item.id === type.id)) this.documentTypes = [...this.documentTypes, type];
+        this.documentForm = this.emptyDocumentForm();
+        this.selectedDocumentFile = null;
+        this.selectedDocumentFileName = '';
+        this.documentNotice = 'Documentul a fost încărcat.';
+      },
+      error: error => {
+        this.uploadingDocument = false;
+        this.documentError = error?.error?.details
+          ? Object.values(error.error.details).flat().join(' ')
+          : error?.error?.error || 'Documentul nu a putut fi încărcat.';
+      },
+    });
+  }
+
+  deleteDocument(document: EmployeeDocument): void {
+    if (!confirm(`Ștergi documentul „${document.document_type.name}”?`)) return;
+    this.api.deleteEmployeeDocument(document.id).subscribe({
+      next: () => {
+        this.documents = this.documents.filter(item => item.id !== document.id);
+        this.documentNotice = 'Documentul a fost șters.';
+      },
+      error: error => { this.documentError = error?.error?.error || 'Documentul nu a putut fi șters.'; },
+    });
   }
 
   toggleDropdown(): void {
@@ -261,6 +378,10 @@ export class FisaAngajatComponent implements OnInit {
     return tool.ToolId;
   }
 
+  trackByDocument(_: number, document: EmployeeDocument): number {
+    return document.id;
+  }
+
   piecesCount(tool: Pick<EmployeeTool, 'Pieces'> | null | undefined): number {
     if (tool?.Pieces === null || tool?.Pieces === undefined) {
       return 1;
@@ -275,5 +396,15 @@ export class FisaAngajatComponent implements OnInit {
       return normalized;
     }
     return 'in_lucru';
+  }
+
+  private emptyDocumentForm() {
+    return {
+      category: 'personal' as DocumentCategory,
+      document_type_id: null as number | null,
+      document_type_name: '',
+      has_expiry: false,
+      expiry_date: '',
+    };
   }
 }

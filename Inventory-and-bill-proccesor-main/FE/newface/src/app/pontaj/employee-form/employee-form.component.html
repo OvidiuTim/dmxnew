@@ -87,6 +87,14 @@
         </div>
 
         <div class="field">
+          <label for="user-accommodation">Cazare</label>
+          <select id="user-accommodation" formControlName="accommodation_id">
+            <option [ngValue]="null">Fără cazare</option>
+            <option *ngFor="let item of accommodationOptions" [ngValue]="item.id">{{ item.name }}<ng-container *ngIf="item.address"> · {{ item.address }}</ng-container></option>
+          </select>
+        </div>
+
+        <div class="field">
           <label for="user-phone">Numar de telefon</label>
           <input id="user-phone" type="tel" formControlName="phone_number" placeholder="Ex: 07xx xxx xxx">
         </div>

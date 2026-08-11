@@ -121,7 +121,7 @@ class ModuleAccessApiTests(TestCase):
 
     def test_verify_treats_every_standard_team_page_as_module_access(self):
         AppModuleAccess.objects.create(app_user=self.app_user, module_code="teams_schedule")
-        for route in ("/pontaj/echipe", "/pontaj/echipe-azi", "/pontaj/personal-disponibil"):
+        for route in ("/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/echipe-azi", "/pontaj/personal-disponibil"):
             with self.subTest(route=route):
                 response = self.app_client.post(
                     "/api/app-auth/verify/",
@@ -177,11 +177,11 @@ class ModuleAccessApiTests(TestCase):
     def test_module_definitions_expose_complete_standard_route_mapping(self):
         self.assertEqual(
             [route["path"] for route in MODULE_DEFINITIONS["attendance"]["routes"]],
-            ["/dashboard", "/pontaj", "/pontaj/rapoarte", "/pontaj/fisa-angajat", "/pontaj/concedii"],
+            ["/dashboard", "/pontaj", "/pontaj/rapoarte", "/pontaj/fisa-angajat", "/pontaj/cazari"],
         )
         self.assertEqual(
             [route["path"] for route in MODULE_DEFINITIONS["teams_schedule"]["routes"]],
-            ["/pontaj/echipe", "/pontaj/echipe-azi", "/pontaj/personal-disponibil"],
+            ["/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/echipe-azi", "/pontaj/personal-disponibil"],
         )
         self.assertEqual(
             [route["path"] for route in MODULE_DEFINITIONS["warehouse"]["routes"]],

@@ -68,11 +68,13 @@ describe('AuthGuard module access', () => {
   it('permite accesarea directă și refreshul tuturor rutelor standard', async () => {
     const standardRoutes = [
       { moduleCode: 'attendance', permissionRoute: '/dashboard' },
-      { moduleCode: 'attendance', permissionRoute: '/pontaj/concedii' },
+      { moduleCode: 'attendance', permissionRoute: '/pontaj/cazari' },
       { moduleCode: 'attendance', permissionRoute: '/pontaj/rapoarte' },
       { moduleCode: 'attendance', permissionRoute: '/pontaj/fisa-angajat' },
       { moduleCode: 'attendance', permissionRoute: '/pontaj' },
       { moduleCode: 'teams_schedule', permissionRoute: '/pontaj/echipe' },
+      { moduleCode: 'teams_schedule', permissionRoute: '/pontaj/echipa-mea' },
+      { moduleCode: 'teams_schedule', permissionRoute: '/pontaj/concedii' },
       { moduleCode: 'teams_schedule', permissionRoute: '/pontaj/echipe-azi' },
       { moduleCode: 'teams_schedule', permissionRoute: '/pontaj/personal-disponibil' },
       { moduleCode: 'warehouse', permissionRoute: '/magazie' },

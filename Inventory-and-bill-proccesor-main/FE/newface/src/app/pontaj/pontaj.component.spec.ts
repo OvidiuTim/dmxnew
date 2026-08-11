@@ -1,23 +1,18 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-
+import { of } from 'rxjs';
 import { PontajComponent } from './pontaj.component';
 
 describe('PontajComponent', () => {
-  let component: PontajComponent;
-  let fixture: ComponentFixture<PontajComponent>;
+  it('păstrează profesia angajatului în rândul de pontaj', () => {
+    const api: any = {
+      getAttendanceDay: () => of({ rows: [{ UserId: 1, UserName: 'Ion Pop', status: 'IN', sessions: [], total_hms: '01:00:00' }] }),
+      getUsrList: () => of([{ UserId: 1, UserName: 'Ion Pop', Company: 'RNX', trade: 'Dulgher' }]),
+    };
+    const component = new PontajComponent(api, {} as any);
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      declarations: [ PontajComponent ]
-    })
-    .compileComponents();
+    component.loadDay();
 
-    fixture = TestBed.createComponent(PontajComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-  });
-
-  it('should create', () => {
-    expect(component).toBeTruthy();
+    expect(component.rows[0].trade).toBe('Dulgher');
+    component.searchTerm = 'dulgher';
+    expect(component.filteredRows.length).toBe(1);
   });
 });

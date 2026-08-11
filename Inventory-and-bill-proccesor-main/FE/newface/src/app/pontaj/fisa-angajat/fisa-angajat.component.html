@@ -53,6 +53,10 @@
       <button class="tab" type="button" [class.active]="activeTab === 'general'" (click)="setTab('general')">
         Informatii generale
       </button>
+      <button class="tab" type="button" [class.active]="activeTab === 'documents'" (click)="setTab('documents')">
+        Documente
+        <span>{{ documents.length }}</span>
+      </button>
       <button class="tab" type="button" [class.active]="activeTab === 'site'" (click)="setTab('site')">
         Scule santier
         <span>{{ siteTools.length }}</span>
@@ -105,10 +109,47 @@
           <span>Marime echipament</span>
           <strong>{{ displayText(employee.equipment_size) }}</strong>
         </div>
+        <div class="general-item">
+          <span>Cazare</span>
+          <strong>{{ displayText(employee.accommodation?.name || employee.housing_location) }}</strong>
+        </div>
       </div>
     </section>
 
-    <section class="content" *ngIf="activeTab !== 'general'">
+    <section class="documents-panel panel" *ngIf="activeTab === 'documents'">
+      <div class="panel-title"><div><h2>Documente angajat</h2><p>Încarcă scanări și urmărește datele de expirare.</p></div></div>
+      <div class="document-message success" *ngIf="documentNotice">{{ documentNotice }}</div>
+      <div class="document-message error" *ngIf="documentError">{{ documentError }}</div>
+
+      <form class="document-upload" (ngSubmit)="uploadDocument()">
+        <label><span>Categorie</span><select [(ngModel)]="documentForm.category" name="document-category" (ngModelChange)="documentForm.document_type_id = null"><option value="personal">Documente personale</option><option value="employment">Documente de angajare</option></select></label>
+        <label><span>Tip existent</span><select [ngModel]="documentForm.document_type_id" name="document-type" (ngModelChange)="onDocumentTypeChange($event)"><option [ngValue]="null">Selectează tipul</option><option *ngFor="let type of documentTypesFor(documentForm.category)" [ngValue]="type.id">{{ type.name }}</option></select></label>
+        <label><span>Sau creează un tip</span><input type="text" [ngModel]="documentForm.document_type_name" name="document-type-name" (ngModelChange)="onNewDocumentType($event)" placeholder="Ex: Pașaport"></label>
+        <label><span>Scanare document</span><input type="file" name="document-file" accept=".pdf,.png,.jpg,.jpeg,.webp" (change)="onDocumentFileSelected($event)"><small>{{ selectedDocumentFileName || 'PDF sau imagine, maximum 15 MB' }}</small></label>
+        <label class="expiry-toggle"><input type="checkbox" [(ngModel)]="documentForm.has_expiry" name="has-expiry" (ngModelChange)="!$event && (documentForm.expiry_date = '')"><span><strong>Documentul are dată de expirare</strong><small>Activează pentru a completa data.</small></span></label>
+        <label *ngIf="documentForm.has_expiry"><span>Data expirării</span><input required type="date" [(ngModel)]="documentForm.expiry_date" name="expiry-date"></label>
+        <div class="document-actions"><button type="submit" [disabled]="uploadingDocument"><span class="material-symbols-rounded" aria-hidden="true">upload_file</span>{{ uploadingDocument ? 'Se încarcă…' : 'Încarcă documentul' }}</button></div>
+      </form>
+
+      <div class="document-sections">
+        <section class="document-category">
+          <div class="document-category-head"><div><span class="material-symbols-rounded" aria-hidden="true">badge</span><h3>Documente personale</h3></div><strong>{{ documentsFor('personal').length }}</strong></div>
+          <div class="document-empty" *ngIf="!documentsFor('personal').length">Nu există documente personale încărcate.</div>
+          <article class="document-row" *ngFor="let document of documentsFor('personal'); trackBy: trackByDocument">
+            <span class="material-symbols-rounded document-icon" aria-hidden="true">description</span><div><strong>{{ document.document_type.name }}</strong><small>{{ document.original_file_name }} · încărcat {{ document.uploaded_at | date:'dd.MM.yyyy' }}</small></div><span class="expiry" [class.has-expiry]="document.has_expiry">{{ document.has_expiry ? ('Expiră ' + formatDate(document.expiry_date)) : 'Fără expirare' }}</span><div class="document-row-actions"><a [href]="document.download_url" target="_blank" rel="noopener" aria-label="Deschide documentul"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></a><button type="button" (click)="deleteDocument(document)" aria-label="Șterge documentul"><span class="material-symbols-rounded" aria-hidden="true">delete</span></button></div>
+          </article>
+        </section>
+        <section class="document-category">
+          <div class="document-category-head"><div><span class="material-symbols-rounded" aria-hidden="true">work</span><h3>Documente de angajare</h3></div><strong>{{ documentsFor('employment').length }}</strong></div>
+          <div class="document-empty" *ngIf="!documentsFor('employment').length">Nu există documente de angajare încărcate.</div>
+          <article class="document-row" *ngFor="let document of documentsFor('employment'); trackBy: trackByDocument">
+            <span class="material-symbols-rounded document-icon" aria-hidden="true">description</span><div><strong>{{ document.document_type.name }}</strong><small>{{ document.original_file_name }} · încărcat {{ document.uploaded_at | date:'dd.MM.yyyy' }}</small></div><span class="expiry" [class.has-expiry]="document.has_expiry">{{ document.has_expiry ? ('Expiră ' + formatDate(document.expiry_date)) : 'Fără expirare' }}</span><div class="document-row-actions"><a [href]="document.download_url" target="_blank" rel="noopener" aria-label="Deschide documentul"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></a><button type="button" (click)="deleteDocument(document)" aria-label="Șterge documentul"><span class="material-symbols-rounded" aria-hidden="true">delete</span></button></div>
+          </article>
+        </section>
+      </div>
+    </section>
+
+    <section class="content" *ngIf="activeTab === 'site' || activeTab === 'ssm'">
       <div class="panel">
         <div class="panel-title">
           <h2>{{ currentTitle }}</h2>

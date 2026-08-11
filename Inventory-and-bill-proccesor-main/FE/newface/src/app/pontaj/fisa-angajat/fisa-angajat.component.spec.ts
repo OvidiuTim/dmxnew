@@ -1,0 +1,40 @@
+import { of } from 'rxjs';
+import { FisaAngajatComponent } from './fisa-angajat.component';
+
+describe('FisaAngajatComponent documents', () => {
+  it('separă documentele personale de cele de angajare', () => {
+    const component = new FisaAngajatComponent({} as any, {} as any, {} as any);
+    component.documents = [
+      { id: 1, document_type: { id: 1, name: 'Pașaport', category: 'personal', category_label: '' } } as any,
+      { id: 2, document_type: { id: 2, name: 'Contract', category: 'employment', category_label: '' } } as any,
+    ];
+
+    expect(component.documentsFor('personal').map(item => item.id)).toEqual([1]);
+    expect(component.documentsFor('employment').map(item => item.id)).toEqual([2]);
+  });
+
+  it('trimite data expirării numai pentru documentul configurat cu expirare', () => {
+    const api: any = {
+      uploadEmployeeDocument: jasmine.createSpy().and.returnValue(of({
+        document: { id: 3, document_type: { id: 3, name: 'Pașaport', category: 'personal' } },
+      })),
+    };
+    const component = new FisaAngajatComponent({} as any, {} as any, api);
+    component.userId = 7;
+    component.selectedDocumentFile = new File(['scan'], 'scan.pdf', { type: 'application/pdf' });
+    component.documentForm = {
+      category: 'personal',
+      document_type_id: null,
+      document_type_name: 'Pașaport',
+      has_expiry: true,
+      expiry_date: '2030-01-02',
+    };
+
+    component.uploadDocument();
+
+    const payload = api.uploadEmployeeDocument.calls.mostRecent().args[1] as FormData;
+    expect(payload.get('document_type_name')).toBe('Pașaport');
+    expect(payload.get('has_expiry')).toBe('true');
+    expect(payload.get('expiry_date')).toBe('2030-01-02');
+  });
+});

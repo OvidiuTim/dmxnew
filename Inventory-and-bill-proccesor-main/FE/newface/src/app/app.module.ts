@@ -46,6 +46,7 @@ import { InventoryHistoryComponent } from './inventory-history/inventory-history
 import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
 import { EmployeeAvatarComponent } from './teams/employee-avatar.component';
 import { ToolsNavComponent } from './magazie/unelte/tools-nav.component';
+import { AccommodationsComponent } from './pontaj/accommodations/accommodations.component';
 
 @NgModule({
   declarations: [
@@ -82,6 +83,7 @@ import { ToolsNavComponent } from './magazie/unelte/tools-nav.component';
     TeamsWorkspaceComponent,
     EmployeeAvatarComponent,
     ToolsNavComponent,
+    AccommodationsComponent,
   ],
   imports: [
     CommonModule,

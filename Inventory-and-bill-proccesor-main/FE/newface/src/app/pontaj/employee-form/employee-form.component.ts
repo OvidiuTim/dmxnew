@@ -21,6 +21,7 @@ export class EmployeeFormComponent implements OnInit {
   companyOptions: string[] = [];
   selectedCompanyOption = 'RNX';
   isAddingNewCompany = false;
+  accommodationOptions: Array<{ id: number; name: string; address?: string }> = [];
 
   readonly form = this.fb.group({
     UserName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -34,6 +35,7 @@ export class EmployeeFormComponent implements OnInit {
     phone_number: ['', [Validators.maxLength(50)]],
     photo: [null as string | null],
     trade: ['', [Validators.maxLength(100)]],
+    accommodation_id: [null as number | null],
   });
 
   constructor(
@@ -45,6 +47,7 @@ export class EmployeeFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadCompanyOptions();
+    this.loadAccommodationOptions();
 
     const rawId = this.route.snapshot.paramMap.get('id');
     if (!rawId) {
@@ -236,6 +239,7 @@ export class EmployeeFormComponent implements OnInit {
           phone_number: user?.phone_number ?? '',
           photo: user?.photo ?? null,
           trade: user?.trade ?? '',
+          accommodation_id: user?.accommodation_id ?? null,
         });
         this.photoPreview = user?.photo ?? null;
         this.generatedPinPreview = null;
@@ -264,6 +268,7 @@ export class EmployeeFormComponent implements OnInit {
       phone_number: this.normalizeOptionalString(value.phone_number),
       photo: value.photo || null,
       trade: this.normalizeOptionalString(value.trade),
+      accommodation_id: value.accommodation_id ? Number(value.accommodation_id) : null,
     };
 
     const pin = (value.UserPin ?? '').trim();
@@ -313,6 +318,15 @@ export class EmployeeFormComponent implements OnInit {
         this.companyOptions = ['RNX'];
         this.syncCompanySelection(this.form.value.Company ?? 'RNX');
       }
+    });
+  }
+
+  private loadAccommodationOptions(): void {
+    this.api.getAccommodations().subscribe({
+      next: response => {
+        this.accommodationOptions = (response?.accommodations ?? []).filter((item: any) => item.active);
+      },
+      error: () => { this.accommodationOptions = []; },
     });
   }
 

@@ -18,12 +18,12 @@ describe('NavbarComponent module filtering', () => {
     return component.groups.filter(group => component.visibleLinks(group).length > 0);
   }
 
-  it('utilizatorul doar cu Echipe vede exact cele trei pagini', () => {
+  it('utilizatorul doar cu Echipe vede toate paginile categoriei', () => {
     const component = componentFor(['teams_schedule']);
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual(['Echipe și program']);
     expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual([
-      '/pontaj/echipe', '/pontaj/echipe-azi', '/pontaj/personal-disponibil'
+      '/pontaj/echipe', '/pontaj/echipa-mea', '/pontaj/concedii', '/pontaj/echipe-azi', '/pontaj/personal-disponibil'
     ]);
   });
 
@@ -32,7 +32,7 @@ describe('NavbarComponent module filtering', () => {
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual(['Pontaj']);
     expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual([
-      '/dashboard', '/pontaj', '/pontaj/rapoarte', '/pontaj/fisa-angajat', '/pontaj/concedii'
+      '/dashboard', '/pontaj', '/pontaj/rapoarte', '/pontaj/fisa-angajat', '/pontaj/cazari'
     ]);
   });
 
@@ -56,7 +56,7 @@ describe('NavbarComponent module filtering', () => {
     const component = componentFor(['attendance', 'teams_schedule']);
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual(['Pontaj', 'Echipe și program']);
-    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(8);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(10);
   });
 
   it('nu afișează categorii pentru un utilizator fără module', () => {
@@ -69,7 +69,7 @@ describe('NavbarComponent module filtering', () => {
     expect(groups.map(group => group.label)).toEqual([
       'Pontaj', 'Echipe și program', 'Magazie', 'Resurse umane', 'Unelte'
     ]);
-    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(14);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(16);
   });
 
   it('marchează o singură rută de echipe ca activă', () => {

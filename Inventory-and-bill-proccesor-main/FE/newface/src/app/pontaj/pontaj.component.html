@@ -31,10 +31,11 @@
     <div class="empty-state" *ngIf="filteredRows.length === 0"><span class="material-symbols-rounded" aria-hidden="true">search_off</span><strong>Niciun rezultat</strong><p>Schimbă filtrele sau termenul de căutare.</p></div>
     <div class="table-scroll" *ngIf="filteredRows.length">
       <table>
-        <thead><tr><th>Angajat</th><th>Firmă</th><th>Prima intrare</th><th>Ultima ieșire</th><th>Sesiuni</th><th>Total</th><th>Status</th><th>Acțiuni</th></tr></thead>
+        <thead><tr><th>Angajat</th><th>Profesie</th><th>Firmă</th><th>Prima intrare</th><th>Ultima ieșire</th><th>Sesiuni</th><th>Total</th><th>Status</th><th>Acțiuni</th></tr></thead>
         <tbody>
           <tr *ngFor="let r of filteredRows; trackBy: trackByUser">
             <td><div class="employee-cell"><span class="avatar">{{ r.UserName.charAt(0) }}</span><strong>{{ r.UserName }}</strong></div></td>
+            <td><span class="company">{{ r.trade || 'Necompletată' }}</span></td>
             <td><span class="company">{{ r.Company || 'Fără firmă' }}</span></td>
             <td class="mono">{{ r.first_in ? (r.first_in | date:'HH:mm') : '—' }}</td>
             <td class="mono">{{ r.last_out ? (r.last_out | date:'HH:mm') : '—' }}</td>

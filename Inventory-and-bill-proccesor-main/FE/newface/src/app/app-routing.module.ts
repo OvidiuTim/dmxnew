@@ -26,6 +26,7 @@ import { PortalPlaceholderComponent } from './portal-placeholder/portal-placehol
 import { InventoryCatalogComponent } from './inventory-catalog/inventory-catalog.component';
 import { InventoryHistoryComponent } from './inventory-history/inventory-history.component';
 import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
+import { AccommodationsComponent } from './pontaj/accommodations/accommodations.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -49,13 +50,15 @@ export const routes: Routes = [
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte', moduleCode: 'attendance' } },
   { path: 'pontaj/fisa-angajat', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat', moduleCode: 'attendance' } },
   { path: 'pontaj/fisa-angajat/:id', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat', moduleCode: 'attendance' } },
+  { path: 'pontaj/cazari', component: AccommodationsComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/cazari', moduleCode: 'attendance' } },
   { path: 'pontaj/echipe', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe', moduleCode: 'teams_schedule', teamMode: 'permanent' } },
+  { path: 'pontaj/echipa-mea', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipa-mea', moduleCode: 'teams_schedule', teamMode: 'mine' } },
   { path: 'pontaj/echipe-azi', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe-azi', moduleCode: 'teams_schedule', teamMode: 'today' } },
   { path: 'pontaj/personal-disponibil', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/personal-disponibil', moduleCode: 'teams_schedule', teamMode: 'available' } },
   {
     path: 'pontaj/concedii', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
     data: {
-      permissionRoute: '/pontaj/concedii', moduleCode: 'attendance', title: 'Concedii și absențe', icon: 'calendar',
+      permissionRoute: '/pontaj/concedii', moduleCode: 'teams_schedule', title: 'Concedii și absențe', icon: 'calendar',
       description: 'Administrarea cererilor, zilelor de concediu și absențelor într-un singur loc.',
       missingData: 'Modelele LeaveDay și LeaveRequest există în backend, însă în frontend nu există un contract API clar pentru listare și aprobare.'
     }

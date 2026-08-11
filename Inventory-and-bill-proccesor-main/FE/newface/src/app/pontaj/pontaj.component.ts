@@ -17,6 +17,7 @@ interface DayUserRow {
   UserId: number;
   UserName: string;
   Company?: string | null;
+  trade?: string | null;
   first_in: string | null;    // ISO local time sau null
   last_out: string | null;    // ISO local time sau null
   total_hms: string;          // "HH:MM:SS"
@@ -86,7 +87,8 @@ seeFisaAngajat(id: number): void {
           if (hit) {
             return {
               ...hit,
-              Company: u.Company ?? null
+              Company: u.Company ?? null,
+              trade: u.trade ?? null,
             };
           }
           // absent — nu are sesiuni în ziua aleasă
@@ -94,6 +96,7 @@ seeFisaAngajat(id: number): void {
             UserId: u.UserId,
             UserName: u.UserName,
             Company: u.Company ?? null,
+            trade: u.trade ?? null,
             first_in: null,
             last_out: null,
             total_hms: '00:00:00',
@@ -156,7 +159,7 @@ seeFisaAngajat(id: number): void {
     return this.rows.filter((row) => {
       const matchesCompany = this.selectedCompany === 'ALL' || (row.Company ?? '') === this.selectedCompany;
       const matchesStatus = this.selectedStatus === 'ALL' || row.status === this.selectedStatus;
-      const matchesSearch = !search || this.normalizeText(row.UserName).includes(search);
+      const matchesSearch = !search || this.normalizeText(`${row.UserName} ${row.trade || ''}`).includes(search);
       return matchesCompany && matchesStatus && matchesSearch;
     });
   }

@@ -70,6 +70,22 @@ class Tools(models.Model):
     DateReturned = models.DateField(blank=True, null=True)
     DateLost = models.DateField(blank=True, null=True)
 
+
+class Accommodation(models.Model):
+    name = models.CharField(max_length=160, unique=True)
+    address = models.CharField(max_length=255, blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+    active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.name
+
+
 class Users(models.Model):
     UserId = models.AutoField(primary_key=True)
     UserName = models.CharField(max_length=100)
@@ -88,6 +104,13 @@ class Users(models.Model):
     trade = models.CharField(max_length=100, null=True, blank=True)
     hire_date = models.DateField(null=True, blank=True)
     housing_location = models.CharField(max_length=255, blank=True, default="")
+    accommodation = models.ForeignKey(
+        Accommodation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="employees",
+    )
     active = models.BooleanField(default=True, db_index=True)
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
@@ -110,6 +133,58 @@ class Users(models.Model):
             models.Index(fields=['pin_lookup']),
             models.Index(fields=['UserSerie']),
         ]
+
+
+class EmployeeDocumentType(models.Model):
+    class Category(models.TextChoices):
+        PERSONAL = "personal", "Documente personale"
+        EMPLOYMENT = "employment", "Documente de angajare"
+
+    name = models.CharField(max_length=160)
+    category = models.CharField(max_length=16, choices=Category.choices, db_index=True)
+    active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("category", "name")
+        constraints = [
+            models.UniqueConstraint(fields=("category", "name"), name="unique_employee_document_type"),
+        ]
+
+    def __str__(self):
+        return f"{self.get_category_display()}: {self.name}"
+
+
+class EmployeeDocument(models.Model):
+    employee = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="documents")
+    document_type = models.ForeignKey(
+        EmployeeDocumentType,
+        on_delete=models.PROTECT,
+        related_name="documents",
+    )
+    file = models.FileField(upload_to="employee_documents/%Y/%m/")
+    original_file_name = models.CharField(max_length=255, blank=True, default="")
+    has_expiry = models.BooleanField(default=False)
+    expiry_date = models.DateField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("document_type__category", "document_type__name", "-uploaded_at")
+
+    def clean(self):
+        super().clean()
+        if self.has_expiry and not self.expiry_date:
+            raise ValidationError({"expiry_date": "Data expirării este obligatorie."})
+        if not self.has_expiry:
+            self.expiry_date = None
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.employee}: {self.document_type.name}"
 
 
 def build_pin_lookup(raw_pin):
