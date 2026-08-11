@@ -12,6 +12,7 @@ export class AuthGuard implements CanActivate {
     const permissionRoute = String(route.data?.['permissionRoute'] || `/${route.routeConfig?.path || 'pontaj'}`);
     const moduleCode = String(route.data?.['moduleCode'] || '');
     const isModuleEntry = !!route.data?.['moduleEntry'];
+    const requiresGranular = !!route.data?.['requiresGranular'];
 
     return this.auth.verifySession(permissionRoute, moduleCode || undefined).pipe(
       map(session => {
@@ -24,6 +25,7 @@ export class AuthGuard implements CanActivate {
             : this.router.createUrlTree(['/no-access'], { queryParams: { reason: 'no-modules' } });
         }
         if (!hasModule) return this.router.createUrlTree(['/no-access']);
+        if (!requiresGranular) return true;
         const hasPage = session.can_access ?? !!session.permissions?.includes(permissionRoute);
         return hasPage ? true : this.router.createUrlTree(['/no-access']);
       }),

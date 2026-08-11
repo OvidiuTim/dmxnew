@@ -39,10 +39,16 @@ describe('AuthGuard module access', () => {
     expect(router.createUrlTree).toHaveBeenCalledWith(['/no-access']);
   });
 
-  it('păstrează permisiunea granulară sub modul', async () => {
+  it('păstrează permisiunea granulară pentru o rută sensibilă', async () => {
     const { guard, router } = setup({ role: 'app_user', auth_type: 'app_user', modules: ['attendance'], can_access_module: true, can_access: false });
-    await firstValueFrom(guard.canActivate({ data: { permissionRoute: '/pontaj/rapoarte', moduleCode: 'attendance' } } as any));
+    await firstValueFrom(guard.canActivate({ data: { permissionRoute: '/users/new', moduleCode: 'attendance', requiresGranular: true } } as any));
     expect(router.createUrlTree).toHaveBeenCalledWith(['/no-access']);
+  });
+
+  it('permite o pagină standard a modulului chiar fără permisiune granulară', async () => {
+    const { guard } = setup({ role: 'app_user', auth_type: 'app_user', modules: ['attendance'], can_access_module: true, can_access: false });
+    const result = await firstValueFrom(guard.canActivate({ data: { permissionRoute: '/pontaj/rapoarte', moduleCode: 'attendance' } } as any));
+    expect(result).toBeTrue();
   });
 
   it('permite refresh direct pe o rută validă fără redirect', async () => {
@@ -57,5 +63,30 @@ describe('AuthGuard module access', () => {
     const result = await firstValueFrom(guard.canActivate({ data: { permissionRoute: '/pontaj', moduleCode: 'attendance', moduleEntry: true } } as any));
     expect(result).toBeTrue();
     expect(router.parseUrl).not.toHaveBeenCalled();
+  });
+
+  it('permite accesarea directă și refreshul tuturor rutelor standard', async () => {
+    const standardRoutes = [
+      { moduleCode: 'attendance', permissionRoute: '/dashboard' },
+      { moduleCode: 'attendance', permissionRoute: '/pontaj/concedii' },
+      { moduleCode: 'attendance', permissionRoute: '/pontaj/rapoarte' },
+      { moduleCode: 'attendance', permissionRoute: '/pontaj/fisa-angajat' },
+      { moduleCode: 'attendance', permissionRoute: '/pontaj' },
+      { moduleCode: 'teams_schedule', permissionRoute: '/pontaj/echipe' },
+      { moduleCode: 'teams_schedule', permissionRoute: '/pontaj/echipe-azi' },
+      { moduleCode: 'teams_schedule', permissionRoute: '/pontaj/personal-disponibil' },
+      { moduleCode: 'warehouse', permissionRoute: '/magazie' },
+      { moduleCode: 'warehouse', permissionRoute: '/magazie/scule' },
+      { moduleCode: 'warehouse', permissionRoute: '/magazie/echipamente-ssm' },
+      { moduleCode: 'warehouse', permissionRoute: '/magazie/istoric' },
+      { moduleCode: 'human_resources', permissionRoute: '/hr/documente' },
+      { moduleCode: 'tools', permissionRoute: '/unelte' },
+      { moduleCode: 'tools', permissionRoute: '/unelte/adauga-unealta' },
+      { moduleCode: 'tools', permissionRoute: '/predare-unealta' }
+    ];
+    for (const data of standardRoutes) {
+      const { guard } = setup({ role: 'app_user', auth_type: 'app_user', modules: [data.moduleCode], can_access_module: true, can_access: false });
+      expect(await firstValueFrom(guard.canActivate({ data } as any))).withContext(data.permissionRoute).toBeTrue();
+    }
   });
 });

@@ -7,7 +7,7 @@ import { AuthService } from '../auth/auth.service';
 
 describe('AdminAppPageComponent modules', () => {
   const modules: AdminModuleDefinition[] = [
-    { code: 'attendance', label: 'Pontaj', description: '', icon: 'schedule', main_route: '/pontaj' },
+    { code: 'attendance', label: 'Pontaj', description: '', icon: 'schedule', main_route: '/dashboard' },
     { code: 'teams_schedule', label: 'Echipe și program', description: '', icon: 'groups', main_route: '/pontaj/echipe' },
     { code: 'warehouse', label: 'Magazie', description: '', icon: 'warehouse', main_route: '/magazie' },
     { code: 'human_resources', label: 'Resurse umane', description: '', icon: 'description', main_route: '/hr/documente' },

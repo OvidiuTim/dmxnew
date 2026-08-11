@@ -12,9 +12,9 @@ export class ToolsNavComponent {
 
   constructor(public auth: AuthService, private router: Router) {}
 
-  canRoute(route: string): boolean {
+  canRoute(_route: string): boolean {
     const session = this.auth.currentSession();
-    return !!session && (session.role === 'admin' || session.auth_type === 'legacy' || !!session.permissions?.includes(route));
+    return !!session && (session.role === 'admin' || session.auth_type === 'legacy' || !!session.modules?.includes('tools'));
   }
 
   get mainAppRoute(): string | null {

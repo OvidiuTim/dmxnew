@@ -93,11 +93,6 @@ export class AdminAppPageComponent implements OnInit {
     return !!user.inherited_modules?.includes(moduleCode);
   }
 
-  isLandingRouteLocked(user: any, route: string): boolean {
-    const module = this.modules.find(item => item.main_route === route);
-    return !!module && !!user.module_access?.[module.code];
-  }
-
   toggleModuleUser(moduleCode: string, user: any, checked: boolean): void {
     if (this.isInherited(moduleCode, user) && !checked) return;
     const selection = this.moduleSelections[moduleCode] || new Set<number>();

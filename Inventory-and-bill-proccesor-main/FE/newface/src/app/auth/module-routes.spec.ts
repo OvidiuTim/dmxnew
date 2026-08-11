@@ -1,7 +1,7 @@
 import { routes } from '../app-routing.module';
 
 describe('Module route mapping', () => {
-  it('protejează cele trei rute Unelte cu modulul tools și permisiuni distincte', () => {
+  it('permite intrarea în cele trei interfețe Unelte prin modulul tools', () => {
     const expected: Record<string, string> = {
       'unelte': '/unelte',
       'unelte/adauga-unealta': '/unelte/adauga-unealta',
@@ -11,12 +11,13 @@ describe('Module route mapping', () => {
       const route = routes.find(item => item.path === path);
       expect(route?.data?.['moduleCode']).toBe('tools');
       expect(route?.data?.['permissionRoute']).toBe(permissionRoute);
+      expect(route?.data?.['requiresGranular']).toBeFalsy();
     });
   });
 
   it('mapează rutele principale în ordinea stabilă a modulelor', () => {
     const expected = [
-      ['pontaj', 'attendance'],
+      ['dashboard', 'attendance'],
       ['pontaj/echipe', 'teams_schedule'],
       ['magazie', 'warehouse'],
       ['hr/documente', 'human_resources'],

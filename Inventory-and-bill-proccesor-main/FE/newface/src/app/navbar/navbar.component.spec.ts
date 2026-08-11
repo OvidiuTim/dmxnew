@@ -1,41 +1,81 @@
 import { EMPTY } from 'rxjs';
-import { NavbarComponent } from './navbar.component';
+import { NavbarComponent, NavGroup } from './navbar.component';
 
-describe('NavbarComponent', () => {
-  it('afișează structura nouă pentru echipe și program în ordinea cerută', () => {
-    const router: any = { url: '/dashboard', events: EMPTY, navigateByUrl: jasmine.createSpy('navigateByUrl'), navigate: jasmine.createSpy('navigate') };
-    const auth: any = { currentSession: () => ({ role: 'admin', auth_type: 'legacy' }), logout: jasmine.createSpy('logout') };
-    const component = new NavbarComponent(router, auth);
+describe('NavbarComponent module filtering', () => {
+  function componentFor(modules: string[], admin = false): NavbarComponent {
+    const router: any = { url: '/dashboard', events: EMPTY, navigateByUrl: jasmine.createSpy(), navigate: jasmine.createSpy() };
+    const auth: any = {
+      currentSession: () => admin
+        ? ({ role: 'admin', auth_type: 'legacy' })
+        : ({ role: 'app_user', auth_type: 'app_user', modules, permissions: [] }),
+      firstAvailableModuleRoute: () => '/dashboard',
+      logout: jasmine.createSpy()
+    };
+    return new NavbarComponent(router, auth);
+  }
 
-    expect(component.groups.map(group => group.label)).toEqual([
-      'Pontaj', 'Echipe și program', 'Magazie', 'Resurse umane', 'Unelte'
-    ]);
-    expect(component.groups[1].links.map(link => link.label)).toEqual([
-      'Echipe permanente', 'Echipele de azi', 'Personal disponibil'
-    ]);
-    expect(component.groups[1].links.map(link => link.path)).toEqual([
+  function visibleGroups(component: NavbarComponent): NavGroup[] {
+    return component.groups.filter(group => component.visibleLinks(group).length > 0);
+  }
+
+  it('utilizatorul doar cu Echipe vede exact cele trei pagini', () => {
+    const component = componentFor(['teams_schedule']);
+    const groups = visibleGroups(component);
+    expect(groups.map(group => group.label)).toEqual(['Echipe și program']);
+    expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual([
       '/pontaj/echipe', '/pontaj/echipe-azi', '/pontaj/personal-disponibil'
     ]);
   });
 
-  it('marchează o singură rută de echipe ca activă', () => {
-    const router: any = { url: '/pontaj/echipe-azi', events: EMPTY, navigateByUrl: jasmine.createSpy('navigateByUrl'), navigate: jasmine.createSpy('navigate') };
-    const auth: any = { currentSession: () => ({ role: 'admin', auth_type: 'legacy' }), logout: jasmine.createSpy('logout') };
-    const component = new NavbarComponent(router, auth);
-    const links = component.groups[1].links;
-    expect(links.filter(link => link.active).map(link => link.path)).toEqual(['/pontaj/echipe-azi']);
+  it('utilizatorul doar cu Pontaj vede toate cele cinci pagini', () => {
+    const component = componentFor(['attendance']);
+    const groups = visibleGroups(component);
+    expect(groups.map(group => group.label)).toEqual(['Pontaj']);
+    expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual([
+      '/dashboard', '/pontaj', '/pontaj/rapoarte', '/pontaj/fisa-angajat', '/pontaj/concedii'
+    ]);
   });
 
-  it('ascunde complet categoriile fără modul și fără titluri goale', () => {
-    const router: any = { url: '/pontaj/echipe', events: EMPTY, navigateByUrl: jasmine.createSpy(), navigate: jasmine.createSpy() };
-    const auth: any = {
-      currentSession: () => ({ role: 'app_user', auth_type: 'app_user', modules: ['teams_schedule'], permissions: ['/pontaj/echipe'] }),
-      firstAvailableModuleRoute: () => '/pontaj/echipe',
-      logout: jasmine.createSpy()
-    };
+  it('utilizatorul doar cu Magazie vede toate cele patru pagini', () => {
+    const component = componentFor(['warehouse']);
+    const groups = visibleGroups(component);
+    expect(groups.map(group => group.label)).toEqual(['Magazie']);
+    expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual([
+      '/magazie', '/magazie/scule', '/magazie/echipamente-ssm', '/magazie/istoric'
+    ]);
+  });
+
+  it('utilizatorul doar cu Resurse umane vede Documente', () => {
+    const component = componentFor(['human_resources']);
+    const groups = visibleGroups(component);
+    expect(groups.map(group => group.label)).toEqual(['Resurse umane']);
+    expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual(['/hr/documente']);
+  });
+
+  it('combină toate paginile pentru două module', () => {
+    const component = componentFor(['attendance', 'teams_schedule']);
+    const groups = visibleGroups(component);
+    expect(groups.map(group => group.label)).toEqual(['Pontaj', 'Echipe și program']);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(8);
+  });
+
+  it('nu afișează categorii pentru un utilizator fără module', () => {
+    expect(visibleGroups(componentFor([]))).toEqual([]);
+  });
+
+  it('administratorul vede toate categoriile și toate paginile', () => {
+    const component = componentFor([], true);
+    const groups = visibleGroups(component);
+    expect(groups.map(group => group.label)).toEqual([
+      'Pontaj', 'Echipe și program', 'Magazie', 'Resurse umane', 'Unelte'
+    ]);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(14);
+  });
+
+  it('marchează o singură rută de echipe ca activă', () => {
+    const router: any = { url: '/pontaj/echipe-azi', events: EMPTY, navigateByUrl: jasmine.createSpy(), navigate: jasmine.createSpy() };
+    const auth: any = { currentSession: () => ({ role: 'admin', auth_type: 'legacy' }), logout: jasmine.createSpy() };
     const component = new NavbarComponent(router, auth);
-    expect(component.visibleLinks(component.groups[0])).toEqual([]);
-    expect(component.visibleLinks(component.groups[1]).map(link => link.path)).toEqual(['/pontaj/echipe']);
-    expect(component.visibleLinks(component.groups[2])).toEqual([]);
+    expect(component.groups[1].links.filter(link => link.active).map(link => link.path)).toEqual(['/pontaj/echipe-azi']);
   });
 });

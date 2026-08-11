@@ -55,7 +55,7 @@ from django.db.models import Sum, Min, Max
 from ToolApp.models import Users, AttendanceSession
 from ToolApp.security import (
     ADMIN_APP_COOKIE, APP_TOKEN_COOKIE, TOKEN_AGE,
-    app_user_has_route, check_admin_token, get_app_user_from_request,
+    app_user_can_view_route, app_user_has_route, check_admin_token, get_app_user_from_request,
     get_token_from_request, make_admin_token, make_app_user_token, request_has_admin,
 )
 from ToolApp.module_access import (
@@ -1458,14 +1458,15 @@ def rfid_entry_exit(request):
 
 
 #MAGAIE UNELTE - ISSUE / RETURN
-def _tool_legacy_access_error(request, route):
+def _tool_legacy_access_error(request, route, allow_module_read=False):
     if request_has_admin(request):
         return None
     app_user = get_app_user_from_request(request)
     if not app_user:
         return JsonResponse({"error": "Authentication required"}, status=401)
     has_tool_module = app_user_has_module(app_user, "tools") or app_user_has_module(app_user, "warehouse")
-    if not has_tool_module or not app_user_has_route(app_user, route):
+    is_safe_read = allow_module_read and request.method in ("GET", "HEAD")
+    if not has_tool_module or (not is_safe_read and not app_user_has_route(app_user, route)):
         return JsonResponse({"error": "Forbidden for this app user"}, status=403)
     return None
 
@@ -1536,7 +1537,7 @@ def return_tool(request):
 #-- MAGAZIE UNELTE - STATUS TOOLS ---
 @csrf_exempt
 def tools_status(request):
-    access_error = _tool_legacy_access_error(request, "/unelte")
+    access_error = _tool_legacy_access_error(request, "/unelte", allow_module_read=True)
     if access_error:
         return access_error
     if request.method != 'GET':
@@ -3620,7 +3621,7 @@ def app_auth_verify(request):
         "login_redirect_path": app_user.login_redirect_path or "/pontaj",
     }
     if route:
-        response["can_access"] = app_user_has_route(app_user, route)
+        response["can_access"] = app_user_can_view_route(app_user, route)
     if module_code:
         response["can_access_module"] = app_user_has_module(app_user, module_code)
     return JsonResponse(response)
@@ -3733,14 +3734,6 @@ def app_admin_users(request):
             if route not in APP_PERMISSION_ROUTES:
                 return JsonResponse({"error": "Ruta nu este gestionata."}, status=400)
             requested_access = bool(data.get("can_access"))
-            landing_module = next(
-                (code for code, definition in MODULE_DEFINITIONS.items() if definition["main_route"] == route),
-                None,
-            )
-            if not requested_access and landing_module and app_user_has_module(app_user, landing_module):
-                return JsonResponse({
-                    "error": "Ruta principală rămâne activă cât timp utilizatorul are acces la modul."
-                }, status=400)
             AppPagePermission.objects.update_or_create(
                 app_user=app_user,
                 route=route,
@@ -3808,7 +3801,6 @@ def app_admin_module_access(request, module_code):
     if unknown_ids:
         return JsonResponse({"error": "Unul sau mai multe conturi nu exista."}, status=400)
 
-    landing_route = MODULE_DEFINITIONS[module_code]["main_route"]
     with transaction.atomic():
         for app_user in all_users:
             enabled = app_user.AppUserId in selected_ids
@@ -3817,12 +3809,6 @@ def app_admin_module_access(request, module_code):
                 module_code=module_code,
                 defaults={"can_access": enabled},
             )
-            if enabled:
-                AppPagePermission.objects.update_or_create(
-                    app_user=app_user,
-                    route=landing_route,
-                    defaults={"can_access": True},
-                )
 
     refreshed_users = (
         AppUser.objects.select_related("employee")

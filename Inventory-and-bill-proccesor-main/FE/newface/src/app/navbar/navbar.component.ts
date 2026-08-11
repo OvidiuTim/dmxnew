@@ -23,7 +23,7 @@ export class NavbarComponent {
         { label: 'Prezență zilnică', path: '/pontaj', icon: 'schedule', permissionRoute: '/pontaj' },
         { label: 'Rapoarte', path: '/pontaj/rapoarte', icon: 'bar_chart', permissionRoute: '/pontaj/rapoarte' },
         { label: 'Fișe angajați', path: '/pontaj/fisa-angajat', icon: 'badge', permissionRoute: '/pontaj/fisa-angajat' },
-        { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar_month', permissionRoute: '/pontaj' },
+        { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar_month', permissionRoute: '/pontaj/concedii' },
       ]
     },
     {
@@ -40,9 +40,9 @@ export class NavbarComponent {
       moduleCode: 'warehouse',
       links: [
         { label: 'Privire generală', path: '/magazie', icon: 'warehouse', permissionRoute: '/magazie' },
-        { label: 'Scule', path: '/magazie/scule', icon: 'tool', permissionRoute: '/unelte' },
-        { label: 'Echipamente SSM', path: '/magazie/echipamente-ssm', icon: 'shield', permissionRoute: '/unelte' },
-        { label: 'Istoric', path: '/magazie/istoric', icon: 'history', permissionRoute: '/history' },
+        { label: 'Scule', path: '/magazie/scule', icon: 'tool', permissionRoute: '/magazie/scule' },
+        { label: 'Echipamente SSM', path: '/magazie/echipamente-ssm', icon: 'shield', permissionRoute: '/magazie/echipamente-ssm' },
+        { label: 'Istoric', path: '/magazie/istoric', icon: 'history', permissionRoute: '/magazie/istoric' },
       ]
     },
     {
@@ -97,7 +97,7 @@ export class NavbarComponent {
     const session = this.auth.currentSession();
     if (!session || session.role === 'admin' || session.auth_type === 'legacy') return group.links;
     if (!session.modules?.includes(group.moduleCode)) return [];
-    return group.links.filter(link => session.permissions?.includes(link.permissionRoute || link.path));
+    return group.links;
   }
 
   toggleMenu() { this.menuOpen = !this.menuOpen; }

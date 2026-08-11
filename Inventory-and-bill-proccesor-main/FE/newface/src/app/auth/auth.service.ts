@@ -19,7 +19,7 @@ export interface AuthSession {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   readonly moduleRoutes: Record<string, string> = {
-    attendance: '/pontaj',
+    attendance: '/dashboard',
     teams_schedule: '/pontaj/echipe',
     warehouse: '/magazie',
     human_resources: '/hr/documente',
@@ -74,6 +74,9 @@ export class AuthService {
         }
         if (moduleCode && !(session.can_access_module ?? session.modules?.includes(moduleCode))) {
           return false;
+        }
+        if (moduleCode) {
+          return true;
         }
         if (session.can_access !== undefined) {
           return !!session.can_access;

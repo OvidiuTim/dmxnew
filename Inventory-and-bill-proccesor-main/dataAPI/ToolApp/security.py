@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core import signing
 from django.http import JsonResponse
 
-from ToolApp.module_access import app_user_has_module
+from ToolApp.module_access import app_user_has_module, app_user_has_standard_route
 
 
 TOKEN_SALT = "pontaj-auth"
@@ -61,8 +61,8 @@ API_MODULE_REQUIREMENTS = (
     ("/api/teams/", ("teams_schedule",)),
     ("/api/pontaj/", ("attendance",)),
     ("/api/tools/", ("warehouse", "tools")),
-    ("/api/tool/", ("warehouse", "tools")),
-    ("/api/history/", ("warehouse", "tools")),
+    ("/api/tool/", ("attendance", "warehouse", "tools")),
+    ("/api/history/", ("attendance", "warehouse", "tools")),
     ("/api/user/", ("attendance", "human_resources", "warehouse", "tools")),
     ("/api/users/", ("attendance", "warehouse", "tools")),
     ("/api/material/", ("warehouse",)),
@@ -178,15 +178,25 @@ def app_user_can_access_any(app_user, routes) -> bool:
 
 def app_user_can_access_api_path(app_user, path: str, method: str = "GET") -> bool:
     normalized = _normalize_public_path(path)
+    module_endpoint = False
     for prefix, module_codes in API_MODULE_REQUIREMENTS:
-        if normalized.startswith(prefix) and not any(app_user_has_module(app_user, code) for code in module_codes):
-            return False
+        if normalized.startswith(prefix):
+            module_endpoint = True
+            if not any(app_user_has_module(app_user, code) for code in module_codes):
+                return False
+            break
+    if module_endpoint and str(method or "GET").upper() in ("GET", "HEAD"):
+        return True
     if normalized.startswith("/api/tool/") and str(method or "GET").upper() == "POST":
         return app_user_has_route(app_user, "/unelte/adauga-unealta")
     for prefix, routes in API_ROUTE_REQUIREMENTS:
         if normalized.startswith(prefix):
             return app_user_can_access_any(app_user, routes)
     return False
+
+
+def app_user_can_view_route(app_user, route: str) -> bool:
+    return app_user_has_standard_route(app_user, route) or app_user_has_route(app_user, route)
 
 
 class ApiAuthMiddleware:
