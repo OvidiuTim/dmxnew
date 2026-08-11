@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { SharedService } from 'src/app/shared.service';
 
-type ToolStatus = 'stricata' | 'in_lucru' | 'magazie';
+type ToolStatus = 'functionala' | 'nefunctionala' | 'in_lucru';
 type CategoryFilter = 'ALL' | 'SITE' | 'SSM';
 type StatusFilter = 'ALL' | ToolStatus;
 
@@ -79,9 +79,9 @@ export class UnelteComponent implements OnInit {
   showWarehouseOnly = false;
 
   readonly statuses: Array<{ value: ToolStatus; label: string }> = [
-    { value: 'in_lucru', label: 'In lucru' },
-    { value: 'magazie', label: 'In magazie' },
-    { value: 'stricata', label: 'Stricata' },
+    { value: 'functionala', label: 'Funcțional' },
+    { value: 'nefunctionala', label: 'Nefuncțional' },
+    { value: 'in_lucru', label: 'În lucru' },
   ];
 
   toolForm: ToolForm = this.emptyForm();
@@ -126,7 +126,7 @@ export class UnelteComponent implements OnInit {
 
       const matchesStatus = this.statusFilter === 'ALL' || tool.Status === this.statusFilter;
       const matchesWarehouse = !this.showWarehouseOnly || (
-        this.normalizeStatus(tool.Status) === 'magazie'
+        this.normalizeStatus(tool.Status) === 'functionala'
         && !tool.AssignedUserId
         && this.piecesCount(tool) > 0
       );
@@ -313,7 +313,7 @@ export class UnelteComponent implements OnInit {
         this.toolForm.DateReturned = this.todayISO();
       }
       if (this.toolForm.Status === 'in_lucru') {
-        this.toolForm.Status = 'magazie';
+        this.toolForm.Status = 'functionala';
       }
     }
   }
@@ -326,7 +326,7 @@ export class UnelteComponent implements OnInit {
       if (!this.toolForm.DateLost) {
         this.toolForm.DateLost = this.todayISO();
       }
-      this.toolForm.Status = 'stricata';
+      this.toolForm.Status = 'nefunctionala';
     }
   }
 
@@ -334,7 +334,7 @@ export class UnelteComponent implements OnInit {
     const assignedUser = this.users.find(user => user.UserId === this.toolForm.AssignedUserId);
     const location = this.toolForm.Location.trim()
       || (assignedUser ? assignedUser.UserName : '')
-      || (this.toolForm.Status === 'magazie' ? 'Magazie' : '');
+      || (this.toolForm.Status === 'functionala' ? 'Magazie' : '');
 
     return {
       ...(this.toolForm.ToolId ? { ToolId: this.toolForm.ToolId } : {}),
@@ -376,9 +376,11 @@ export class UnelteComponent implements OnInit {
   }
 
   private normalizeStatus(status: string | null | undefined): ToolStatus {
-    if (status === 'stricata' || status === 'magazie' || status === 'in_lucru') {
+    if (status === 'functionala' || status === 'nefunctionala' || status === 'in_lucru') {
       return status;
     }
+    if (status === 'magazie') return 'functionala';
+    if (status === 'stricata') return 'nefunctionala';
     return 'in_lucru';
   }
 

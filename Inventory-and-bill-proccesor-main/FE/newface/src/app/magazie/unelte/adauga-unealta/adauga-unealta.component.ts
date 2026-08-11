@@ -61,12 +61,12 @@ export class AdaugaUnealtaComponent implements OnInit {
     return this.users.find(user => user.UserId === this.form.AssignedUserId) ?? null;
   }
 
-  get computedStatus(): 'magazie' | 'in_lucru' {
-    return this.assignedUser ? 'in_lucru' : 'magazie';
+  get computedStatus(): 'functionala' | 'in_lucru' {
+    return this.assignedUser ? 'in_lucru' : 'functionala';
   }
 
   get computedStatusLabel(): string {
-    return this.assignedUser ? 'In lucru' : 'In magazie';
+    return this.assignedUser ? 'În lucru' : 'Funcțional';
   }
 
   get computedLocation(): string {

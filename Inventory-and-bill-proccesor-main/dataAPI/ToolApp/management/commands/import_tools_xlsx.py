@@ -193,7 +193,7 @@ class Command(BaseCommand):
 
             item["AssignedTo"] = assigned_user
             item["User"] = assigned_user.UserName if assigned_user else responsible
-            if assigned_user and item["Status"] != Tools.ToolStatus.STRICATA:
+            if assigned_user and item["Status"] != Tools.ToolStatus.NEFUNCTIONALA:
                 item["Status"] = Tools.ToolStatus.IN_LUCRU
                 if item["MainLocation"] == "Magazie":
                     item["MainLocation"] = assigned_user.UserName
@@ -296,9 +296,9 @@ class Command(BaseCommand):
                 requires_verification = True
 
             status = (
-                Tools.ToolStatus.STRICATA
+                Tools.ToolStatus.NEFUNCTIONALA
                 if "defect" in normalized_status
-                else Tools.ToolStatus.MAGAZIE
+                else Tools.ToolStatus.FUNCTIONALA
             )
             location = values.get("location") or "Magazie"
 

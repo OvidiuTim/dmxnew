@@ -341,13 +341,13 @@
   font-size: 13px;
 }
 
-.tool-status.magazie {
+.tool-status.functionala {
   border-color: #353f53;
   background: #121b2b;
   color: #cbd5e1;
 }
 
-.tool-status.stricata {
+.tool-status.nefunctionala {
   border-color: #7a2c35;
   background: #31141a;
   color: #ff9aa5;

@@ -19,9 +19,9 @@ def generate_tool_batch_id():
 
 class Tools(models.Model):
     class ToolStatus(models.TextChoices):
-        STRICATA = "stricata", "Stricata"
-        IN_LUCRU = "in_lucru", "In lucru"
-        MAGAZIE = "magazie", "In magazie"
+        FUNCTIONALA = "functionala", "Funcțional"
+        NEFUNCTIONALA = "nefunctionala", "Nefuncțional"
+        IN_LUCRU = "in_lucru", "În lucru"
 
     ToolId = models.AutoField(primary_key=True)
     ToolSerie = models.CharField(max_length=100, unique=True, db_index=True, null=True, blank=True)  # ← UNIC + index
@@ -62,7 +62,7 @@ class Tools(models.Model):
     Status = models.CharField(
         max_length=32,
         choices=ToolStatus.choices,
-        default=ToolStatus.IN_LUCRU,
+        default=ToolStatus.FUNCTIONALA,
         db_index=True,
     )
     IsReturned = models.BooleanField(default=False)

@@ -2,7 +2,7 @@ import json
 
 from django.test import TestCase
 
-from ToolApp.models import Tools, Users
+from ToolApp.models import EmployeeTeam, EmployeeTeamMember, Tools, Users
 from ToolApp.security import make_admin_token
 
 
@@ -13,7 +13,7 @@ class ToolEditingApiTests(TestCase):
             ToolName="Bormasina veche",
             ToolSerie="TOOL-1",
             Pieces=1,
-            Status=Tools.ToolStatus.MAGAZIE,
+            Status=Tools.ToolStatus.FUNCTIONALA,
             MainLocation="Magazie",
         )
 
@@ -67,3 +67,72 @@ class ToolEditingApiTests(TestCase):
         tool.refresh_from_db()
         self.assertIsNone(tool.AssignedTo)
         self.assertIsNone(tool.User)
+        self.assertEqual(tool.Status, Tools.ToolStatus.FUNCTIONALA)
+
+    def test_tool_statuses_are_standardized(self):
+        self.assertEqual(
+            {value for value, _ in Tools.ToolStatus.choices},
+            {"functionala", "nefunctionala", "in_lucru"},
+        )
+
+    def test_tool_response_includes_assigned_employee_team(self):
+        leader = Users.objects.create(UserName="Maria Lider", UserSerie="LEAD-1")
+        employee = Users.objects.create(UserName="Ion Echipa", UserSerie="TEAM-1")
+        team = EmployeeTeam.objects.create(name="Echipa Y", leader=leader)
+        EmployeeTeamMember.objects.create(team=team, employee=employee)
+        tool = Tools.objects.create(
+            ToolName="Scula X",
+            AssignedTo=employee,
+            User=employee.UserName,
+            Status=Tools.ToolStatus.IN_LUCRU,
+            MainLocation=employee.UserName,
+        )
+
+        response = self.client.get(
+            f"/api/tool/{tool.ToolId}",
+            HTTP_AUTHORIZATION=f"Bearer {make_admin_token()}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["AssignedTeamId"], team.id)
+        self.assertEqual(response.json()["AssignedTeamName"], "Echipa Y")
+
+    def test_assign_and_return_flow_uses_standardized_statuses(self):
+        employee = Users.objects.create(UserName="Muncitor Flux", UserSerie="FLOW-1")
+        warehouse_tool = Tools.objects.create(
+            ToolName="Ciocan rotopercutor",
+            Pieces=3,
+            Status=Tools.ToolStatus.FUNCTIONALA,
+            MainLocation="Magazie",
+        )
+        authorization = f"Bearer {make_admin_token()}"
+
+        assign_response = self.client.post(
+            "/api/tools/assign-quantity/",
+            data=json.dumps({
+                "ToolId": warehouse_tool.ToolId,
+                "AssignedUserId": employee.UserId,
+                "Pieces": 1,
+            }),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=authorization,
+        )
+
+        self.assertEqual(assign_response.status_code, 200)
+        self.assertEqual(assign_response.json()["warehouse"]["Status"], "functionala")
+        self.assertEqual(assign_response.json()["assigned"]["Status"], "in_lucru")
+
+        assigned_tool_id = assign_response.json()["assigned"]["ToolId"]
+        return_response = self.client.post(
+            "/api/tools/return-quantity/",
+            data=json.dumps({
+                "ToolId": assigned_tool_id,
+                "Pieces": 1,
+                "Status": "nefunctionala",
+            }),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=authorization,
+        )
+
+        self.assertEqual(return_response.status_code, 200)
+        self.assertEqual(return_response.json()["warehouse"]["Status"], "nefunctionala")

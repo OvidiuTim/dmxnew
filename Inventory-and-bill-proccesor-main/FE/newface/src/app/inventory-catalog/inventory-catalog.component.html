@@ -26,8 +26,35 @@
     </article>
     <article class="stat-card">
       <span class="stat-icon warning"><app-icon name="alert" [size]="24"></app-icon></span>
-      <div><strong>{{ verificationCount }}</strong><span>Necesită verificare</span></div>
+      <div><strong>{{ attentionCount }}</strong><span>{{ isSsm ? 'Necesită verificare' : 'Defecte' }}</span></div>
     </article>
+  </section>
+
+  <section class="team-tools" *ngIf="!isSsm" aria-labelledby="team-tools-title">
+    <header>
+      <div>
+        <p class="eyebrow">Distribuție operațională</p>
+        <h2 id="team-tools-title">Scule pe echipă</h2>
+      </div>
+      <span>{{ teamToolGroups.length }} {{ teamToolGroups.length === 1 ? 'echipă' : 'echipe' }}</span>
+    </header>
+    <div class="team-tools-grid" *ngIf="teamToolGroups.length; else noTeamTools">
+      <article class="team-tool-card" *ngFor="let group of teamToolGroups">
+        <div class="team-card-heading">
+          <span class="team-icon"><app-icon name="team" [size]="22"></app-icon></span>
+          <div><h3>{{ group.name }}</h3><span>{{ group.pieces }} {{ group.pieces === 1 ? 'bucată' : 'bucăți' }}</span></div>
+        </div>
+        <ul>
+          <li *ngFor="let tool of group.tools; trackBy: trackByTool">
+            <strong>{{ tool.ToolName }}</strong> este în {{ group.name }}
+            <span>Predată lui {{ employeeOf(tool) }} · {{ piecesOf(tool) }} {{ piecesOf(tool) === 1 ? 'bucată' : 'bucăți' }}</span>
+          </li>
+        </ul>
+      </article>
+    </div>
+    <ng-template #noTeamTools>
+      <p class="no-team-tools">Nicio sculă nu este atribuită momentan unui angajat dintr-o echipă.</p>
+    </ng-template>
   </section>
 
   <section class="toolbar" aria-label="Filtre inventar">
@@ -47,9 +74,9 @@
       <span class="sr-only">Stare</span>
       <select [(ngModel)]="statusFilter" (ngModelChange)="filtersChanged()">
         <option value="ALL">Toate stările</option>
-        <option value="magazie">În magazie</option>
+        <option value="functionala">Funcțional</option>
+        <option value="nefunctionala">Nefuncțional</option>
         <option value="in_lucru">În lucru</option>
-        <option value="stricata">Defect</option>
       </select>
     </label>
     <label>
@@ -73,7 +100,7 @@
     <section class="inventory-table" *ngIf="filteredTools.length; else emptyState">
       <div class="table-scroll">
         <table>
-          <thead><tr><th>Articol</th><th>Categorie</th><th>Stare</th><th>Locație</th><th>Responsabil</th><th>Bucăți</th></tr></thead>
+          <thead><tr><th>Articol</th><th>Categorie</th><th>Stare</th><th>Locație</th><th>Responsabil</th><th>Echipă</th><th>Bucăți</th></tr></thead>
           <tbody>
             <tr *ngFor="let tool of pagedTools; trackBy: trackByTool">
               <td>
@@ -87,6 +114,7 @@
               <td><span class="status-pill" [ngClass]="tool.Status || 'unknown'">{{ statusLabel(tool) }}</span><small class="verify" *ngIf="tool.RequiresVerification">Verificare necesară</small></td>
               <td>{{ locationOf(tool) }}</td>
               <td>{{ employeeOf(tool) }}</td>
+              <td>{{ tool.AssignedTeamName || '—' }}</td>
               <td><strong>{{ piecesOf(tool) }}</strong></td>
             </tr>
           </tbody>

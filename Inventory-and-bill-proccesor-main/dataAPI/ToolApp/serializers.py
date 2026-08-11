@@ -106,6 +106,8 @@ class ToolSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     AssignedUserName = serializers.SerializerMethodField(read_only=True)
+    AssignedTeamId = serializers.SerializerMethodField(read_only=True)
+    AssignedTeamName = serializers.SerializerMethodField(read_only=True)
     Location = serializers.SerializerMethodField(read_only=True)
     DateReceived = serializers.SerializerMethodField(read_only=True)
     StatusLabel = serializers.SerializerMethodField(read_only=True)
@@ -136,6 +138,8 @@ class ToolSerializer(serializers.ModelSerializer):
             "RfidTag",        # ← nou
             "AssignedUserId",
             "AssignedUserName",
+            "AssignedTeamId",
+            "AssignedTeamName",
             "IsSSM",
             "Status",
             "StatusLabel",
@@ -175,6 +179,38 @@ class ToolSerializer(serializers.ModelSerializer):
 
     def get_AssignedUserName(self, obj):
         return obj.AssignedTo.UserName if obj.AssignedTo else None
+
+    def _assigned_team(self, obj):
+        if not obj.AssignedTo_id:
+            return None
+
+        cache_key = "_tool_serializer_assigned_team"
+        if hasattr(obj, cache_key):
+            return getattr(obj, cache_key)
+
+        memberships = sorted(
+            (
+                membership
+                for membership in obj.AssignedTo.team_memberships.all()
+                if membership.active and membership.team.active
+            ),
+            key=lambda membership: (membership.team.name, membership.id),
+        )
+        led_teams = sorted(
+            (team for team in obj.AssignedTo.led_employee_teams.all() if team.active),
+            key=lambda team: (team.name, team.id),
+        )
+        team = memberships[0].team if memberships else (led_teams[0] if led_teams else None)
+        setattr(obj, cache_key, team)
+        return team
+
+    def get_AssignedTeamId(self, obj):
+        team = self._assigned_team(obj)
+        return team.id if team else None
+
+    def get_AssignedTeamName(self, obj):
+        team = self._assigned_team(obj)
+        return team.name if team else None
 
     def get_Location(self, obj):
         return obj.MainLocation
@@ -229,14 +265,20 @@ class ToolSerializer(serializers.ModelSerializer):
             "in_lucru": Tools.ToolStatus.IN_LUCRU,
             "lucru": Tools.ToolStatus.IN_LUCRU,
             "inlucru": Tools.ToolStatus.IN_LUCRU,
-            "magazie": Tools.ToolStatus.MAGAZIE,
-            "in_magazie": Tools.ToolStatus.MAGAZIE,
-            "stricata": Tools.ToolStatus.STRICATA,
-            "stricat": Tools.ToolStatus.STRICATA,
+            "functionala": Tools.ToolStatus.FUNCTIONALA,
+            "functional": Tools.ToolStatus.FUNCTIONALA,
+            "magazie": Tools.ToolStatus.FUNCTIONALA,
+            "in_magazie": Tools.ToolStatus.FUNCTIONALA,
+            "nefunctionala": Tools.ToolStatus.NEFUNCTIONALA,
+            "nefunctional": Tools.ToolStatus.NEFUNCTIONALA,
+            "defect": Tools.ToolStatus.NEFUNCTIONALA,
+            "defecta": Tools.ToolStatus.NEFUNCTIONALA,
+            "stricata": Tools.ToolStatus.NEFUNCTIONALA,
+            "stricat": Tools.ToolStatus.NEFUNCTIONALA,
         }
         if normalized in aliases:
             return aliases[normalized]
-        raise serializers.ValidationError("Valori permise: stricata, in_lucru, magazie.")
+        raise serializers.ValidationError("Valori permise: functionala, nefunctionala, in_lucru.")
 
     def validate_Pieces(self, value):
         if value in (None, ""):
@@ -266,10 +308,11 @@ class ToolSerializer(serializers.ModelSerializer):
         if "AssignedTo" in attrs:
             attrs["User"] = assigned.UserName if assigned else None
 
-        status = attrs.get("Status") or (Tools.ToolStatus.IN_LUCRU if self.instance is None else None)
-        if self.instance is None and "Status" not in attrs:
+        status = attrs.get("Status")
+        if "Status" not in attrs and (self.instance is None or "AssignedTo" in attrs):
+            status = Tools.ToolStatus.IN_LUCRU if assigned else Tools.ToolStatus.FUNCTIONALA
             attrs["Status"] = status
-        if status == Tools.ToolStatus.MAGAZIE and not attrs.get("MainLocation"):
+        if status == Tools.ToolStatus.FUNCTIONALA and not attrs.get("MainLocation"):
             attrs["MainLocation"] = "Magazie"
         elif status == Tools.ToolStatus.IN_LUCRU and assigned and not attrs.get("MainLocation"):
             attrs["MainLocation"] = assigned.UserName

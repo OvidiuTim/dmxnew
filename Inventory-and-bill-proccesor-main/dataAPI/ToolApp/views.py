@@ -703,7 +703,15 @@ def _tool_snapshot(source, *, pieces, status, user=None, location="Magazie"):
 @csrf_exempt
 def toolApi(request,id=0):
     if request.method=='GET':
-        tools = Tools.objects.select_related("AssignedTo").all()
+        tools = (
+            Tools.objects
+            .select_related("AssignedTo")
+            .prefetch_related(
+                "AssignedTo__team_memberships__team",
+                "AssignedTo__led_employee_teams",
+            )
+            .all()
+        )
 
         if id:
             try:
@@ -731,7 +739,7 @@ def toolApi(request,id=0):
         if warehouse_only not in (None, "") and _truthy(warehouse_only):
             tools = tools.filter(
                 AssignedTo__isnull=True,
-                Status=Tools.ToolStatus.MAGAZIE,
+                Status=Tools.ToolStatus.FUNCTIONALA,
             ).filter(Q(Pieces__isnull=True) | Q(Pieces__gt=0))
 
         is_ssm = request.GET.get("is_ssm")
@@ -826,7 +834,7 @@ def tool_assign_quantity(request):
             return JsonResponse({"error": "User not found"}, status=404)
 
         source_pieces = _tool_pieces(source)
-        if source.Status != Tools.ToolStatus.MAGAZIE or source.AssignedTo_id is not None:
+        if source.Status != Tools.ToolStatus.FUNCTIONALA or source.AssignedTo_id is not None:
             return JsonResponse({"error": "Unealta trebuie sa fie in magazie pentru predare."}, status=400)
         if source_pieces < quantity:
             return JsonResponse({"error": "Stoc insuficient in magazie."}, status=400)
@@ -836,7 +844,7 @@ def tool_assign_quantity(request):
         source.AssignedTo = None
         source.User = None
         source.MainLocation = "Magazie"
-        source.Status = Tools.ToolStatus.MAGAZIE
+        source.Status = Tools.ToolStatus.FUNCTIONALA
         source.IsReturned = False
         source.IsLost = False
         source.DateReturned = None
@@ -885,8 +893,20 @@ def tool_return_quantity(request):
     data = JSONParser().parse(request)
     quantity = _request_quantity(data)
     tool_id = data.get("ToolId") or data.get("tool_id")
-    raw_status = str(data.get("Status") or data.get("status") or Tools.ToolStatus.MAGAZIE).strip().lower()
-    target_status = Tools.ToolStatus.STRICATA if raw_status == Tools.ToolStatus.STRICATA else Tools.ToolStatus.MAGAZIE
+    raw_status = str(data.get("Status") or data.get("status") or Tools.ToolStatus.FUNCTIONALA).strip().lower()
+    nonfunctional_aliases = {
+        Tools.ToolStatus.NEFUNCTIONALA,
+        "nefunctional",
+        "defect",
+        "defecta",
+        "stricata",
+        "stricat",
+    }
+    target_status = (
+        Tools.ToolStatus.NEFUNCTIONALA
+        if raw_status in nonfunctional_aliases
+        else Tools.ToolStatus.FUNCTIONALA
+    )
 
     if not tool_id:
         return JsonResponse({"error": "ToolId este obligatoriu."}, status=400)
@@ -944,7 +964,7 @@ def tool_return_quantity(request):
                 source.delete()
             except ProtectedError:
                 source.Pieces = 0
-                source.Status = Tools.ToolStatus.MAGAZIE
+                source.Status = Tools.ToolStatus.FUNCTIONALA
                 source.IsReturned = True
                 source.DateReturned = localdate()
                 source.save(update_fields=["Pieces", "Status", "IsReturned", "DateReturned"])
@@ -1523,7 +1543,7 @@ def return_tool(request):
         obj = ser.save()
         tool.DateReturned = timezone.localtime(obj.timestamp).date()
         tool.MainLocation = "Magazie"
-        tool.Status = Tools.ToolStatus.MAGAZIE
+        tool.Status = Tools.ToolStatus.FUNCTIONALA
         tool.IsReturned = True
         tool.IsLost = False
         tool.DateLost = None
@@ -1667,7 +1687,7 @@ def sensor_event(request):
             else:
                 tool.DateReturned = movement_day
                 tool.MainLocation = "Magazie"
-                tool.Status = Tools.ToolStatus.MAGAZIE
+                tool.Status = Tools.ToolStatus.FUNCTIONALA
                 tool.IsReturned = True
                 tool.IsLost = False
                 tool.DateLost = None

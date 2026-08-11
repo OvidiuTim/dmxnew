@@ -323,11 +323,11 @@ export class FisaAngajatComponent implements OnInit {
   statusLabel(status: string | null | undefined): string {
     const normalized = this.normalizeStatus(status);
     const labels: Record<string, string> = {
-      in_lucru: 'In lucru',
-      magazie: 'In magazie',
-      stricata: 'Stricata',
+      functionala: 'Funcțional',
+      nefunctionala: 'Nefuncțional',
+      in_lucru: 'În lucru',
     };
-    return labels[normalized] ?? 'In lucru';
+    return labels[normalized] ?? 'În lucru';
   }
 
   statusClass(status: string | null | undefined): string {
@@ -392,9 +392,11 @@ export class FisaAngajatComponent implements OnInit {
 
   private normalizeStatus(status: string | null | undefined): string {
     const normalized = String(status ?? '').trim().toLowerCase().replace(/\s+/g, '_');
-    if (normalized === 'magazie' || normalized === 'stricata' || normalized === 'in_lucru') {
+    if (normalized === 'functionala' || normalized === 'nefunctionala' || normalized === 'in_lucru') {
       return normalized;
     }
+    if (normalized === 'magazie') return 'functionala';
+    if (normalized === 'stricata') return 'nefunctionala';
     return 'in_lucru';
   }
 

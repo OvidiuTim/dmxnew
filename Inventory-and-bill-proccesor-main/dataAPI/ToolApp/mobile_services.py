@@ -353,7 +353,7 @@ def _stable_name_code(tool):
 def normalize_tool_status(tool):
     if tool.IsLost:
         return "lost"
-    if tool.Status == Tools.ToolStatus.STRICATA:
+    if tool.Status == Tools.ToolStatus.NEFUNCTIONALA:
         return "damaged"
     return "in_use"
 

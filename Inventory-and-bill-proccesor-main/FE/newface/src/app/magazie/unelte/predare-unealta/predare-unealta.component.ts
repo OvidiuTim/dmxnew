@@ -39,7 +39,7 @@ interface ToolItem {
 }
 
 type HandoverTab = 'predare' | 'preluare';
-type ReturnStatus = 'magazie' | 'stricata';
+type ReturnStatus = 'functionala' | 'nefunctionala';
 
 @Component({
   selector: 'app-predare-unealta',
@@ -54,7 +54,7 @@ export class PredareUnealtaComponent implements OnInit {
   userSearchTerm = '';
   toolSearchTerm = '';
   activeTab: HandoverTab = 'predare';
-  returnStatus: ReturnStatus = 'magazie';
+  returnStatus: ReturnStatus = 'functionala';
   loadingUsers = false;
   loadingTools = false;
   saving = false;
@@ -270,7 +270,7 @@ export class PredareUnealtaComponent implements OnInit {
       return;
     }
 
-    const statusLabel = this.returnStatus === 'stricata' ? 'stricata' : 'functionala';
+    const statusLabel = this.returnStatus === 'nefunctionala' ? 'nefuncțională' : 'funcțională';
     const quantity = this.quantityFor(tool);
     const confirmed = confirm(`Preiei ${quantity} ${quantity === 1 ? 'bucata' : 'bucati'} din "${tool.ToolName}" de la ${this.selectedUser.UserName} ca unealta ${statusLabel}?`);
     if (!confirmed) {
@@ -288,9 +288,9 @@ export class PredareUnealtaComponent implements OnInit {
     }).subscribe({
       next: () => {
         this.saving = false;
-        this.success = this.returnStatus === 'stricata'
-          ? `Au fost preluate ${quantity} ${quantity === 1 ? 'bucata' : 'bucati'} in magazie ca stricate.`
-          : `Au fost preluate ${quantity} ${quantity === 1 ? 'bucata' : 'bucati'} in magazie ca functionale.`;
+        this.success = this.returnStatus === 'nefunctionala'
+          ? `Au fost preluate ${quantity} ${quantity === 1 ? 'bucată' : 'bucăți'} în magazie ca nefuncționale.`
+          : `Au fost preluate ${quantity} ${quantity === 1 ? 'bucată' : 'bucăți'} în magazie ca funcționale.`;
         this.toolSearchTerm = '';
         delete this.quantities[tool.ToolId];
         this.loadTools();
@@ -322,7 +322,7 @@ export class PredareUnealtaComponent implements OnInit {
 
   private isWarehouseTool(tool: ToolItem): boolean {
     const status = this.normalize(tool.Status);
-    return !tool.IsLost && status === 'magazie' && this.piecesCount(tool) > 0;
+    return !tool.IsLost && status === 'functionala' && this.piecesCount(tool) > 0;
   }
 
   private isToolAssignedToSelectedUser(tool: ToolItem): boolean {

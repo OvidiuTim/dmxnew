@@ -335,13 +335,13 @@ textarea:focus {
   color: #9fe4bb;
 }
 
-.status.magazie {
+.status.functionala {
   border-color: #4c4f5e;
   background: #1a1e28;
   color: #c7ceda;
 }
 
-.status.stricata {
+.status.nefunctionala {
   border-color: #733239;
   background: #30171b;
   color: #ffb9bf;

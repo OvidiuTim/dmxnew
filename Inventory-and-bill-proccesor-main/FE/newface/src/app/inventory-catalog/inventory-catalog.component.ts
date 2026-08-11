@@ -16,12 +16,21 @@ type ToolRecord = {
   MainLocation?: string | null;
   Location?: string | null;
   AssignedUserName?: string | null;
+  AssignedTeamId?: number | null;
+  AssignedTeamName?: string | null;
   User?: string | null;
   Pieces?: number | null;
   IsSSM: boolean;
   Status?: string | null;
   StatusLabel?: string | null;
   RequiresVerification?: boolean;
+};
+
+type TeamToolGroup = {
+  id: number | string;
+  name: string;
+  tools: ToolRecord[];
+  pieces: number;
 };
 
 @Component({
@@ -100,11 +109,34 @@ export class InventoryCatalogComponent implements OnInit, OnDestroy {
   }
 
   get warehousePieces(): number {
-    return this.tools.filter(tool => !this.isAssigned(tool) && tool.Status === 'magazie').reduce((total, tool) => total + this.piecesOf(tool), 0);
+    return this.tools.filter(tool => !this.isAssigned(tool) && tool.Status === 'functionala').reduce((total, tool) => total + this.piecesOf(tool), 0);
   }
 
-  get verificationCount(): number {
-    return this.tools.filter(tool => Boolean(tool.RequiresVerification)).length;
+  get attentionCount(): number {
+    return this.isSsm
+      ? this.tools.filter(tool => Boolean(tool.RequiresVerification)).length
+      : this.tools.filter(tool => tool.Status === 'nefunctionala').reduce((total, tool) => total + this.piecesOf(tool), 0);
+  }
+
+  get teamToolGroups(): TeamToolGroup[] {
+    const groups = new Map<number | string, TeamToolGroup>();
+    this.tools
+      .filter(tool => !tool.IsSSM && Boolean(tool.AssignedTeamName) && this.isAssigned(tool))
+      .forEach(tool => {
+        const name = String(tool.AssignedTeamName).trim();
+        const id = tool.AssignedTeamId ?? name;
+        const group = groups.get(id) ?? { id, name, tools: [], pieces: 0 };
+        group.tools.push(tool);
+        group.pieces += this.piecesOf(tool);
+        groups.set(id, group);
+      });
+
+    return [...groups.values()]
+      .map(group => ({
+        ...group,
+        tools: [...group.tools].sort((a, b) => a.ToolName.localeCompare(b.ToolName, 'ro')),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ro'));
   }
 
   get filteredTools(): ToolRecord[] {
@@ -112,7 +144,7 @@ export class InventoryCatalogComponent implements OnInit, OnDestroy {
     return this.tools.filter(tool => {
       const searchable = [
         tool.ToolName, tool.ToolSerie, tool.DisplaySerie, tool.Category, tool.Brand,
-        tool.Model, tool.SerialNumber, this.locationOf(tool), this.employeeOf(tool)
+        tool.Model, tool.SerialNumber, this.locationOf(tool), this.employeeOf(tool), tool.AssignedTeamName
       ].map(value => this.normalize(value)).join(' ');
       return (!query || searchable.includes(query))
         && (this.categoryFilter === 'ALL' || tool.Category === this.categoryFilter)
@@ -173,7 +205,7 @@ export class InventoryCatalogComponent implements OnInit, OnDestroy {
 
   statusLabel(tool: ToolRecord): string {
     if (tool.StatusLabel) return tool.StatusLabel;
-    return ({ magazie: 'În magazie', in_lucru: 'În lucru', stricata: 'Defect' } as Record<string, string>)[String(tool.Status)] || 'Necunoscut';
+    return ({ functionala: 'Funcțional', nefunctionala: 'Nefuncțional', in_lucru: 'În lucru' } as Record<string, string>)[String(tool.Status)] || 'Necunoscut';
   }
 
   private isAssigned(tool: ToolRecord): boolean {

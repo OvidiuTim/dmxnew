@@ -140,7 +140,7 @@ export class ModalUnelteComponent implements OnInit {
       Provider:this.Provider,
       AssignedUserId:this.selectedUserSimple?.UserId ?? null,
       IsSSM:!!this.tol.IsSSM,
-      Status:'magazie',
+      Status:'functionala',
       IsReturned:true,
       DateReturned:this.DateOfGiving,
       IsLost:false,

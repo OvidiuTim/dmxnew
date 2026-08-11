@@ -96,7 +96,7 @@ class ImportToolsXlsxTests(TestCase):
         broken = Tools.objects.get(ToolSerie="SC-0001")
         self.assertEqual(broken.ToolName, "Demolator Hilti")
         self.assertEqual(broken.Pieces, 2)
-        self.assertEqual(broken.Status, Tools.ToolStatus.STRICATA)
+        self.assertEqual(broken.Status, Tools.ToolStatus.NEFUNCTIONALA)
         self.assertEqual(broken.MainLocation, "Magazie")
         self.assertEqual(broken.Brand, "HILTI")
         self.assertEqual(broken.Model, "TE 3000")
@@ -106,7 +106,7 @@ class ImportToolsXlsxTests(TestCase):
 
         ssm = Tools.objects.get(ToolSerie="SC-0002")
         self.assertTrue(ssm.IsSSM)
-        self.assertEqual(ssm.Status, Tools.ToolStatus.MAGAZIE)
+        self.assertEqual(ssm.Status, Tools.ToolStatus.FUNCTIONALA)
         self.assertTrue(ssm.RequiresVerification)
 
         output = StringIO()
