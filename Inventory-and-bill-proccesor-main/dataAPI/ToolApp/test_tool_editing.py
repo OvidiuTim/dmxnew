@@ -1,4 +1,5 @@
 import json
+from datetime import date
 
 from django.test import TestCase
 
@@ -104,6 +105,7 @@ class ToolEditingApiTests(TestCase):
             Pieces=3,
             Status=Tools.ToolStatus.FUNCTIONALA,
             MainLocation="Magazie",
+            ExpiryDate=date(2030, 12, 31),
         )
         authorization = f"Bearer {make_admin_token()}"
 
@@ -121,6 +123,7 @@ class ToolEditingApiTests(TestCase):
         self.assertEqual(assign_response.status_code, 200)
         self.assertEqual(assign_response.json()["warehouse"]["Status"], "functionala")
         self.assertEqual(assign_response.json()["assigned"]["Status"], "in_lucru")
+        self.assertEqual(assign_response.json()["assigned"]["ExpiryDate"], "2030-12-31")
 
         assigned_tool_id = assign_response.json()["assigned"]["ToolId"]
         return_response = self.client.post(

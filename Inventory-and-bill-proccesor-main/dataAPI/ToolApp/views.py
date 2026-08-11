@@ -677,6 +677,7 @@ def _tool_snapshot(source, *, pieces, status, user=None, location="Magazie"):
         "BatchId": source.BatchId,
         "User": user.UserName if user else None,
         "DateOfGiving": localdate() if user else None,
+        "ExpiryDate": source.ExpiryDate,
         "Detail": source.Detail,
         "Pieces": max(0, int(pieces)),
         "MainLocation": location,

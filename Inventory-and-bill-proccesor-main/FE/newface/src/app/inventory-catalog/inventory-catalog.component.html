@@ -11,7 +11,7 @@
     </button>
   </header>
 
-  <section class="stats-grid" aria-label="Indicatori inventar">
+  <section class="stats-grid" *ngIf="!isSsm; else ssmStats" aria-label="Indicatori inventar">
     <article class="stat-card">
       <span class="stat-icon"><app-icon [name]="isSsm ? 'shield' : 'tool'" [size]="24"></app-icon></span>
       <div><strong>{{ totalPieces }}</strong><span>Bucăți în evidență</span></div>
@@ -30,34 +30,28 @@
     </article>
   </section>
 
-  <section class="team-tools" *ngIf="!isSsm" aria-labelledby="team-tools-title">
-    <header>
-      <div>
-        <p class="eyebrow">Distribuție operațională</p>
-        <h2 id="team-tools-title">Scule pe echipă</h2>
-      </div>
-      <span>{{ teamToolGroups.length }} {{ teamToolGroups.length === 1 ? 'echipă' : 'echipe' }}</span>
-    </header>
-    <div class="team-tools-grid" *ngIf="teamToolGroups.length; else noTeamTools">
-      <article class="team-tool-card" *ngFor="let group of teamToolGroups">
-        <div class="team-card-heading">
-          <span class="team-icon"><app-icon name="team" [size]="22"></app-icon></span>
-          <div><h3>{{ group.name }}</h3><span>{{ group.pieces }} {{ group.pieces === 1 ? 'bucată' : 'bucăți' }}</span></div>
-        </div>
-        <ul>
-          <li *ngFor="let tool of group.tools; trackBy: trackByTool">
-            <strong>{{ tool.ToolName }}</strong> este în {{ group.name }}
-            <span>Predată lui {{ employeeOf(tool) }} · {{ piecesOf(tool) }} {{ piecesOf(tool) === 1 ? 'bucată' : 'bucăți' }}</span>
-          </li>
-        </ul>
+  <ng-template #ssmStats>
+    <section class="stats-grid" aria-label="Indicatori echipamente SSM">
+      <article class="stat-card">
+        <span class="stat-icon"><app-icon name="team" [size]="24"></app-icon></span>
+        <div><strong>{{ employees.length }}</strong><span>Total angajați</span></div>
       </article>
-    </div>
-    <ng-template #noTeamTools>
-      <p class="no-team-tools">Nicio sculă nu este atribuită momentan unui angajat dintr-o echipă.</p>
-    </ng-template>
-  </section>
+      <article class="stat-card">
+        <span class="stat-icon"><app-icon name="task_alt" [size]="24"></app-icon></span>
+        <div><strong>{{ completeSsmEmployees }}</strong><span>Echipare completă</span></div>
+      </article>
+      <article class="stat-card">
+        <span class="stat-icon incomplete"><app-icon name="person_off" [size]="24"></app-icon></span>
+        <div><strong>{{ incompleteSsmEmployees }}</strong><span>Echipare incompletă</span></div>
+      </article>
+      <article class="stat-card">
+        <span class="stat-icon warning"><app-icon name="alert" [size]="24"></app-icon></span>
+        <div><strong>{{ expiredSsmEmployees }}</strong><span>Cu echipament expirat</span></div>
+      </article>
+    </section>
+  </ng-template>
 
-  <section class="toolbar" aria-label="Filtre inventar">
+  <section class="toolbar" *ngIf="!isSsm; else ssmToolbar" aria-label="Filtre inventar">
     <label class="search-box">
       <span class="sr-only">Caută</span>
       <app-icon name="search" [size]="18"></app-icon>
@@ -88,6 +82,25 @@
     </label>
   </section>
 
+  <ng-template #ssmToolbar>
+    <section class="toolbar ssm-toolbar" aria-label="Filtre angajați SSM">
+      <label class="search-box">
+        <span class="sr-only">Caută angajat</span>
+        <app-icon name="search" [size]="18"></app-icon>
+        <input type="search" [(ngModel)]="searchTerm" (ngModelChange)="filtersChanged()" placeholder="Caută după angajat, profesie sau companie">
+      </label>
+      <label>
+        <span class="sr-only">Status echipare</span>
+        <select [(ngModel)]="ssmStatusFilter" (ngModelChange)="filtersChanged()">
+          <option value="ALL">Toate statusurile</option>
+          <option value="complete">Complet</option>
+          <option value="incomplete">Incomplet</option>
+          <option value="expired">Echipament expirat</option>
+        </select>
+      </label>
+    </section>
+  </ng-template>
+
   <section class="state-card" *ngIf="loading" aria-live="polite">
     <span class="spinner"></span><strong>Se încarcă inventarul...</strong>
   </section>
@@ -97,7 +110,46 @@
   </section>
 
   <ng-container *ngIf="!loading && !error">
-    <section class="inventory-table" *ngIf="filteredTools.length; else emptyState">
+    <section class="inventory-table ssm-table" *ngIf="isSsm && filteredSsmRows.length">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Angajat</th><th>Cască</th><th>Bocanci</th><th>Vestă</th><th>Ham</th><th>Mănuși</th><th>Status</th><th>Acțiuni</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of pagedSsmRows; trackBy: trackByEmployee">
+              <td>
+                <div class="employee-cell">
+                  <span class="employee-symbol"><app-icon name="badge" [size]="20"></app-icon></span>
+                  <div><strong>{{ row.employee.UserName }}</strong><span>{{ row.employee.trade || 'Profesie nespecificată' }}<ng-container *ngIf="row.employee.Company"> · {{ row.employee.Company }}</ng-container></span></div>
+                </div>
+              </td>
+              <td *ngFor="let cell of [row.equipment.helmet, row.equipment.boots, row.equipment.vest, row.equipment.harness, row.equipment.gloves]">
+                <span class="equipment-state" [class.present]="cell.present && !cell.expired" [class.missing]="!cell.present" [class.expired]="cell.expired" [attr.title]="cell.tools.length ? cell.tools[0].ToolName : cell.label + ' lipsă'">
+                  <app-icon [name]="cell.expired ? 'alert' : (cell.present ? 'task_alt' : 'close')" [size]="17"></app-icon>
+                  {{ cell.expired ? 'Expirat' : (cell.present ? 'Da' : 'Nu') }}
+                </span>
+              </td>
+              <td>
+                <span class="status-pill" [class.complete]="row.complete" [class.incomplete]="!row.complete">{{ row.complete ? 'Complet' : 'Incomplet' }}</span>
+                <small class="expired-warning" *ngIf="row.expiredLabels.length"><app-icon name="alert" [size]="15"></app-icon> Expirat: {{ row.expiredLabels.join(', ') }}</small>
+              </td>
+              <td>
+                <button class="equipment-action" type="button" (click)="openEmployeeEquipment(row.employee.UserId)" [attr.aria-label]="'Gestionează echipamentele pentru ' + row.employee.UserName">
+                  <app-icon name="adjust" [size]="18"></app-icon><span>Gestionează</span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <footer class="pagination">
+        <span>{{ firstVisible }}–{{ lastVisible }} din {{ filteredSsmRows.length }}</span>
+        <div><button type="button" [disabled]="page === 1" (click)="changePage(page - 1)" aria-label="Pagina anterioară">‹</button><strong>Pagina {{ page }} / {{ totalPages }}</strong><button type="button" [disabled]="page === totalPages" (click)="changePage(page + 1)" aria-label="Pagina următoare">›</button></div>
+      </footer>
+    </section>
+
+    <section class="inventory-table" *ngIf="!isSsm && filteredTools.length">
       <div class="table-scroll">
         <table>
           <thead><tr><th>Articol</th><th>Categorie</th><th>Stare</th><th>Locație</th><th>Responsabil</th><th>Echipă</th><th>Bucăți</th></tr></thead>
@@ -126,12 +178,37 @@
       </footer>
     </section>
 
-    <ng-template #emptyState>
-      <section class="state-card empty">
-        <span class="empty-icon"><app-icon [name]="isSsm ? 'shield' : 'package'" [size]="32"></app-icon></span>
-        <div><strong>Niciun rezultat</strong><p>{{ tools.length ? 'Nu există articole pentru filtrele selectate.' : 'Backend-ul nu a returnat articole pentru această categorie.' }}</p></div>
-        <button type="button" *ngIf="tools.length" (click)="clearFilters()">Resetează filtrele</button>
-      </section>
-    </ng-template>
+    <section class="state-card empty" *ngIf="(isSsm && !filteredSsmRows.length) || (!isSsm && !filteredTools.length)">
+      <span class="empty-icon"><app-icon [name]="isSsm ? 'shield' : 'package'" [size]="32"></app-icon></span>
+      <div><strong>Niciun rezultat</strong><p>{{ isSsm ? 'Nu există angajați pentru filtrul selectat.' : (tools.length ? 'Nu există articole pentru filtrele selectate.' : 'Backend-ul nu a returnat articole pentru această categorie.') }}</p></div>
+      <button type="button" *ngIf="searchTerm || ssmStatusFilter !== 'ALL' || tools.length" (click)="clearFilters()">Resetează filtrele</button>
+    </section>
   </ng-container>
+
+  <section class="team-tools team-tools-footer" *ngIf="!isSsm && !loading && !error" aria-labelledby="team-tools-title">
+    <header>
+      <div>
+        <p class="eyebrow">Distribuție operațională</p>
+        <h2 id="team-tools-title">Scule pe echipă</h2>
+      </div>
+      <span>{{ teamToolGroups.length }} {{ teamToolGroups.length === 1 ? 'echipă' : 'echipe' }}</span>
+    </header>
+    <div class="team-tools-grid" *ngIf="teamToolGroups.length; else noTeamTools">
+      <article class="team-tool-card" *ngFor="let group of teamToolGroups">
+        <div class="team-card-heading">
+          <span class="team-icon"><app-icon name="team" [size]="22"></app-icon></span>
+          <div><h3>{{ group.name }}</h3><span>{{ group.pieces }} {{ group.pieces === 1 ? 'bucată' : 'bucăți' }}</span></div>
+        </div>
+        <ul>
+          <li *ngFor="let tool of group.tools; trackBy: trackByTool">
+            <strong>{{ tool.ToolName }}</strong> este la {{ group.name }}
+            <span>Predată lui {{ employeeOf(tool) }} · {{ piecesOf(tool) }} {{ piecesOf(tool) === 1 ? 'bucată' : 'bucăți' }}</span>
+          </li>
+        </ul>
+      </article>
+    </div>
+    <ng-template #noTeamTools>
+      <p class="no-team-tools">Nicio sculă nu este atribuită momentan unui angajat dintr-o echipă.</p>
+    </ng-template>
+  </section>
 </section>

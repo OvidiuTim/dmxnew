@@ -123,6 +123,7 @@ class ToolSerializer(serializers.ModelSerializer):
             "BatchId",
             "User",           # legacy (read/write, dacă îl folosești încă)
             "DateOfGiving",   # legacy
+            "ExpiryDate",
             "Detail",
             "Pieces",
             "MainLocation",
@@ -156,6 +157,7 @@ class ToolSerializer(serializers.ModelSerializer):
             "BatchId": {"required": False, "allow_blank": True},
             "User": {"required": False, "allow_null": True, "allow_blank": True},
             "DateOfGiving": {"required": False, "allow_null": True},
+            "ExpiryDate": {"required": False, "allow_null": True},
             "Detail": {"required": False, "allow_null": True, "allow_blank": True},
             "Pieces": {"required": False, "allow_null": True},
             "MainLocation": {"required": False, "allow_null": True, "allow_blank": True},
@@ -253,7 +255,7 @@ class ToolSerializer(serializers.ModelSerializer):
         if "DateReceived" in mutable and "DateOfGiving" not in mutable:
             mutable["DateOfGiving"] = mutable.get("DateReceived")
 
-        for key in ("AssignedUserId", "DateOfGiving", "DateReceived", "DateReturned", "DateLost", "ToolSerie", "RfidTag"):
+        for key in ("AssignedUserId", "DateOfGiving", "DateReceived", "ExpiryDate", "DateReturned", "DateLost", "ToolSerie", "RfidTag"):
             if mutable.get(key) == "":
                 mutable[key] = None
 

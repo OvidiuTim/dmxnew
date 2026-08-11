@@ -35,6 +35,7 @@ interface ToolItem {
   AssignedUserName?: string | null;
   DateReceived?: string | null;
   DateOfGiving?: string | null;
+  ExpiryDate?: string | null;
   IsReturned?: boolean | null;
   IsLost?: boolean | null;
   DateReturned?: string | null;
@@ -53,6 +54,7 @@ interface ToolForm {
   AssignedUserId: number | null;
   Pieces: number;
   DateReceived: string;
+  ExpiryDate: string;
   IsReturned: boolean;
   DateReturned: string;
   IsLost: boolean;
@@ -239,6 +241,7 @@ export class UnelteComponent implements OnInit {
       AssignedUserId: tool.AssignedUserId ?? null,
       Pieces: this.piecesCount(tool),
       DateReceived: tool.DateReceived ?? tool.DateOfGiving ?? '',
+      ExpiryDate: tool.ExpiryDate ?? '',
       IsReturned: !!tool.IsReturned,
       DateReturned: tool.DateReturned ?? '',
       IsLost: !!tool.IsLost,
@@ -348,6 +351,7 @@ export class UnelteComponent implements OnInit {
       AssignedUserId: this.toolForm.AssignedUserId,
       DateReceived: this.normalizeOptional(this.toolForm.DateReceived),
       DateOfGiving: this.normalizeOptional(this.toolForm.DateReceived),
+      ExpiryDate: this.toolForm.IsSSM ? this.normalizeOptional(this.toolForm.ExpiryDate) : null,
       IsReturned: this.toolForm.IsReturned,
       DateReturned: this.toolForm.IsReturned ? this.normalizeOptional(this.toolForm.DateReturned) : null,
       IsLost: this.toolForm.IsLost,
@@ -368,6 +372,7 @@ export class UnelteComponent implements OnInit {
       AssignedUserId: null,
       Pieces: 1,
       DateReceived: this.todayISO(),
+      ExpiryDate: '',
       IsReturned: false,
       DateReturned: '',
       IsLost: false,

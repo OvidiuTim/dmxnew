@@ -14,6 +14,7 @@ interface AddToolForm {
   AssignedUserId: number | null;
   Pieces: number;
   Detail: string;
+  ExpiryDate: string;
 }
 
 @Component({
@@ -147,6 +148,7 @@ export class AdaugaUnealtaComponent implements OnInit {
       Location: this.computedLocation,
       MainLocation: this.computedLocation,
       Detail: this.normalizeOptional(this.form.Detail),
+      ExpiryDate: this.form.IsSSM ? this.normalizeOptional(this.form.ExpiryDate) : null,
       AssignedUserId: this.form.AssignedUserId,
       DateReceived: this.computedDateReceived,
       DateOfGiving: this.computedDateReceived,
@@ -166,6 +168,7 @@ export class AdaugaUnealtaComponent implements OnInit {
       AssignedUserId: null,
       Pieces: 1,
       Detail: '',
+      ExpiryDate: '',
     };
   }
 

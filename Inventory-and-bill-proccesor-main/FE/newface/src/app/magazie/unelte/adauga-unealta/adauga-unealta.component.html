@@ -51,6 +51,11 @@
           <div class="readonly-field">{{ computedDateReceived }}</div>
         </label>
 
+        <label *ngIf="form.IsSSM">
+          <span>Data expirării</span>
+          <input type="date" [(ngModel)]="form.ExpiryDate">
+        </label>
+
         <label class="details-field">
           <span>Detalii</span>
           <textarea rows="3" [(ngModel)]="form.Detail" placeholder="Detalii utile pentru magazie"></textarea>

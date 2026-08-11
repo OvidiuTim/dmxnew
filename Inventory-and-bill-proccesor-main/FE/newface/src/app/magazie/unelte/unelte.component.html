@@ -64,6 +64,11 @@
           <input type="date" [(ngModel)]="toolForm.DateReceived">
         </label>
 
+        <label *ngIf="toolForm.IsSSM">
+          <span>Data expirării</span>
+          <input type="date" [(ngModel)]="toolForm.ExpiryDate">
+        </label>
+
         <label>
           <span>Locatie</span>
           <input type="text" [(ngModel)]="toolForm.Location" placeholder="Magazie, santier sau angajat">

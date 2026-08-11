@@ -31,6 +31,7 @@ class Tools(models.Model):
     # (opțional) deconectează câmpurile care dublau istoricul (le poți păstra provizoriu):
     User = models.CharField(max_length=100, blank=True, null=True)            # legacy
     DateOfGiving = models.DateField(blank=True, null=True)                    # legacy
+    ExpiryDate = models.DateField(blank=True, null=True, db_index=True)
 
     Detail = models.CharField(max_length=500, null=True, blank=True)
     Pieces = models.IntegerField(null=True, blank=True)  # pentru seturi (ex: trusă cu 5 buc)
