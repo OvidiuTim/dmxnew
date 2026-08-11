@@ -97,6 +97,17 @@ class MobileEmployeeApiTests(TestCase):
             current += timedelta(days=1)
         return added
 
+    def assign_employee_to_team(self):
+        leader = Users.objects.create(
+            UserName="Șef Mobil",
+            UserSerie="MOB-LEAD",
+            trade="Șef de echipă",
+        )
+        team = EmployeeTeam.objects.create(name="Echipa Mobilă", leader=leader)
+        EmployeeTeamMember.objects.create(team=team, employee=leader)
+        EmployeeTeamMember.objects.create(team=team, employee=self.employee)
+        return team
+
     def test_authentication_requires_valid_pin_and_device_key(self):
         bad_pin = self.post(
             "/api/mobile/employee-dashboard/",
@@ -334,6 +345,7 @@ class MobileEmployeeApiTests(TestCase):
                 leave.save()
 
     def test_overlapping_leave_requests_are_rejected(self):
+        self.assign_employee_to_team()
         first = self.post(
             "/api/mobile/leave-requests/",
             self.credentials(
@@ -355,6 +367,7 @@ class MobileEmployeeApiTests(TestCase):
         self.assertEqual(second.json()["error_code"], "OVERLAPPING_LEAVE_REQUEST")
 
     def test_leave_request_needs_no_reason_field(self):
+        team = self.assign_employee_to_team()
         response = self.post(
             "/api/mobile/leave-requests/",
             self.credentials(
@@ -366,6 +379,9 @@ class MobileEmployeeApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         payload = response.json()["leave_request"]
         self.assertEqual(payload["leave_days"], 6)
+        self.assertEqual(payload["status"], "pending")
+        self.assertEqual(payload["status_label"], "În așteptare")
+        self.assertEqual(payload["team"], {"id": team.pk, "name": team.name})
         self.assertNotIn("reason", payload)
         self.assertNotIn("rejection_reason", payload)
 

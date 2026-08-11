@@ -449,10 +449,17 @@ def serialize_leave_request(item):
     return {
         "id": item.pk,
         "leave_type": item.leave_type,
+        "leave_type_label": item.get_leave_type_display(),
         "status": item.status,
+        "status_label": item.get_status_display(),
         "start_date": item.start_date.isoformat(),
         "end_date": item.end_date.isoformat(),
         "leave_days": count_salary_days_in_range(item.start_date, item.end_date),
         "created_at": item.created_at.isoformat() if item.created_at else None,
         "approved_at": item.approved_at.isoformat() if item.approved_at else None,
+        "reviewed_at": item.reviewed_at.isoformat() if item.reviewed_at else None,
+        "team": {
+            "id": item.team_id,
+            "name": item.team.name,
+        } if item.team_id else None,
     }

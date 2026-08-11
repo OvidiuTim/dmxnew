@@ -44,6 +44,12 @@ export class SharedService {
     });
   }
 
+  // --- Cereri de concediu ---
+  getLeaveRequests()                   { return this.http.get<any>(`${this.API}/leave-requests/`); }
+  decideLeaveRequest(requestId: number, action: 'approve' | 'reject') {
+    return this.http.post<any>(`${this.API}/leave-requests/${requestId}/decision/`, { action });
+  }
+
   // --- Documente angajați ---
   getEmployeeDocumentTypes()           { return this.http.get<any>(`${this.API}/employee-document-types/`); }
   addEmployeeDocumentType(val: any)    { return this.http.post<any>(`${this.API}/employee-document-types/`, val); }

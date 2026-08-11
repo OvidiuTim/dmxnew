@@ -47,6 +47,7 @@ import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
 import { EmployeeAvatarComponent } from './teams/employee-avatar.component';
 import { ToolsNavComponent } from './magazie/unelte/tools-nav.component';
 import { AccommodationsComponent } from './pontaj/accommodations/accommodations.component';
+import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.component';
 
 @NgModule({
   declarations: [
@@ -84,6 +85,7 @@ import { AccommodationsComponent } from './pontaj/accommodations/accommodations.
     EmployeeAvatarComponent,
     ToolsNavComponent,
     AccommodationsComponent,
+    LeaveRequestsComponent,
   ],
   imports: [
     CommonModule,

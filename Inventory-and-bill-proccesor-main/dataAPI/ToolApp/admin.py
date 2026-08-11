@@ -98,10 +98,10 @@ class EmployeeSalaryProfileAdmin(admin.ModelAdmin):
 
 @admin.register(LeaveRequest)
 class LeaveRequestAdmin(admin.ModelAdmin):
-    list_display = ("employee", "leave_type", "start_date", "end_date", "status")
+    list_display = ("employee", "team", "assigned_leader", "leave_type", "start_date", "end_date", "status")
     list_filter = ("status", "leave_type", "start_date")
     search_fields = ("employee__UserName", "employee__UserSerie")
-    readonly_fields = ("created_at", "approved_at", "approved_by")
+    readonly_fields = ("created_at", "approved_at", "approved_by", "reviewed_at", "reviewed_by_app_user")
 
     def save_model(self, request, obj, form, change):
         if obj.status == LeaveRequest.Status.APPROVED and not obj.approved_at:
@@ -110,6 +110,8 @@ class LeaveRequestAdmin(admin.ModelAdmin):
         elif obj.status != LeaveRequest.Status.APPROVED:
             obj.approved_at = None
             obj.approved_by = None
+        if obj.status != LeaveRequest.Status.PENDING and not obj.reviewed_at:
+            obj.reviewed_at = timezone.now()
         super().save_model(request, obj, form, change)
 
 

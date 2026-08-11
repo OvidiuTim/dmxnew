@@ -1,0 +1,70 @@
+<section class="leave-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">Echipe și program</span>
+      <h1>Cereri de concediu</h1>
+      <p>{{ canManageAll ? 'Vezi și soluționează cererile tuturor angajaților.' : 'Vezi și soluționează cererile angajaților din echipa ta.' }}</p>
+    </div>
+    <button type="button" class="button" (click)="load()" [disabled]="loading">
+      <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
+      Actualizează
+    </button>
+  </header>
+
+  <div class="notice success" *ngIf="notice"><span class="material-symbols-rounded" aria-hidden="true">task_alt</span>{{ notice }}</div>
+  <div class="notice error" *ngIf="error"><span class="material-symbols-rounded" aria-hidden="true">warning</span>{{ error }}</div>
+
+  <section class="stats-grid" aria-label="Situația cererilor de concediu">
+    <article><span class="stat-icon total material-symbols-rounded" aria-hidden="true">calendar_month</span><div><strong>{{ count() }}</strong><small>Total cereri</small></div></article>
+    <article><span class="stat-icon pending material-symbols-rounded" aria-hidden="true">pending_actions</span><div><strong>{{ count('pending') }}</strong><small>În așteptare</small></div></article>
+    <article><span class="stat-icon approved material-symbols-rounded" aria-hidden="true">task_alt</span><div><strong>{{ count('approved') }}</strong><small>Aprobate</small></div></article>
+    <article><span class="stat-icon rejected material-symbols-rounded" aria-hidden="true">cancel</span><div><strong>{{ count('rejected') }}</strong><small>Respinse</small></div></article>
+  </section>
+
+  <section class="toolbar">
+    <label class="search-control">
+      <span class="material-symbols-rounded" aria-hidden="true">search</span>
+      <input type="search" [(ngModel)]="searchTerm" placeholder="Caută angajat, profesie sau echipă" aria-label="Caută cereri de concediu">
+    </label>
+    <label>
+      <span>Status</span>
+      <select [(ngModel)]="statusFilter" aria-label="Filtrează după status">
+        <option value="all">Toate statusurile</option>
+        <option value="pending">În așteptare</option>
+        <option value="approved">Aprobate</option>
+        <option value="rejected">Respinse</option>
+      </select>
+    </label>
+  </section>
+
+  <div class="loading-state" *ngIf="loading"><span></span>Se încarcă cererile…</div>
+
+  <section class="requests-card" *ngIf="!loading && filteredRequests.length">
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Angajat</th><th>Echipă</th><th>Tip concediu</th><th>Perioadă</th><th>Zile</th><th>Trimisă</th><th>Status</th><th>Acțiuni</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let item of filteredRequests; trackBy: trackById">
+            <td><div class="employee-cell"><span class="avatar">{{ item.employee.name.charAt(0) }}</span><span><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || 'Profesie necompletată' }} · {{ item.employee.serie }}</small></span></div></td>
+            <td><strong>{{ item.team?.name || 'Fără echipă' }}</strong><small *ngIf="canManageAll">Șef: {{ item.assigned_leader?.name || '—' }}</small></td>
+            <td>{{ item.leave_type_label }}</td>
+            <td class="period"><span>{{ item.start_date | date:'dd.MM.yyyy' }}</span><span class="material-symbols-rounded" aria-hidden="true">arrow_right_alt</span><span>{{ item.end_date | date:'dd.MM.yyyy' }}</span></td>
+            <td><strong>{{ item.leave_days }}</strong></td>
+            <td><span>{{ item.created_at | date:'dd.MM.yyyy' }}</span><small>{{ item.created_at | date:'HH:mm' }}</small></td>
+            <td><span class="status-chip" [attr.data-status]="item.status">{{ statusLabel(item.status) }}</span><small *ngIf="item.reviewed_by">de {{ item.reviewed_by.name }}</small></td>
+            <td><div class="row-actions" *ngIf="item.can_decide; else solved">
+              <button type="button" class="approve" (click)="decide(item, 'approve')" [disabled]="isBusy(item.id)" [attr.aria-label]="'Aprobă cererea lui ' + item.employee.name"><span class="material-symbols-rounded" aria-hidden="true">task_alt</span>Aprobă</button>
+              <button type="button" class="reject" (click)="decide(item, 'reject')" [disabled]="isBusy(item.id)" [attr.aria-label]="'Respinge cererea lui ' + item.employee.name"><span class="material-symbols-rounded" aria-hidden="true">close</span>Respinge</button>
+            </div><ng-template #solved><span class="solved">Soluționată</span></ng-template></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="empty-state" *ngIf="!loading && !filteredRequests.length">
+    <span class="material-symbols-rounded" aria-hidden="true">event_available</span>
+    <strong>Nu există cereri pentru filtrul selectat.</strong>
+    <small>Cererile trimise din aplicația Android vor apărea automat aici.</small>
+  </div>
+</section>

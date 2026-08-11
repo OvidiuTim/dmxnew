@@ -3,6 +3,7 @@ from ToolApp import views
 from ToolApp import mobile_views
 from ToolApp import team_views
 from ToolApp import employee_views
+from ToolApp import leave_views
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -171,6 +172,10 @@ urlpatterns = [
     path('api/teams/requests/<int:request_id>/action/', team_views.temporary_request_action, name='temporary_worker_request_action'),
     path('api/teams/<int:team_id>/', team_views.team_detail, name='team_detail'),
     path('api/teams/<int:team_id>/members/', team_views.team_members, name='team_members'),
+
+    # Cereri de concediu primite de șefii de echipă și administratori
+    path('api/leave-requests/', leave_views.leave_requests_collection, name='leave_requests_collection'),
+    path('api/leave-requests/<int:request_id>/decision/', leave_views.leave_request_decision, name='leave_request_decision'),
 
     # --- PONTAJ: editare manuală pe sesiuni (nou) ---
     path('api/pontaj/day/edit/', attendance_edit_day, name='attendance_edit_day'),                 # POST (replace cu sesiuni)

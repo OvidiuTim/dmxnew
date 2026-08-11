@@ -1,0 +1,171 @@
+import json
+from datetime import date
+
+from django.test import Client, TestCase
+from django.urls import reverse
+
+from ToolApp.models import AppUser, EmployeeTeam, EmployeeTeamMember, LeaveDay, LeaveRequest, Users
+from ToolApp.security import make_admin_token, make_app_user_token
+
+
+class LeaveRequestWorkflowApiTests(TestCase):
+    def setUp(self):
+        self.leader_a = self.employee("Lider A", "LR-LA", "Șef de echipă")
+        self.leader_b = self.employee("Lider B", "LR-LB", "Șef de echipă")
+        self.worker_a = self.employee("Muncitor A", "LR-WA", "Instalator", pin="5101")
+        self.worker_b = self.employee("Muncitor B", "LR-WB", "Dulgher", pin="5102")
+        self.worker_free = self.employee("Fără Echipă", "LR-WF", "Zidar", pin="5103")
+        self.team_a = self.team("Echipa A", self.leader_a, self.worker_a)
+        self.team_b = self.team("Echipa B", self.leader_b, self.worker_b)
+        self.client_a, self.app_user_a = self.app_client(self.leader_a, "leave-leader-a")
+        self.client_b, self.app_user_b = self.app_client(self.leader_b, "leave-leader-b")
+        self.admin = Client()
+        self.admin.cookies["ptj"] = make_admin_token()
+
+    def employee(self, name, serie, trade, pin=""):
+        return Users.objects.create(
+            UserName=name,
+            UserSerie=serie,
+            UserPin=pin,
+            trade=trade,
+            hire_date=date(2024, 1, 1),
+        )
+
+    def team(self, name, leader, worker):
+        team = EmployeeTeam.objects.create(name=name, leader=leader)
+        EmployeeTeamMember.objects.create(team=team, employee=leader)
+        EmployeeTeamMember.objects.create(team=team, employee=worker)
+        return team
+
+    def app_client(self, employee, username):
+        app_user = AppUser.objects.create(employee=employee, username=username, pin_hash="unused")
+        client = Client()
+        client.cookies["appj"] = make_app_user_token(app_user)
+        return client, app_user
+
+    def mobile_create(self, pin, start="2026-09-01", end="2026-09-03"):
+        return self.client.post(
+            reverse("mobile_leave_request_create"),
+            data=json.dumps({
+                "pin": pin,
+                "device_key": f"android-{pin}",
+                "leave_type": "unpaid_leave",
+                "start_date": start,
+                "end_date": end,
+            }),
+            content_type="application/json",
+        )
+
+    def decide(self, client, item, action):
+        return client.post(
+            reverse("leave_request_decision", args=[item.pk]),
+            data=json.dumps({"action": action}),
+            content_type="application/json",
+        )
+
+    def test_mobile_request_is_routed_to_employee_team_leader(self):
+        response = self.mobile_create("5101")
+
+        self.assertEqual(response.status_code, 201, response.content)
+        item = LeaveRequest.objects.get()
+        self.assertEqual(item.team, self.team_a)
+        self.assertEqual(item.assigned_leader, self.leader_a)
+        self.assertEqual(response.json()["leave_request"]["status"], "pending")
+
+    def test_mobile_request_without_active_team_is_rejected(self):
+        response = self.mobile_create("5103")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["error_code"], "EMPLOYEE_WITHOUT_ACTIVE_TEAM")
+        self.assertFalse(LeaveRequest.objects.exists())
+
+    def test_leader_sees_only_requests_assigned_to_own_team(self):
+        first = self.mobile_create("5101")
+        second = self.mobile_create("5102", "2026-09-05", "2026-09-06")
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(second.status_code, 201)
+
+        response_a = self.client_a.get(reverse("leave_requests_collection"))
+        response_b = self.client_b.get(reverse("leave_requests_collection"))
+
+        self.assertEqual(response_a.status_code, 200, response_a.content)
+        self.assertEqual(response_b.status_code, 200, response_b.content)
+        self.assertEqual([row["employee"]["id"] for row in response_a.json()["leave_requests"]], [self.worker_a.pk])
+        self.assertEqual([row["employee"]["id"] for row in response_b.json()["leave_requests"]], [self.worker_b.pk])
+
+    def test_leader_cannot_decide_another_teams_request(self):
+        self.mobile_create("5102")
+        item = LeaveRequest.objects.get()
+
+        response = self.decide(self.client_a, item, "approve")
+
+        self.assertEqual(response.status_code, 403)
+        item.refresh_from_db()
+        self.assertEqual(item.status, LeaveRequest.Status.PENDING)
+
+    def test_leader_can_approve_and_android_receives_new_status(self):
+        self.mobile_create("5101")
+        item = LeaveRequest.objects.get()
+
+        response = self.decide(self.client_a, item, "approve")
+
+        self.assertEqual(response.status_code, 200, response.content)
+        item.refresh_from_db()
+        self.assertEqual(item.status, LeaveRequest.Status.APPROVED)
+        self.assertEqual(item.reviewed_by_app_user, self.app_user_a)
+        self.assertIsNotNone(item.reviewed_at)
+        self.assertIsNotNone(item.approved_at)
+        self.assertEqual(LeaveDay.objects.filter(source_leave_request=item).count(), 3)
+
+        mobile = self.client.post(
+            reverse("mobile_leave_request_list"),
+            data=json.dumps({"pin": "5101", "device_key": "android-status-a"}),
+            content_type="application/json",
+        )
+        payload = mobile.json()["leave_requests"][0]
+        self.assertEqual(payload["status"], "approved")
+        self.assertEqual(payload["status_label"], "Aprobată")
+
+    def test_leader_can_reject_request(self):
+        self.mobile_create("5101")
+        item = LeaveRequest.objects.get()
+
+        response = self.decide(self.client_a, item, "reject")
+
+        self.assertEqual(response.status_code, 200, response.content)
+        item.refresh_from_db()
+        self.assertEqual(item.status, LeaveRequest.Status.REJECTED)
+        self.assertEqual(response.json()["leave_request"]["status_label"], "Respinsă")
+        self.assertFalse(LeaveDay.objects.filter(source_leave_request=item).exists())
+
+        mobile = self.client.post(
+            reverse("mobile_leave_request_list"),
+            data=json.dumps({"pin": "5101", "device_key": "android-status-rejected"}),
+            content_type="application/json",
+        )
+        self.assertEqual(mobile.json()["leave_requests"][0]["status"], "rejected")
+        self.assertEqual(mobile.json()["leave_requests"][0]["status_label"], "Respinsă")
+
+    def test_administrator_sees_and_can_manage_all_requests(self):
+        self.mobile_create("5101")
+        self.mobile_create("5102", "2026-09-05", "2026-09-06")
+        response = self.admin.get(reverse("leave_requests_collection"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(len(response.json()["leave_requests"]), 2)
+        self.assertTrue(response.json()["permissions"]["can_manage_all"])
+
+        item_b = LeaveRequest.objects.get(employee=self.worker_b)
+        decision = self.decide(self.admin, item_b, "reject")
+        self.assertEqual(decision.status_code, 200, decision.content)
+        item_b.refresh_from_db()
+        self.assertEqual(item_b.status, LeaveRequest.Status.REJECTED)
+
+    def test_solved_request_cannot_be_decided_twice(self):
+        self.mobile_create("5101")
+        item = LeaveRequest.objects.get()
+        self.assertEqual(self.decide(self.client_a, item, "reject").status_code, 200)
+
+        second = self.decide(self.client_a, item, "approve")
+
+        self.assertEqual(second.status_code, 409)

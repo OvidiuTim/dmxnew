@@ -586,17 +586,38 @@ class LeaveRequest(models.Model):
 
     class Status(models.TextChoices):
         PENDING = "pending", "În așteptare"
-        APPROVED = "approved", "Aprobat"
-        REJECTED = "rejected", "Respins"
-        CANCELLED = "cancelled", "Anulat"
+        APPROVED = "approved", "Aprobată"
+        REJECTED = "rejected", "Respinsă"
 
     employee = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="leave_requests")
+    team = models.ForeignKey(
+        "EmployeeTeam",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="leave_requests",
+    )
+    assigned_leader = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_leave_requests",
+    )
     leave_type = models.CharField(max_length=32, choices=LeaveType.choices)
     start_date = models.DateField()
     end_date = models.DateField()
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by_app_user = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_leave_requests",
+    )
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -613,12 +634,12 @@ class LeaveRequest(models.Model):
         super().clean()
         if self.start_date and self.end_date and self.end_date < self.start_date:
             raise ValidationError({"end_date": "Data finală nu poate fi înaintea datei de început."})
-        if self.employee_id and self.start_date and self.end_date and self.status != self.Status.CANCELLED:
+        if self.employee_id and self.start_date and self.end_date:
             overlap = LeaveRequest.objects.filter(
                 employee_id=self.employee_id,
                 start_date__lte=self.end_date,
                 end_date__gte=self.start_date,
-            ).exclude(status__in=(self.Status.CANCELLED, self.Status.REJECTED))
+            ).exclude(status=self.Status.REJECTED)
             if self.pk:
                 overlap = overlap.exclude(pk=self.pk)
             if overlap.exists():

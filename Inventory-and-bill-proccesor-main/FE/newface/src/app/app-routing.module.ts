@@ -27,6 +27,7 @@ import { InventoryCatalogComponent } from './inventory-catalog/inventory-catalog
 import { InventoryHistoryComponent } from './inventory-history/inventory-history.component';
 import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
 import { AccommodationsComponent } from './pontaj/accommodations/accommodations.component';
+import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -55,14 +56,7 @@ export const routes: Routes = [
   { path: 'pontaj/echipa-mea', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipa-mea', moduleCode: 'teams_schedule', teamMode: 'mine' } },
   { path: 'pontaj/echipe-azi', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe-azi', moduleCode: 'teams_schedule', teamMode: 'today' } },
   { path: 'pontaj/personal-disponibil', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/personal-disponibil', moduleCode: 'teams_schedule', teamMode: 'available' } },
-  {
-    path: 'pontaj/concedii', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
-    data: {
-      permissionRoute: '/pontaj/concedii', moduleCode: 'teams_schedule', title: 'Concedii și absențe', icon: 'calendar',
-      description: 'Administrarea cererilor, zilelor de concediu și absențelor într-un singur loc.',
-      missingData: 'Modelele LeaveDay și LeaveRequest există în backend, însă în frontend nu există un contract API clar pentru listare și aprobare.'
-    }
-  },
+  { path: 'pontaj/concedii', component: LeaveRequestsComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/concedii', moduleCode: 'teams_schedule' } },
   {
     path: 'hr/documente', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
     data: {

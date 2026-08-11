@@ -3,6 +3,7 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
+from django.utils import timezone
 from django.utils.timezone import localdate
 from django.views.decorators.csrf import csrf_exempt
 
@@ -20,7 +21,7 @@ from ToolApp.mobile_services import (
     seniority_months,
     serialize_leave_request,
 )
-from ToolApp.models import EmployeeSalaryProfile, LeaveRequest
+from ToolApp.models import EmployeeSalaryProfile, EmployeeTeam, EmployeeTeamMember, LeaveRequest
 from ToolApp.views import _find_user_by_pin, _log_pin_attempt, _pin_is_blocked
 
 
@@ -124,8 +125,25 @@ def leave_request_create(request):
         end_date = date.fromisoformat(str(data.get("end_date") or ""))
     except ValueError:
         return _error("INVALID_DATE", "Datele trebuie trimise în format YYYY-MM-DD.", 400)
+    membership = (
+        EmployeeTeamMember.objects.select_related("team__leader")
+        .filter(employee=employee, active=True, team__active=True)
+        .first()
+    )
+    team = membership.team if membership else EmployeeTeam.objects.select_related("leader").filter(
+        leader=employee,
+        active=True,
+    ).first()
+    if not team:
+        return _error(
+            "EMPLOYEE_WITHOUT_ACTIVE_TEAM",
+            "Cererea nu poate fi trimisă deoarece angajatul nu aparține unei echipe active.",
+            409,
+        )
     item = LeaveRequest(
         employee=employee,
+        team=team,
+        assigned_leader=team.leader,
         leave_type=leave_type,
         start_date=start_date,
         end_date=end_date,
@@ -161,6 +179,7 @@ def leave_request_cancel(request, request_id):
         return _error("LEAVE_REQUEST_NOT_FOUND", "Cererea de concediu nu există.", 404)
     if item.status != LeaveRequest.Status.PENDING:
         return _error("LEAVE_REQUEST_NOT_CANCELLABLE", "Doar cererile în așteptare pot fi anulate.", 409)
-    item.status = LeaveRequest.Status.CANCELLED
-    item.save(update_fields=("status",))
+    item.status = LeaveRequest.Status.REJECTED
+    item.reviewed_at = timezone.now()
+    item.save(update_fields=("status", "reviewed_at"))
     return JsonResponse({"success": True, "leave_request": serialize_leave_request(item)})
