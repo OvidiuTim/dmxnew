@@ -28,6 +28,7 @@ import { InventoryHistoryComponent } from './inventory-history/inventory-history
 import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
 import { AccommodationsComponent } from './pontaj/accommodations/accommodations.component';
 import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.component';
+import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -46,6 +47,7 @@ export const routes: Routes = [
   // Pontaj manual separat
   { path: 'clockinandout', component: ClockinandoutComponent },
   { path: 'clockinandoutdriver', component: ClockinandoutdriverComponent },
+  { path: 'termeniigdpr', component: TermeniIgdprComponent },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte', moduleCode: 'attendance' } },

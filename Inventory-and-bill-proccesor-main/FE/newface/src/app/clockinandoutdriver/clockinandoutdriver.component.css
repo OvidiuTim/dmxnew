@@ -471,6 +471,8 @@
   color: var(--text-muted);
 }
 
+.consent-field a { color: var(--primary-hover); text-decoration: underline; text-underline-offset: 2px; }
+
 .camera-capture {
   position: fixed;
   width: 1px;

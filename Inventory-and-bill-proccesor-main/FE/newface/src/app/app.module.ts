@@ -48,6 +48,7 @@ import { EmployeeAvatarComponent } from './teams/employee-avatar.component';
 import { ToolsNavComponent } from './magazie/unelte/tools-nav.component';
 import { AccommodationsComponent } from './pontaj/accommodations/accommodations.component';
 import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.component';
+import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
 
 @NgModule({
   declarations: [
@@ -86,6 +87,7 @@ import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.c
     ToolsNavComponent,
     AccommodationsComponent,
     LeaveRequestsComponent,
+    TermeniIgdprComponent,
   ],
   imports: [
     CommonModule,
