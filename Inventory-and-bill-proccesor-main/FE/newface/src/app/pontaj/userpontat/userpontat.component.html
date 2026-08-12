@@ -110,15 +110,34 @@
               <span *ngIf="s.missing_exit; else openTag" class="muted">—</span>
             </ng-template>
             <ng-template #openTag><span class="open">deschis</span></ng-template>
-            <button
-              class="btn secondary map-mini-btn"
-              type="button"
-              [disabled]="!s.out_gps"
-              [title]="'Vezi pe harta punctul de check-out: ' + gpsTitle(s.out_gps)"
-              (click)="openGpsOnMap(s.out_gps)"
-            >
-              {{ s.out_gps ? 'Vezi check-out' : 'Fara GPS' }}
-            </button>
+            <details class="session-actions-menu">
+              <summary class="btn secondary map-mini-btn" aria-label="Opțiuni check-out">
+                <span class="material-symbols-rounded" aria-hidden="true">more_horiz</span>
+                Opțiuni
+              </summary>
+              <div class="session-actions-popover">
+                <button
+                  class="session-menu-action"
+                  type="button"
+                  [disabled]="!s.out_gps"
+                  [title]="s.out_gps ? 'Vezi pe harta punctul de check-out: ' + gpsTitle(s.out_gps) : 'Nu există locație la check-out'"
+                  (click)="openGpsOnMap(s.out_gps)"
+                >
+                  <span class="material-symbols-rounded" aria-hidden="true">location_on</span>
+                  Vezi locația
+                </button>
+                <button
+                  class="session-menu-action"
+                  type="button"
+                  [disabled]="!s.in_photo"
+                  [title]="s.in_photo ? 'Vezi fotografia realizată la check-in' : 'Nu există fotografie la check-in'"
+                  (click)="openCheckinPhoto(s.in_photo)"
+                >
+                  <span class="material-symbols-rounded" aria-hidden="true">image</span>
+                  Vezi poza
+                </button>
+              </div>
+            </details>
           </div>
           <div class="dur">{{ durataOre(s.duration_hms) }}</div>
 
@@ -259,4 +278,16 @@
       <!-- /editor -->
     </div>
   </div>
+</div>
+
+<div class="checkin-photo-modal" *ngIf="checkinPhotoToView" (click)="closeCheckinPhoto()">
+  <section class="checkin-photo-dialog" role="dialog" aria-modal="true" aria-label="Fotografia de la check-in" (click)="$event.stopPropagation()">
+    <header>
+      <h3>Fotografia de la check-in</h3>
+      <button type="button" class="btn secondary" (click)="closeCheckinPhoto()" aria-label="Închide fotografia">
+        <span class="material-symbols-rounded" aria-hidden="true">close</span>
+      </button>
+    </header>
+    <img [src]="checkinPhotoToView" alt="Fotografie realizată la check-in" />
+  </section>
 </div>

@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import * as L from 'leaflet';
+import { firstValueFrom } from 'rxjs';
 import { SharedService } from '../shared.service';
 
 type FeedbackKind = 'enter' | 'exit' | 'error';
@@ -26,9 +27,11 @@ interface CurrentPosition {
 })
 export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapContainer') mapContainer?: ElementRef<HTMLDivElement>;
+  @ViewChild('cameraPreview') cameraPreview?: ElementRef<HTMLVideoElement>;
 
   pin = '';
   submitting = false;
+  dataProcessingConsent = false;
   currentTime = new Date();
   feedback: FeedbackState | null = null;
   currentPosition: CurrentPosition | null = null;
@@ -41,6 +44,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   private accuracyCircle: L.Circle | null = null;
   private clockTimer: ReturnType<typeof setInterval> | null = null;
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
+  private cameraStream: MediaStream | null = null;
 
   constructor(private api: SharedService) {}
 
@@ -64,6 +68,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     }
 
     this.map?.remove();
+    this.stopCamera();
   }
 
   get formattedDate(): string {
@@ -105,7 +110,11 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   }
 
   get canSubmit(): boolean {
-    return !!this.pin.trim() && !!this.currentPosition && this.effectiveLocationState === 'ready' && !this.submitting;
+    return !!this.pin.trim()
+      && !!this.currentPosition
+      && this.effectiveLocationState === 'ready'
+      && this.dataProcessingConsent
+      && !this.submitting;
   }
 
   get locationBadge(): string {
@@ -174,6 +183,10 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       return 'Locatia a expirat. Apasa din nou pe Ia-mi locatia mea live si introdu PIN-ul in maximum 10 minute.';
     }
 
+    if (!this.dataProcessingConsent) {
+      return 'Bifeaza acordul pentru prelucrarea datelor pentru a activa pontajul.';
+    }
+
     if (this.effectiveLocationState === 'ready') {
       return 'Locatia este gata si poate fi salvata impreuna cu pontajul.';
     }
@@ -193,7 +206,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     this.requestFreshLocation();
   }
 
-  submitPin(): void {
+  async submitPin(): Promise<void> {
     if (!this.currentPosition) {
       this.showError('Locatia GPS este obligatorie pentru pontajul soferilor.');
       return;
@@ -209,40 +222,48 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       return;
     }
 
+    if (!this.dataProcessingConsent) {
+      this.showError('Bifeaza acordul pentru prelucrarea datelor inainte de pontaj.');
+      return;
+    }
+
     const cleanPin = this.pin.trim();
     this.submitting = true;
 
-    this.api.manualAttendanceByPin(cleanPin, {
-      mode: 'driver',
-      gps: {
-        lat: this.currentPosition.lat,
-        lng: this.currentPosition.lng,
-        accuracy: this.currentPosition.accuracy,
-        capturedAt: this.locationCapturedAt?.toISOString()
-      }
-    }).subscribe({
-      next: (response) => {
+    let response: any;
+    try {
+      response = await firstValueFrom(this.submitAttendanceRequest(cleanPin));
+    } catch (error) {
+      const attendanceError: any = error;
+      const code = typeof attendanceError?.error?.error_code === 'string' ? attendanceError.error.error_code : '';
+      if (code !== 'CHECKIN_PHOTO_REQUIRED') {
         this.submitting = false;
-
-        if (response?.debounced) {
-          return;
-        }
-
-        if (!response?.user?.name || !response?.state) {
-          this.showError('Nu am gasit niciun angajat cu acest PIN.');
-          this.clearPin();
-          return;
-        }
-
-        this.showAttendanceFeedback(response.state, response.user.name);
+        this.showError(this.resolveAttendanceError(attendanceError));
         this.clearPin();
-      },
-      error: (error) => {
-        this.submitting = false;
-        this.showError(this.resolveAttendanceError(error));
-        this.clearPin();
+        return;
       }
-    });
+
+      try {
+        const checkinPhoto = await this.captureAttendancePhoto();
+        response = await firstValueFrom(this.submitAttendanceRequest(cleanPin, checkinPhoto));
+      } catch (photoError) {
+        this.submitting = false;
+        this.showError(photoError instanceof Error ? photoError.message : 'Nu am putut face fotografia pentru pontaj.');
+        return;
+      }
+    }
+
+    this.submitting = false;
+    if (response?.debounced) {
+      return;
+    }
+    if (!response?.user?.name || !response?.state) {
+      this.showError('Nu am gasit niciun angajat cu acest PIN.');
+      this.clearPin();
+      return;
+    }
+    this.showAttendanceFeedback(response.state, response.user.name);
+    this.clearPin();
   }
 
   formatCoordinates(lat: number, lng: number): string {
@@ -274,7 +295,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   private showError(message: string): void {
     this.feedback = {
       kind: 'error',
-      title: 'Actiune blocata',
+      title: 'Pontaj nefinalizat',
       message,
       stamp: `Inregistrat la ${this.formattedTime}`
     };
@@ -284,14 +305,6 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
 
   private resolveAttendanceError(error: any): string {
     const code = typeof error?.error?.error_code === 'string' ? error.error.error_code : '';
-    if (code === 'MANUAL_DEVICE_LOCKED') {
-      return 'Telefonul sau browserul acesta are deja un check-in activ pentru alt muncitor. Pe acest dispozitiv poti face acum doar check-out pentru muncitorul pontat primul.';
-    }
-
-    if (code === 'MANUAL_CHECKOUT_DEVICE_MISMATCH') {
-      return 'Check-out-ul pentru acest muncitor trebuie facut de pe acelasi telefon sau browser folosit la check-in.';
-    }
-
     if (code === 'GPS_REQUIRED_FOR_DRIVER') {
       return 'Locatia GPS este obligatorie pentru pontajul soferilor.';
     }
@@ -303,6 +316,68 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     return typeof error?.error?.error === 'string'
       ? error.error.error
       : 'Nu am putut inregistra pontajul acum. Incearca din nou.';
+  }
+
+  private submitAttendanceRequest(pin: string, checkinPhoto?: string) {
+    return this.api.manualAttendanceByPin(pin, {
+      mode: 'driver',
+      gps: {
+        lat: this.currentPosition!.lat,
+        lng: this.currentPosition!.lng,
+        accuracy: this.currentPosition!.accuracy,
+        capturedAt: this.locationCapturedAt?.toISOString()
+      },
+      dataProcessingConsent: this.dataProcessingConsent,
+      checkinPhoto,
+    });
+  }
+
+  private async captureAttendancePhoto(): Promise<string> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Camera telefonului nu este disponibila in acest browser.');
+    }
+
+    const video = this.cameraPreview?.nativeElement;
+    if (!video) {
+      throw new Error('Camera nu este pregatita. Reincarca pagina si incearca din nou.');
+    }
+
+    try {
+      this.cameraStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'user' }, width: { ideal: 640 }, height: { ideal: 640 } }
+      });
+      video.srcObject = this.cameraStream;
+      await video.play();
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 180));
+
+      const sourceWidth = video.videoWidth;
+      const sourceHeight = video.videoHeight;
+      if (!sourceWidth || !sourceHeight) {
+        throw new Error('Camera nu a trimis o imagine. Incearca din nou.');
+      }
+      const side = Math.min(sourceWidth, sourceHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = 240;
+      canvas.height = 240;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('Nu am putut procesa fotografia pentru pontaj.');
+      }
+      context.drawImage(video, (sourceWidth - side) / 2, (sourceHeight - side) / 2, side, side, 0, 0, 240, 240);
+      const webp = canvas.toDataURL('image/webp', 0.4);
+      return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.4);
+    } finally {
+      this.stopCamera();
+    }
+  }
+
+  private stopCamera(): void {
+    this.cameraStream?.getTracks().forEach((track) => track.stop());
+    this.cameraStream = null;
+    if (this.cameraPreview?.nativeElement) {
+      this.cameraPreview.nativeElement.srcObject = null;
+    }
   }
 
   private scheduleFeedbackReset(): void {

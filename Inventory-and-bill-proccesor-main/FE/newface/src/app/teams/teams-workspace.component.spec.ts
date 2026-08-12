@@ -36,4 +36,28 @@ describe('TeamsWorkspaceComponent', () => {
 
     expect(component.selectableMembers.map(item => item.id)).toEqual([2, 1]);
   });
+
+  it('deschide detaliile solicitărilor active ale unui membru', () => {
+    const component = new TeamsWorkspaceComponent({} as any, {} as any);
+    const member = {
+      ...employee(2, 'Muncitor A', 'Fierar'),
+      active_requests: [{ id: 11, request_type: 'temporary' }],
+    } as any;
+
+    component.openMemberRequests(member);
+
+    expect(component.memberRequestsDialogOpen).toBeTrue();
+    expect(component.memberRequestEmployee).toBe(member);
+    expect(component.memberRequestDetails).toEqual(member.active_requests);
+  });
+
+  it('deschide și închide meniul de acțiuni al unui membru', () => {
+    const component = new TeamsWorkspaceComponent({} as any, {} as any);
+
+    component.toggleMemberActions(7);
+    expect(component.memberActionsOpenFor).toBe(7);
+
+    component.toggleMemberActions(7);
+    expect(component.memberActionsOpenFor).toBeNull();
+  });
 });

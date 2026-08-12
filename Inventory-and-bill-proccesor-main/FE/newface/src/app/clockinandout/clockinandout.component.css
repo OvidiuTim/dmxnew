@@ -567,3 +567,102 @@
     display: block;
   }
 }
+
+/* Folosim aceleasi suprafete, culori si contraste ca restul aplicatiei. */
+:host {
+  --bg-panel: var(--card);
+  --bg-panel-strong: var(--surface);
+  --ink-main: var(--text);
+  --ink-soft: var(--text-muted);
+  --line-soft: var(--border);
+  --accent: var(--primary);
+  --accent-strong: var(--primary);
+  font-family: inherit;
+}
+
+.manual-page {
+  padding: 28px 24px 44px;
+  background: var(--bg);
+}
+
+.manual-shell { max-width: 1280px; }
+
+.hero-language-card,
+.entry-card,
+.map-card {
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  backdrop-filter: none;
+}
+
+.clock-card,
+.language-btn.active,
+.step-chip {
+  background: var(--primary-soft);
+  border-color: color-mix(in srgb, var(--primary) 32%, transparent);
+  color: var(--text);
+}
+
+.language-btn,
+.worksite-picker select,
+.language-select-mobile select,
+.pin-form input,
+.refresh-btn,
+.legend-item,
+.meta-pill,
+.map-placeholder {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.language-secondary,
+.clock-date,
+.hero-copy p,
+.worksite-picker p,
+.map-top p,
+.feedback-stamp { color: var(--text-muted); }
+
+.refresh-btn { min-height: 48px; }
+.submit-btn { background: var(--primary); }
+
+.consent-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.consent-field input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--primary);
+  flex: 0 0 auto;
+}
+
+.consent-field small {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.camera-capture {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 680px) {
+  .manual-page { padding: 16px 12px 28px; }
+}

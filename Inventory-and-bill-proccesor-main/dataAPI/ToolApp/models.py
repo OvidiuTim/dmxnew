@@ -475,6 +475,10 @@ class AttendanceSession(models.Model):
     worksite = models.CharField(max_length=100, null=True, blank=True, db_index=True)
     manual_client_ip = models.CharField(max_length=64, null=True, blank=True, db_index=True)
     manual_device_key = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+    data_processing_consent = models.BooleanField(default=False)
+    data_processing_consent_at = models.DateTimeField(null=True, blank=True)
+    # Fotografie WebP/JPEG redusa, realizata exclusiv la check-in-ul manual.
+    checkin_photo = models.TextField(blank=True, default="")
 
     class Meta:
         ordering = ['-in_time']

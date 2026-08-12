@@ -433,3 +433,88 @@ h2 { margin:0; font-size:18px; }
     display: none;
   }
 }
+
+.session-actions-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.session-actions-menu summary {
+  list-style: none;
+}
+
+.session-actions-menu summary::-webkit-details-marker { display: none; }
+
+.session-actions-menu summary .material-symbols-rounded,
+.session-menu-action .material-symbols-rounded {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.session-actions-popover {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 168px;
+  padding: 6px;
+  border: 1px solid var(--border, #293244);
+  border-radius: 10px;
+  background: var(--card, #0b1220);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .3);
+}
+
+.session-menu-action {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-menu-action:hover:not(:disabled) { background: var(--surface, #152137); }
+.session-menu-action:disabled { cursor: not-allowed; opacity: .46; }
+
+.checkin-photo-modal {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 6, 14, .76);
+}
+
+.checkin-photo-dialog {
+  width: min(420px, 100%);
+  padding: 16px;
+  border: 1px solid var(--border, #293244);
+  border-radius: 14px;
+  background: var(--card, #0b1220);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, .42);
+}
+
+.checkin-photo-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.checkin-photo-dialog h3 { margin: 0; }
+
+.checkin-photo-dialog img {
+  display: block;
+  width: min(100%, 360px);
+  aspect-ratio: 1;
+  margin: auto;
+  border-radius: 10px;
+  object-fit: cover;
+}

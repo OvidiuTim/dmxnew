@@ -37,8 +37,12 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
 
   teamDialogOpen = false;
   requestDialogOpen = false;
+  memberRequestsDialogOpen = false;
+  memberActionsOpenFor: number | null = null;
   teamForm: any = this.emptyTeamForm();
   requestForm: any = this.emptyRequestForm();
+  memberRequestEmployee: TeamEmployee | null = null;
+  memberRequestDetails: TeamRequest[] = [];
   assignmentTeam: Record<number, number | null> = {};
   private routeSubscription?: Subscription;
 
@@ -292,6 +296,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   }
 
   removeMember(team: EmployeeTeam, employee: TeamEmployee): void {
+    this.memberActionsOpenFor = null;
     if (!confirm(`Elimini ${employee.name} din ${team.name}?`)) return;
     this.api.updateMember(team.id, employee.id, 'remove').subscribe({
       next: () => { this.notice = 'Membrul a fost eliminat.'; this.load(); },
@@ -375,6 +380,23 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       },
       error: error => this.handleError(error),
     });
+  }
+
+  openMemberRequests(employee: TeamEmployee): void {
+    if (!employee.active_requests?.length) return;
+    this.memberRequestEmployee = employee;
+    this.memberRequestDetails = employee.active_requests;
+    this.memberRequestsDialogOpen = true;
+  }
+
+  toggleMemberActions(employeeId: number): void {
+    this.memberActionsOpenFor = this.memberActionsOpenFor === employeeId ? null : employeeId;
+  }
+
+  closeMemberRequestsDialog(): void {
+    this.memberRequestsDialogOpen = false;
+    this.memberRequestEmployee = null;
+    this.memberRequestDetails = [];
   }
 
   categoryLabel(category: string): string {

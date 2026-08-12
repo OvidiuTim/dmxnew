@@ -43,7 +43,7 @@
       <label><span>Status echipă</span><select [(ngModel)]="teamStatus"><option value="all">Toate</option><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
     </section>
 
-    <section class="team-grid" *ngIf="filteredTeams.length; else noTeams">
+    <section class="team-grid" [class.single-team-grid]="mode === 'mine'" *ngIf="filteredTeams.length; else noTeams">
       <article class="team-card" *ngFor="let team of filteredTeams; trackBy: trackById" [class.inactive]="!team.active">
         <div class="team-card-head">
           <div><span class="status-dot" [class.off]="!team.active"></span><small>{{ team.active ? 'Echipă activă' : 'Echipă inactivă' }}</small><h2>{{ team.name }}</h2></div>
@@ -56,10 +56,21 @@
         <div class="worksite"><span class="material-symbols-rounded" aria-hidden="true">location_on</span><span><small>Șantier implicit</small><strong>{{ team.default_worksite || 'Neconfigurat' }}</strong></span></div>
         <div class="member-head"><strong>Membri</strong><span>{{ team.members.length }} persoane</span></div>
         <div class="member-list">
-          <div class="member-row" *ngFor="let member of team.members; trackBy: trackById">
+          <div class="member-row" *ngFor="let member of team.members; trackBy: trackById" [class.member-has-request]="mode === 'mine' && member.active_requests?.length" [attr.role]="member.active_requests?.length ? 'button' : null" [attr.tabindex]="member.active_requests?.length ? 0 : null" (click)="member.active_requests?.length && openMemberRequests(member)" (keydown.enter)="member.active_requests?.length && openMemberRequests(member)" (keydown.space)="member.active_requests?.length && openMemberRequests(member); $event.preventDefault()">
             <app-employee-avatar [employee]="member" size="small"></app-employee-avatar>
             <span class="member-copy"><strong>{{ member.name }}</strong><small>{{ member.id === team.leader.id ? 'Șef de echipă' : (member.trade || 'Meserie necompletată') }}</small></span>
-            <button *ngIf="team.can_edit && member.id !== team.leader.id" type="button" class="icon-button compact danger" (click)="removeMember(team, member)" [attr.aria-label]="'Elimină ' + member.name" title="Elimină din echipă"><span class="material-symbols-rounded" aria-hidden="true">person_remove</span></button>
+            <div class="member-statuses" *ngIf="mode === 'mine'">
+              <span class="member-status ssm" [class.complete]="member.ssm_complete" [class.incomplete]="!member.ssm_complete" [attr.title]="member.ssm_complete ? 'Echipamente SSM complete' : 'Echipamente SSM incomplete'"><span class="material-symbols-rounded" aria-hidden="true">health_and_safety</span>{{ member.ssm_complete ? 'SSM complet' : 'SSM incomplet' }}</span>
+              <span class="member-status presence" [class.present]="member.presence === 'present'" [class.absent]="member.presence !== 'present'"><span class="material-symbols-rounded" aria-hidden="true">{{ member.presence === 'present' ? 'task_alt' : 'person_off' }}</span>{{ member.presence === 'present' ? 'Prezent azi' : 'Absent azi' }}</span>
+              <button *ngIf="member.active_requests?.length" type="button" class="member-request-alert" (click)="$event.stopPropagation(); openMemberRequests(member)" [attr.aria-label]="'Vezi solicitările pentru ' + member.name" [attr.title]="'Vezi solicitările pentru ' + member.name"><span class="material-symbols-rounded" aria-hidden="true">priority_high</span></button>
+            </div>
+            <button *ngIf="team.can_edit && member.id !== team.leader.id" type="button" class="icon-button compact danger member-remove-action" (click)="$event.stopPropagation(); removeMember(team, member)" [attr.aria-label]="'Elimină ' + member.name" title="Elimină din echipă"><span class="material-symbols-rounded" aria-hidden="true">person_remove</span></button>
+            <div *ngIf="team.can_edit && member.id !== team.leader.id" class="member-actions-menu-wrap">
+              <button type="button" class="member-actions-trigger" (click)="$event.stopPropagation(); toggleMemberActions(member.id)" [attr.aria-expanded]="memberActionsOpenFor === member.id" [attr.aria-label]="'Acțiuni pentru ' + member.name" title="Acțiuni"><span class="material-symbols-rounded" aria-hidden="true">more_vert</span></button>
+              <div class="member-actions-menu" *ngIf="memberActionsOpenFor === member.id" role="menu">
+                <button type="button" role="menuitem" (click)="$event.stopPropagation(); removeMember(team, member)"><span class="material-symbols-rounded" aria-hidden="true">person_remove</span>Elimină din echipă</button>
+              </div>
+            </div>
           </div>
         </div>
       </article>
@@ -71,10 +82,11 @@
       <div class="section-head"><div><span class="eyebrow">Transfer temporar</span><h2>Solicitări trimise și primite</h2></div></div>
       <div class="table-scroll" *ngIf="filteredRequests.length; else noRequests">
         <table>
-          <thead><tr><th>Muncitor</th><th>Din echipa</th><th>Către echipa</th><th>Perioadă</th><th>Status</th><th>Motiv</th><th>Acțiuni</th></tr></thead>
+          <thead><tr><th>Muncitor</th><th>Din echipa</th><th>Către echipa</th><th>Trimisă de</th><th>Soluționată de</th><th>Perioadă</th><th>Status</th><th>Motiv</th><th>Acțiuni</th></tr></thead>
           <tbody><tr *ngFor="let item of filteredRequests; trackBy: trackById">
             <td><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || '—' }}</small></td>
             <td>{{ item.source_team.name }}</td><td>{{ item.requester_team.name }}</td>
+            <td>{{ item.requested_by.name || 'Administrator' }}</td><td>{{ item.resolved_by ? item.resolved_by.name : '—' }}</td>
             <td class="mono">{{ item.start_date }} – {{ item.end_date }}</td>
             <td><span class="status-chip" [attr.data-status]="item.status">{{ item.status_label }}</span></td>
             <td>{{ item.reason || '—' }}</td>
@@ -177,6 +189,19 @@
       </div>
       <div class="dialog-actions"><button type="button" class="button secondary" (click)="closeTeamDialog()">Renunță</button><button type="submit" class="button primary" [disabled]="saving || !teamForm.name || !teamForm.leader_id"><span class="material-symbols-rounded" aria-hidden="true">save</span>{{ saving ? 'Se salvează…' : 'Salvează echipa' }}</button></div>
     </form>
+  </section>
+</div>
+
+<div class="modal-backdrop" *ngIf="memberRequestsDialogOpen" (click)="closeMemberRequestsDialog()">
+  <section class="dialog narrow request-details-dialog" role="dialog" aria-modal="true" aria-labelledby="member-request-details-title" (click)="$event.stopPropagation()">
+    <div class="dialog-head"><div><span class="eyebrow">Solicitare în așteptare</span><h2 id="member-request-details-title">{{ memberRequestEmployee?.name }}</h2></div><button type="button" class="icon-button" (click)="closeMemberRequestsDialog()" aria-label="Închide detaliile solicitării"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
+    <div class="member-request-details">
+      <article *ngFor="let item of memberRequestDetails">
+        <div class="request-detail-head"><span class="type-chip" [class.permanent]="item.request_type === 'permanent'">{{ item.request_type_label }}</span><span class="status-chip" [attr.data-status]="item.status">{{ item.status_label }}</span></div>
+        <dl><div><dt>Din echipa</dt><dd>{{ item.source_team.name }}</dd></div><div><dt>Către echipa</dt><dd>{{ item.requester_team.name }}</dd></div><div><dt>Perioada</dt><dd>{{ item.request_type === 'permanent' ? 'Transfer permanent' : (item.start_date + ' – ' + item.end_date) }}</dd></div><div><dt>Motiv</dt><dd>{{ item.reason || 'Fără observații' }}</dd></div></dl>
+      </article>
+    </div>
+    <div class="dialog-actions"><button type="button" class="button secondary" (click)="closeMemberRequestsDialog()">Închide</button></div>
   </section>
 </div>
 

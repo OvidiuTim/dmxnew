@@ -5,6 +5,8 @@ import { Observable } from 'rxjs';
 type ManualAttendanceOptions = {
   worksite?: string;
   mode?: 'driver' | 'manual';
+  dataProcessingConsent?: boolean;
+  checkinPhoto?: string | null;
   gps?: {
     lat: number;
     lng: number;
@@ -169,6 +171,11 @@ getAttendanceDay(date?: string) {
       };
     }
 
+    body.data_processing_consent = options.dataProcessingConsent === true;
+    if (options.checkinPhoto) {
+      body.checkin_photo = options.checkinPhoto;
+    }
+
     return this.http.post<any>(`${this.API}/pontaj/clock/`, {
       pin: body.content,
       device_key: body.device_key,
@@ -176,6 +183,8 @@ getAttendanceDay(date?: string) {
       worksite: body.worksite,
       gps: body.gps,
       mode: body.mode,
+      data_processing_consent: body.data_processing_consent,
+      checkin_photo: body.checkin_photo,
     });
   }
 

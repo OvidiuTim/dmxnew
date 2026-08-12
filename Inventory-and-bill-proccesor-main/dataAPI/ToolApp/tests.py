@@ -66,6 +66,7 @@ class ManualAttendanceSecurityTests(TestCase):
                     "timestamp": now.isoformat(),
                     "worksite": "Tractorului Bloc B2",
                     "mode": mode,
+                    "data_processing_consent": True,
                 }
                 if mode == "driver":
                     payload["gps"] = {
@@ -118,6 +119,7 @@ class ManualAttendanceSecurityTests(TestCase):
                 "device_key": "browser-privat-seara",
                 "timestamp": now.isoformat(),
                 "mode": "manual",
+                "data_processing_consent": True,
             }),
             content_type="application/json",
         )
@@ -145,6 +147,8 @@ class ManualAttendanceSecurityTests(TestCase):
             "worksite": "Tractorului Bloc B2",
             "gps": {"lat": 45.81, "lng": 24.13, "accuracy": 10},
             "mode": "manual",
+            "data_processing_consent": True,
+            "checkin_photo": "data:image/webp;base64,MTIz",
         }
 
         first_response = self.client.post(
@@ -164,6 +168,50 @@ class ManualAttendanceSecurityTests(TestCase):
         self.assertEqual(second_response.status_code, 200)
         self.assertEqual(first_response.json()["state"], "ENTER")
         self.assertEqual(second_response.json()["state"], "ENTER")
+
+    def test_same_device_can_clock_in_multiple_employees_and_saves_checkin_photo(self):
+        first = Users(UserName="Muncitor acelasi telefon 1", UserSerie="SER-205")
+        first.set_pin("1205")
+        first.save()
+        second = Users(UserName="Muncitor acelasi telefon 2", UserSerie="SER-206")
+        second.set_pin("1206")
+        second.save()
+
+        base_payload = {
+            "uid": "MANUAL",
+            "tag_type": "manual",
+            "timestamp": timezone.now().isoformat(),
+            "mode": "manual",
+            "device_key": "telefon-comun",
+            "data_processing_consent": True,
+            "checkin_photo": "data:image/webp;base64,MTIz",
+        }
+        for pin in ("1205", "1206"):
+            response = self.client.post(
+                "/api/pontaj/clock/",
+                data=json.dumps({**base_payload, "pin": pin}),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json()["state"], "ENTER")
+
+        first_session = AttendanceSession.objects.get(user_fk=first)
+        self.assertTrue(first_session.data_processing_consent)
+        self.assertEqual(first_session.checkin_photo, base_payload["checkin_photo"])
+
+    def test_manual_clock_requires_data_processing_consent(self):
+        user = Users(UserName="Muncitor fara acord", UserSerie="SER-207")
+        user.set_pin("1207")
+        user.save()
+
+        response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({"uid": "MANUAL", "tag_type": "manual", "pin": "1207", "mode": "manual"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "DATA_PROCESSING_CONSENT_REQUIRED")
 
     def test_successful_pin_lookup_uses_plain_userpin(self):
         user = Users(UserName="Muncitor 3", UserSerie="SER-203")

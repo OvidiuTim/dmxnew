@@ -14,6 +14,7 @@ from ToolApp.models import (
     EmployeeTeamMember,
     LeaveDay,
     TemporaryWorkerRequest,
+    Tools,
     Users,
 )
 from ToolApp.security import make_admin_token, make_app_user_token
@@ -134,6 +135,28 @@ class TeamManagementApiTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.leader_a.refresh_from_db()
         self.assertEqual(self.leader_a.email, "lider.a.actualizat@example.com")
+
+    def test_team_member_payload_includes_ssm_presence_and_pending_request(self):
+        team_a, team_b, requester, _, source, _ = self.setup_transfer()
+        for index, name in enumerate(("Cască", "Bocanci", "Vestă", "Ham", "Mănuși"), start=1):
+            Tools.objects.create(
+                ToolSerie=f"SSM-{index}",
+                ToolName=name,
+                IsSSM=True,
+                Status=Tools.ToolStatus.IN_LUCRU,
+                AssignedTo=self.worker_b,
+            )
+        AttendanceSession.objects.create(user_fk=self.worker_b, work_date=self.today)
+        self.create_request(requester, team_a, self.worker_b)
+
+        response = source.get(reverse("teams_collection"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        source_team = next(team for team in response.json()["teams"] if team["id"] == team_b.pk)
+        worker = next(member for member in source_team["members"] if member["id"] == self.worker_b.pk)
+        self.assertTrue(worker["ssm_complete"])
+        self.assertEqual(worker["presence"], "present")
+        self.assertEqual(worker["active_requests"][0]["requester_team"]["id"], team_a.pk)
 
     def test_employee_cannot_join_two_active_permanent_teams(self):
         self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])
@@ -305,6 +328,26 @@ class TeamManagementApiTests(TestCase):
         )
         self.assertEqual(decision.status_code, 200, decision.content)
         self.assertEqual(source.get(reverse("team_notifications_summary")).json()["attention_count"], 0)
+
+    def test_request_payload_includes_sender_and_resolver(self):
+        team_a, _, requester, requester_user, source, source_user = self.setup_transfer()
+        created = self.create_request(requester, team_a, self.worker_b)
+        request_id = created.json()["request"]["id"]
+
+        sent_payload = created.json()["request"]
+        self.assertEqual(sent_payload["requested_by"]["id"], requester_user.pk)
+        self.assertEqual(sent_payload["requested_by"]["name"], self.leader_a.UserName)
+        self.assertIsNone(sent_payload["resolved_by"])
+
+        source.post(
+            reverse("temporary_worker_request_action", args=[request_id]),
+            data=json.dumps({"action": "approve"}),
+            content_type="application/json",
+        )
+        listed = requester.get(reverse("temporary_worker_requests"))
+        payload = listed.json()["requests"][0]
+        self.assertEqual(payload["resolved_by"]["id"], source_user.pk)
+        self.assertEqual(payload["resolved_by"]["name"], self.leader_b.UserName)
 
     def test_permanent_request_moves_employee_after_source_leader_approval(self):
         team_a, team_b, requester, _, source, _ = self.setup_transfer()

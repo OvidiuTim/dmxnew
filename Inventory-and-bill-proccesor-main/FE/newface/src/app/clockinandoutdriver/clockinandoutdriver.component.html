@@ -65,6 +65,22 @@
             [disabled]="submitting"
           />
 
+          <label class="consent-field" for="driver-data-processing-consent">
+            <input
+              id="driver-data-processing-consent"
+              type="checkbox"
+              name="data-processing-consent"
+              [(ngModel)]="dataProcessingConsent"
+              [disabled]="submitting"
+            />
+            <span>
+              Sunt de acord cu prelucrarea datelor.
+              <small>La check-in se realizeaza automat o fotografie pentru evidenta pontajului.</small>
+            </span>
+          </label>
+
+          <video #cameraPreview class="camera-capture" autoplay muted playsinline aria-hidden="true"></video>
+
           <p class="gate-note" [class.ready]="canSubmit">
             {{ gateMessage }}
           </p>

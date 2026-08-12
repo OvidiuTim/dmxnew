@@ -22,6 +22,8 @@ export interface TeamEmployee {
   target_team_id?: number | null;
   can_request?: boolean;
   can_request_permanent?: boolean;
+  ssm_complete?: boolean;
+  active_requests?: TeamRequest[];
 }
 
 export interface EmployeeTeam {
@@ -44,6 +46,8 @@ export interface TeamRequest {
   start_date: string;
   end_date: string;
   reason: string;
+  requested_by: { id: number | null; name: string };
+  resolved_by: { id: number | null; name: string } | null;
   request_type: 'temporary' | 'permanent';
   request_type_label: string;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired';

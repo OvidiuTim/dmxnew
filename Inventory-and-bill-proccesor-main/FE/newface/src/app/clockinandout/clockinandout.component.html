@@ -122,7 +122,23 @@
             [disabled]="submitting"
           />
 
-          <p class="gate-note" [class.ready]="gateReady">
+          <label class="consent-field" for="data-processing-consent">
+            <input
+              id="data-processing-consent"
+              type="checkbox"
+              name="data-processing-consent"
+              [(ngModel)]="dataProcessingConsent"
+              [disabled]="submitting"
+            />
+            <span>
+              Sunt de acord cu prelucrarea datelor.
+              <small>La check-in se realizeaza automat o fotografie pentru evidenta pontajului.</small>
+            </span>
+          </label>
+
+          <video #cameraPreview class="camera-capture" autoplay muted playsinline aria-hidden="true"></video>
+
+          <p class="gate-note" [class.ready]="canSubmit">
             {{ gateMessage }}
           </p>
 

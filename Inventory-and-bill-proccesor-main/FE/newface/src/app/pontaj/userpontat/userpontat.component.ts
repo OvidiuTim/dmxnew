@@ -13,6 +13,7 @@ interface SessionRow {
   worksite?: string | null;
   in_gps?: GpsPoint | null;
   out_gps?: GpsPoint | null;
+  in_photo?: string | null;
 }
 
 interface GpsPoint {
@@ -86,6 +87,7 @@ export class UserpontatComponent implements OnInit {
   days: DayRow[] = [];
   monthTotal = '00:00:00';
   monthSalary: number | null = null;
+  checkinPhotoToView: string | null = null;
 
   // editor
   editingDate: string | null = null;
@@ -336,6 +338,16 @@ export class UserpontatComponent implements OnInit {
     }
 
     window.open(this.gpsMapsUrl(point), '_blank', 'noopener,noreferrer');
+  }
+
+  openCheckinPhoto(photo?: string | null): void {
+    if (photo) {
+      this.checkinPhotoToView = photo;
+    }
+  }
+
+  closeCheckinPhoto(): void {
+    this.checkinPhotoToView = null;
   }
 
   durataOre(hms: string) {

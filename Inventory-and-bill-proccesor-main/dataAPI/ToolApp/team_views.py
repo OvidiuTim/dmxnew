@@ -1,4 +1,5 @@
 import json
+import unicodedata
 from datetime import date
 
 from django.core.exceptions import ValidationError
@@ -15,6 +16,7 @@ from ToolApp.models import (
     EmployeeTeamMember,
     LeaveDay,
     TemporaryWorkerRequest,
+    Tools,
     Users,
 )
 from ToolApp.security import get_app_user_from_request, request_has_admin
@@ -68,8 +70,8 @@ def _is_leader(app_user, team):
     return bool(app_user and app_user.employee_id == team.leader_id and team.active)
 
 
-def _employee_payload(employee, team=None):
-    return {
+def _employee_payload(employee, team=None, member_status=None, include_requests=False):
+    payload = {
         "id": employee.UserId,
         "name": employee.UserName,
         "serie": employee.UserSerie,
@@ -80,9 +82,19 @@ def _employee_payload(employee, team=None):
         "active": employee.active,
         "team": {"id": team.pk, "name": team.name} if team else None,
     }
+    if member_status:
+        payload.update({
+            "ssm_complete": member_status["ssm_complete"],
+            "presence": member_status["presence"],
+        })
+        if include_requests:
+            payload["active_requests"] = member_status["active_requests"]
+    return payload
 
 
-def _team_payload(team, app_user=None, can_manage_all=False):
+def _team_payload(team, app_user=None, can_manage_all=False, member_statuses=None):
+    member_statuses = member_statuses or {}
+    include_requests = can_manage_all or _is_leader(app_user, team)
     memberships = list(
         team.memberships.filter(active=True)
         .select_related("employee")
@@ -94,15 +106,30 @@ def _team_payload(team, app_user=None, can_manage_all=False):
         if membership.employee_id in seen:
             continue
         seen.add(membership.employee_id)
-        members.append(_employee_payload(membership.employee, team))
+        members.append(_employee_payload(
+            membership.employee,
+            team,
+            member_statuses.get(membership.employee_id),
+            include_requests,
+        ))
     if team.leader_id not in seen:
-        members.insert(0, _employee_payload(team.leader, team))
+        members.insert(0, _employee_payload(
+            team.leader,
+            team,
+            member_statuses.get(team.leader_id),
+            include_requests,
+        ))
     return {
         "id": team.pk,
         "name": team.name,
         "active": team.active,
         "default_worksite": team.default_worksite,
-        "leader": _employee_payload(team.leader, team),
+        "leader": _employee_payload(
+            team.leader,
+            team,
+            member_statuses.get(team.leader_id),
+            include_requests,
+        ),
         "members": members,
         "member_ids": [item["id"] for item in members],
         "can_edit": can_manage_all or _is_leader(app_user, team),
@@ -112,6 +139,90 @@ def _team_payload(team, app_user=None, can_manage_all=False):
 
 def _teams_queryset():
     return EmployeeTeam.objects.select_related("leader").prefetch_related("memberships__employee")
+
+
+def _normalize_text(value):
+    return "".join(
+        char for char in unicodedata.normalize("NFD", str(value or ""))
+        if unicodedata.category(char) != "Mn"
+    ).lower()
+
+
+def _ssm_equipment_key(tool):
+    value = _normalize_text(f"{tool.ToolName} {tool.Category or ''}")
+    if "casca" in value:
+        return "helmet"
+    if "bocanc" in value:
+        return "boots"
+    if "vesta" in value:
+        return "vest"
+    if "manus" in value:
+        return "gloves"
+    if "ham" in value.split() or "centura de siguranta" in value:
+        return "harness"
+    return None
+
+
+def _team_member_statuses(teams, app_user, can_manage_all):
+    employee_ids = {
+        employee_id
+        for team in teams
+        for employee_id in [team.leader_id, *team.memberships.filter(active=True).values_list("employee_id", flat=True)]
+    }
+    if not employee_ids:
+        return {}
+
+    required_ssm = {"helmet", "boots", "vest", "harness", "gloves"}
+    ssm_by_employee = {employee_id: set() for employee_id in employee_ids}
+    assigned_ssm = Tools.objects.filter(
+        AssignedTo_id__in=employee_ids,
+        IsSSM=True,
+        Status=Tools.ToolStatus.IN_LUCRU,
+        IsReturned=False,
+        IsLost=False,
+    )
+    for tool in assigned_ssm:
+        equipment_key = _ssm_equipment_key(tool)
+        if equipment_key:
+            ssm_by_employee[tool.AssignedTo_id].add(equipment_key)
+
+    present_ids = set(AttendanceSession.objects.filter(
+        work_date=timezone.localdate(),
+        user_fk_id__in=employee_ids,
+    ).values_list("user_fk_id", flat=True))
+
+    request_rows = {employee_id: [] for employee_id in employee_ids}
+    visible_team_ids = {
+        team.pk for team in teams
+        if can_manage_all or _is_leader(app_user, team)
+    }
+    if visible_team_ids:
+        pending_requests = TemporaryWorkerRequest.objects.select_related("source_team", "requester_team").filter(
+            employee_id__in=employee_ids,
+            status=TemporaryWorkerRequest.Status.PENDING,
+        ).filter(Q(source_team_id__in=visible_team_ids) | Q(requester_team_id__in=visible_team_ids))
+        for item in pending_requests:
+            request_rows[item.employee_id].append({
+                "id": item.pk,
+                "request_type": item.request_type,
+                "request_type_label": item.get_request_type_display(),
+                "source_team": {"id": item.source_team_id, "name": item.source_team.name},
+                "requester_team": {"id": item.requester_team_id, "name": item.requester_team.name},
+                "start_date": item.start_date.isoformat(),
+                "end_date": item.end_date.isoformat(),
+                "reason": item.reason,
+                "status": item.status,
+                "status_label": item.get_status_display(),
+            })
+
+    return {
+        employee_id: {
+            "ssm_complete": required_ssm.issubset(ssm_by_employee[employee_id]),
+            "presence": "present" if employee_id in present_ids else "absent",
+            "active_requests": request_rows[employee_id],
+        }
+        for employee_id in employee_ids
+    }
 
 
 def _expire_requests():
@@ -159,6 +270,7 @@ def teams_collection(request):
 
     if request.method == "GET":
         teams = list(_teams_queryset().order_by("name"))
+        member_statuses = _team_member_statuses(teams, app_user, can_manage_all)
         membership = _membership_map()
         today = timezone.localdate()
         unavailable_ids = set(LeaveDay.objects.filter(work_date=today).values_list("user_fk_id", flat=True))
@@ -176,7 +288,7 @@ def teams_collection(request):
             )
             employees.append(row)
         return JsonResponse({
-            "teams": [_team_payload(team, app_user, can_manage_all) for team in teams],
+            "teams": [_team_payload(team, app_user, can_manage_all, member_statuses) for team in teams],
             "employees": employees,
             "unassigned_count": sum(1 for item in employees if item["active"] and not item["team"]),
             "permissions": {
@@ -362,6 +474,8 @@ def _request_payload(item, app_user=None, can_manage_all=False):
     can_cancel = can_manage_all or _is_leader(app_user, item.requester_team) or (
         app_user and item.requested_by_id == app_user.pk
     )
+    requested_by = item.requested_by
+    resolved_by = item.resolved_by
     return {
         "id": item.pk,
         "employee": _employee_payload(item.employee, item.source_team),
@@ -370,6 +484,14 @@ def _request_payload(item, app_user=None, can_manage_all=False):
         "start_date": item.start_date.isoformat(),
         "end_date": item.end_date.isoformat(),
         "reason": item.reason,
+        "requested_by": {
+            "id": requested_by.pk if requested_by else None,
+            "name": requested_by.employee.UserName if requested_by and requested_by.employee_id else "Administrator",
+        },
+        "resolved_by": ({
+            "id": resolved_by.pk if resolved_by else None,
+            "name": resolved_by.employee.UserName if resolved_by and resolved_by.employee_id else "Administrator",
+        } if item.status in (item.Status.APPROVED, item.Status.REJECTED) else None),
         "request_type": item.request_type,
         "request_type_label": item.get_request_type_display(),
         "status": item.status,
@@ -395,7 +517,7 @@ def temporary_requests(request):
     _expire_requests()
     if request.method == "GET":
         query = TemporaryWorkerRequest.objects.select_related(
-            "employee", "source_team", "requester_team", "requested_by", "resolved_by"
+            "employee", "source_team", "requester_team", "requested_by__employee", "resolved_by__employee"
         )
         if not can_manage_all:
             employee_id = app_user.employee_id
@@ -528,7 +650,7 @@ def temporary_request_action(request, request_id):
 
 def _incoming_requests(app_user, can_manage_all):
     query = TemporaryWorkerRequest.objects.select_related(
-        "employee", "source_team__leader", "requester_team__leader", "requested_by", "resolved_by"
+        "employee", "source_team__leader", "requester_team__leader", "requested_by__employee", "resolved_by__employee"
     )
     if can_manage_all:
         return query

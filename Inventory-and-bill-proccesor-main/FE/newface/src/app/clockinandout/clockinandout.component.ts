@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import * as L from 'leaflet';
+import { firstValueFrom } from 'rxjs';
 import { SharedService } from '../shared.service';
 
 type LanguageCode = 'ro' | 'en' | 'pa' | 'hi' | 'ne';
@@ -58,11 +59,8 @@ interface TranslationPack {
   erase: string;
   enterTitle: string;
   exitTitle: string;
-  errorTitle: string;
   invalidPin: string;
   genericError: string;
-  manualDeviceLockedError: string;
-  manualCheckoutSameDeviceError: string;
   gpsLoadingBadge: string;
   gpsLoadingTitle: string;
   gpsLoadingDetail: string;
@@ -99,6 +97,7 @@ interface TranslationPack {
 })
 export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapContainer') mapContainer?: ElementRef<HTMLDivElement>;
+  @ViewChild('cameraPreview') cameraPreview?: ElementRef<HTMLVideoElement>;
 
   readonly languages: LanguageOption[] = [
     { code: 'ro', nativeLabel: 'Romana', secondaryLabel: 'Romanian', locale: 'ro-RO' },
@@ -148,11 +147,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       erase: 'Inapoi',
       enterTitle: 'Pontare reusita',
       exitTitle: 'Depontare reusita',
-      errorTitle: 'Actiune blocata',
       invalidPin: 'Nu am gasit niciun angajat cu acest PIN.',
       genericError: 'Nu am putut inregistra pontajul acum. Incearca din nou.',
-      manualDeviceLockedError: 'Telefonul sau browserul acesta are deja un check-in activ pentru alt muncitor. Pe acest dispozitiv poti face acum doar check-out pentru muncitorul pontat primul.',
-      manualCheckoutSameDeviceError: 'Check-out-ul pentru acest muncitor trebuie facut de pe acelasi telefon sau browser folosit la check-in.',
       gpsLoadingBadge: 'GPS se conecteaza',
       gpsLoadingTitle: 'Cerem pozitia curenta a telefonului.',
       gpsLoadingDetail: 'Accepta accesul la locatie pentru a verifica daca esti in zona santierului.',
@@ -203,11 +199,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       erase: 'Back',
       enterTitle: 'Clock-in recorded',
       exitTitle: 'Clock-out recorded',
-      errorTitle: 'Action blocked',
       invalidPin: 'No employee was found with this PIN.',
       genericError: 'The attendance could not be recorded right now. Please try again.',
-      manualDeviceLockedError: 'This phone or browser already has an active check-in for another worker. On this device you can only check out the worker who checked in first.',
-      manualCheckoutSameDeviceError: 'Clock-out for this worker must be done from the same phone or browser used for clock-in.',
       gpsLoadingBadge: 'GPS loading',
       gpsLoadingTitle: 'We are requesting the current phone location.',
       gpsLoadingDetail: 'Allow location access to verify whether you are inside the worksite area.',
@@ -258,11 +251,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       erase: 'ਵਾਪਸ',
       enterTitle: 'ਐਂਟਰੀ ਦਰਜ ਹੋਈ',
       exitTitle: 'ਐਗਜ਼ਿਟ ਦਰਜ ਹੋਈ',
-      errorTitle: 'ਕਾਰਵਾਈ ਰੋਕੀ ਗਈ',
       invalidPin: 'ਇਸ ਪਿੰਨ ਨਾਲ ਕੋਈ ਕਰਮਚਾਰੀ ਨਹੀਂ ਮਿਲਿਆ।',
       genericError: 'ਇਸ ਵੇਲੇ ਹਾਜ਼ਰੀ ਦਰਜ ਨਹੀਂ ਹੋ ਸਕੀ। ਕਿਰਪਾ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
-      manualDeviceLockedError: 'ਇਸ ਫੋਨ ਜਾਂ ਬਰਾਊਜ਼ਰ ਤੋਂ ਪਹਿਲਾਂ ਹੀ ਕਿਸੇ ਹੋਰ ਮਜ਼ਦੂਰ ਦਾ ਚੈਕ-ਇਨ ਖੁੱਲ੍ਹਾ ਹੈ। ਇਸ ਡਿਵਾਈਸ ਤੋਂ ਹੁਣ ਸਿਰਫ਼ ਉਸੇ ਮਜ਼ਦੂਰ ਦਾ ਚੈਕ-ਆਉਟ ਹੋ ਸਕਦਾ ਹੈ।',
-      manualCheckoutSameDeviceError: 'ਇਸ ਮਜ਼ਦੂਰ ਦਾ ਚੈਕ-ਆਉਟ ਉਸੇ ਫੋਨ ਜਾਂ ਬਰਾਊਜ਼ਰ ਤੋਂ ਕਰਨਾ ਪਵੇਗਾ ਜਿਸ ਨਾਲ ਚੈਕ-ਇਨ ਕੀਤਾ ਗਿਆ ਸੀ।',
       gpsLoadingBadge: 'GPS ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ',
       gpsLoadingTitle: 'ਫੋਨ ਦੀ ਮੌਜੂਦਾ ਲੋਕੇਸ਼ਨ ਲਈ ਬੇਨਤੀ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ।',
       gpsLoadingDetail: 'ਲੋਕੇਸ਼ਨ ਦੀ ਆਗਿਆ ਦਿਓ ਤਾਂ ਜੋ ਪਤਾ ਲੱਗੇ ਕਿ ਤੁਸੀਂ ਸਾਈਟ ਦੀ ਜ਼ੋਨ ਵਿੱਚ ਹੋ ਜਾਂ ਨਹੀਂ।',
@@ -313,11 +303,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       erase: 'पीछे',
       enterTitle: 'एंट्री दर्ज हुई',
       exitTitle: 'एग्जिट दर्ज हुई',
-      errorTitle: 'कार्रवाई रोकी गई',
       invalidPin: 'इस पिन से कोई कर्मचारी नहीं मिला।',
       genericError: 'अभी उपस्थिति दर्ज नहीं हो सकी। कृपया फिर से प्रयास करें।',
-      manualDeviceLockedError: 'इस फोन या ब्राउज़र पर पहले से किसी दूसरे मजदूर का सक्रिय चेक-इन है। इस डिवाइस से अब केवल उसी मजदूर का चेक-आउट किया जा सकता है।',
-      manualCheckoutSameDeviceError: 'इस मजदूर का चेक-आउट उसी फोन या ब्राउज़र से करना होगा जिससे चेक-इन किया गया था।',
       gpsLoadingBadge: 'GPS लोड हो रहा है',
       gpsLoadingTitle: 'फोन की वर्तमान लोकेशन ली जा रही है।',
       gpsLoadingDetail: 'यह देखने के लिए लोकेशन अनुमति दें कि आप साइट की ज़ोन में हैं या नहीं।',
@@ -368,11 +355,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       erase: 'फर्कनुहोस्',
       enterTitle: 'प्रवेश दर्ता भयो',
       exitTitle: 'बहिर्गमन दर्ता भयो',
-      errorTitle: 'कार्य रोकिनेछ',
       invalidPin: 'यो पिन भएका कर्मचारी भेटिएनन्।',
       genericError: 'अहिले हाजिरी दर्ता गर्न सकिएन। फेरि प्रयास गर्नुहोस्।',
-      manualDeviceLockedError: 'यो फोन वा ब्राउजरमा पहिले नै अर्को कामदारको सक्रिय चेक-इन छ। यो डिभाइसबाट अब त्यही कामदारको चेक-आउट मात्र गर्न सकिन्छ।',
-      manualCheckoutSameDeviceError: 'यो कामदारको चेक-आउट चेक-इन गरिएको त्यही फोन वा ब्राउजरबाट गर्नुपर्छ।',
       gpsLoadingBadge: 'GPS लोड हुँदैछ',
       gpsLoadingTitle: 'फोनको हालको स्थान मागिँदैछ।',
       gpsLoadingDetail: 'तपाईं साइटको क्षेत्रमा हुनुहुन्छ कि छैन भनेर हेर्न स्थान अनुमति दिनुहोस्।',
@@ -407,6 +391,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   selectedWorksite: WorksiteDefinition | null = null;
   pin = '';
   submitting = false;
+  dataProcessingConsent = false;
   currentTime = new Date();
   feedback: FeedbackState | null = null;
   currentPosition: CurrentPosition | null = null;
@@ -422,6 +407,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   private watchId: number | null = null;
   private clockTimer: ReturnType<typeof setInterval> | null = null;
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
+  private cameraStream: MediaStream | null = null;
 
   constructor(private api: SharedService) {}
 
@@ -445,6 +431,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     this.stopGeolocation();
+    this.stopCamera();
     this.map?.remove();
   }
 
@@ -479,7 +466,11 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   get canSubmit(): boolean {
-    return !!this.pin.trim() && !!this.selectedWorksite && this.effectiveLocationState === 'inside' && !this.submitting;
+    return !!this.pin.trim()
+      && !!this.selectedWorksite
+      && this.effectiveLocationState === 'inside'
+      && this.dataProcessingConsent
+      && !this.submitting;
   }
 
   get gateReady(): boolean {
@@ -531,6 +522,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
     if (state === 'loading') {
       return this.t.gpsLoadingDetail;
+    }
+
+    if (!this.dataProcessingConsent) {
+      return 'Bifeaza acordul pentru prelucrarea datelor pentru a activa pontajul.';
     }
 
     if (state === 'inside') {
@@ -656,7 +651,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     this.requestFreshLocation();
   }
 
-  submitPin(): void {
+  async submitPin(): Promise<void> {
     if (!this.selectedWorksite) {
       this.showError(this.t.worksiteRequired);
       return;
@@ -672,6 +667,11 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       return;
     }
 
+    if (!this.dataProcessingConsent) {
+      this.showError('Bifeaza acordul pentru prelucrarea datelor inainte de pontaj.');
+      return;
+    }
+
     if (!this.canSubmit) {
       this.showError(this.t.zoneRestriction);
       return;
@@ -680,39 +680,40 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     const cleanPin = this.pin.trim();
     this.submitting = true;
 
-    this.api.manualAttendanceByPin(cleanPin, {
-      worksite: this.selectedWorksite.name,
-      mode: 'manual',
-      gps: {
-        lat: this.currentPosition.lat,
-        lng: this.currentPosition.lng,
-        accuracy: this.currentPosition.accuracy,
-        capturedAt: this.locationCapturedAt?.toISOString()
-      }
-    }).subscribe({
-      next: (response) => {
+    let response: any;
+    try {
+      response = await firstValueFrom(this.submitAttendanceRequest(cleanPin));
+    } catch (error) {
+      const attendanceError: any = error;
+      const code = typeof attendanceError?.error?.error_code === 'string' ? attendanceError.error.error_code : '';
+      if (code !== 'CHECKIN_PHOTO_REQUIRED') {
         this.submitting = false;
-
-        if (response?.debounced) {
-          return;
-        }
-
-        if (!response?.user?.name || !response?.state) {
-          this.showError(this.t.invalidPin);
-          this.clearPin();
-          return;
-        }
-
-        this.showAttendanceFeedback(response.state, response.user.name);
+        this.showError(this.resolveAttendanceError(attendanceError));
         this.clearPin();
-      },
-      error: (error) => {
-        this.submitting = false;
-        const message = this.resolveAttendanceError(error);
-        this.showError(message);
-        this.clearPin();
+        return;
       }
-    });
+
+      try {
+        const checkinPhoto = await this.captureAttendancePhoto();
+        response = await firstValueFrom(this.submitAttendanceRequest(cleanPin, checkinPhoto));
+      } catch (photoError) {
+        this.submitting = false;
+        this.showError(photoError instanceof Error ? photoError.message : 'Nu am putut face fotografia pentru pontaj.');
+        return;
+      }
+    }
+
+    this.submitting = false;
+    if (response?.debounced) {
+      return;
+    }
+    if (!response?.user?.name || !response?.state) {
+      this.showError(this.t.invalidPin);
+      this.clearPin();
+      return;
+    }
+    this.showAttendanceFeedback(response.state, response.user.name);
+    this.clearPin();
   }
 
   formatCoordinates(lat: number, lng: number): string {
@@ -740,7 +741,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   private showError(message: string): void {
     this.feedback = {
       kind: 'error',
-      title: this.t.errorTitle,
+      title: 'Pontaj nefinalizat',
       message,
       stamp: this.t.processedAt(this.formattedTime)
     };
@@ -750,19 +751,80 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   private resolveAttendanceError(error: any): string {
     const code = typeof error?.error?.error_code === 'string' ? error.error.error_code : '';
-    if (code === 'MANUAL_DEVICE_LOCKED') {
-      return this.t.manualDeviceLockedError;
-    }
-
-    if (code === 'MANUAL_CHECKOUT_DEVICE_MISMATCH') {
-      return this.t.manualCheckoutSameDeviceError;
-    }
-
     if (code === 'GPS_CAPTURE_EXPIRED') {
       return this.getLocationExpiredErrorText();
     }
 
     return typeof error?.error?.error === 'string' ? error.error.error : this.t.genericError;
+  }
+
+  private submitAttendanceRequest(pin: string, checkinPhoto?: string) {
+    return this.api.manualAttendanceByPin(pin, {
+      worksite: this.selectedWorksite!.name,
+      mode: 'manual',
+      gps: {
+        lat: this.currentPosition!.lat,
+        lng: this.currentPosition!.lng,
+        accuracy: this.currentPosition!.accuracy,
+        capturedAt: this.locationCapturedAt?.toISOString()
+      },
+      dataProcessingConsent: this.dataProcessingConsent,
+      checkinPhoto,
+    });
+  }
+
+  private async captureAttendancePhoto(): Promise<string> {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Camera telefonului nu este disponibila in acest browser.');
+    }
+
+    const video = this.cameraPreview?.nativeElement;
+    if (!video) {
+      throw new Error('Camera nu este pregatita. Reincarca pagina si incearca din nou.');
+    }
+
+    try {
+      this.cameraStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'user' },
+          width: { ideal: 640 },
+          height: { ideal: 640 }
+        }
+      });
+      video.srcObject = this.cameraStream;
+      await video.play();
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 180));
+
+      const sourceWidth = video.videoWidth;
+      const sourceHeight = video.videoHeight;
+      if (!sourceWidth || !sourceHeight) {
+        throw new Error('Camera nu a trimis o imagine. Incearca din nou.');
+      }
+
+      const side = Math.min(sourceWidth, sourceHeight);
+      const canvas = document.createElement('canvas');
+      canvas.width = 240;
+      canvas.height = 240;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('Nu am putut procesa fotografia pentru pontaj.');
+      }
+      context.drawImage(video, (sourceWidth - side) / 2, (sourceHeight - side) / 2, side, side, 0, 0, 240, 240);
+
+      const webp = canvas.toDataURL('image/webp', 0.4);
+      return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.4);
+    } finally {
+      this.stopCamera();
+    }
+  }
+
+  private stopCamera(): void {
+    this.cameraStream?.getTracks().forEach((track) => track.stop());
+    this.cameraStream = null;
+    if (this.cameraPreview?.nativeElement) {
+      this.cameraPreview.nativeElement.srcObject = null;
+    }
   }
 
   private scheduleFeedbackReset(): void {

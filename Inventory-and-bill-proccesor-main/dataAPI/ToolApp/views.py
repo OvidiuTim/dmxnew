@@ -1,4 +1,6 @@
 # --- Standard library ---
+import base64
+import binascii
 import csv, io, re
 import json, logging, math
 import hashlib
@@ -1887,6 +1889,28 @@ def _extract_gps_captured_at(data):
     return _parse_client_ts(raw_value)
 
 
+def _extract_checkin_photo(data):
+    """Accepta doar o miniatura data-URL, pentru a mentine stocarea pontajului mica."""
+    photo = str(data.get("checkin_photo") or "").strip()
+    if not photo:
+        return ""
+
+    header, separator, encoded = photo.partition(",")
+    if separator != "," or header not in {"data:image/webp;base64", "data:image/jpeg;base64"}:
+        raise ValueError("Fotografia de pontaj are un format neacceptat.")
+
+    try:
+        binary = base64.b64decode(encoded, validate=True)
+    except (ValueError, binascii.Error):
+        raise ValueError("Fotografia de pontaj nu poate fi citita.")
+
+    # O fotografie de 240 x 240 px, comprimata, este in mod normal sub 40 KB.
+    if not binary or len(binary) > 120 * 1024:
+        raise ValueError("Fotografia de pontaj este prea mare.")
+
+    return f"{header},{encoded}"
+
+
 def _session_gps_payload(session):
     return {
         "in_gps": (
@@ -1907,6 +1931,7 @@ def _session_gps_payload(session):
             if session.out_gps_latitude is not None and session.out_gps_longitude is not None
             else None
         ),
+        "in_photo": session.checkin_photo or None,
     }
 
 
@@ -1941,6 +1966,19 @@ def nfc_scan(request):
     manual_client_ip = None
     gps_payload = _extract_gps_payload(data)
     gps_captured_at = _extract_gps_captured_at(data)
+    raw_consent = data.get("data_processing_consent")
+    data_processing_consent = raw_consent is True or str(raw_consent).strip().lower() in {"1", "true", "yes"}
+
+    if is_manual_scan and not data_processing_consent:
+        return JsonResponse({
+            "error": "Este necesar acordul pentru prelucrarea datelor inainte de pontaj.",
+            "error_code": "DATA_PROCESSING_CONSENT_REQUIRED",
+        }, status=400)
+
+    try:
+        checkin_photo = _extract_checkin_photo(data) if is_manual_scan else ""
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc), "error_code": "INVALID_CHECKIN_PHOTO"}, status=400)
 
     if attendance_mode == "driver" and not gps_payload:
         return JsonResponse({
@@ -2030,25 +2068,15 @@ def nfc_scan(request):
                      .order_by('-in_time')
                      .first())
 
-        if is_manual_scan:
-            matching_client_session = None
-            if manual_device_key:
-                matching_client_session = (AttendanceSession.objects
-                                           .select_for_update()
-                                           .filter(out_time__isnull=True, work_date=today, manual_device_key=manual_device_key)
-                                           .order_by('-in_time')
-                                           .first())
-
-            target_has_open_session_today = bool(open_sess and open_sess.work_date == today)
-            if (
-                not target_has_open_session_today
-                and matching_client_session
-                and matching_client_session.user_fk_id != user.UserId
-            ):
-                return JsonResponse({
-                    "error": "Telefonul sau browserul acesta are deja un check-in activ pentru alt muncitor. Pe acest dispozitiv poti face acum doar check-out pentru muncitorul pontat primul.",
-                    "error_code": "MANUAL_DEVICE_LOCKED"
-                }, status=409)
+        is_checkin = not open_sess or open_sess.work_date < today
+        if is_manual_scan and is_checkin and not checkin_photo:
+            # Urmatoarea cerere este retrimisa imediat de client dupa captura camerei.
+            # Nu o tratam drept dublu-scan.
+            _last_seen.pop(key, None)
+            return JsonResponse({
+                "error": "Fotografia realizata la check-in este obligatorie pentru pontaj.",
+                "error_code": "CHECKIN_PHOTO_REQUIRED",
+            }, status=400)
 
         if open_sess:
             # dacă sesiunea e din altă zi, o închidem la ora de închidere a zilei anterioare
@@ -2076,6 +2104,9 @@ def nfc_scan(request):
                     worksite=ws,
                     manual_client_ip=manual_client_ip if is_manual_scan else None,
                     manual_device_key=manual_device_key if is_manual_scan else None,
+                    data_processing_consent=data_processing_consent if is_manual_scan else False,
+                    data_processing_consent_at=timezone.now() if is_manual_scan and data_processing_consent else None,
+                    checkin_photo=checkin_photo if is_manual_scan else "",
                 )
                 _publish("enter", user, when, {"worksite": ws})
                 PresenceEvent.objects.create(
@@ -2160,6 +2191,9 @@ def nfc_scan(request):
             worksite=ws,
             manual_client_ip=manual_client_ip if is_manual_scan else None,
             manual_device_key=manual_device_key if is_manual_scan else None,
+            data_processing_consent=data_processing_consent if is_manual_scan else False,
+            data_processing_consent_at=timezone.now() if is_manual_scan and data_processing_consent else None,
+            checkin_photo=checkin_photo if is_manual_scan else "",
         )
         PresenceEvent.objects.create(
             user_fk=user, kind=PresenceEvent.Kind.ENTER,
