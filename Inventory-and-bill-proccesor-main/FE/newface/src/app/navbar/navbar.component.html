@@ -15,9 +15,10 @@
     <ng-container *ngFor="let group of groups">
       <section class="nav-group" *ngIf="visibleLinks(group).length">
         <span class="nav-title">{{ group.label }}</span>
-        <a *ngFor="let link of visibleLinks(group)" [href]="link.path" class="nav-item" [ngClass]="{ active: link.active }" (click)="onLinkClick(link, $event)">
+        <a *ngFor="let link of visibleLinks(group)" [href]="link.path" class="nav-item" [ngClass]="{ active: link.active, attention: !!link.attentionCount }" (click)="onLinkClick(link, $event)">
           <span class="nav-icon" aria-hidden="true"><app-icon [name]="link.icon" [size]="20"></app-icon></span>
           <span>{{ link.label }}</span>
+          <span class="notification-badge" *ngIf="link.attentionCount">{{ link.attentionCount > 99 ? '99+' : link.attentionCount }}</span>
           <span class="active-dot" *ngIf="link.active"></span>
         </a>
       </section>

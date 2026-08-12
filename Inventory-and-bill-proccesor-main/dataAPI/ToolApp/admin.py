@@ -76,9 +76,9 @@ class EmployeeSalaryProfileInline(admin.StackedInline):
 
 @admin.register(Users)
 class UsersAdmin(admin.ModelAdmin):
-    list_display = ("UserName", "UserSerie", "Company", "trade", "active", "hire_date", "accommodation")
+    list_display = ("UserName", "UserSerie", "email", "Company", "trade", "active", "hire_date", "accommodation")
     list_filter = ("active", "Company", "trade")
-    search_fields = ("UserName", "UserSerie", "phone_number", "housing_location")
+    search_fields = ("UserName", "UserSerie", "email", "phone_number", "housing_location")
     inlines = (EmployeeSalaryProfileInline,)
 
 
@@ -138,7 +138,7 @@ class EmployeeTeamAdmin(admin.ModelAdmin):
 
 @admin.register(TemporaryWorkerRequest)
 class TemporaryWorkerRequestAdmin(admin.ModelAdmin):
-    list_display = ("employee", "source_team", "requester_team", "start_date", "end_date", "status")
-    list_filter = ("status", "start_date", "source_team", "requester_team")
+    list_display = ("employee", "request_type", "source_team", "requester_team", "start_date", "end_date", "status", "seen_at", "email_sent_at")
+    list_filter = ("request_type", "status", "start_date", "source_team", "requester_team")
     search_fields = ("employee__UserName", "source_team__name", "requester_team__name", "reason")
-    readonly_fields = ("created_at", "updated_at", "resolved_at")
+    readonly_fields = ("created_at", "updated_at", "resolved_at", "seen_at", "email_sent_at")

@@ -100,6 +100,12 @@
         </div>
 
         <div class="field">
+          <label for="user-email">Email</label>
+          <input id="user-email" type="email" formControlName="email" autocomplete="email" placeholder="nume@companie.ro">
+          <small *ngIf="form.controls.email.invalid && form.controls.email.touched">Introdu o adresă de email validă.</small>
+        </div>
+
+        <div class="field">
           <label for="user-size">Marime echipament</label>
           <input id="user-size" type="text" formControlName="equipment_size" placeholder="Ex: L / 42 / XL">
         </div>

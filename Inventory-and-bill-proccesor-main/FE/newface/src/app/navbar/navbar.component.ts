@@ -1,9 +1,11 @@
-import { Component, EventEmitter, HostListener, Output } from '@angular/core';
+import { Component, EventEmitter, HostListener, OnDestroy, Output } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { Subscription, catchError, of, switchMap, timer } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
+import { TeamApiService } from '../teams/team-api.service';
 
-export type NavLink = { label: string; path: string; icon: string; permissionRoute?: string; active?: boolean };
+export type NavLink = { label: string; path: string; icon: string; permissionRoute?: string; active?: boolean; attentionCount?: number };
 export type NavGroup = { label: string; moduleCode: string; links: NavLink[] };
 
 @Component({
@@ -11,7 +13,7 @@ export type NavGroup = { label: string; moduleCode: string; links: NavLink[] };
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.css'],
 })
-export class NavbarComponent {
+export class NavbarComponent implements OnDestroy {
   @Output() linkClick = new EventEmitter<string>();
 
   groups: NavGroup[] = [
@@ -33,8 +35,9 @@ export class NavbarComponent {
         { label: 'Echipe permanente', path: '/pontaj/echipe', icon: 'groups', permissionRoute: '/pontaj/echipe' },
         { label: 'Echipa mea', path: '/pontaj/echipa-mea', icon: 'group', permissionRoute: '/pontaj/echipa-mea' },
         { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar_month', permissionRoute: '/pontaj/concedii' },
+        { label: 'Notificări', path: '/pontaj/notificari', icon: 'notifications', permissionRoute: '/pontaj/notificari', attentionCount: 0 },
         { label: 'Echipele de azi', path: '/pontaj/echipe-azi', icon: 'today', permissionRoute: '/pontaj/echipe-azi' },
-        { label: 'Personal disponibil', path: '/pontaj/personal-disponibil', icon: 'person_add', permissionRoute: '/pontaj/personal-disponibil' },
+        { label: 'Personal', path: '/pontaj/personal', icon: 'group_add', permissionRoute: '/pontaj/personal' },
       ]
     },
     {
@@ -60,8 +63,9 @@ export class NavbarComponent {
   ];
 
   menuOpen = false;
+  private notificationSubscription?: Subscription;
 
-  constructor(private router: Router, private auth: AuthService) {
+  constructor(private router: Router, private auth: AuthService, private teamsApi: TeamApiService) {
     this.markActive(this.router.url);
     // Update active link whenever route changes
     this.router.events
@@ -69,6 +73,15 @@ export class NavbarComponent {
       .subscribe((e: any) => {
         this.markActive(e.urlAfterRedirects);
       });
+    if (this.visibleLinks(this.groups[1]).length) {
+      this.notificationSubscription = timer(0, 30000).pipe(
+        switchMap(() => this.teamsApi.getNotificationSummary().pipe(catchError(() => of({ attention_count: 0 }))))
+      ).subscribe(response => this.setNotificationCount(Number(response?.attention_count || 0)));
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.notificationSubscription?.unsubscribe();
   }
 
   private markActive(currentUrl: string) {
@@ -116,6 +129,18 @@ export class NavbarComponent {
     this.auth.logout();
     this.closeMenu();
     this.router.navigate(['/login']);
+  }
+
+  @HostListener('window:team-notifications-changed') refreshNotifications(): void {
+    if (!this.visibleLinks(this.groups[1]).length) return;
+    this.teamsApi.getNotificationSummary().pipe(catchError(() => of({ attention_count: 0 }))).subscribe(
+      response => this.setNotificationCount(Number(response?.attention_count || 0))
+    );
+  }
+
+  private setNotificationCount(count: number): void {
+    const link = this.groups[1].links.find(item => item.path === '/pontaj/notificari');
+    if (link) link.attentionCount = count;
   }
 
   @HostListener('document:keydown.escape') onEsc() { this.closeMenu(); }

@@ -106,6 +106,14 @@
   </ng-container>
 
   <ng-container *ngIf="!loading && mode === 'available'">
+    <div class="personnel-tabs" role="tablist" aria-label="Categorii personal">
+      <button type="button" role="tab" [attr.aria-selected]="personnelTab === 'unassigned'" [class.active]="personnelTab === 'unassigned'" (click)="personnelTab = 'unassigned'">
+        <span class="material-symbols-rounded" aria-hidden="true">person_off</span>Personal neatribuit
+      </button>
+      <button type="button" role="tab" [attr.aria-selected]="personnelTab === 'assigned'" [class.active]="personnelTab === 'assigned'" (click)="personnelTab = 'assigned'">
+        <span class="material-symbols-rounded" aria-hidden="true">groups</span>Personal atribuit
+      </button>
+    </div>
     <section class="toolbar">
       <label class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="searchTerm" placeholder="Caută angajat, meserie sau șantier" aria-label="Caută personal disponibil"></label>
       <label><span>Disponibilitate</span><select [(ngModel)]="availabilityFilter"><option value="all">Toți angajații</option><option value="unassigned">Fără echipă permanentă</option><option value="requestable">Pot fi solicitați</option><option value="present">Prezenți</option><option value="leave">Concediu / indisponibili</option></select></label>
@@ -117,15 +125,39 @@
           <td>{{ employee.team?.name || 'Fără echipă' }}</td><td>{{ employee.trade || 'Necompletată' }}</td><td>{{ employee.worksite || '—' }}</td>
           <td><span class="status-chip" [attr.data-status]="employee.leave ? 'rejected' : employee.presence === 'present' ? 'approved' : 'pending'">{{ statusLabel(employee) }}</span></td>
           <td><div class="inline-actions">
-            <ng-container *ngIf="!employee.team && employee.can_add_permanent">
-              <select [(ngModel)]="assignmentTeam[employee.id]" [attr.aria-label]="'Selectează echipa pentru ' + employee.name"><option [ngValue]="null">Alege echipa</option><option *ngFor="let team of manageableTeams" [ngValue]="team.id">{{ team.name }}</option></select>
-              <button type="button" class="button compact primary" (click)="addPermanent(employee)" [disabled]="!assignmentTeam[employee.id]">Adaugă permanent</button>
-            </ng-container>
-            <button *ngIf="employee.can_request" type="button" class="button compact secondary" (click)="openRequest(employee)"><span class="material-symbols-rounded" aria-hidden="true">person_add</span>Solicită temporar</button>
+            <button *ngIf="!employee.team && employee.can_take_in_my_team" type="button" class="button compact primary" (click)="takeInMyTeam(employee)"><span class="material-symbols-rounded" aria-hidden="true">group_add</span>Ia în echipa mea</button>
+            <button *ngIf="employee.team && employee.can_request" type="button" class="button compact secondary" (click)="openRequest(employee, 'temporary')"><span class="material-symbols-rounded" aria-hidden="true">schedule_send</span>Solicită temporar</button>
+            <button *ngIf="employee.team && employee.can_request_permanent" type="button" class="button compact primary" (click)="openRequest(employee, 'permanent')"><span class="material-symbols-rounded" aria-hidden="true">person_add</span>Solicită permanent</button>
           </div></td>
         </tr></tbody>
       </table></div>
     </section>
+  </ng-container>
+
+  <ng-container *ngIf="!loading && mode === 'notifications'">
+    <section class="stats-grid notification-stats" aria-label="Situația notificărilor">
+      <article><span class="stat-icon amber material-symbols-rounded" aria-hidden="true">notifications_active</span><div><strong>{{ filteredRequests.length }}</strong><small>Cereri primite</small></div></article>
+      <article><span class="stat-icon green material-symbols-rounded" aria-hidden="true">pending_actions</span><div><strong>{{ pendingRequestCount }}</strong><small>În așteptare</small></div></article>
+    </section>
+    <section class="toolbar one-column"><label class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="searchTerm" placeholder="Caută angajat sau echipă" aria-label="Caută notificări"></label></section>
+    <section class="requests-card" *ngIf="filteredRequests.length; else noNotifications">
+      <div class="table-scroll"><table class="notifications-table"><thead><tr><th>Tip</th><th>Muncitor</th><th>Solicitare</th><th>Perioadă</th><th>Motiv</th><th>Status</th><th>Acțiuni</th></tr></thead>
+        <tbody><tr *ngFor="let item of filteredRequests; trackBy: trackById" [class.unseen-request]="item.is_unseen">
+          <td><span class="type-chip" [class.permanent]="item.request_type === 'permanent'">{{ item.request_type_label }}</span></td>
+          <td><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || 'Meserie necompletată' }}</small></td>
+          <td><strong>{{ item.requester_team.name }}</strong><small>solicită din {{ item.source_team.name }}</small></td>
+          <td class="mono">{{ item.request_type === 'permanent' ? 'Permanent' : (item.start_date + ' – ' + item.end_date) }}</td>
+          <td>{{ item.reason || '—' }}</td>
+          <td><span class="status-chip" [attr.data-status]="item.status">{{ item.status_label }}</span></td>
+          <td><div class="row-actions">
+            <button *ngIf="item.can_approve" type="button" class="decision approve" (click)="requestAction(item, 'approve')"><span class="material-symbols-rounded" aria-hidden="true">check</span>Aprobă</button>
+            <button *ngIf="item.can_reject" type="button" class="decision reject" (click)="requestAction(item, 'reject')"><span class="material-symbols-rounded" aria-hidden="true">close</span>Respinge</button>
+            <span class="resolved-label" *ngIf="!item.can_approve && !item.can_reject">Soluționată</span>
+          </div></td>
+        </tr></tbody>
+      </table></div>
+    </section>
+    <ng-template #noNotifications><div class="empty-state"><span class="material-symbols-rounded" aria-hidden="true">notifications_off</span><strong>Nu ai notificări de soluționat.</strong></div></ng-template>
   </ng-container>
 </section>
 
@@ -135,7 +167,8 @@
     <form (ngSubmit)="saveTeam()">
       <div class="form-grid">
         <label><span>Denumirea echipei</span><input required [(ngModel)]="teamForm.name" name="team-name" [disabled]="teamForm.id && !teamForm.can_manage_settings"></label>
-        <label><span>Șef de echipă</span><div class="leader-select"><div class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="leaderSearch" name="leader-search" placeholder="Caută după nume sau profesie" [disabled]="teamForm.id && !teamForm.can_manage_settings" aria-label="Caută șeful de echipă"></div><select required [(ngModel)]="teamForm.leader_id" name="team-leader" [disabled]="teamForm.id && !teamForm.can_manage_settings"><option [ngValue]="null">Selectează șeful</option><option *ngFor="let employee of selectableLeaders" [ngValue]="employee.id">{{ employee.name }} · {{ employee.trade || 'fără rol' }}</option></select></div></label>
+        <div class="leader-field"><span class="field-label">Șef de echipă</span><div class="leader-select"><div class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="leaderSearch" (ngModelChange)="onLeaderSearchInput()" (focus)="leaderSearchFocused = true" name="leader-search" autocomplete="off" placeholder="Caută după nume sau profesie" [disabled]="teamForm.id && !teamForm.can_manage_settings" aria-label="Caută șeful de echipă"></div><div class="leader-results" *ngIf="leaderSearchFocused && leaderResults.length"><button type="button" *ngFor="let employee of leaderResults; trackBy: trackById" (mousedown)="$event.preventDefault()" (click)="selectLeader(employee)"><app-employee-avatar [employee]="employee" size="small"></app-employee-avatar><span><strong>{{ employee.name }}</strong><small>{{ employee.trade || 'Fără profesie' }} · {{ employee.company || employee.serie }}</small></span></button></div><div class="selected-leader" *ngIf="selectedLeader"><span class="material-symbols-rounded" aria-hidden="true">verified</span><span><strong>{{ selectedLeader.name }}</strong><small>Șef selectat</small></span></div></div></div>
+        <label><span>Email șef de echipă</span><input type="email" [(ngModel)]="teamForm.leader_email" name="leader-email" autocomplete="email" placeholder="nume@companie.ro" [disabled]="teamForm.id && !teamForm.can_manage_settings"><small class="field-help">Cererile de personal vor fi trimise și la această adresă.</small></label>
         <label><span>Șantier implicit</span><input [(ngModel)]="teamForm.default_worksite" name="team-worksite" placeholder="Ex: Șantier Nord" [disabled]="teamForm.id && !teamForm.can_manage_settings"></label>
         <label class="toggle-row"><input type="checkbox" [(ngModel)]="teamForm.active" name="team-active" [disabled]="teamForm.id && !teamForm.can_manage_settings"><span><strong>Echipă activă</strong><small>Echipele inactive nu apar în alocarea zilnică.</small></span></label>
       </div>
@@ -149,11 +182,12 @@
 
 <div class="modal-backdrop" *ngIf="requestDialogOpen" (click)="closeRequestDialog()">
   <section class="dialog narrow" role="dialog" aria-modal="true" aria-labelledby="request-dialog-title" (click)="$event.stopPropagation()">
-    <div class="dialog-head"><div><span class="eyebrow">Transfer temporar</span><h2 id="request-dialog-title">Solicită un muncitor</h2></div><button type="button" class="icon-button" (click)="closeRequestDialog()" aria-label="Închide dialogul"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
+    <div class="dialog-head"><div><span class="eyebrow">{{ requestForm.request_type === 'permanent' ? 'Transfer permanent' : 'Transfer temporar' }}</span><h2 id="request-dialog-title">Solicită un muncitor</h2></div><button type="button" class="icon-button" (click)="closeRequestDialog()" aria-label="Închide dialogul"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div>
     <form (ngSubmit)="saveRequest()" class="request-form">
       <label><span>Echipa solicitantă</span><select required [(ngModel)]="requestForm.requester_team_id" name="requester-team"><option [ngValue]="null">Selectează echipa</option><option *ngFor="let team of requesterTeams" [ngValue]="team.id">{{ team.name }}</option></select></label>
       <label><span>Muncitor</span><select required [(ngModel)]="requestForm.employee_id" name="requested-employee"><option [ngValue]="null">Selectează muncitorul</option><option *ngFor="let employee of requestableEmployees" [ngValue]="employee.id">{{ employee.name }} · {{ employee.team?.name }}</option></select></label>
-      <div class="form-grid"><label><span>De la</span><input required type="date" [(ngModel)]="requestForm.start_date" name="request-start"></label><label><span>Până la</span><input required type="date" [(ngModel)]="requestForm.end_date" name="request-end"></label></div>
+      <div class="form-grid" *ngIf="requestForm.request_type === 'temporary'"><label><span>De la</span><input required type="date" [(ngModel)]="requestForm.start_date" name="request-start"></label><label><span>Până la</span><input required type="date" [(ngModel)]="requestForm.end_date" name="request-end"></label></div>
+      <div class="permanent-note" *ngIf="requestForm.request_type === 'permanent'"><span class="material-symbols-rounded" aria-hidden="true">info</span><span>După aprobarea șefului actual, angajatul va fi mutat permanent în echipa solicitantă.</span></div>
       <label><span>Motiv sau observație</span><textarea rows="4" [(ngModel)]="requestForm.reason" name="request-reason" placeholder="Opțional"></textarea></label>
       <div class="dialog-actions"><button type="button" class="button secondary" (click)="closeRequestDialog()">Renunță</button><button type="submit" class="button primary" [disabled]="saving || !requestForm.requester_team_id || !requestForm.employee_id"><span class="material-symbols-rounded" aria-hidden="true">send</span>{{ saving ? 'Se trimite…' : 'Trimite solicitarea' }}</button></div>
     </form>

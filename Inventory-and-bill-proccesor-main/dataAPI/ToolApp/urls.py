@@ -170,6 +170,8 @@ urlpatterns = [
     path('api/teams/available/', team_views.available_personnel, name='available_personnel'),
     path('api/teams/requests/', team_views.temporary_requests, name='temporary_worker_requests'),
     path('api/teams/requests/<int:request_id>/action/', team_views.temporary_request_action, name='temporary_worker_request_action'),
+    path('api/teams/notifications/', team_views.team_notifications, name='team_notifications'),
+    path('api/teams/notifications/summary/', team_views.notifications_summary, name='team_notifications_summary'),
     path('api/teams/<int:team_id>/', team_views.team_detail, name='team_detail'),
     path('api/teams/<int:team_id>/members/', team_views.team_members, name='team_members'),
 

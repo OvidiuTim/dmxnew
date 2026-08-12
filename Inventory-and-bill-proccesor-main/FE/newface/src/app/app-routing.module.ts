@@ -55,7 +55,9 @@ export const routes: Routes = [
   { path: 'pontaj/echipe', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe', moduleCode: 'teams_schedule', teamMode: 'permanent' } },
   { path: 'pontaj/echipa-mea', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipa-mea', moduleCode: 'teams_schedule', teamMode: 'mine' } },
   { path: 'pontaj/echipe-azi', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe-azi', moduleCode: 'teams_schedule', teamMode: 'today' } },
-  { path: 'pontaj/personal-disponibil', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/personal-disponibil', moduleCode: 'teams_schedule', teamMode: 'available' } },
+  { path: 'pontaj/notificari', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/notificari', moduleCode: 'teams_schedule', teamMode: 'notifications' } },
+  { path: 'pontaj/personal', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/personal', moduleCode: 'teams_schedule', teamMode: 'available' } },
+  { path: 'pontaj/personal-disponibil', redirectTo: 'pontaj/personal', pathMatch: 'full' },
   { path: 'pontaj/concedii', component: LeaveRequestsComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/concedii', moduleCode: 'teams_schedule' } },
   {
     path: 'hr/documente', component: PortalPlaceholderComponent, canActivate: [AuthGuard],

@@ -3,7 +3,7 @@ import { ActivatedRoute } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
 import { EmployeeTeam, TeamApiService, TeamEmployee, TeamRequest } from './team-api.service';
 
-type TeamMode = 'permanent' | 'mine' | 'today' | 'available';
+type TeamMode = 'permanent' | 'mine' | 'today' | 'available' | 'notifications';
 
 @Component({
   selector: 'app-teams-workspace',
@@ -21,6 +21,8 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   leaderSearch = '';
   teamStatus = 'all';
   availabilityFilter = 'all';
+  personnelTab: 'unassigned' | 'assigned' = 'unassigned';
+  leaderSearchFocused = false;
   selectedDate = this.todayISO();
 
   teams: EmployeeTeam[] = [];
@@ -56,12 +58,14 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
 
   get title(): string {
     if (this.mode === 'mine') return 'Echipa mea';
-    return this.mode === 'today' ? 'Echipele de azi' : this.mode === 'available' ? 'Personal disponibil' : 'Echipe permanente';
+    if (this.mode === 'notifications') return 'Notificări';
+    return this.mode === 'today' ? 'Echipele de azi' : this.mode === 'available' ? 'Personal' : 'Echipe permanente';
   }
 
   get subtitle(): string {
     if (this.mode === 'today') return 'Situația echipelor, transferurilor și absențelor pentru data selectată.';
-    if (this.mode === 'available') return 'Angajați fără echipă sau disponibili pentru repartizare temporară.';
+    if (this.mode === 'available') return 'Gestionează separat angajații atribuiți și neatribuiți.';
+    if (this.mode === 'notifications') return 'Cererile de personal primite de la celelalte echipe.';
     if (this.mode === 'mine') return 'Vezi și actualizează membrii echipei pe care o conduci.';
     return 'Configurează echipele, șefii și apartenența permanentă a muncitorilor.';
   }
@@ -78,12 +82,13 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   get filteredAvailable(): TeamEmployee[] {
     const search = this.normalize(this.searchTerm);
     return this.availableEmployees.filter(item => {
+      const tabMatches = this.personnelTab === 'unassigned' ? !item.team : !!item.team;
       const filterMatches = this.availabilityFilter === 'all'
         || (this.availabilityFilter === 'unassigned' && !item.team)
         || (this.availabilityFilter === 'requestable' && item.can_request)
         || (this.availabilityFilter === 'present' && item.presence === 'present')
         || (this.availabilityFilter === 'leave' && !!item.leave);
-      return filterMatches && (!search || this.normalize(`${item.name} ${item.trade} ${item.team?.name || ''} ${item.worksite || ''}`).includes(search));
+      return tabMatches && filterMatches && (!search || this.normalize(`${item.name} ${item.trade} ${item.team?.name || ''} ${item.worksite || ''}`).includes(search));
     });
   }
 
@@ -95,6 +100,10 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   get filteredRequests(): TeamRequest[] {
     const search = this.normalize(this.searchTerm);
     return this.requests.filter(item => !search || this.normalize(`${item.employee.name} ${item.source_team.name} ${item.requester_team.name} ${item.status_label}`).includes(search));
+  }
+
+  get pendingRequestCount(): number {
+    return this.requests.filter(item => item.status === 'pending').length;
   }
 
   get activeTeams(): EmployeeTeam[] {
@@ -120,6 +129,15 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       const available = item.active && (!item.team || item.team.id === this.teamForm.id || item.id === this.teamForm.leader_id);
       return available && (!search || this.normalize(`${item.name} ${item.trade} ${item.company} ${item.serie}`).includes(search));
     });
+  }
+
+  get leaderResults(): TeamEmployee[] {
+    if (!this.leaderSearch.trim()) return [];
+    return this.selectableLeaders.slice(0, 8);
+  }
+
+  get selectedLeader(): TeamEmployee | undefined {
+    return this.employees.find(item => item.id === Number(this.teamForm.leader_id));
   }
 
   get selectableMembers(): TeamEmployee[] {
@@ -150,6 +168,17 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
           this.availableEmployees = response.employees || [];
           this.manageableTeams = response.manageable_teams || [];
           this.loading = false;
+        },
+        error: error => this.handleError(error),
+      });
+      return;
+    }
+    if (this.mode === 'notifications') {
+      this.api.getNotifications().subscribe({
+        next: response => {
+          this.requests = response.requests || [];
+          this.loading = false;
+          window.dispatchEvent(new CustomEvent('team-notifications-changed'));
         },
         error: error => this.handleError(error),
       });
@@ -187,10 +216,11 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       default_worksite: team.default_worksite,
       active: team.active,
       member_ids: [...team.member_ids],
+      leader_email: team.leader.email || '',
       can_manage_settings: team.can_manage_settings,
     };
     this.memberSearch = '';
-    this.leaderSearch = '';
+    this.leaderSearch = team.leader.name;
     this.teamDialogOpen = true;
   }
 
@@ -208,12 +238,27 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     return (this.teamForm.member_ids || []).includes(employeeId);
   }
 
+  selectLeader(employee: TeamEmployee): void {
+    this.teamForm.leader_id = employee.id;
+    this.teamForm.leader_email = employee.email || '';
+    this.leaderSearch = employee.name;
+    this.leaderSearchFocused = false;
+  }
+
+  onLeaderSearchInput(): void {
+    if (this.selectedLeader && this.normalize(this.leaderSearch) !== this.normalize(this.selectedLeader.name)) {
+      this.teamForm.leader_id = null;
+      this.teamForm.leader_email = '';
+    }
+  }
+
   saveTeam(): void {
     this.saving = true;
     this.error = '';
     const payload = {
       name: this.teamForm.name,
       leader_id: Number(this.teamForm.leader_id),
+      leader_email: (this.teamForm.leader_email || '').trim(),
       default_worksite: this.teamForm.default_worksite || '',
       active: !!this.teamForm.active,
       member_ids: (this.teamForm.member_ids || []).map(Number),
@@ -241,8 +286,8 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     });
   }
 
-  addPermanent(employee: TeamEmployee): void {
-    const teamId = Number(this.assignmentTeam[employee.id]);
+  takeInMyTeam(employee: TeamEmployee): void {
+    const teamId = Number(employee.target_team_id);
     if (!teamId) return;
     this.api.updateMember(teamId, employee.id, 'add').subscribe({
       next: () => { this.notice = `${employee.name} a fost adăugat în echipă.`; this.load(); },
@@ -250,7 +295,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     });
   }
 
-  openRequest(employee?: TeamEmployee): void {
+  openRequest(employee?: TeamEmployee, requestType: 'temporary' | 'permanent' = 'temporary'): void {
     if (!this.teams.length) {
       forkJoin({ teams: this.api.getTeams(), requests: this.api.getRequests() }).subscribe({
         next: ({ teams, requests }) => {
@@ -258,21 +303,22 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
           this.employees = teams.employees || [];
           this.canManageAll = !!teams.permissions?.can_manage_all;
           this.requests = requests.requests || [];
-          this.setRequestForm(employee);
+          this.setRequestForm(employee, requestType);
         },
         error: error => this.handleError(error),
       });
       return;
     }
-    this.setRequestForm(employee);
+    this.setRequestForm(employee, requestType);
   }
 
-  private setRequestForm(employee?: TeamEmployee): void {
+  private setRequestForm(employee?: TeamEmployee, requestType: 'temporary' | 'permanent' = 'temporary'): void {
     const requester = this.requesterTeams.find(team => !employee?.team || team.id !== employee.team.id);
     this.requestForm = {
       ...this.emptyRequestForm(),
       requester_team_id: requester?.id || null,
       employee_id: employee?.id || null,
+      request_type: requestType,
     };
     this.requestDialogOpen = true;
   }
@@ -289,12 +335,14 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       start_date: this.requestForm.start_date,
       end_date: this.requestForm.end_date,
       reason: this.requestForm.reason || '',
+      request_type: this.requestForm.request_type,
     }).subscribe({
       next: () => {
         this.saving = false;
         this.requestDialogOpen = false;
         this.notice = 'Solicitarea a fost trimisă.';
         this.load();
+        window.dispatchEvent(new CustomEvent('team-notifications-changed'));
       },
       error: error => {
         this.saving = false;
@@ -308,6 +356,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       next: () => {
         this.notice = action === 'approve' ? 'Solicitarea a fost aprobată.' : action === 'reject' ? 'Solicitarea a fost respinsă.' : 'Solicitarea a fost anulată.';
         this.load();
+        window.dispatchEvent(new CustomEvent('team-notifications-changed'));
       },
       error: error => this.handleError(error),
     });
@@ -327,11 +376,11 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   trackById = (_: number, item: any) => item.id;
 
   private emptyTeamForm(): any {
-    return { id: null, name: '', leader_id: null, default_worksite: '', active: true, member_ids: [], can_manage_settings: true };
+    return { id: null, name: '', leader_id: null, leader_email: '', default_worksite: '', active: true, member_ids: [], can_manage_settings: true };
   }
 
   private emptyRequestForm(): any {
-    return { requester_team_id: null, employee_id: null, start_date: this.todayISO(), end_date: this.todayISO(), reason: '' };
+    return { requester_team_id: null, employee_id: null, request_type: 'temporary', start_date: this.todayISO(), end_date: this.todayISO(), reason: '' };
   }
 
   private todayISO(): string {

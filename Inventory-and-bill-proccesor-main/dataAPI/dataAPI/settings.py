@@ -26,6 +26,9 @@ PONTAJ_PASSWORD = (
     or os.getenv("PONTAJ_LOGIN_PASSWORD")
     or ""
 )
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@dmxconstruction.ro")
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "https://magazie.dmxconstruction.ro").rstrip("/")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/

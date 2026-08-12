@@ -51,6 +51,9 @@
 }
 .nav-item:hover, .logout:hover { color: #fff; background: #111d30; }
 .nav-item.active { color: #fff; background: #101f29; border-color: rgba(49, 214, 143, .16); box-shadow: inset 3px 0 #31d68f; }
+.nav-item.attention { color: #ff8585; border-color: rgba(255,98,98,.22); background: rgba(255,98,98,.07); }
+.notification-badge { min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; margin-left: auto; padding: 0 6px; border-radius: 99px; background: #ff6262; color: white; font-size: 9px; font-weight: 900; line-height: 1; }
+.nav-item.attention .active-dot { margin-left: 0; background: #ff6262; box-shadow: 0 0 0 4px rgba(255,98,98,.12); }
 .active-dot { width: 6px; height: 6px; margin-left: auto; border-radius: 50%; background: #31d68f; box-shadow: 0 0 0 4px rgba(49,214,143,.1); }
 
 .nav-icon { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; line-height: 1; color: currentColor; }

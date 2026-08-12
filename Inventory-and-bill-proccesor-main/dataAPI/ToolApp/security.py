@@ -37,7 +37,7 @@ API_ROUTE_REQUIREMENTS = (
     ("/api/employee-documents/", ("/pontaj/fisa-angajat", "/hr/documente")),
     ("/api/tools/assign-quantity/", ("/predare-unealta",)),
     ("/api/tools/return-quantity/", ("/predare-unealta",)),
-    ("/api/teams/", ("/pontaj/echipe", "/pontaj/echipe-azi", "/pontaj/personal-disponibil")),
+    ("/api/teams/", ("/pontaj/echipe", "/pontaj/echipe-azi", "/pontaj/personal", "/pontaj/notificari")),
     ("/api/tools/", ("/unelte", "/unelte/adauga-unealta", "/predare-unealta")),
     ("/api/tool/", ("/unelte", "/unelte/adauga-unealta", "/predare-unealta")),
     ("/api/user/", ("/pontaj", "/users/new", "/user/:id", "/angajati", "/pontaj/fisa-angajat", "/hr/documente", "/unelte", "/unelte/adauga-unealta", "/predare-unealta")),
@@ -171,7 +171,7 @@ def request_has_admin(request) -> bool:
 def app_user_has_route(app_user, route: str) -> bool:
     if not app_user or not route:
         return False
-    team_routes = {"/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/echipe-azi", "/pontaj/personal-disponibil"}
+    team_routes = {"/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/echipe-azi", "/pontaj/personal", "/pontaj/notificari"}
     if route in team_routes and app_user.employee.led_employee_teams.filter(active=True).exists():
         return True
     from ToolApp.models import AppPagePermission

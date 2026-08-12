@@ -1,4 +1,4 @@
-import { EMPTY } from 'rxjs';
+import { EMPTY, of } from 'rxjs';
 import { NavbarComponent, NavGroup } from './navbar.component';
 
 describe('NavbarComponent module filtering', () => {
@@ -11,7 +11,8 @@ describe('NavbarComponent module filtering', () => {
       firstAvailableModuleRoute: () => '/dashboard',
       logout: jasmine.createSpy()
     };
-    return new NavbarComponent(router, auth);
+    const teamsApi: any = { getNotificationSummary: () => of({ attention_count: 0 }) };
+    return new NavbarComponent(router, auth, teamsApi);
   }
 
   function visibleGroups(component: NavbarComponent): NavGroup[] {
@@ -23,7 +24,7 @@ describe('NavbarComponent module filtering', () => {
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual(['Echipe și program']);
     expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual([
-      '/pontaj/echipe', '/pontaj/echipa-mea', '/pontaj/concedii', '/pontaj/echipe-azi', '/pontaj/personal-disponibil'
+      '/pontaj/echipe', '/pontaj/echipa-mea', '/pontaj/concedii', '/pontaj/notificari', '/pontaj/echipe-azi', '/pontaj/personal'
     ]);
   });
 
@@ -56,7 +57,7 @@ describe('NavbarComponent module filtering', () => {
     const component = componentFor(['attendance', 'teams_schedule']);
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual(['Pontaj', 'Echipe și program']);
-    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(10);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(11);
   });
 
   it('nu afișează categorii pentru un utilizator fără module', () => {
@@ -69,13 +70,14 @@ describe('NavbarComponent module filtering', () => {
     expect(groups.map(group => group.label)).toEqual([
       'Pontaj', 'Echipe și program', 'Magazie', 'Resurse umane', 'Unelte'
     ]);
-    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(16);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(17);
   });
 
   it('marchează o singură rută de echipe ca activă', () => {
     const router: any = { url: '/pontaj/echipe-azi', events: EMPTY, navigateByUrl: jasmine.createSpy(), navigate: jasmine.createSpy() };
     const auth: any = { currentSession: () => ({ role: 'admin', auth_type: 'legacy' }), logout: jasmine.createSpy() };
-    const component = new NavbarComponent(router, auth);
+    const teamsApi: any = { getNotificationSummary: () => of({ attention_count: 0 }) };
+    const component = new NavbarComponent(router, auth, teamsApi);
     expect(component.groups[1].links.filter(link => link.active).map(link => link.path)).toEqual(['/pontaj/echipe-azi']);
   });
 });

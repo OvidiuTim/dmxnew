@@ -24,8 +24,9 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/pontaj/echipe", "label": "Echipe permanente", "icon": "groups"},
             {"path": "/pontaj/echipa-mea", "label": "Echipa mea", "icon": "group"},
             {"path": "/pontaj/concedii", "label": "Concedii", "icon": "calendar_month"},
+            {"path": "/pontaj/notificari", "label": "Notificări", "icon": "notifications"},
             {"path": "/pontaj/echipe-azi", "label": "Echipele de azi", "icon": "today"},
-            {"path": "/pontaj/personal-disponibil", "label": "Personal disponibil", "icon": "person_add"},
+            {"path": "/pontaj/personal", "label": "Personal", "icon": "group_add"},
         ],
     }),
     ("warehouse", {

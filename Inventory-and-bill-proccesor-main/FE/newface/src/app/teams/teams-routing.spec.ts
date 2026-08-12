@@ -6,8 +6,9 @@ describe('Rutele echipelor', () => {
     const expected: Record<string, string> = {
       'pontaj/echipe': 'permanent',
       'pontaj/echipa-mea': 'mine',
+      'pontaj/notificari': 'notifications',
       'pontaj/echipe-azi': 'today',
-      'pontaj/personal-disponibil': 'available',
+      'pontaj/personal': 'available',
     };
     Object.entries(expected).forEach(([path, mode]) => {
       const route = routes.find(item => item.path === path);

@@ -3412,8 +3412,9 @@ APP_PERMISSION_ROUTES = [
     "/pontaj/echipe",
     "/pontaj/echipa-mea",
     "/pontaj/concedii",
+    "/pontaj/notificari",
     "/pontaj/echipe-azi",
-    "/pontaj/personal-disponibil",
+    "/pontaj/personal",
     "/users/new",
     "/user/:id",
     "/unelte",
@@ -3499,7 +3500,7 @@ def _app_user_permissions(app_user):
         .values_list("route", flat=True)
     )
     if app_user.employee.led_employee_teams.filter(active=True).exists():
-        permissions.update({"/pontaj/echipe", "/pontaj/echipe-azi", "/pontaj/personal-disponibil"})
+        permissions.update({"/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/notificari", "/pontaj/echipe-azi", "/pontaj/personal"})
     return sorted(permissions)
 
 

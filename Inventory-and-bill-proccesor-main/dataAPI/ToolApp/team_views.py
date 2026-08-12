@@ -18,6 +18,7 @@ from ToolApp.models import (
     Users,
 )
 from ToolApp.security import get_app_user_from_request, request_has_admin
+from ToolApp.team_email import send_worker_request_email
 from ToolApp.team_serializers import (
     TeamMembersSerializer,
     TeamWriteSerializer,
@@ -74,6 +75,7 @@ def _employee_payload(employee, team=None):
         "serie": employee.UserSerie,
         "company": employee.Company or "",
         "trade": employee.trade or "",
+        "email": employee.email or "",
         "photo": employee.photo or None,
         "active": employee.active,
         "team": {"id": team.pk, "name": team.name} if team else None,
@@ -114,6 +116,7 @@ def _teams_queryset():
 
 def _expire_requests():
     TemporaryWorkerRequest.objects.filter(
+        request_type=TemporaryWorkerRequest.RequestType.TEMPORARY,
         status=TemporaryWorkerRequest.Status.PENDING,
         end_date__lt=timezone.localdate(),
     ).update(status=TemporaryWorkerRequest.Status.EXPIRED, updated_at=timezone.now())
@@ -217,6 +220,10 @@ def _save_team(data, team=None, members_only=False):
         team.leader = leader
         team.default_worksite = data.get("default_worksite", "")
         team.active = data.get("active", True)
+        leader_email = str(data.get("leader_email") or "").strip()
+        if "leader_email" in data and leader_email != leader.email:
+            leader.email = leader_email
+            leader.save(update_fields=("email",))
     elif not team.active:
         raise ValidationError("Echipa inactivă nu poate primi membri.")
 
@@ -357,12 +364,20 @@ def _request_payload(item, app_user=None, can_manage_all=False):
         "start_date": item.start_date.isoformat(),
         "end_date": item.end_date.isoformat(),
         "reason": item.reason,
+        "request_type": item.request_type,
+        "request_type_label": item.get_request_type_display(),
         "status": item.status,
         "status_label": item.get_status_display(),
         "created_at": item.created_at.isoformat(),
+        "seen_at": item.seen_at.isoformat() if item.seen_at else None,
+        "is_unseen": item.seen_at is None,
+        "email_sent": bool(item.email_sent_at),
         "can_approve": can_resolve and item.status == item.Status.PENDING,
         "can_reject": can_resolve and item.status == item.Status.PENDING,
-        "can_cancel": can_cancel and item.status in (item.Status.PENDING, item.Status.APPROVED),
+        "can_cancel": can_cancel and (
+            item.status == item.Status.PENDING
+            or (item.status == item.Status.APPROVED and item.request_type == item.RequestType.TEMPORARY)
+        ),
     }
 
 
@@ -408,19 +423,28 @@ def temporary_requests(request):
     try:
         with transaction.atomic():
             list(TemporaryWorkerRequest.objects.select_for_update().filter(employee=employee))
+            today = timezone.localdate()
             item = TemporaryWorkerRequest(
                 requester_team=requester_team,
                 source_team=source_membership.team,
                 employee=employee,
-                start_date=data["start_date"],
-                end_date=data["end_date"],
+                request_type=data["request_type"],
+                start_date=data.get("start_date") or today,
+                end_date=data.get("end_date") or today,
                 reason=data.get("reason", ""),
                 requested_by=app_user,
             )
             item.save()
     except (ValidationError, IntegrityError) as exc:
         return _error("Solicitarea nu a putut fi creată.", details=_validation_details(exc))
-    return JsonResponse({"request": _request_payload(item, app_user, can_manage_all)}, status=201)
+    email_sent = send_worker_request_email(item)
+    if email_sent:
+        item.email_sent_at = timezone.now()
+        TemporaryWorkerRequest.objects.filter(pk=item.pk).update(email_sent_at=item.email_sent_at)
+    return JsonResponse({
+        "request": _request_payload(item, app_user, can_manage_all),
+        "email_sent": email_sent,
+    }, status=201)
 
 
 @csrf_exempt
@@ -449,7 +473,10 @@ def temporary_request_action(request, request_id):
                 return _error("Nu poți anula această solicitare.", 403)
             if action in ("approve", "reject") and item.status != item.Status.PENDING:
                 return _error("Solicitarea a fost deja soluționată.")
-            if action == "cancel" and item.status not in (item.Status.PENDING, item.Status.APPROVED):
+            if action == "cancel" and not (
+                item.status == item.Status.PENDING
+                or (item.status == item.Status.APPROVED and item.request_type == item.RequestType.TEMPORARY)
+            ):
                 return _error("Solicitarea nu mai poate fi anulată.")
             status_map = {
                 "approve": item.Status.APPROVED,
@@ -459,10 +486,80 @@ def temporary_request_action(request, request_id):
             item.status = status_map[action]
             item.resolved_by = app_user
             item.resolved_at = timezone.now()
-            item.save()
+            saved_before_transfer = False
+            if action == "approve" and item.request_type == item.RequestType.PERMANENT:
+                membership = EmployeeTeamMember.objects.select_for_update().filter(
+                    employee=item.employee,
+                    team=item.source_team,
+                    active=True,
+                ).first()
+                if not membership:
+                    return _error("Angajatul nu mai aparține echipei sursă.", 409)
+                item.save()
+                saved_before_transfer = True
+                membership.active = False
+                membership.save(update_fields=("active",))
+                target_membership, _ = EmployeeTeamMember.objects.get_or_create(
+                    team=item.requester_team,
+                    employee=item.employee,
+                )
+                if not target_membership.active:
+                    target_membership.active = True
+                    target_membership.save(update_fields=("active",))
+                TemporaryWorkerRequest.objects.filter(
+                    employee=item.employee,
+                    status=item.Status.PENDING,
+                ).exclude(pk=item.pk).update(
+                    status=item.Status.CANCELLED,
+                    resolved_at=timezone.now(),
+                )
+            if not saved_before_transfer:
+                item.save()
     except (ValidationError, IntegrityError) as exc:
         return _error("Solicitarea nu a putut fi actualizată.", details=_validation_details(exc))
     return JsonResponse({"request": _request_payload(item, app_user, can_manage_all)})
+
+
+def _incoming_requests(app_user, can_manage_all):
+    query = TemporaryWorkerRequest.objects.select_related(
+        "employee", "source_team__leader", "requester_team__leader", "requested_by", "resolved_by"
+    )
+    if can_manage_all:
+        return query
+    if not app_user:
+        return query.none()
+    return query.filter(source_team__leader_id=app_user.employee_id)
+
+
+@csrf_exempt
+def notifications_summary(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user, can_manage_all = _actor(request)
+    if not can_manage_all and not app_user:
+        return _error("Autentificare necesară.", 401)
+    query = _incoming_requests(app_user, can_manage_all)
+    attention_count = query.filter(
+        Q(status=TemporaryWorkerRequest.Status.PENDING) | Q(seen_at__isnull=True)
+    ).count()
+    return JsonResponse({"attention_count": attention_count})
+
+
+@csrf_exempt
+def team_notifications(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user, can_manage_all = _actor(request)
+    if not can_manage_all and not app_user:
+        return _error("Autentificare necesară.", 401)
+    query = _incoming_requests(app_user, can_manage_all)
+    now = timezone.now()
+    query.filter(seen_at__isnull=True).update(seen_at=now)
+    items = list(query)
+    return JsonResponse({
+        "requests": [_request_payload(item, app_user, can_manage_all) for item in items],
+        "pending_count": sum(item.status == item.Status.PENDING for item in items),
+    })
 
 
 def _daily_employee(employee, team, present_ids, worksites, leaves, category):
@@ -485,6 +582,7 @@ def teams_today(request):
     present_ids, worksites, leaves = _presence_maps(day)
     teams = list(_teams_queryset().filter(active=True))
     transfers = list(TemporaryWorkerRequest.objects.select_related("employee", "source_team", "requester_team").filter(
+        request_type=TemporaryWorkerRequest.RequestType.TEMPORARY,
         status=TemporaryWorkerRequest.Status.APPROVED,
         start_date__lte=day,
         end_date__gte=day,
@@ -545,6 +643,7 @@ def available_personnel(request):
     present_ids, worksites, leaves = _presence_maps(day)
     memberships = _membership_map()
     active_requests = list(TemporaryWorkerRequest.objects.select_related("requester_team").filter(
+        request_type=TemporaryWorkerRequest.RequestType.TEMPORARY,
         status__in=(TemporaryWorkerRequest.Status.PENDING, TemporaryWorkerRequest.Status.APPROVED),
         start_date__lte=day,
         end_date__gte=day,
@@ -556,9 +655,12 @@ def available_personnel(request):
     }
     reserved_ids = {item.employee_id for item in active_requests}
     leader_ids = set(EmployeeTeam.objects.filter(active=True).values_list("leader_id", flat=True))
-    actor_can_allocate = bool(
-        can_manage_all or (app_user and app_user.employee.led_employee_teams.filter(active=True).exists())
+    actor_teams = list(
+        EmployeeTeam.objects.filter(active=True, leader_id=app_user.employee_id)
+        if app_user else []
     )
+    actor_team_ids = {team.pk for team in actor_teams}
+    actor_can_allocate = bool(can_manage_all or actor_teams)
     employees = []
     for employee in Users.objects.filter(active=True).order_by("UserName"):
         team = memberships.get(employee.pk)
@@ -568,10 +670,19 @@ def available_personnel(request):
         row.update({
             "temporary_team": ({"id": transfer.requester_team_id, "name": transfer.requester_team.name} if transfer else None),
             "is_team_leader": employee.pk in leader_ids,
-            "can_add_permanent": actor_can_allocate,
+            "can_take_in_my_team": bool(not team and len(actor_teams) == 1),
+            "target_team_id": actor_teams[0].pk if len(actor_teams) == 1 else None,
             "can_request": bool(
                 actor_can_allocate
-                and team and employee.pk not in leader_ids and not leave and employee.pk not in reserved_ids
+                and team
+                and (can_manage_all or team.pk not in actor_team_ids)
+                and employee.pk not in leader_ids and not leave and employee.pk not in reserved_ids
+            ),
+            "can_request_permanent": bool(
+                actor_can_allocate
+                and team
+                and (can_manage_all or team.pk not in actor_team_ids)
+                and employee.pk not in leader_ids
             ),
         })
         employees.append(row)

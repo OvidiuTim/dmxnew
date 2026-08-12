@@ -8,6 +8,7 @@ export interface TeamEmployee {
   serie: string;
   company: string;
   trade: string;
+  email?: string;
   photo?: string | null;
   active: boolean;
   team?: { id: number; name: string } | null;
@@ -17,8 +18,10 @@ export interface TeamEmployee {
   worksite?: string;
   temporary_team?: { id: number; name: string } | null;
   is_team_leader?: boolean;
-  can_add_permanent?: boolean;
+  can_take_in_my_team?: boolean;
+  target_team_id?: number | null;
   can_request?: boolean;
+  can_request_permanent?: boolean;
 }
 
 export interface EmployeeTeam {
@@ -41,11 +44,15 @@ export interface TeamRequest {
   start_date: string;
   end_date: string;
   reason: string;
+  request_type: 'temporary' | 'permanent';
+  request_type_label: string;
   status: 'pending' | 'approved' | 'rejected' | 'cancelled' | 'expired';
   status_label: string;
   can_approve: boolean;
   can_reject: boolean;
   can_cancel: boolean;
+  is_unseen: boolean;
+  email_sent: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -72,6 +79,14 @@ export class TeamApiService {
 
   getRequests(): Observable<any> {
     return this.http.get(`${this.API}/requests/`);
+  }
+
+  getNotifications(): Observable<any> {
+    return this.http.get(`${this.API}/notifications/`);
+  }
+
+  getNotificationSummary(): Observable<any> {
+    return this.http.get(`${this.API}/notifications/summary/`);
   }
 
   createRequest(payload: any): Observable<any> {

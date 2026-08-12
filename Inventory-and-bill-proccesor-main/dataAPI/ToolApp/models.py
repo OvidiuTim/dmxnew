@@ -101,6 +101,7 @@ class Users(models.Model):
     equipment_size = models.CharField(max_length=100, null=True, blank=True)
     received_equipment = models.BooleanField(null=True, blank=True)
     phone_number = models.CharField(max_length=50, null=True, blank=True)
+    email = models.EmailField(blank=True, default="")
     photo = models.TextField(null=True, blank=True)
     trade = models.CharField(max_length=100, null=True, blank=True)
     hire_date = models.DateField(null=True, blank=True)
@@ -749,6 +750,10 @@ class EmployeeTeamMember(models.Model):
 
 
 class TemporaryWorkerRequest(models.Model):
+    class RequestType(models.TextChoices):
+        TEMPORARY = "temporary", "Temporară"
+        PERMANENT = "permanent", "Permanentă"
+
     class Status(models.TextChoices):
         PENDING = "pending", "În așteptare"
         APPROVED = "approved", "Aprobată"
@@ -771,6 +776,12 @@ class TemporaryWorkerRequest(models.Model):
         on_delete=models.PROTECT,
         related_name="temporary_team_requests",
     )
+    request_type = models.CharField(
+        max_length=16,
+        choices=RequestType.choices,
+        default=RequestType.TEMPORARY,
+        db_index=True,
+    )
     start_date = models.DateField(db_index=True)
     end_date = models.DateField(db_index=True)
     reason = models.CharField(max_length=500, blank=True, default="")
@@ -790,6 +801,8 @@ class TemporaryWorkerRequest(models.Model):
         related_name="temporary_worker_requests_resolved",
     )
     resolved_at = models.DateTimeField(null=True, blank=True)
+    seen_at = models.DateTimeField(null=True, blank=True)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -825,6 +838,7 @@ class TemporaryWorkerRequest(models.Model):
             self.employee_id
             and self.start_date
             and self.end_date
+            and self.request_type == self.RequestType.TEMPORARY
             and self.status in (self.Status.PENDING, self.Status.APPROVED)
         ):
             leave_exists = LeaveDay.objects.filter(
@@ -835,6 +849,7 @@ class TemporaryWorkerRequest(models.Model):
                 errors["employee"] = "Angajatul are concediu sau indisponibilitate în intervalul ales."
             overlap = TemporaryWorkerRequest.objects.filter(
                 employee_id=self.employee_id,
+                request_type=self.RequestType.TEMPORARY,
                 start_date__lte=self.end_date,
                 end_date__gte=self.start_date,
                 status__in=(self.Status.PENDING, self.Status.APPROVED),
@@ -843,6 +858,20 @@ class TemporaryWorkerRequest(models.Model):
                 overlap = overlap.exclude(pk=self.pk)
             if overlap.exists():
                 errors["employee"] = "Angajatul are deja o solicitare suprapusă."
+        if (
+            self.employee_id
+            and self.request_type == self.RequestType.PERMANENT
+            and self.status == self.Status.PENDING
+        ):
+            duplicate = TemporaryWorkerRequest.objects.filter(
+                employee_id=self.employee_id,
+                request_type=self.RequestType.PERMANENT,
+                status=self.Status.PENDING,
+            )
+            if self.pk:
+                duplicate = duplicate.exclude(pk=self.pk)
+            if duplicate.exists():
+                errors["employee"] = "Angajatul are deja o solicitare permanentă în așteptare."
         if errors:
             raise ValidationError(errors)
 

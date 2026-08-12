@@ -4,3 +4,4 @@ django-cors-headers
 openpyxl
 python-dotenv
 whitenoise
+sendgrid

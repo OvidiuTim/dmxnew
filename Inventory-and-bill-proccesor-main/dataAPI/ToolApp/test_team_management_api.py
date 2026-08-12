@@ -1,5 +1,6 @@
 import json
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.db import IntegrityError, transaction
 from django.test import Client, TestCase
@@ -61,6 +62,24 @@ class TeamManagementApiTests(TestCase):
             set(team.memberships.filter(active=True).values_list("employee_id", flat=True)),
             {self.leader_a.pk, self.worker_a.pk, self.worker_b.pk},
         )
+
+    def test_create_team_saves_leader_email(self):
+        response = self.admin.post(
+            reverse("teams_collection"),
+            data=json.dumps({
+                "name": "Echipa Email",
+                "leader_id": self.leader_a.pk,
+                "leader_email": "lider.a@example.com",
+                "active": True,
+                "member_ids": [self.worker_a.pk],
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.leader_a.refresh_from_db()
+        self.assertEqual(self.leader_a.email, "lider.a@example.com")
+        self.assertEqual(response.json()["team"]["leader"]["email"], "lider.a@example.com")
 
     def test_team_payload_contains_employee_photos_for_leader_and_members(self):
         self.leader_a.photo = "https://example.test/leader.jpg"
@@ -197,6 +216,70 @@ class TeamManagementApiTests(TestCase):
         )
         self.assertEqual(decision.status_code, 200)
         self.assertEqual(decision.json()["request"]["status"], "rejected")
+
+    @patch("ToolApp.team_views.send_worker_request_email", return_value=True)
+    def test_request_is_sent_to_source_leader_email(self, send_email):
+        self.leader_b.email = "lider.b@example.com"
+        self.leader_b.save(update_fields=("email",))
+        team_a, _, requester, _, _, _ = self.setup_transfer()
+
+        response = self.create_request(requester, team_a, self.worker_b)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertTrue(response.json()["email_sent"])
+        item = TemporaryWorkerRequest.objects.get(pk=response.json()["request"]["id"])
+        self.assertIsNotNone(item.email_sent_at)
+        send_email.assert_called_once_with(item)
+
+    def test_notifications_stay_active_until_seen_and_resolved(self):
+        team_a, _, requester, _, source, _ = self.setup_transfer()
+        created = self.create_request(requester, team_a, self.worker_b)
+        self.assertEqual(created.status_code, 201, created.content)
+
+        before = source.get(reverse("team_notifications_summary"))
+        self.assertEqual(before.status_code, 200, before.content)
+        self.assertEqual(before.json()["attention_count"], 1)
+
+        opened = source.get(reverse("team_notifications"))
+        self.assertEqual(opened.status_code, 200, opened.content)
+        self.assertEqual(opened.json()["pending_count"], 1)
+        item = TemporaryWorkerRequest.objects.get()
+        self.assertIsNotNone(item.seen_at)
+        self.assertEqual(source.get(reverse("team_notifications_summary")).json()["attention_count"], 1)
+
+        decision = source.post(
+            reverse("temporary_worker_request_action", args=[item.pk]),
+            data=json.dumps({"action": "reject"}),
+            content_type="application/json",
+        )
+        self.assertEqual(decision.status_code, 200, decision.content)
+        self.assertEqual(source.get(reverse("team_notifications_summary")).json()["attention_count"], 0)
+
+    def test_permanent_request_moves_employee_after_source_leader_approval(self):
+        team_a, team_b, requester, _, source, _ = self.setup_transfer()
+        created = requester.post(
+            reverse("temporary_worker_requests"),
+            data=json.dumps({
+                "requester_team_id": team_a.pk,
+                "employee_id": self.worker_b.pk,
+                "request_type": "permanent",
+                "reason": "Mutare definitivă",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(created.status_code, 201, created.content)
+        request_id = created.json()["request"]["id"]
+        self.assertEqual(created.json()["request"]["request_type"], "permanent")
+
+        decision = source.post(
+            reverse("temporary_worker_request_action", args=[request_id]),
+            data=json.dumps({"action": "approve"}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(decision.status_code, 200, decision.content)
+        self.assertFalse(EmployeeTeamMember.objects.filter(team=team_b, employee=self.worker_b, active=True).exists())
+        self.assertTrue(EmployeeTeamMember.objects.filter(team=team_a, employee=self.worker_b, active=True).exists())
 
     def test_request_cancellation(self):
         team_a, _, requester, _, _, _ = self.setup_transfer()
