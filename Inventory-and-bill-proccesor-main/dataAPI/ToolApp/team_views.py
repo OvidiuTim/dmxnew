@@ -224,6 +224,11 @@ def _save_team(data, team=None, members_only=False):
         if "leader_email" in data and leader_email != leader.email:
             leader.email = leader_email
             leader.save(update_fields=("email",))
+    elif "leader_email" in data:
+        leader_email = str(data["leader_email"] or "").strip()
+        if leader_email != team.leader.email:
+            team.leader.email = leader_email
+            team.leader.save(update_fields=("email",))
     elif not team.active:
         raise ValidationError("Echipa inactivă nu poate primi membri.")
 
@@ -303,6 +308,7 @@ def team_detail(request, team_id):
         serializer = TeamWriteSerializer(data={
             "name": team.name,
             "leader_id": team.leader_id,
+            "leader_email": body.get("leader_email", team.leader.email),
             "default_worksite": team.default_worksite,
             "active": team.active,
             "member_ids": body.get("member_ids", []),

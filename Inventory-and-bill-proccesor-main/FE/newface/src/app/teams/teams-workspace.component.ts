@@ -123,11 +123,15 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     return this.employees.filter(item => item.active && item.team && item.can_request !== false && !leaders.has(item.id) && item.team.id !== Number(this.requestForm.requester_team_id));
   }
 
+  get selectedRequestedEmployee(): TeamEmployee | undefined {
+    return this.employees.find(item => item.id === Number(this.requestForm.employee_id));
+  }
+
   get selectableLeaders(): TeamEmployee[] {
     const search = this.normalize(this.leaderSearch);
     return this.employees.filter(item => {
       const available = item.active && (!item.team || item.team.id === this.teamForm.id || item.id === this.teamForm.leader_id);
-      return available && (!search || this.normalize(`${item.name} ${item.trade} ${item.company} ${item.serie}`).includes(search));
+      return available && (!search || this.normalize(item.name).includes(search));
     });
   }
 
@@ -142,10 +146,18 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
 
   get selectableMembers(): TeamEmployee[] {
     const search = this.normalize(this.memberSearch);
-    return this.employees.filter(item => {
-      const available = item.active && (!item.team || item.team.id === this.teamForm.id || item.id === this.teamForm.leader_id);
-      return available && (!search || this.normalize(`${item.name} ${item.trade} ${item.company}`).includes(search));
-    });
+    const currentTeamId = Number(this.teamForm.id);
+    return this.employees
+      .filter(item => {
+        const available = item.active && (!item.team || item.team.id === this.teamForm.id || item.id === this.teamForm.leader_id);
+        return available && (!search || this.normalize(`${item.name} ${item.trade} ${item.company}`).includes(search));
+      })
+      .sort((first, second) => {
+        const firstInCurrentTeam = currentTeamId > 0 && first.team?.id === currentTeamId;
+        const secondInCurrentTeam = currentTeamId > 0 && second.team?.id === currentTeamId;
+        if (firstInCurrentTeam !== secondInCurrentTeam) return firstInCurrentTeam ? -1 : 1;
+        return first.name.localeCompare(second.name, 'ro');
+      });
   }
 
   load(): void {
@@ -218,6 +230,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       member_ids: [...team.member_ids],
       leader_email: team.leader.email || '',
       can_manage_settings: team.can_manage_settings,
+      can_edit: team.can_edit,
     };
     this.memberSearch = '';
     this.leaderSearch = team.leader.name;
@@ -337,10 +350,12 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       reason: this.requestForm.reason || '',
       request_type: this.requestForm.request_type,
     }).subscribe({
-      next: () => {
+      next: response => {
         this.saving = false;
         this.requestDialogOpen = false;
-        this.notice = 'Solicitarea a fost trimisă.';
+        this.notice = response?.email_sent
+          ? 'Solicitarea a fost trimisă și pe email șefului echipei.'
+          : 'Solicitarea a fost trimisă. Emailul nu a fost expediat deoarece șeful nu are email configurat sau serviciul de email nu este disponibil.';
         this.load();
         window.dispatchEvent(new CustomEvent('team-notifications-changed'));
       },
@@ -363,7 +378,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   }
 
   categoryLabel(category: string): string {
-    return ({ leader: 'Șef de echipă', permanent: 'Permanent', received: 'Primit temporar', sent: 'Trimis temporar', available: 'Disponibil' } as any)[category] || category;
+    return ({ leader: 'Șef de echipă', permanent: 'Permanent', received: 'Împrumutat de la altă echipă', sent: 'Împrumutat altei echipe', available: 'Disponibil' } as any)[category] || category;
   }
 
   statusLabel(item: TeamEmployee): string {

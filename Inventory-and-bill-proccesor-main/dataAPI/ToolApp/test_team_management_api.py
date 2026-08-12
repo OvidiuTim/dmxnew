@@ -118,6 +118,23 @@ class TeamManagementApiTests(TestCase):
             {self.leader_b.pk, self.worker_b.pk},
         )
 
+    def test_team_leader_can_update_own_email(self):
+        team = self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])
+        leader_client, _ = self.leader_client(self.leader_a, "lider-a")
+
+        response = leader_client.put(
+            reverse("team_detail", args=[team.pk]),
+            data=json.dumps({
+                "leader_email": "lider.a.actualizat@example.com",
+                "member_ids": [self.leader_a.pk, self.worker_a.pk],
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.leader_a.refresh_from_db()
+        self.assertEqual(self.leader_a.email, "lider.a.actualizat@example.com")
+
     def test_employee_cannot_join_two_active_permanent_teams(self):
         self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])
         response = self.admin.post(
@@ -228,6 +245,29 @@ class TeamManagementApiTests(TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         self.assertTrue(response.json()["email_sent"])
         item = TemporaryWorkerRequest.objects.get(pk=response.json()["request"]["id"])
+        self.assertIsNotNone(item.email_sent_at)
+        send_email.assert_called_once_with(item)
+
+    @patch("ToolApp.team_views.send_worker_request_email", return_value=True)
+    def test_permanent_request_is_also_sent_to_source_leader_email(self, send_email):
+        self.leader_b.email = "lider.b@example.com"
+        self.leader_b.save(update_fields=("email",))
+        team_a, _, requester, _, _, _ = self.setup_transfer()
+
+        response = requester.post(
+            reverse("temporary_worker_requests"),
+            data=json.dumps({
+                "requester_team_id": team_a.pk,
+                "employee_id": self.worker_b.pk,
+                "request_type": "permanent",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertTrue(response.json()["email_sent"])
+        item = TemporaryWorkerRequest.objects.get(pk=response.json()["request"]["id"])
+        self.assertEqual(item.request_type, TemporaryWorkerRequest.RequestType.PERMANENT)
         self.assertIsNotNone(item.email_sent_at)
         send_email.assert_called_once_with(item)
 
