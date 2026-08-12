@@ -231,6 +231,17 @@ class TeamManagementApiTests(TestCase):
         self.assertIsNotNone(item.email_sent_at)
         send_email.assert_called_once_with(item)
 
+    def test_email_delivery_failure_does_not_block_request_creation(self):
+        self.leader_b.email = "lider.b@example.com"
+        self.leader_b.save(update_fields=("email",))
+        team_a, _, requester, _, _, _ = self.setup_transfer()
+
+        response = self.create_request(requester, team_a, self.worker_b)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertFalse(response.json()["email_sent"])
+        self.assertTrue(TemporaryWorkerRequest.objects.exists())
+
     def test_notifications_stay_active_until_seen_and_resolved(self):
         team_a, _, requester, _, source, _ = self.setup_transfer()
         created = self.create_request(requester, team_a, self.worker_b)

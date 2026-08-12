@@ -18,9 +18,6 @@ def send_worker_request_email(item):
         logger.warning("Cererea de personal #%s nu a fost trimisă prin email: SENDGRID_API_KEY lipsește.", item.pk)
         return False
 
-    from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail
-
     request_label = "permanent" if item.request_type == item.RequestType.PERMANENT else "temporar"
     period_text = (
         "Transfer permanent"
@@ -49,14 +46,17 @@ def send_worker_request_email(item):
           <p><a href="{escape(notifications_url)}" style="display:inline-block;padding:11px 16px;border-radius:8px;background:#1c9d69;color:white;text-decoration:none">Deschide notificările</a></p>
         </div>
     """
-    message = Mail(
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to_emails=[recipient],
-        subject=subject,
-        plain_text_content=text,
-        html_content=html,
-    )
     try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
+
+        message = Mail(
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to_emails=[recipient],
+            subject=subject,
+            plain_text_content=text,
+            html_content=html,
+        )
         response = SendGridAPIClient(api_key).send(message)
     except Exception:
         logger.exception("Trimiterea emailului pentru cererea de personal #%s a eșuat.", item.pk)
