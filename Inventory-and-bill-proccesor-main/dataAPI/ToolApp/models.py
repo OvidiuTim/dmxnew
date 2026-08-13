@@ -107,6 +107,10 @@ class Users(models.Model):
     hire_date = models.DateField(null=True, blank=True)
     prior_paid_leave_days = models.PositiveIntegerField(default=0)
     prior_paid_leave_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    leave_remaining_override_days = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    leave_remaining_override_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    leave_remaining_override_used_days = models.PositiveIntegerField(default=0)
+    leave_remaining_override_accrued_days = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     housing_location = models.CharField(max_length=255, blank=True, default="")
     accommodation = models.ForeignKey(
         Accommodation,

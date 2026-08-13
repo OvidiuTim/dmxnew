@@ -17,6 +17,7 @@ from ToolApp.models import (
     AttendanceSession,
     EmployeeDocument,
     EmployeeDocumentType,
+    LeaveDay,
     Users,
 )
 from ToolApp.security import make_admin_token, make_app_user_token
@@ -57,6 +58,40 @@ class EmployeeRecordsApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["rows"][0]["trade"], "Dulgher")
+
+    def test_attendance_day_exposes_leave_without_marking_employee_absent(self):
+        LeaveDay.objects.create(
+            user_fk=self.employee,
+            work_date=timezone.localdate(),
+            reason=LeaveDay.Reason.CO,
+        )
+
+        response = self.admin.get(reverse("attendance_day"), {"date": str(timezone.localdate())})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        row = next(item for item in response.json()["rows"] if item["UserId"] == self.employee.pk)
+        self.assertEqual(row["status"], "LEAVE")
+        self.assertEqual(row["leave"]["label"], "Concediu de odihnă")
+        self.assertEqual(row["sessions"], [])
+
+    def test_leave_has_priority_over_an_attendance_session(self):
+        LeaveDay.objects.create(
+            user_fk=self.employee,
+            work_date=timezone.localdate(),
+            reason=LeaveDay.Reason.CM,
+        )
+        AttendanceSession.objects.create(
+            user_fk=self.employee,
+            work_date=timezone.localdate(),
+            in_time=timezone.now(),
+        )
+
+        response = self.admin.get(reverse("attendance_day"), {"date": str(timezone.localdate())})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        row = next(item for item in response.json()["rows"] if item["UserId"] == self.employee.pk)
+        self.assertEqual(row["status"], "LEAVE")
+        self.assertEqual(row["leave"]["label"], "Concediu medical")
 
     def test_accommodation_can_be_created_and_assigned(self):
         created = self.admin.post(

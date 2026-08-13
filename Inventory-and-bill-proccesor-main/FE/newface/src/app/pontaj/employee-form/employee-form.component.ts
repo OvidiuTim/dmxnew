@@ -9,7 +9,6 @@ import { SharedService } from '../../shared.service';
   styleUrls: ['./employee-form.component.css']
 })
 export class EmployeeFormComponent implements OnInit {
-  readonly currentYear = new Date().getFullYear();
   readonly addCompanyOptionValue = '__ADD_NEW_COMPANY__';
   isEditMode = false;
   userId: number | null = null;
@@ -25,6 +24,7 @@ export class EmployeeFormComponent implements OnInit {
   accommodationOptions: Array<{ id: number; name: string; address?: string }> = [];
   effectiveHireDate: string | null = null;
   hireDateSource: string | null = null;
+  initialLeaveRemaining: string | null = null;
 
   readonly form = this.fb.group({
     UserName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -40,7 +40,7 @@ export class EmployeeFormComponent implements OnInit {
     photo: [null as string | null],
     trade: ['', [Validators.maxLength(100)]],
     hire_date: [null as string | null],
-    prior_paid_leave_days: [0, [Validators.required, Validators.min(0)]],
+    leave_remaining_days: ['0.00', [Validators.required, Validators.min(0)]],
     accommodation_id: [null as number | null],
   });
 
@@ -247,13 +247,12 @@ export class EmployeeFormComponent implements OnInit {
           photo: user?.photo ?? null,
           trade: user?.trade ?? '',
           hire_date: user?.hire_date ?? null,
-          prior_paid_leave_days: Number(user?.prior_paid_leave_year) === this.currentYear
-            ? Number(user?.prior_paid_leave_days || 0)
-            : 0,
+          leave_remaining_days: String(user?.leave_balance?.remaining_days ?? '0.00'),
           accommodation_id: user?.accommodation_id ?? null,
         });
         this.effectiveHireDate = user?.effective_hire_date ?? null;
         this.hireDateSource = user?.hire_date_source ?? null;
+        this.initialLeaveRemaining = this.normalizeRate(String(user?.leave_balance?.remaining_days ?? '0.00'));
         this.photoPreview = user?.photo ?? null;
         this.generatedPinPreview = null;
         this.syncCompanySelection(user?.Company ?? 'RNX');
@@ -283,10 +282,15 @@ export class EmployeeFormComponent implements OnInit {
       photo: value.photo || null,
       trade: this.normalizeOptionalString(value.trade),
       hire_date: value.hire_date || null,
-      prior_paid_leave_days: Math.max(0, Math.trunc(Number(value.prior_paid_leave_days || 0))),
-      prior_paid_leave_year: this.currentYear,
       accommodation_id: value.accommodation_id ? Number(value.accommodation_id) : null,
     };
+
+    if (this.isEditMode) {
+      const editedRemaining = this.normalizeRate(value.leave_remaining_days);
+      if (editedRemaining !== this.initialLeaveRemaining) {
+        payload.leave_remaining_override_days = editedRemaining;
+      }
+    }
 
     const pin = (value.UserPin ?? '').trim();
     if (pin) {

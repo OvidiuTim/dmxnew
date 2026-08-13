@@ -21,8 +21,9 @@ interface DayUserRow {
   first_in: string | null;    // ISO local time sau null
   last_out: string | null;    // ISO local time sau null
   total_hms: string;          // "HH:MM:SS"
-  status: 'IN' | 'OUT' | 'ABSENT';
+  status: 'IN' | 'OUT' | 'ABSENT' | 'LEAVE';
   sessions: SessionRow[];
+  leave?: { reason: string; label?: string; hours: string; multiplier: string } | null;
 }
 
 @Component({
@@ -164,9 +165,10 @@ seeFisaAngajat(id: number): void {
     });
   }
 
-  get clockedToday(): number { return this.rows.filter(row => row.status !== 'ABSENT').length; }
+  get clockedToday(): number { return this.rows.filter(row => row.status === 'IN' || row.status === 'OUT').length; }
   get finishedToday(): number { return this.rows.filter(row => row.status === 'OUT').length; }
   get absentToday(): number { return this.rows.filter(row => row.status === 'ABSENT').length; }
+  get leaveToday(): number { return this.rows.filter(row => row.status === 'LEAVE').length; }
 
   onCompanyChange(event: Event): void {
     this.selectedCompany = (event.target as HTMLSelectElement).value || 'ALL';
@@ -214,7 +216,8 @@ seeFisaAngajat(id: number): void {
     return {
       'IN': 'chip in',
       'OUT': 'chip out',
-      'ABSENT': 'chip absent'
+      'ABSENT': 'chip absent',
+      'LEAVE': 'chip leave'
     }[status];
   }
 

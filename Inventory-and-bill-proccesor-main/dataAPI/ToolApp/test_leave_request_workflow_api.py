@@ -264,3 +264,40 @@ class LeaveRequestWorkflowApiTests(TestCase):
         self.assertEqual(response.json()["hire_date_source"], "first_attendance")
         self.assertEqual(response.json()["prior_paid_leave_days"], 2)
         self.assertIn("remaining_days", response.json()["leave_balance"])
+
+    def test_manual_remaining_balance_is_returned_by_employee_and_team_apis(self):
+        response = self.admin.put(
+            "/api/user/",
+            data=json.dumps({
+                "UserId": self.worker_a.pk,
+                "UserName": self.worker_a.UserName,
+                "UserSerie": self.worker_a.UserSerie,
+                "hire_date": "2024-01-01",
+                "leave_remaining_override_days": "6.50",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["leave_balance"]["remaining_days"], "6.50")
+
+        team_response = self.admin.get(reverse("teams_collection"))
+        self.assertEqual(team_response.status_code, 200, team_response.content)
+        member = next(
+            member
+            for team in team_response.json()["teams"] if team["id"] == self.team_a.pk
+            for member in team["members"] if member["id"] == self.worker_a.pk
+        )
+        self.assertEqual(member["leave_balance"]["remaining_days"], "6.50")
+
+        marked = self.admin.post(
+            reverse("leave_mark_range"),
+            data=json.dumps({
+                "user_id": self.worker_a.pk,
+                "start_date": "2026-08-17",
+                "end_date": "2026-08-18",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(marked.status_code, 200, marked.content)
+        self.assertEqual(marked.json()["leave_balance"]["remaining_days"], "4.50")
+        self.assertEqual(self.admin.get(f"/api/user/{self.worker_a.pk}").json()["leave_balance"]["remaining_days"], "4.50")

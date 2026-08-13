@@ -347,11 +347,29 @@ def used_paid_leave_days(employee, year, exclude_request_id=None):
     return len(used_paid_leave_dates(employee, year, exclude_request_id)) + prior_days
 
 
+def remaining_paid_leave_days(employee, as_of_date, exclude_request_id=None):
+    used = used_paid_leave_days(employee, as_of_date.year, exclude_request_id=exclude_request_id)
+    if (
+        employee.leave_remaining_override_days is not None
+        and employee.leave_remaining_override_year == as_of_date.year
+    ):
+        used_since_override = used - int(employee.leave_remaining_override_used_days or 0)
+        accrued_since_override = (
+            accrued_leave_days(employee, as_of_date)
+            - Decimal(employee.leave_remaining_override_accrued_days or 0)
+        )
+        return max(
+            Decimal("0.00"),
+            Decimal(employee.leave_remaining_override_days)
+            + accrued_since_override
+            - Decimal(used_since_override),
+        ).quantize(MONEY_PLACES)
+    return max(Decimal("0.00"), accrued_leave_days(employee, as_of_date) - Decimal(used)).quantize(MONEY_PLACES)
+
+
 def calculate_available_leave_days(employee, as_of_date, exclude_request_id=None):
-    remaining = accrued_leave_days(employee, as_of_date) - Decimal(
-        used_paid_leave_days(employee, as_of_date.year, exclude_request_id=exclude_request_id)
-    )
-    return max(0, int(max(remaining, Decimal("0")).to_integral_value(rounding=ROUND_FLOOR)))
+    remaining = remaining_paid_leave_days(employee, as_of_date, exclude_request_id=exclude_request_id)
+    return max(0, int(remaining.to_integral_value(rounding=ROUND_FLOOR)))
 
 
 def build_leave_summary(employee, as_of_date):
@@ -366,7 +384,7 @@ def build_leave_summary(employee, as_of_date):
         end_date__gte=year_start,
     ), year_start, year_end)
     accrued = accrued_leave_days(employee, as_of_date)
-    remaining = max(Decimal("0.00"), accrued - Decimal(used)).quantize(MONEY_PLACES)
+    remaining = remaining_paid_leave_days(employee, as_of_date)
     effective_hire_date = employee_effective_hire_date(employee, as_of_date)
     return {
         "year": as_of_date.year,
@@ -382,6 +400,10 @@ def build_leave_summary(employee, as_of_date):
         "prior_used_days": int(employee.prior_paid_leave_days or 0) if employee.prior_paid_leave_year == as_of_date.year else 0,
         "prior_used_days_year": employee.prior_paid_leave_year,
         "remaining_days": f"{remaining:.2f}",
+        "remaining_days_overridden": bool(
+            employee.leave_remaining_override_days is not None
+            and employee.leave_remaining_override_year == as_of_date.year
+        ),
         "accrued_days": f"{accrued:.2f}",
         "available_days": calculate_available_leave_days(employee, as_of_date),
         "pending_days": len(pending_dates),

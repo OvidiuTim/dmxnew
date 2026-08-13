@@ -93,9 +93,9 @@
         </div>
 
         <div class="field" *ngIf="isEditMode">
-          <label for="user-prior-leave">Zile de concediu folosite anterior în {{ currentYear }}</label>
-          <input id="user-prior-leave" type="number" min="0" step="1" formControlName="prior_paid_leave_days">
-          <small>Concedii luate înainte ca pontajul să fie gestionat în aplicație.</small>
+          <label for="user-leave-remaining">Zile de concediu rămase</label>
+          <input id="user-leave-remaining" type="number" min="0" step="0.01" formControlName="leave_remaining_days">
+          <small>Valoarea calculată în aplicație. O poți modifica manual, iar noul sold va fi folosit peste tot.</small>
         </div>
 
         <div class="field">

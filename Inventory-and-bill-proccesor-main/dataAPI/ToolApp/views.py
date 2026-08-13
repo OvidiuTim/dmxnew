@@ -2436,7 +2436,7 @@ def attendance_day(request):
     day = _parse_iso_date(request.GET.get("date") or str(localdate()))
 
     # NEW: map pentru concedii pe zi
-    leaves_map = {x.user_fk_id: x for x in LeaveDay.objects.filter(work_date=day)}
+    leaves_map = {x.user_fk_id: x for x in LeaveDay.objects.filter(work_date=day).select_related("user_fk")}
 
     qs = (AttendanceSession.objects
           .filter(work_date=day)
@@ -2504,13 +2504,36 @@ def attendance_day(request):
             "first_in": row["first_in"],
             "last_out": row["last_out"],
             "total_hms": _fmt_hms(row["total_seconds"]),
-            "status": row["status"],
+            "status": "LEAVE" if ld else row["status"],
             "sessions": row["sessions"],
             "day_worksite": row["day_worksite"],
             "leave": (
-                {"reason": ld.reason, "hours": str(ld.hours), "multiplier": str(ld.multiplier)}
+                {"reason": ld.reason, "label": ld.get_reason_display(), "hours": str(ld.hours), "multiplier": str(ld.multiplier)}
                 if ld else None
             ),
+        })
+
+    attendance_user_ids = set(rows_by_user)
+    for user_id, ld in leaves_map.items():
+        if user_id in attendance_user_ids:
+            continue
+        user = ld.user_fk
+        rows.append({
+            "UserId": user.UserId,
+            "UserName": user.UserName,
+            "trade": user.trade or "",
+            "first_in": None,
+            "last_out": None,
+            "total_hms": "00:00:00",
+            "status": "LEAVE",
+            "sessions": [],
+            "day_worksite": None,
+            "leave": {
+                "reason": ld.reason,
+                "label": ld.get_reason_display(),
+                "hours": str(ld.hours),
+                "multiplier": str(ld.multiplier),
+            },
         })
 
     rows.sort(key=lambda r: r["UserName"].lower())

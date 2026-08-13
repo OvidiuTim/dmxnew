@@ -219,6 +219,11 @@ class ManualAttendanceSecurityTests(TestCase):
             data=json.dumps({**base_payload, "attendance_photo": enter_photo}),
             content_type="application/json",
         )
+        self.assertEqual(enter_response.status_code, 200)
+        self.assertEqual(enter_response.json()["state"], "ENTER")
+        user.refresh_from_db()
+        self.assertEqual(user.photo, enter_photo)
+
         tool_views._last_seen.clear()
         exit_response = self.client.post(
             "/api/pontaj/clock/",
@@ -226,10 +231,6 @@ class ManualAttendanceSecurityTests(TestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(enter_response.status_code, 200)
-        self.assertEqual(enter_response.json()["state"], "ENTER")
-        user.refresh_from_db()
-        self.assertEqual(user.photo, enter_photo)
         self.assertEqual(exit_response.status_code, 200)
         self.assertEqual(exit_response.json()["state"], "EXIT")
         session = AttendanceSession.objects.get(user_fk=user)

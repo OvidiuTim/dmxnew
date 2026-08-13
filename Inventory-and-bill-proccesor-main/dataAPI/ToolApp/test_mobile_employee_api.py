@@ -385,6 +385,33 @@ class MobileEmployeeApiTests(TestCase):
         self.assertEqual(next_year["prior_used_days"], 0)
         self.assertEqual(next_year["remaining_days"], "13.28")
 
+    def test_manual_remaining_balance_override_tracks_new_leave_days(self):
+        self.employee.hire_date = date(2024, 1, 1)
+        self.employee.leave_remaining_override_days = Decimal("6.50")
+        self.employee.leave_remaining_override_year = 2026
+        self.employee.leave_remaining_override_used_days = 0
+        self.employee.leave_remaining_override_accrued_days = Decimal("13.28")
+        self.employee.save(update_fields=(
+            "hire_date",
+            "leave_remaining_override_days",
+            "leave_remaining_override_year",
+            "leave_remaining_override_used_days",
+            "leave_remaining_override_accrued_days",
+        ))
+        self.assertEqual(build_leave_summary(self.employee, date(2026, 8, 31))["remaining_days"], "6.50")
+
+        LeaveDay.objects.create(
+            user_fk=self.employee,
+            work_date=date(2026, 8, 3),
+            reason=LeaveDay.Reason.CO,
+        )
+
+        summary = build_leave_summary(self.employee, date(2026, 8, 31))
+        self.assertEqual(summary["remaining_days"], "5.50")
+        self.assertTrue(summary["remaining_days_overridden"])
+        self.assertEqual(build_leave_summary(self.employee, date(2026, 9, 30))["remaining_days"], "7.16")
+        self.assertEqual(build_leave_summary(self.employee, date(2027, 8, 31))["remaining_days"], "13.28")
+
     @patch("ToolApp.mobile_views.localdate", return_value=date(2026, 8, 31))
     def test_leave_balance_api_exposes_accrued_used_and_remaining_days(self, _localdate_mock):
         LeaveRequest.objects.create(

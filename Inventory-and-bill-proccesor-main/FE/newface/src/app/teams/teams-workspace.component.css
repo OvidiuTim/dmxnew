@@ -59,6 +59,7 @@ h1 { margin: 7px 0 5px; color: var(--text); font-size: clamp(29px, 4vw, 38px); l
 .member-status .material-symbols-rounded, .member-request-alert .material-symbols-rounded { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; font-size: 14px; }
 .member-status.ssm.complete, .member-status.presence.present { background: var(--primary-soft); color: var(--primary); }
 .member-status.ssm.incomplete, .member-status.presence.absent { background: rgba(255,184,77,.1); color: var(--warning); }
+.member-status.presence.on-leave { background: rgba(84,168,255,.1); color: #60adff; }
 .member-status.leave { background: rgba(84,168,255,.1); color: #60adff; }
 .member-request-alert { width: 27px; height: 27px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 27px; padding: 0; border: 1px solid rgba(255,100,100,.5); border-radius: 50%; background: rgba(255,100,100,.13); color: #ff8585; cursor: pointer; }
 .member-request-alert:hover { border-color: #ff8585; background: rgba(255,100,100,.22); }

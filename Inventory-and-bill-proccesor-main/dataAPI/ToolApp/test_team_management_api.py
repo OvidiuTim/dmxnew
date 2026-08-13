@@ -158,6 +158,22 @@ class TeamManagementApiTests(TestCase):
         self.assertEqual(worker["presence"], "present")
         self.assertEqual(worker["active_requests"][0]["requester_team"]["id"], team_a.pk)
 
+    def test_team_member_on_leave_is_not_marked_absent(self):
+        team = self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])
+        LeaveDay.objects.create(
+            user_fk=self.worker_a,
+            work_date=self.today,
+            reason=LeaveDay.Reason.CO,
+        )
+
+        response = self.admin.get(reverse("teams_collection"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = next(item for item in response.json()["teams"] if item["id"] == team.pk)
+        worker = next(member for member in payload["members"] if member["id"] == self.worker_a.pk)
+        self.assertEqual(worker["presence"], "leave")
+        self.assertEqual(worker["today_leave"]["label"], "Concediu de odihnă")
+
     def test_employee_cannot_join_two_active_permanent_teams(self):
         self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])
         response = self.admin.post(

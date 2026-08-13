@@ -88,6 +88,7 @@ def _employee_payload(employee, team=None, member_status=None, include_requests=
         payload.update({
             "ssm_complete": member_status["ssm_complete"],
             "presence": member_status["presence"],
+            "today_leave": member_status["today_leave"],
             "leave_balance": member_status["leave_balance"],
         })
         if include_requests:
@@ -193,6 +194,13 @@ def _team_member_statuses(teams, app_user, can_manage_all):
         work_date=timezone.localdate(),
         user_fk_id__in=employee_ids,
     ).values_list("user_fk_id", flat=True))
+    leave_by_employee = {
+        leave.user_fk_id: leave
+        for leave in LeaveDay.objects.filter(
+            work_date=timezone.localdate(),
+            user_fk_id__in=employee_ids,
+        )
+    }
     employees = Users.objects.in_bulk(employee_ids)
     leave_balances = {
         employee_id: build_leave_summary(employee, timezone.localdate())
@@ -226,7 +234,13 @@ def _team_member_statuses(teams, app_user, can_manage_all):
     return {
         employee_id: {
             "ssm_complete": required_ssm.issubset(ssm_by_employee[employee_id]),
-            "presence": "present" if employee_id in present_ids else "absent",
+            "presence": "leave" if employee_id in leave_by_employee else (
+                "present" if employee_id in present_ids else "absent"
+            ),
+            "today_leave": ({
+                "reason": leave_by_employee[employee_id].reason,
+                "label": leave_by_employee[employee_id].get_reason_display(),
+            } if employee_id in leave_by_employee else None),
             "leave_balance": leave_balances.get(employee_id),
             "active_requests": request_rows[employee_id],
         }

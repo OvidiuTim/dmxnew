@@ -43,6 +43,10 @@ class UserSerializer(serializers.ModelSerializer):
             "hire_date",
             "prior_paid_leave_days",
             "prior_paid_leave_year",
+            "leave_remaining_override_days",
+            "leave_remaining_override_year",
+            "leave_remaining_override_used_days",
+            "leave_remaining_override_accrued_days",
             "housing_location",
             "accommodation_id",
             "accommodation",
@@ -62,6 +66,10 @@ class UserSerializer(serializers.ModelSerializer):
             "hire_date": {"required": False, "allow_null": True},
             "prior_paid_leave_days": {"required": False, "min_value": 0},
             "prior_paid_leave_year": {"required": False, "allow_null": True, "min_value": 2000, "max_value": 2200},
+            "leave_remaining_override_days": {"required": False, "allow_null": True, "min_value": 0},
+            "leave_remaining_override_year": {"read_only": True},
+            "leave_remaining_override_used_days": {"read_only": True},
+            "leave_remaining_override_accrued_days": {"read_only": True},
             "housing_location": {"required": False, "allow_blank": True},
             "active": {"required": False},
         }
@@ -91,6 +99,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         raw_pin = validated_data.pop("UserPin", None)
+        override_provided = "leave_remaining_override_days" in validated_data
+        override_value = validated_data.get("leave_remaining_override_days")
         if "accommodation" in validated_data:
             accommodation = validated_data.get("accommodation")
             validated_data["housing_location"] = accommodation.name if accommodation else ""
@@ -98,6 +108,19 @@ class UserSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         if raw_pin is not None:
             instance.set_pin(raw_pin)
+        if override_provided:
+            if override_value is None:
+                instance.leave_remaining_override_year = None
+                instance.leave_remaining_override_used_days = 0
+                instance.leave_remaining_override_accrued_days = 0
+            else:
+                from ToolApp.mobile_services import accrued_leave_days, used_paid_leave_days
+
+                today = timezone.localdate()
+                current_year = today.year
+                instance.leave_remaining_override_year = current_year
+                instance.leave_remaining_override_used_days = used_paid_leave_days(instance, current_year)
+                instance.leave_remaining_override_accrued_days = accrued_leave_days(instance, today)
         instance.save()
         return instance
 
