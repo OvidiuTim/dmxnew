@@ -252,6 +252,38 @@ def calculate_payroll(employee, profile, year, month):
     }
 
 
+def build_monthly_attendance(employee, year, month):
+    start_date, end_date = month_bounds(year, month)
+    worked_dates = _salary_dates(
+        start_date,
+        end_date,
+        AttendanceSession.objects.filter(
+            user_fk=employee,
+            work_date__range=(start_date, end_date),
+        ).values_list("work_date", flat=True).distinct(),
+    )
+    leave_rows = LeaveDay.objects.filter(
+        user_fk=employee,
+        work_date__range=(start_date, end_date),
+    ).values_list("work_date", "reason")
+    leave_dates = {
+        work_date for work_date, reason in leave_rows
+        if reason != LeaveDay.Reason.UNEXCUSED and work_date.isoweekday() <= 6
+    }
+    unexcused_dates = {
+        work_date for work_date, reason in leave_rows
+        if reason == LeaveDay.Reason.UNEXCUSED and work_date.isoweekday() <= 6
+    }
+    return {
+        "year": year,
+        "month": month,
+        "required_days": count_required_work_days(year, month),
+        "worked_days": len(worked_dates),
+        "leave_days": len(leave_dates),
+        "unexcused_absence_days": len(unexcused_dates),
+    }
+
+
 def build_salary_payments(profile, payroll, payment_year, payment_month):
     payments = [
         {

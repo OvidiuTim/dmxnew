@@ -13,6 +13,7 @@ from ToolApp.mobile_services import (
     accrued_leave_days,
     build_leave_summary,
     build_inventory,
+    build_monthly_attendance,
     build_salary_payments,
     build_team,
     calculate_available_leave_days,
@@ -50,6 +51,7 @@ class MobileEmployeeApiTests(TestCase):
             trade="Instalator",
             hire_date=date(2024, 1, 15),
             housing_location="Cazare Centrală",
+            total_salary_ron=Decimal("4750.50"),
         )
         self.other_employee = Users.objects.create(
             UserName="Alt Angajat",
@@ -564,10 +566,34 @@ class MobileEmployeeApiTests(TestCase):
         self.assertNotIn("worksite", payload["profile"])
         self.assertNotIn("calendar_configured", payload["payroll"])
         self.assertTrue(all("status" not in item for item in payload["salary_payments"]))
+        self.assertEqual(payload["total_salary_ron"], "4750.50")
+        self.assertEqual(payload["attendance"]["year"], timezone.localdate().year)
+        self.assertEqual(payload["attendance"]["month"], timezone.localdate().month)
         self.assertEqual(
             set(payload),
-            {"success", "profile", "payroll", "salary_payments", "leave_summary", "equipment", "tools", "team"},
+            {
+                "success", "profile", "total_salary_ron", "attendance", "payroll",
+                "salary_payments", "leave_summary", "equipment", "tools", "team",
+            },
         )
+
+    def test_monthly_attendance_uses_current_month_sessions_and_leave_days(self):
+        today = timezone.localdate()
+        first_day = date(today.year, today.month, 1)
+        self.add_attendance(first_day)
+        leave_day = first_day + timedelta(days=1)
+        while leave_day.isoweekday() > 6:
+            leave_day += timedelta(days=1)
+        LeaveDay.objects.create(
+            user_fk=self.employee,
+            work_date=leave_day,
+            reason=LeaveDay.Reason.CO,
+        )
+
+        payload = build_monthly_attendance(self.employee, today.year, today.month)
+
+        self.assertEqual(payload["worked_days"], 1)
+        self.assertEqual(payload["leave_days"], 1)
 
     def test_leave_serialization_has_only_simplified_fields(self):
         leave = LeaveRequest.objects.create(

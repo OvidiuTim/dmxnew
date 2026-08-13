@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from ToolApp.mobile_services import (
     build_inventory,
     build_leave_summary,
+    build_monthly_attendance,
     build_salary_payments,
     build_team,
     calculate_payroll,
@@ -101,6 +102,8 @@ def employee_dashboard(request):
             "seniority_months": seniority_months(effective_hire_date, today),
             "housing_location": employee.housing_location,
         },
+        "total_salary_ron": f"{employee.total_salary_ron or 0:.2f}",
+        "attendance": build_monthly_attendance(employee, today.year, today.month),
         "payroll": payroll,
         "salary_payments": salary_payments,
         "leave_summary": build_leave_summary(employee, today),
