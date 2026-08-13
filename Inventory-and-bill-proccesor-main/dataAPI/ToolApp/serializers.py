@@ -34,6 +34,7 @@ class UserSerializer(serializers.ModelSerializer):
             "NameAndSerie",
             "hourly_rate",
             "total_salary_ron",
+            "person_type",
             "Company",
             "equipment_size",
             "received_equipment",
@@ -58,6 +59,7 @@ class UserSerializer(serializers.ModelSerializer):
             "uid": {"required": False, "allow_null": True, "allow_blank": True},
             "hourly_rate": {"required": False, "allow_null": True},
             "total_salary_ron": {"required": False, "allow_null": True, "min_value": 0},
+            "person_type": {"required": False},
             "Company": {"required": False, "allow_null": True, "allow_blank": True},
             "equipment_size": {"required": False, "allow_null": True, "allow_blank": True},
             "received_equipment": {"required": False, "allow_null": True},
@@ -137,6 +139,8 @@ class ToolSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     AssignedUserName = serializers.SerializerMethodField(read_only=True)
+    AssignedPersonType = serializers.SerializerMethodField(read_only=True)
+    AssignedPersonTypeLabel = serializers.SerializerMethodField(read_only=True)
     AssignedTeamId = serializers.SerializerMethodField(read_only=True)
     AssignedTeamName = serializers.SerializerMethodField(read_only=True)
     Location = serializers.SerializerMethodField(read_only=True)
@@ -170,6 +174,8 @@ class ToolSerializer(serializers.ModelSerializer):
             "RfidTag",        # ← nou
             "AssignedUserId",
             "AssignedUserName",
+            "AssignedPersonType",
+            "AssignedPersonTypeLabel",
             "AssignedTeamId",
             "AssignedTeamName",
             "IsSSM",
@@ -213,8 +219,16 @@ class ToolSerializer(serializers.ModelSerializer):
     def get_AssignedUserName(self, obj):
         return obj.AssignedTo.UserName if obj.AssignedTo else None
 
+    def get_AssignedPersonType(self, obj):
+        return obj.AssignedTo.person_type if obj.AssignedTo else None
+
+    def get_AssignedPersonTypeLabel(self, obj):
+        return obj.AssignedTo.get_person_type_display() if obj.AssignedTo else None
+
     def _assigned_team(self, obj):
         if not obj.AssignedTo_id:
+            return None
+        if obj.AssignedTo.person_type != Users.PersonType.EMPLOYEE:
             return None
 
         cache_key = "_tool_serializer_assigned_team"
@@ -398,6 +412,8 @@ class HistorySerializer(serializers.ModelSerializer):
                 "UserId": obj.user_fk.UserId,
                 "UserName": obj.user_fk.UserName,
                 "UserSerie": obj.user_fk.UserSerie,
+                "person_type": obj.user_fk.person_type,
+                "person_type_label": obj.user_fk.get_person_type_display(),
             }
         return None
 

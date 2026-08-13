@@ -18,7 +18,11 @@
     </article>
     <article class="stat-card">
       <span class="stat-icon"><app-icon name="user-check" [size]="24"></app-icon></span>
-      <div><strong>{{ assignedPieces }}</strong><span>Alocate angajaților</span></div>
+      <div><strong>{{ assignedEmployeePieces }}</strong><span>Alocate angajaților</span></div>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon"><app-icon name="groups" [size]="24"></app-icon></span>
+      <div><strong>{{ assignedCollaboratorPieces }}</strong><span>Alocate colaboratorilor</span></div>
     </article>
     <article class="stat-card">
       <span class="stat-icon"><app-icon name="warehouse" [size]="24"></app-icon></span>
@@ -55,7 +59,7 @@
     <label class="search-box">
       <span class="sr-only">Caută</span>
       <app-icon name="search" [size]="18"></app-icon>
-      <input type="search" [(ngModel)]="searchTerm" (ngModelChange)="filtersChanged()" placeholder="Caută după nume, serie, marcă sau angajat">
+      <input type="search" [(ngModel)]="searchTerm" (ngModelChange)="filtersChanged()" placeholder="Caută după nume, serie, marcă sau persoană">
     </label>
     <label>
       <span class="sr-only">Categorie</span>
@@ -165,7 +169,7 @@
               <td>{{ tool.Category || 'Necategorizat' }}</td>
               <td><span class="status-pill" [ngClass]="tool.Status || 'unknown'">{{ statusLabel(tool) }}</span><small class="verify" *ngIf="tool.RequiresVerification">Verificare necesară</small></td>
               <td>{{ locationOf(tool) }}</td>
-              <td>{{ employeeOf(tool) }}</td>
+              <td><strong>{{ employeeOf(tool) }}</strong><small class="subline" *ngIf="personTypeLabel(tool)">{{ personTypeLabel(tool) }}</small></td>
               <td>{{ tool.AssignedTeamName || '—' }}</td>
               <td><strong>{{ piecesOf(tool) }}</strong></td>
             </tr>

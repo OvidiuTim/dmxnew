@@ -126,7 +126,9 @@ export class FisaAngajatComponent implements OnInit {
     this.error = null;
     this.api.getUsrList().subscribe({
       next: users => {
-        this.employeeDirectory = (users ?? []).slice().sort((a: EmployeeProfile, b: EmployeeProfile) =>
+        this.employeeDirectory = (users ?? [])
+          .filter((user: any) => (user.person_type || 'employee') === 'employee')
+          .slice().sort((a: EmployeeProfile, b: EmployeeProfile) =>
           String(a.UserName || '').localeCompare(String(b.UserName || ''), 'ro')
         );
         this.loading = false;

@@ -12,7 +12,7 @@ type HistoryRecord = {
   user_fk?: number | null;
   tool_fk?: number | null;
   issued_by?: number | null;
-  user?: { UserId: number; UserName: string; UserSerie?: string } | null;
+  user?: { UserId: number; UserName: string; UserSerie?: string; person_type?: 'employee' | 'collaborator'; person_type_label?: string } | null;
   tool?: { ToolId: number; ToolName: string; ToolSerie?: string | null } | null;
   User?: string | null;
   Tool?: string | null;
@@ -21,7 +21,7 @@ type HistoryRecord = {
 };
 
 type ToolMeta = { ToolId: number; ToolName: string; ToolSerie?: string | null; IsSSM?: boolean; Category?: string | null };
-type UserMeta = { UserId: number; UserName: string };
+type UserMeta = { UserId: number; UserName: string; person_type?: 'employee' | 'collaborator'; person_type_label?: string };
 
 @Component({
   selector: 'app-inventory-history',
@@ -121,12 +121,18 @@ export class InventoryHistoryComponent implements OnInit {
   toolSerie(item: HistoryRecord): string { return String(item.tool?.ToolSerie || item.ToolSerie || 'Fără serie'); }
   category(item: HistoryRecord): string { return this.toolMeta(item)?.Category || (this.isSsm(item) ? 'Echipament SSM' : 'Sculă'); }
   employeeName(item: HistoryRecord): string { return item.user?.UserName || item.User || 'Nespecificat'; }
+  personTypeLabel(item: HistoryRecord): string {
+    const user = item.user || this.users.get(Number(item.user_fk));
+    if (!user) return 'Nespecificat';
+    return user.person_type_label || (user.person_type === 'collaborator' ? 'Colaborator' : 'Angajat');
+  }
+  personDisplay(item: HistoryRecord): string { return `${this.employeeName(item)} (${this.personTypeLabel(item)})`; }
   operatorName(item: HistoryRecord): string { return this.users.get(Number(item.issued_by))?.UserName || 'Nespecificat'; }
   quantity(item: HistoryRecord): number { const value = Number(item.quantity); return Number.isFinite(value) && value > 0 ? value : 1; }
   directionLabel(item: HistoryRecord): string { return ({ OUT: 'Predare', IN: 'Returnare', ADJ: 'Ajustare' } as Record<string, string>)[String(item.direction)] || 'Operațiune'; }
   directionIcon(item: HistoryRecord): string { return item.direction === 'OUT' ? 'arrow-up' : item.direction === 'IN' ? 'arrow-down' : 'adjust'; }
-  origin(item: HistoryRecord): string { return item.direction === 'IN' ? this.employeeName(item) : item.direction === 'OUT' ? 'Magazie' : 'Inventar'; }
-  destination(item: HistoryRecord): string { return item.direction === 'OUT' ? this.employeeName(item) : item.direction === 'IN' ? 'Magazie' : 'Inventar'; }
+  origin(item: HistoryRecord): string { return item.direction === 'IN' ? this.personDisplay(item) : item.direction === 'OUT' ? 'Magazie' : 'Inventar'; }
+  destination(item: HistoryRecord): string { return item.direction === 'OUT' ? this.personDisplay(item) : item.direction === 'IN' ? 'Magazie' : 'Inventar'; }
   isSsm(item: HistoryRecord): boolean { return Boolean(this.toolMeta(item)?.IsSSM); }
 
   dateOf(item: HistoryRecord): Date | null {

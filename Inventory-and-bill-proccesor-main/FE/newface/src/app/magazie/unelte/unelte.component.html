@@ -7,7 +7,10 @@
         <p class="eyebrow">Magazie</p>
         <h2>Unelte si echipamente</h2>
       </div>
+      <button class="btn primary" type="button" (click)="addCollaborator()">Adaugă colaborator</button>
       <div class="head-stats">
+        <span>Angajați: {{ employeeCount }}</span>
+        <span>Colaboratori: {{ collaboratorCount }}</span>
         <span>Scule santier: {{ totalSiteTools }}</span>
         <span>Scule SSM: {{ totalSsmTools }}</span>
         <span>Total bucati: {{ totalToolPieces }}</span>
@@ -47,10 +50,18 @@
         </label>
 
         <label>
-          <span>Angajat</span>
+          <span>Tip persoană</span>
+          <select [ngModel]="selectedEditorPersonType" (ngModelChange)="onEditorPersonTypeChange($event)">
+            <option value="employee">Angajat</option>
+            <option value="collaborator">Colaborator</option>
+          </select>
+        </label>
+
+        <label>
+          <span>{{ selectedEditorPersonType === 'collaborator' ? 'Colaborator' : 'Angajat' }}</span>
           <select [(ngModel)]="toolForm.AssignedUserId">
-            <option [ngValue]="null">Fara angajat</option>
-            <option *ngFor="let user of users" [ngValue]="user.UserId">{{ user.UserName }}</option>
+            <option [ngValue]="null">Fără persoană</option>
+            <option *ngFor="let user of editorPeople" [ngValue]="user.UserId">{{ user.UserName }}</option>
           </select>
         </label>
 
@@ -116,7 +127,7 @@
     <section class="filters">
       <div class="search-field">
         <span>Cautare</span>
-        <input type="search" [(ngModel)]="searchTerm" placeholder="Nume, serie, locatie, angajat">
+        <input type="search" [(ngModel)]="searchTerm" placeholder="Nume, serie, locație sau persoană">
       </div>
 
       <label>
@@ -154,7 +165,7 @@
         <div>Tip</div>
         <div>Stare</div>
         <div>Locatie</div>
-        <div>Angajat</div>
+        <div>Responsabil</div>
         <div>Bucati</div>
         <div>Primita</div>
         <div>Predare</div>
@@ -183,7 +194,10 @@
           </span>
         </div>
         <div>{{ tool.Location || tool.MainLocation || '-' }}</div>
-        <div>{{ tool.AssignedUserName || tool.User || '-' }}</div>
+        <div>
+          <strong>{{ tool.AssignedUserName || tool.User || '-' }}</strong>
+          <small *ngIf="tool.AssignedUserName || tool.User">{{ personTypeLabel(tool) }}</small>
+        </div>
         <div>{{ piecesCount(tool) }}</div>
         <div>{{ formatDate(tool.DateReceived || tool.DateOfGiving) }}</div>
         <div>{{ possessionLabel(tool) }}</div>

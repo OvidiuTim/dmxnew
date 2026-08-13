@@ -8,7 +8,8 @@
         <h2>Predare/primire</h2>
       </div>
       <div class="head-stats">
-        <span>Angajati: {{ users.length }}</span>
+        <span>Angajați: {{ employeeCount }}</span>
+        <span>Colaboratori: {{ collaboratorCount }}</span>
         <span>Unelte: {{ tools.length }}</span>
       </div>
     </header>
@@ -19,11 +20,16 @@
     <section class="handover-grid">
       <div class="editor-panel">
         <div class="editor-title">
-          <h3>Alege angajatul</h3>
+          <h3>Alege persoana</h3>
+        </div>
+
+        <div class="handover-tabs" aria-label="Tip persoană">
+          <button type="button" [class.active]="selectedPersonType === 'employee'" (click)="selectPersonType('employee')">Angajați</button>
+          <button type="button" [class.active]="selectedPersonType === 'collaborator'" (click)="selectPersonType('collaborator')">Colaboratori</button>
         </div>
 
         <div class="search-field handover-search">
-          <span>Cautare angajat</span>
+          <span>Căutare {{ selectedPersonTypeLabel }}</span>
           <input type="search" [(ngModel)]="userSearchTerm" placeholder="Nume, serie, firma, meserie">
         </div>
 
@@ -38,22 +44,23 @@
             (click)="selectUser(user)"
           >
             <strong>{{ user.UserName }}</strong>
+            <span>{{ user.person_type_label }}</span>
             <span>{{ user.Company || 'Fara firma' }}<ng-container *ngIf="user.trade"> • {{ user.trade }}</ng-container></span>
             <small>Serie: {{ user.UserSerie || '-' }}</small>
           </button>
 
-          <div class="empty" *ngIf="filteredUsers.length === 0">Nu exista angajati pentru cautarea curenta.</div>
+          <div class="empty" *ngIf="filteredUsers.length === 0">Nu există {{ selectedPersonType === 'employee' ? 'angajați' : 'colaboratori' }} pentru căutarea curentă.</div>
         </div>
       </div>
 
       <div class="editor-panel">
         <div class="editor-title">
           <h3>Miscare unealta</h3>
-          <button class="btn ghost" type="button" *ngIf="selectedUser" (click)="clearSelectedUser()">Schimba angajat</button>
+          <button class="btn ghost" type="button" *ngIf="selectedUser" (click)="clearSelectedUser()">Schimbă persoana</button>
         </div>
 
         <div class="selected-employee" *ngIf="selectedUser; else noEmployee">
-          <span>Angajat selectat</span>
+          <span>{{ selectedUser.person_type_label }} selectat</span>
           <strong>{{ selectedUser.UserName }}</strong>
           <button class="btn primary quick-add-btn" type="button" (click)="addToolForSelectedUser()">
             Adauga unealta
@@ -89,8 +96,8 @@
 
         <ng-template #noEmployee>
           <div class="selected-employee muted-card">
-            <span>Angajat selectat</span>
-            <strong>Alege un angajat din lista</strong>
+            <span>Persoană selectată</span>
+            <strong>Alege un {{ selectedPersonTypeLabel }} din listă</strong>
           </div>
         </ng-template>
 
@@ -99,7 +106,7 @@
           <input
             type="search"
             [(ngModel)]="toolSearchTerm"
-            [placeholder]="activeTab === 'predare' ? 'Nume, serie sau detalii din magazie' : 'Nume, serie sau detalii de la angajat'"
+            [placeholder]="activeTab === 'predare' ? 'Nume, serie sau detalii din magazie' : 'Nume, serie sau detalii de la persoană'"
           >
         </div>
 

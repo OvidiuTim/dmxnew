@@ -8,6 +8,8 @@ interface EmployeeOption {
   UserSerie?: string | null;
   Company?: string | null;
   trade?: string | null;
+  person_type: PersonType;
+  person_type_label: string;
 }
 
 interface ToolItem {
@@ -29,6 +31,8 @@ interface ToolItem {
   Detail?: string | null;
   AssignedUserId?: number | null;
   AssignedUserName?: string | null;
+  AssignedPersonType?: PersonType | null;
+  AssignedPersonTypeLabel?: string | null;
   DateReceived?: string | null;
   DateOfGiving?: string | null;
   IsReturned?: boolean | null;
@@ -40,6 +44,7 @@ interface ToolItem {
 
 type HandoverTab = 'predare' | 'preluare';
 type ReturnStatus = 'functionala' | 'nefunctionala';
+type PersonType = 'employee' | 'collaborator';
 
 @Component({
   selector: 'app-predare-unealta',
@@ -50,6 +55,7 @@ export class PredareUnealtaComponent implements OnInit {
   users: EmployeeOption[] = [];
   tools: ToolItem[] = [];
   selectedUser: EmployeeOption | null = null;
+  selectedPersonType: PersonType = 'employee';
 
   userSearchTerm = '';
   toolSearchTerm = '';
@@ -87,11 +93,10 @@ export class PredareUnealtaComponent implements OnInit {
 
   get filteredUsers(): EmployeeOption[] {
     const search = this.normalize(this.userSearchTerm);
-    if (!search) {
-      return this.users;
-    }
+    const people = this.users.filter(user => user.person_type === this.selectedPersonType);
+    if (!search) return people;
 
-    return this.users.filter(user => [
+    return people.filter(user => [
       user.UserName,
       user.UserSerie,
       user.Company,
@@ -150,6 +155,8 @@ export class PredareUnealtaComponent implements OnInit {
             UserSerie: user.UserSerie ?? null,
             Company: user.Company ?? null,
             trade: user.trade ?? null,
+            person_type: user.person_type === 'collaborator' ? 'collaborator' as const : 'employee' as const,
+            person_type_label: user.person_type === 'collaborator' ? 'Colaborator' : 'Angajat',
           }))
           .filter(user => Number.isFinite(user.UserId) && !!user.UserName)
           .sort((a, b) => a.UserName.localeCompare(b.UserName, 'ro'));
@@ -158,6 +165,7 @@ export class PredareUnealtaComponent implements OnInit {
           ? this.users.find(user => user.UserId === this.preselectedUserId)
           : null;
         if (preselectedUser) {
+          this.selectedPersonType = preselectedUser.person_type;
           this.selectUser(preselectedUser);
           this.activeTab = 'predare';
         }
@@ -195,6 +203,18 @@ export class PredareUnealtaComponent implements OnInit {
     this.success = null;
   }
 
+  selectPersonType(personType: PersonType): void {
+    this.selectedPersonType = personType;
+    this.selectedUser = null;
+    this.userSearchTerm = '';
+    this.toolSearchTerm = '';
+    this.activeTab = 'predare';
+  }
+
+  get employeeCount(): number { return this.users.filter(user => user.person_type === 'employee').length; }
+  get collaboratorCount(): number { return this.users.filter(user => user.person_type === 'collaborator').length; }
+  get selectedPersonTypeLabel(): string { return this.selectedPersonType === 'collaborator' ? 'colaborator' : 'angajat'; }
+
   clearSelectedUser(): void {
     this.selectedUser = null;
     this.toolSearchTerm = '';
@@ -210,7 +230,7 @@ export class PredareUnealtaComponent implements OnInit {
 
   addToolForSelectedUser(): void {
     if (!this.selectedUser) {
-      this.error = 'Alege un angajat inainte sa adaugi o unealta pentru el.';
+      this.error = `Alege un ${this.selectedPersonTypeLabel} înainte să adaugi o unealtă.`;
       return;
     }
 
@@ -221,7 +241,7 @@ export class PredareUnealtaComponent implements OnInit {
 
   assignTool(tool: ToolItem): void {
     if (!this.selectedUser) {
-      this.error = 'Alege un angajat inainte sa predai unealta.';
+      this.error = `Alege un ${this.selectedPersonTypeLabel} înainte să predai unealta.`;
       return;
     }
 
@@ -247,7 +267,7 @@ export class PredareUnealtaComponent implements OnInit {
       Pieces: quantity,
     }).subscribe({
       next: () => {
-        const userName = this.selectedUser?.UserName ?? 'angajat';
+        const userName = this.selectedUser?.UserName ?? 'persoană';
         this.saving = false;
         this.success = `Au fost predate ${quantity} ${quantity === 1 ? 'bucata' : 'bucati'} catre ${userName}.`;
         this.toolSearchTerm = '';
@@ -266,7 +286,7 @@ export class PredareUnealtaComponent implements OnInit {
 
   receiveTool(tool: ToolItem): void {
     if (!this.selectedUser) {
-      this.error = 'Alege un angajat inainte sa preiei unealta.';
+      this.error = `Alege un ${this.selectedPersonTypeLabel} înainte să preiei unealta.`;
       return;
     }
 

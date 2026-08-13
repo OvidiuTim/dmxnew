@@ -3,7 +3,7 @@ from datetime import date
 
 from django.test import TestCase
 
-from ToolApp.models import EmployeeTeam, EmployeeTeamMember, Tools, Users
+from ToolApp.models import EmployeeTeam, EmployeeTeamMember, Histories, Tools, Users
 from ToolApp.security import make_admin_token
 
 
@@ -139,3 +139,65 @@ class ToolEditingApiTests(TestCase):
 
         self.assertEqual(return_response.status_code, 200)
         self.assertEqual(return_response.json()["warehouse"]["Status"], "nefunctionala")
+
+    def test_collaborator_can_receive_and_return_tools_with_person_type_in_api(self):
+        collaborator = Users.objects.create(
+            UserName="Firma Colaboratoare",
+            UserSerie="COL-1",
+            person_type=Users.PersonType.COLLABORATOR,
+        )
+        warehouse_tool = Tools.objects.create(
+            ToolName="Masina de gaurit",
+            Pieces=2,
+            Status=Tools.ToolStatus.FUNCTIONALA,
+            MainLocation="Magazie",
+        )
+        authorization = f"Bearer {make_admin_token()}"
+
+        assign_response = self.client.post(
+            "/api/tools/assign-quantity/",
+            data=json.dumps({
+                "ToolId": warehouse_tool.ToolId,
+                "AssignedUserId": collaborator.UserId,
+                "Pieces": 1,
+            }),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=authorization,
+        )
+
+        self.assertEqual(assign_response.status_code, 200)
+        assigned = assign_response.json()["assigned"]
+        self.assertEqual(assigned["AssignedPersonType"], "collaborator")
+        self.assertEqual(assigned["AssignedPersonTypeLabel"], "Colaborator")
+        self.assertIsNone(assigned["AssignedTeamId"])
+
+        return_response = self.client.post(
+            "/api/tools/return-quantity/",
+            data=json.dumps({"ToolId": assigned["ToolId"], "Pieces": 1}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=authorization,
+        )
+        self.assertEqual(return_response.status_code, 200)
+
+    def test_history_payload_identifies_collaborator(self):
+        collaborator = Users.objects.create(
+            UserName="Colaborator Istoric",
+            UserSerie="COL-H",
+            person_type=Users.PersonType.COLLABORATOR,
+        )
+        tool = Tools.objects.create(ToolName="Flex", Pieces=1)
+        history = Histories.objects.create(
+            user_fk=collaborator,
+            tool_fk=tool,
+            direction=Histories.Movement.OUT,
+        )
+
+        response = self.client.get(
+            "/api/history/",
+            HTTP_AUTHORIZATION=f"Bearer {make_admin_token()}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        row = next(item for item in response.json() if item["HistoryId"] == history.HistoryId)
+        self.assertEqual(row["user"]["person_type"], "collaborator")
+        self.assertEqual(row["user"]["person_type_label"], "Colaborator")

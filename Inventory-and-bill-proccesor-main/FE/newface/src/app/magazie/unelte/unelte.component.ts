@@ -9,6 +9,8 @@ type StatusFilter = 'ALL' | ToolStatus;
 interface EmployeeOption {
   UserId: number;
   UserName: string;
+  person_type: 'employee' | 'collaborator';
+  person_type_label: string;
 }
 
 interface ToolItem {
@@ -33,6 +35,8 @@ interface ToolItem {
   SourcePhoto?: string | null;
   AssignedUserId?: number | null;
   AssignedUserName?: string | null;
+  AssignedPersonType?: 'employee' | 'collaborator' | null;
+  AssignedPersonTypeLabel?: string | null;
   DateReceived?: string | null;
   DateOfGiving?: string | null;
   ExpiryDate?: string | null;
@@ -79,6 +83,7 @@ export class UnelteComponent implements OnInit {
   categoryFilter: CategoryFilter = 'ALL';
   statusFilter: StatusFilter = 'ALL';
   showWarehouseOnly = false;
+  selectedEditorPersonType: 'employee' | 'collaborator' = 'employee';
 
   readonly statuses: Array<{ value: ToolStatus; label: string }> = [
     { value: 'functionala', label: 'Funcțional' },
@@ -98,6 +103,7 @@ export class UnelteComponent implements OnInit {
   seeUnelte(): void { this.router.navigateByUrl('/unelte'); }
   seeAdaugaUnealta(): void { this.router.navigateByUrl('/unelte/adauga-unealta'); }
   seePredareUnealta(): void { this.router.navigateByUrl('/predare-unealta'); }
+  addCollaborator(): void { this.router.navigate(['/users/new'], { queryParams: { person_type: 'collaborator' } }); }
 
   get isEditing(): boolean {
     return this.toolForm.ToolId !== null;
@@ -153,6 +159,18 @@ export class UnelteComponent implements OnInit {
     return this.tools.reduce((total, tool) => total + this.piecesCount(tool), 0);
   }
 
+  get employeeCount(): number { return this.users.filter(user => user.person_type === 'employee').length; }
+  get collaboratorCount(): number { return this.users.filter(user => user.person_type === 'collaborator').length; }
+
+  get editorPeople(): EmployeeOption[] {
+    return this.users.filter(user => user.person_type === this.selectedEditorPersonType);
+  }
+
+  onEditorPersonTypeChange(value: 'employee' | 'collaborator'): void {
+    this.selectedEditorPersonType = value;
+    this.toolForm.AssignedUserId = null;
+  }
+
   loadInitialData(): void {
     this.loading = true;
     this.error = null;
@@ -160,7 +178,12 @@ export class UnelteComponent implements OnInit {
     this.service.getUsrList().subscribe({
       next: (users) => {
         this.users = (users ?? [])
-          .map(user => ({ UserId: Number(user.UserId), UserName: String(user.UserName ?? '') }))
+          .map(user => ({
+            UserId: Number(user.UserId),
+            UserName: String(user.UserName ?? ''),
+            person_type: user.person_type === 'collaborator' ? 'collaborator' as const : 'employee' as const,
+            person_type_label: user.person_type === 'collaborator' ? 'Colaborator' : 'Angajat',
+          }))
           .filter(user => Number.isFinite(user.UserId) && !!user.UserName)
           .sort((a, b) => a.UserName.localeCompare(b.UserName, 'ro'));
 
@@ -247,6 +270,7 @@ export class UnelteComponent implements OnInit {
       IsLost: !!tool.IsLost,
       DateLost: tool.DateLost ?? '',
     };
+    this.selectedEditorPersonType = tool.AssignedPersonType === 'collaborator' ? 'collaborator' : 'employee';
 
     setTimeout(() => {
       document.querySelector('.editor-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -291,7 +315,12 @@ export class UnelteComponent implements OnInit {
       return `Returnata${tool.DateReturned ? ` (${this.formatDate(tool.DateReturned)})` : ''}`;
     }
 
-    return 'La angajat / in lucru';
+    return `La ${tool.AssignedPersonType === 'collaborator' ? 'colaborator' : 'angajat'} / în lucru`;
+  }
+
+  personTypeLabel(tool: ToolItem): string {
+    return tool.AssignedPersonTypeLabel
+      || (tool.AssignedPersonType === 'collaborator' ? 'Colaborator' : 'Angajat');
   }
 
   formatDate(value: string | null | undefined): string {
@@ -361,6 +390,7 @@ export class UnelteComponent implements OnInit {
   }
 
   private emptyForm(): ToolForm {
+    this.selectedEditorPersonType = 'employee';
     return {
       ToolId: null,
       ToolSerie: '',

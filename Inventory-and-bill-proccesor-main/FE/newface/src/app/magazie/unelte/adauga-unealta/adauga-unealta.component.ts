@@ -5,6 +5,7 @@ import { SharedService } from 'src/app/shared.service';
 interface EmployeeOption {
   UserId: number;
   UserName: string;
+  person_type: 'employee' | 'collaborator';
 }
 
 interface AddToolForm {
@@ -30,6 +31,7 @@ export class AdaugaUnealtaComponent implements OnInit {
   saving = false;
   error: string | null = null;
   success: string | null = null;
+  selectedPersonType: 'employee' | 'collaborator' = 'employee';
   private preselectedUserId: number | null = null;
   private returnToPredare = false;
 
@@ -62,6 +64,15 @@ export class AdaugaUnealtaComponent implements OnInit {
     return this.users.find(user => user.UserId === this.form.AssignedUserId) ?? null;
   }
 
+  get selectablePeople(): EmployeeOption[] {
+    return this.users.filter(user => user.person_type === this.selectedPersonType);
+  }
+
+  onPersonTypeChange(value: 'employee' | 'collaborator'): void {
+    this.selectedPersonType = value;
+    this.form.AssignedUserId = null;
+  }
+
   get computedStatus(): 'functionala' | 'in_lucru' {
     return this.assignedUser ? 'in_lucru' : 'functionala';
   }
@@ -83,11 +94,16 @@ export class AdaugaUnealtaComponent implements OnInit {
     this.service.getUsrList().subscribe({
       next: (users) => {
         this.users = (users ?? [])
-          .map(user => ({ UserId: Number(user.UserId), UserName: String(user.UserName ?? '') }))
+          .map(user => ({
+            UserId: Number(user.UserId),
+            UserName: String(user.UserName ?? ''),
+            person_type: user.person_type === 'collaborator' ? 'collaborator' as const : 'employee' as const,
+          }))
           .filter(user => Number.isFinite(user.UserId) && !!user.UserName)
           .sort((a, b) => a.UserName.localeCompare(b.UserName, 'ro'));
 
         if (this.preselectedUserId && this.users.some(user => user.UserId === this.preselectedUserId)) {
+          this.selectedPersonType = this.users.find(user => user.UserId === this.preselectedUserId)?.person_type ?? 'employee';
           this.form.AssignedUserId = this.preselectedUserId;
         }
 

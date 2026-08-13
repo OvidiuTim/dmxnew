@@ -3,7 +3,7 @@
     <div class="hero-card">
       <div class="hero-copy">
         <a routerLink="/pontaj" class="back-link"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Inapoi la pontaj</a>
-        <div class="eyebrow">{{ isEditMode ? 'Editare angajat' : 'Adaugare angajat' }}</div>
+        <div class="eyebrow">{{ isEditMode ? 'Editare persoană' : 'Adăugare persoană' }}</div>
         <h1>{{ pageTitle }}</h1>
         <p>{{ pageSubtitle }}</p>
       </div>
@@ -21,7 +21,16 @@
     <form class="editor-card" *ngIf="!loading" [formGroup]="form" (ngSubmit)="submit()">
       <div class="form-grid">
         <div class="field">
-          <label for="user-name">Nume angajat</label>
+          <label for="person-type">Categorie persoană</label>
+          <select id="person-type" formControlName="person_type" (change)="onPersonTypeChange($any($event.target).value)">
+            <option value="employee">Angajat</option>
+            <option value="collaborator">Colaborator</option>
+          </select>
+          <small *ngIf="isCollaborator">Colaboratorul poate primi unelte, dar nu apare în Pontaj și nu se poate ponta.</small>
+        </div>
+
+        <div class="field">
+          <label for="user-name">Nume persoană</label>
           <input id="user-name" type="text" formControlName="UserName" placeholder="Nume si prenume">
         </div>
 
@@ -30,7 +39,7 @@
           <input id="user-serie" type="text" formControlName="UserSerie" placeholder="Ex: SER-001">
         </div>
 
-        <div class="field pin-field">
+        <div class="field pin-field" *ngIf="!isCollaborator">
           <label for="user-pin">{{ isEditMode ? 'PIN nou' : 'PIN angajat' }}</label>
           <div class="pin-input-row">
             <input
@@ -159,7 +168,7 @@
       <div class="form-actions">
         <button type="button" class="btn ghost" (click)="cancel()">Renunta</button>
         <button type="submit" class="btn primary" [disabled]="saving">
-          {{ saving ? 'Se salveaza...' : (isEditMode ? 'Salveaza modificarile' : 'Adauga angajat') }}
+          {{ saving ? 'Se salvează...' : (isEditMode ? 'Salvează modificările' : (isCollaborator ? 'Adaugă colaborator' : 'Adaugă angajat')) }}
         </button>
       </div>
     </form>

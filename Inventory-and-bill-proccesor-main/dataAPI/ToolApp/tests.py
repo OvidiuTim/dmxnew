@@ -43,6 +43,58 @@ class MonitorPontajTests(TestCase):
 
 
 class ManualAttendanceSecurityTests(TestCase):
+    def test_collaborator_cannot_log_in_or_clock(self):
+        collaborator = Users(
+            UserName="Colaborator fără pontaj",
+            UserSerie="COL-PONTAJ",
+            person_type=Users.PersonType.COLLABORATOR,
+        )
+        collaborator.set_pin("9988")
+        collaborator.save()
+
+        login_response = self.client.post(
+            "/api/pontaj/login/",
+            data=json.dumps({"pin": "9988", "device_key": "collaborator-device"}),
+            content_type="application/json",
+        )
+        self.assertEqual(login_response.status_code, 404)
+        self.assertEqual(login_response.json()["error_code"], "INVALID_PIN")
+
+        clock_response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({
+                "pin": "9988",
+                "device_key": "collaborator-device",
+                "data_processing_consent": True,
+                "attendance_photo": "data:image/webp;base64,MTIz",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(clock_response.status_code, 200)
+        self.assertIsNone(clock_response.json()["match"])
+        self.assertFalse(AttendanceSession.objects.filter(user_fk=collaborator).exists())
+
+    def test_collaborator_is_excluded_from_attendance_day_even_for_legacy_session(self):
+        collaborator = Users.objects.create(
+            UserName="Colaborator vechi",
+            UserSerie="COL-LEGACY",
+            person_type=Users.PersonType.COLLABORATOR,
+        )
+        AttendanceSession.objects.create(
+            user_fk=collaborator,
+            work_date=localdate(),
+            in_time=timezone.now(),
+            source="legacy",
+        )
+
+        response = self.client.get(
+            f"/api/pontaj/day/?date={localdate().isoformat()}",
+            HTTP_AUTHORIZATION=f"Bearer {make_admin_token()}",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["rows"], [])
+
     def test_checkout_allows_a_different_browser_for_manual_and_driver(self):
         now = timezone.now()
 

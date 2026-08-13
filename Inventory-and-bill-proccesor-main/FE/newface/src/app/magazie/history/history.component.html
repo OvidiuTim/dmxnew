@@ -54,7 +54,8 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Nume angajat</th>
+                        <th>Persoană</th>
+                        <th>Tip persoană</th>
                         <th>Nume unealta</th>
                         <th>Actiune</th>
                         <th>Cine a predat</th>
@@ -65,7 +66,8 @@
 
                     <ng-container>
                         <tr *ngFor="let dataItem of histToolList">
-                            <td>{{dataItem.User}} </td>
+                            <td>{{ dataItem.user?.UserName || dataItem.User || '-' }}</td>
+                            <td>{{ dataItem.user?.person_type_label || (dataItem.user?.person_type === 'collaborator' ? 'Colaborator' : (dataItem.user ? 'Angajat' : 'Nespecificat')) }}</td>
                             <td>{{dataItem.Tool}}</td>
                             <td>{{dataItem.GiveRecive}}</td>
                             <td>{{dataItem.Pieces}}</td>

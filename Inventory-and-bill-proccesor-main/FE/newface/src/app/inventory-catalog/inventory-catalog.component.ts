@@ -17,6 +17,8 @@ type ToolRecord = {
   Location?: string | null;
   AssignedUserName?: string | null;
   AssignedUserId?: number | null;
+  AssignedPersonType?: 'employee' | 'collaborator' | null;
+  AssignedPersonTypeLabel?: string | null;
   AssignedTeamId?: number | null;
   AssignedTeamName?: string | null;
   User?: string | null;
@@ -45,6 +47,7 @@ type EmployeeRecord = {
   trade?: string | null;
   Company?: string | null;
   active?: boolean;
+  person_type?: 'employee' | 'collaborator';
 };
 
 type SsmEquipmentKey = 'helmet' | 'boots' | 'vest' | 'harness' | 'gloves';
@@ -129,8 +132,9 @@ export class InventoryCatalogComponent implements OnInit, OnDestroy {
             trade: employee.trade ?? null,
             Company: employee.Company ?? null,
             active: employee.active !== false,
+            person_type: employee.person_type === 'collaborator' ? 'collaborator' as const : 'employee' as const,
           }))
-          .filter(employee => Number.isFinite(employee.UserId) && Boolean(employee.UserName))
+          .filter(employee => employee.person_type === 'employee' && Number.isFinite(employee.UserId) && Boolean(employee.UserName))
           .sort((a, b) => a.UserName.localeCompare(b.UserName, 'ro'));
         this.loading = false;
         this.ensureValidPage();
@@ -158,6 +162,18 @@ export class InventoryCatalogComponent implements OnInit, OnDestroy {
 
   get assignedPieces(): number {
     return this.tools.filter(tool => this.isAssigned(tool)).reduce((total, tool) => total + this.piecesOf(tool), 0);
+  }
+
+  get assignedEmployeePieces(): number {
+    return this.tools
+      .filter(tool => this.isAssigned(tool) && tool.AssignedPersonType !== 'collaborator')
+      .reduce((total, tool) => total + this.piecesOf(tool), 0);
+  }
+
+  get assignedCollaboratorPieces(): number {
+    return this.tools
+      .filter(tool => this.isAssigned(tool) && tool.AssignedPersonType === 'collaborator')
+      .reduce((total, tool) => total + this.piecesOf(tool), 0);
   }
 
   get warehousePieces(): number {
@@ -318,6 +334,12 @@ export class InventoryCatalogComponent implements OnInit, OnDestroy {
 
   employeeOf(tool: ToolRecord): string {
     return String(tool.AssignedUserName || tool.User || 'Nealocat');
+  }
+
+  personTypeLabel(tool: ToolRecord): string {
+    if (!tool.AssignedUserName && !tool.User) return '';
+    return tool.AssignedPersonTypeLabel
+      || (tool.AssignedPersonType === 'collaborator' ? 'Colaborator' : 'Angajat');
   }
 
   statusLabel(tool: ToolRecord): string {

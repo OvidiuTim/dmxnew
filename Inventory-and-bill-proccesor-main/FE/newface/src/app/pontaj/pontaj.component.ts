@@ -79,6 +79,7 @@ seeFisaAngajat(id: number): void {
       users: this.api.getUsrList()
     }).subscribe({
       next: ({ day, users }) => {
+        users = (users ?? []).filter((user: any) => (user.person_type || 'employee') === 'employee');
         const byId = new Map<number, DayUserRow>();
         for (const r of (day?.rows ?? [])) {
           byId.set(r.UserId, r);

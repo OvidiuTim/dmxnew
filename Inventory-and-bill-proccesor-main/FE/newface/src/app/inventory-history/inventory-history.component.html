@@ -11,7 +11,7 @@
   </section>
 
   <section class="toolbar" aria-label="Filtre istoric">
-    <label class="search-box"><span class="sr-only">Caută</span><app-icon name="search" [size]="18"></app-icon><input type="search" [(ngModel)]="searchTerm" (ngModelChange)="filtersChanged()" placeholder="Caută unealtă, serie, angajat sau observație"></label>
+    <label class="search-box"><span class="sr-only">Caută</span><app-icon name="search" [size]="18"></app-icon><input type="search" [(ngModel)]="searchTerm" (ngModelChange)="filtersChanged()" placeholder="Caută unealtă, serie, persoană sau observație"></label>
     <label><span class="sr-only">Tip inventar</span><select [(ngModel)]="typeFilter" (ngModelChange)="filtersChanged()"><option value="ALL">Scule și SSM</option><option value="TOOLS">Doar scule</option><option value="SSM">Doar echipamente SSM</option></select></label>
     <label><span class="sr-only">Operațiune</span><select [(ngModel)]="directionFilter" (ngModelChange)="filtersChanged()"><option value="ALL">Toate operațiunile</option><option value="OUT">Predări</option><option value="IN">Returnări</option><option value="ADJ">Ajustări</option></select></label>
     <label><span class="sr-only">Perioadă</span><select [(ngModel)]="periodFilter" (ngModelChange)="filtersChanged()"><option value="ALL">Toată perioada</option><option value="7">Ultimele 7 zile</option><option value="30">Ultimele 30 zile</option><option value="90">Ultimele 90 zile</option></select></label>
@@ -34,7 +34,7 @@
                 <td>{{ origin(item) }}</td><td>{{ destination(item) }}</td><td>{{ operatorName(item) }}</td><td><strong>{{ quantity(item) }}</strong></td>
                 <td><button class="detail-button" type="button" (click)="select(item)" [attr.aria-expanded]="selected?.HistoryId === item.HistoryId" [attr.aria-label]="'Detalii pentru ' + toolName(item)"><app-icon name="list" [size]="17"></app-icon></button></td>
               </tr>
-              <tr class="detail-row" *ngIf="selected?.HistoryId === item.HistoryId"><td colspan="8"><div><span><strong>Observații</strong>{{ item.note || 'Fără observații' }}</span><span><strong>ID operațiune</strong>#{{ item.HistoryId }}</span><span><strong>Tip inventar</strong>{{ isSsm(item) ? 'Echipament SSM' : 'Sculă' }}</span></div></td></tr>
+              <tr class="detail-row" *ngIf="selected?.HistoryId === item.HistoryId"><td colspan="8"><div><span><strong>Observații</strong>{{ item.note || 'Fără observații' }}</span><span><strong>ID operațiune</strong>#{{ item.HistoryId }}</span><span><strong>Tip inventar</strong>{{ isSsm(item) ? 'Echipament SSM' : 'Sculă' }}</span><span><strong>Tip persoană</strong>{{ personTypeLabel(item) }}</span></div></td></tr>
             </ng-container>
           </tbody>
         </table>

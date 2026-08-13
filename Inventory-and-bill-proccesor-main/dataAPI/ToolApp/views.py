@@ -410,6 +410,9 @@ def userApi(request,id=0):
             return JsonResponse(_employee_api_payload(user), safe=False)
 
         users = Users.objects.all()
+        person_type = str(request.GET.get("person_type") or "").strip()
+        if person_type in dict(Users.PersonType.choices):
+            users = users.filter(person_type=person_type)
         users_serializer = UserSerializer(users, many=True)
         return JsonResponse(users_serializer.data, safe=False)
 
@@ -1859,11 +1862,18 @@ def _find_user_by_pin(raw_pin):
 
     cached_user_id = cache.get(_pin_cache_key(raw_pin))
     if cached_user_id:
-        cached_user = Users.objects.filter(UserId=cached_user_id, UserPin=raw_pin).first()
+        cached_user = Users.objects.filter(
+            UserId=cached_user_id,
+            UserPin=raw_pin,
+            person_type=Users.PersonType.EMPLOYEE,
+        ).first()
         if cached_user:
             return cached_user
 
-    user = Users.objects.filter(UserPin=raw_pin).first()
+    user = Users.objects.filter(
+        UserPin=raw_pin,
+        person_type=Users.PersonType.EMPLOYEE,
+    ).first()
     if user:
         cache.set(_pin_cache_key(raw_pin), user.UserId, PIN_LOGIN_CACHE_SECONDS)
     return user
@@ -2025,7 +2035,10 @@ def nfc_scan(request):
         if mapped_pin:
             print(f"[NFC-MAP] UID={uid} mapat din UID_PIN_MAP la PIN={mapped_pin}")
         else:
-            mapped_user = Users.objects.filter(uid__iexact=uid).first() if uid and uid != "MANUAL" else None
+            mapped_user = Users.objects.filter(
+                uid__iexact=uid,
+                person_type=Users.PersonType.EMPLOYEE,
+            ).first() if uid and uid != "MANUAL" else None
             if mapped_user:
                 print(
                     f"[NFC-MAP] UID={uid} găsit direct în Users.uid pentru user={mapped_user.UserName} "
@@ -2389,7 +2402,7 @@ def attendance_today(request):
 
     today = localdate()
     qs = (AttendanceSession.objects
-          .filter(work_date=today)
+          .filter(work_date=today, user_fk__person_type=Users.PersonType.EMPLOYEE)
           .values("user_fk__UserId", "user_fk__UserName")
           .annotate(first_in=Min("in_time"),
                     last_out=Max("out_time"),
@@ -2436,10 +2449,16 @@ def attendance_day(request):
     day = _parse_iso_date(request.GET.get("date") or str(localdate()))
 
     # NEW: map pentru concedii pe zi
-    leaves_map = {x.user_fk_id: x for x in LeaveDay.objects.filter(work_date=day).select_related("user_fk")}
+    leaves_map = {
+        x.user_fk_id: x
+        for x in LeaveDay.objects.filter(
+            work_date=day,
+            user_fk__person_type=Users.PersonType.EMPLOYEE,
+        ).select_related("user_fk")
+    }
 
     qs = (AttendanceSession.objects
-          .filter(work_date=day)
+          .filter(work_date=day, user_fk__person_type=Users.PersonType.EMPLOYEE)
           .select_related("user_fk")
           .order_by("user_fk__UserName", "in_time"))
 
@@ -2548,7 +2567,10 @@ def attendance_present(request):
         return JsonResponse({"error": "Only GET allowed"}, status=405)
 
     open_qs = (AttendanceSession.objects
-               .filter(out_time__isnull=True)
+               .filter(
+                   out_time__isnull=True,
+                   user_fk__person_type=Users.PersonType.EMPLOYEE,
+               )
                .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
                .select_related("user_fk")
                .order_by("in_time"))
@@ -2688,7 +2710,10 @@ def attendance_range(request):
 
     # agregat fără user_id – rămâne ca înainte
     qs = (AttendanceSession.objects
-          .filter(work_date__range=(start, end))
+          .filter(
+              work_date__range=(start, end),
+              user_fk__person_type=Users.PersonType.EMPLOYEE,
+          )
           .values("user_fk__UserId", "user_fk__UserName", "work_date")
           .annotate(
               first_in=Min("in_time"),
@@ -2728,7 +2753,10 @@ def attendance_worksite_report(request):
     now = timezone.now()
     qs = (
         AttendanceSession.objects
-        .filter(work_date__range=(start, end))
+        .filter(
+            work_date__range=(start, end),
+            user_fk__person_type=Users.PersonType.EMPLOYEE,
+        )
         .select_related("user_fk")
         .order_by("worksite", "user_fk__UserName", "in_time")
     )
@@ -2851,7 +2879,10 @@ def attendance_day_cost_report(request):
 
     qs = (
         AttendanceSession.objects
-        .filter(work_date=day)
+        .filter(
+            work_date=day,
+            user_fk__person_type=Users.PersonType.EMPLOYEE,
+        )
         .select_related("user_fk")
         .order_by("user_fk__UserName", "in_time")
     )
@@ -2922,7 +2953,10 @@ def _monitor_initial_events(limit: int = 24):
 
     sessions = (
         AttendanceSession.objects
-        .filter(work_date=today)
+        .filter(
+            work_date=today,
+            user_fk__person_type=Users.PersonType.EMPLOYEE,
+        )
         .select_related("user_fk")
         .order_by("in_time", "id")
     )
@@ -4710,7 +4744,9 @@ def generate_excel(request):
     end_day   = _date(year, month_idx, days_in_month)
 
     # --- toți angajații din DB, apoi filtrăm manual pe firmă ---
-    all_users_qs = Users.objects.all().order_by("UserName")
+    all_users_qs = Users.objects.filter(
+        person_type=Users.PersonType.EMPLOYEE,
+    ).order_by("UserName")
     all_users = list(all_users_qs)
 
     # filtrare pe firmă (dacă e cazul)
@@ -4802,7 +4838,10 @@ def generate_excel(request):
     # --- sesiuni din luna respectivă (PENTRU TOȚI), dar ignorăm userii din alte firme ---
     sessions_qs = (
         AttendanceSession.objects
-        .filter(work_date__range=(start_day, end_day))
+        .filter(
+            work_date__range=(start_day, end_day),
+            user_fk__person_type=Users.PersonType.EMPLOYEE,
+        )
         .select_related("user_fk")
         .order_by("user_fk__UserName", "work_date", "in_time")
     )

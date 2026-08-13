@@ -88,6 +88,10 @@ class Accommodation(models.Model):
 
 
 class Users(models.Model):
+    class PersonType(models.TextChoices):
+        EMPLOYEE = "employee", "Angajat"
+        COLLABORATOR = "collaborator", "Colaborator"
+
     UserId = models.AutoField(primary_key=True)
     UserName = models.CharField(max_length=100)
     UserSerie = models.CharField(max_length=100, unique=True, db_index=True)
@@ -98,6 +102,12 @@ class Users(models.Model):
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=0)  # lei/oră
     total_salary_ron = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    person_type = models.CharField(
+        max_length=16,
+        choices=PersonType.choices,
+        default=PersonType.EMPLOYEE,
+        db_index=True,
+    )
     Company = models.CharField(max_length=100, null=True, blank=True)
     equipment_size = models.CharField(max_length=100, null=True, blank=True)
     received_equipment = models.BooleanField(null=True, blank=True)

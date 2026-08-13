@@ -34,10 +34,18 @@
         </label>
 
         <label>
-          <span>Angajat</span>
+          <span>Tip persoană</span>
+          <select [ngModel]="selectedPersonType" (ngModelChange)="onPersonTypeChange($event)">
+            <option value="employee">Angajat</option>
+            <option value="collaborator">Colaborator</option>
+          </select>
+        </label>
+
+        <label>
+          <span>{{ selectedPersonType === 'collaborator' ? 'Colaborator' : 'Angajat' }}</span>
           <select class="employee-select" [(ngModel)]="form.AssignedUserId" [disabled]="loadingUsers">
-            <option [ngValue]="null">Fara angajat</option>
-            <option *ngFor="let user of users" [ngValue]="user.UserId">{{ user.UserName }}</option>
+            <option [ngValue]="null">Fără persoană</option>
+            <option *ngFor="let user of selectablePeople" [ngValue]="user.UserId">{{ user.UserName }}</option>
           </select>
         </label>
 

@@ -304,7 +304,7 @@ def teams_collection(request):
         ).values_list("employee_id", flat=True))
         leader_ids = {team.leader_id for team in teams if team.active}
         employees = []
-        for employee in Users.objects.order_by("UserName"):
+        for employee in Users.objects.filter(person_type=Users.PersonType.EMPLOYEE).order_by("UserName"):
             row = _employee_payload(employee, membership.get(employee.pk))
             row["can_request"] = bool(
                 employee.active and row["team"] and employee.pk not in leader_ids and employee.pk not in unavailable_ids
@@ -348,7 +348,11 @@ def _save_team(data, team=None, members_only=False):
         team = EmployeeTeam()
 
     if not members_only:
-        leader = Users.objects.select_for_update().filter(pk=data["leader_id"], active=True).first()
+        leader = Users.objects.select_for_update().filter(
+            pk=data["leader_id"],
+            active=True,
+            person_type=Users.PersonType.EMPLOYEE,
+        ).first()
         if not leader:
             raise ValidationError({"leader_id": "Șeful selectat nu există sau este inactiv."})
         team.name = data["name"]
@@ -375,7 +379,10 @@ def _save_team(data, team=None, members_only=False):
 
     employees = {
         employee.pk: employee
-        for employee in Users.objects.select_for_update().filter(pk__in=desired_ids)
+        for employee in Users.objects.select_for_update().filter(
+            pk__in=desired_ids,
+            person_type=Users.PersonType.EMPLOYEE,
+        )
     }
     missing = desired_ids.difference(employees)
     inactive = [employee.UserName for employee in employees.values() if not employee.active]
@@ -559,7 +566,11 @@ def temporary_requests(request):
         return _error("Solicitarea este invalidă.", details=serializer.errors)
     data = serializer.validated_data
     requester_team = EmployeeTeam.objects.filter(pk=data["requester_team_id"], active=True).first()
-    employee = Users.objects.filter(pk=data["employee_id"], active=True).first()
+    employee = Users.objects.filter(
+        pk=data["employee_id"],
+        active=True,
+        person_type=Users.PersonType.EMPLOYEE,
+    ).first()
     if not requester_team or not employee:
         return _error("Echipa sau angajatul selectat nu există ori este inactiv.", 404)
     source_membership = EmployeeTeamMember.objects.select_related("team").filter(
@@ -825,7 +836,10 @@ def teams_today(request):
         })
     available = [
         _daily_employee(employee, None, present_ids, worksites, leaves, "available")
-        for employee in Users.objects.filter(active=True).order_by("UserName")
+        for employee in Users.objects.filter(
+            active=True,
+            person_type=Users.PersonType.EMPLOYEE,
+        ).order_by("UserName")
         if employee.pk not in assigned_ids and employee.pk not in transferred_ids and employee.pk not in leaves
     ]
     return JsonResponse({"date": day.isoformat(), "teams": rows, "available": available})
@@ -859,7 +873,10 @@ def available_personnel(request):
     actor_team_ids = {team.pk for team in actor_teams}
     actor_can_allocate = bool(can_manage_all or actor_teams)
     employees = []
-    for employee in Users.objects.filter(active=True).order_by("UserName"):
+    for employee in Users.objects.filter(
+        active=True,
+        person_type=Users.PersonType.EMPLOYEE,
+    ).order_by("UserName"):
         team = memberships.get(employee.pk)
         leave = leaves.get(employee.pk)
         transfer = transfers.get(employee.pk)

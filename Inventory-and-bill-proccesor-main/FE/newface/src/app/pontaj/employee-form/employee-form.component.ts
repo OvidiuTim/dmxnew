@@ -27,6 +27,7 @@ export class EmployeeFormComponent implements OnInit {
   initialLeaveRemaining: string | null = null;
 
   readonly form = this.fb.group({
+    person_type: ['employee', [Validators.required]],
     UserName: ['', [Validators.required, Validators.maxLength(100)]],
     UserSerie: ['', [Validators.required, Validators.maxLength(100)]],
     UserPin: ['', [Validators.required, Validators.maxLength(100)]],
@@ -58,6 +59,10 @@ export class EmployeeFormComponent implements OnInit {
 
     const rawId = this.route.snapshot.paramMap.get('id');
     if (!rawId) {
+      const requestedType = this.route.snapshot.queryParamMap.get('person_type');
+      if (requestedType === 'collaborator') {
+        this.onPersonTypeChange('collaborator');
+      }
       this.syncCompanySelection(this.form.value.Company ?? 'RNX');
       return;
     }
@@ -73,7 +78,25 @@ export class EmployeeFormComponent implements OnInit {
   }
 
   get pageTitle(): string {
-    return this.isEditMode ? 'Editeaza angajatul' : 'Adauga un angajat nou';
+    const label = this.isCollaborator ? 'colaboratorul' : 'angajatul';
+    return this.isEditMode ? `Editeaza ${label}` : `Adauga un ${this.isCollaborator ? 'colaborator' : 'angajat'} nou`;
+  }
+
+  get isCollaborator(): boolean {
+    return this.form.value.person_type === 'collaborator';
+  }
+
+  onPersonTypeChange(value: string): void {
+    this.form.patchValue({ person_type: value });
+    if (!this.isEditMode && value === 'employee') {
+      this.form.controls.UserPin.setValidators([Validators.required, Validators.maxLength(100)]);
+    } else {
+      this.form.controls.UserPin.setValidators([Validators.maxLength(100)]);
+    }
+    if (value === 'collaborator') {
+      this.form.patchValue({ UserPin: '', uid: '' });
+    }
+    this.form.controls.UserPin.updateValueAndValidity();
   }
 
   get pageSubtitle(): string {
@@ -172,7 +195,7 @@ export class EmployeeFormComponent implements OnInit {
 
   submit(): void {
     this.error = null;
-    if (!this.isEditMode && !(this.form.value.UserPin ?? '').trim()) {
+    if (!this.isEditMode && !this.isCollaborator && !(this.form.value.UserPin ?? '').trim()) {
       this.form.controls.UserPin.setErrors({ required: true });
     }
     if (this.form.invalid) {
@@ -196,6 +219,12 @@ export class EmployeeFormComponent implements OnInit {
       next: (response: any) => {
         this.saving = false;
         const targetId = response?.UserId ?? payload.UserId ?? null;
+        if (payload.person_type === 'collaborator') {
+          this.router.navigate(['/predare-unealta'], {
+            queryParams: targetId ? { user_id: targetId } : undefined,
+          });
+          return;
+        }
         if (targetId) {
           this.router.navigate(['/user', targetId]);
           return;
@@ -207,13 +236,13 @@ export class EmployeeFormComponent implements OnInit {
         this.saving = false;
         const details = err?.error?.details;
         if (details) {
-          this.error = `Nu am putut salva angajatul. ${JSON.stringify(details)}`;
+          this.error = `Nu am putut salva persoana. ${JSON.stringify(details)}`;
           return;
         }
 
         this.error = typeof err?.error?.error === 'string'
           ? err.error.error
-          : 'Nu am putut salva angajatul acum. Incearca din nou.';
+          : 'Nu am putut salva persoana acum. Incearca din nou.';
       }
     });
   }
@@ -235,6 +264,7 @@ export class EmployeeFormComponent implements OnInit {
       next: (user) => {
         this.loading = false;
         this.form.patchValue({
+          person_type: user?.person_type ?? 'employee',
           UserName: user?.UserName ?? '',
           UserSerie: user?.UserSerie ?? '',
           UserPin: '',
@@ -272,6 +302,7 @@ export class EmployeeFormComponent implements OnInit {
     const payload: any = {
       ...(this.userId ? { UserId: this.userId } : {}),
       UserName: (value.UserName ?? '').trim(),
+      person_type: value.person_type ?? 'employee',
       UserSerie: (value.UserSerie ?? '').trim(),
       uid: this.normalizeOptionalString(value.uid),
       hourly_rate: this.normalizeRate(value.hourly_rate),
