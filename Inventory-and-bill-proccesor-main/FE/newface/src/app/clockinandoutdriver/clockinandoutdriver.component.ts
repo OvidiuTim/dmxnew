@@ -1,6 +1,5 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import * as L from 'leaflet';
-import { firstValueFrom } from 'rxjs';
 import { SharedService } from '../shared.service';
 
 type FeedbackKind = 'enter' | 'exit' | 'error';
@@ -32,6 +31,10 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   pin = '';
   submitting = false;
   dataProcessingConsent = false;
+  cameraOpen = false;
+  capturedSelfie: string | null = null;
+  confirmedSelfie: string | null = null;
+  cameraError = '';
   currentTime = new Date();
   feedback: FeedbackState | null = null;
   currentPosition: CurrentPosition | null = null;
@@ -114,6 +117,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       && !!this.currentPosition
       && this.effectiveLocationState === 'ready'
       && this.dataProcessingConsent
+      && !!this.confirmedSelfie
       && !this.submitting;
   }
 
@@ -187,6 +191,10 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       return 'Bifeaza acordul pentru prelucrarea datelor pentru a activa pontajul.';
     }
 
+    if (!this.confirmedSelfie) {
+      return 'Realizeaza si confirma selfie-ul pentru a activa pontajul.';
+    }
+
     if (this.effectiveLocationState === 'ready') {
       return 'Locatia este gata si poate fi salvata impreuna cu pontajul.';
     }
@@ -195,18 +203,21 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   }
 
   updatePin(value: string): void {
-    this.pin = value.replace(/\D/g, '').slice(0, 12);
+    const nextPin = value.replace(/\D/g, '').slice(0, 12);
+    if (nextPin !== this.pin && (this.cameraOpen || this.capturedSelfie || this.confirmedSelfie)) this.resetSelfie();
+    this.pin = nextPin;
   }
 
   clearPin(): void {
     this.pin = '';
+    this.resetSelfie();
   }
 
   refreshLocation(): void {
     this.requestFreshLocation();
   }
 
-  async submitPin(): Promise<void> {
+  submitPin(): void {
     if (!this.currentPosition) {
       this.showError('Locatia GPS este obligatorie pentru pontajul soferilor.');
       return;
@@ -227,43 +238,31 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       return;
     }
 
+    if (!this.confirmedSelfie) {
+      this.showError('Realizeaza si confirma selfie-ul inainte de pontaj.');
+      return;
+    }
+
     const cleanPin = this.pin.trim();
     this.submitting = true;
 
-    let response: any;
-    try {
-      response = await firstValueFrom(this.submitAttendanceRequest(cleanPin));
-    } catch (error) {
-      const attendanceError: any = error;
-      const code = typeof attendanceError?.error?.error_code === 'string' ? attendanceError.error.error_code : '';
-      if (code !== 'CHECKIN_PHOTO_REQUIRED') {
+    this.submitAttendanceRequest(cleanPin, this.confirmedSelfie).subscribe({
+      next: (response) => {
         this.submitting = false;
-        this.showError(this.resolveAttendanceError(attendanceError));
+        if (response?.debounced) return;
+        if (!response?.user?.name || !response?.state) {
+          this.showError('Nu am gasit niciun angajat cu acest PIN.');
+          return;
+        }
+        this.showAttendanceFeedback(response.state, response.user.name);
         this.clearPin();
-        return;
-      }
-
-      try {
-        const checkinPhoto = await this.captureAttendancePhoto();
-        response = await firstValueFrom(this.submitAttendanceRequest(cleanPin, checkinPhoto));
-      } catch (photoError) {
+        this.dataProcessingConsent = false;
+      },
+      error: (error) => {
         this.submitting = false;
-        this.showError(photoError instanceof Error ? photoError.message : 'Nu am putut face fotografia pentru pontaj.');
-        return;
+        this.showError(this.resolveAttendanceError(error));
       }
-    }
-
-    this.submitting = false;
-    if (response?.debounced) {
-      return;
-    }
-    if (!response?.user?.name || !response?.state) {
-      this.showError('Nu am gasit niciun angajat cu acest PIN.');
-      this.clearPin();
-      return;
-    }
-    this.showAttendanceFeedback(response.state, response.user.name);
-    this.clearPin();
+    });
   }
 
   formatCoordinates(lat: number, lng: number): string {
@@ -318,7 +317,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       : 'Nu am putut inregistra pontajul acum. Incearca din nou.';
   }
 
-  private submitAttendanceRequest(pin: string, checkinPhoto?: string) {
+  private submitAttendanceRequest(pin: string, attendancePhoto: string) {
     return this.api.manualAttendanceByPin(pin, {
       mode: 'driver',
       gps: {
@@ -328,18 +327,23 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
         capturedAt: this.locationCapturedAt?.toISOString()
       },
       dataProcessingConsent: this.dataProcessingConsent,
-      checkinPhoto,
+      attendancePhoto,
     });
   }
 
-  private async captureAttendancePhoto(): Promise<string> {
+  async openCamera(): Promise<void> {
+    this.cameraError = '';
+    this.capturedSelfie = null;
+    this.confirmedSelfie = null;
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error('Camera telefonului nu este disponibila in acest browser.');
+      this.cameraError = 'Camera telefonului nu este disponibila in acest browser.';
+      return;
     }
 
     const video = this.cameraPreview?.nativeElement;
     if (!video) {
-      throw new Error('Camera nu este pregatita. Reincarca pagina si incearca din nou.');
+      this.cameraError = 'Camera nu este pregatita. Reincarca pagina si incearca din nou.';
+      return;
     }
 
     try {
@@ -347,34 +351,55 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
         audio: false,
         video: { facingMode: { ideal: 'user' }, width: { ideal: 640 }, height: { ideal: 640 } }
       });
+      this.cameraOpen = true;
       video.srcObject = this.cameraStream;
       await video.play();
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 180));
-
-      const sourceWidth = video.videoWidth;
-      const sourceHeight = video.videoHeight;
-      if (!sourceWidth || !sourceHeight) {
-        throw new Error('Camera nu a trimis o imagine. Incearca din nou.');
-      }
-      const side = Math.min(sourceWidth, sourceHeight);
-      const canvas = document.createElement('canvas');
-      canvas.width = 240;
-      canvas.height = 240;
-      const context = canvas.getContext('2d');
-      if (!context) {
-        throw new Error('Nu am putut procesa fotografia pentru pontaj.');
-      }
-      context.drawImage(video, (sourceWidth - side) / 2, (sourceHeight - side) / 2, side, side, 0, 0, 240, 240);
-      const webp = canvas.toDataURL('image/webp', 0.4);
-      return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.4);
-    } finally {
+    } catch (error: any) {
       this.stopCamera();
+      this.cameraError = error?.name === 'NotAllowedError'
+        ? 'Accesul la camera a fost refuzat. Permite camera din setarile browserului.'
+        : 'Nu am gasit o camera disponibila pe acest dispozitiv.';
     }
+  }
+
+  captureSelfie(): void {
+    const video = this.cameraPreview?.nativeElement;
+    if (!video?.videoWidth || !video.videoHeight) {
+      this.cameraError = 'Camera nu este pregatita. Incearca din nou.';
+      return;
+    }
+    const side = Math.min(video.videoWidth, video.videoHeight);
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 240;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.drawImage(video, (video.videoWidth - side) / 2, (video.videoHeight - side) / 2, side, side, 0, 0, 240, 240);
+    const webp = canvas.toDataURL('image/webp', 0.4);
+    this.capturedSelfie = webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.4);
+    this.stopCamera();
+  }
+
+  useSelfie(): void {
+    if (this.capturedSelfie) this.confirmedSelfie = this.capturedSelfie;
+  }
+
+  retakeSelfie(): void {
+    this.resetSelfie();
+    void this.openCamera();
+  }
+
+  private resetSelfie(): void {
+    this.stopCamera();
+    this.capturedSelfie = null;
+    this.confirmedSelfie = null;
+    this.cameraError = '';
   }
 
   private stopCamera(): void {
     this.cameraStream?.getTracks().forEach((track) => track.stop());
     this.cameraStream = null;
+    this.cameraOpen = false;
     if (this.cameraPreview?.nativeElement) {
       this.cameraPreview.nativeElement.srcObject = null;
     }

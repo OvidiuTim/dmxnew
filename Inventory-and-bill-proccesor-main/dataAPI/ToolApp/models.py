@@ -477,8 +477,9 @@ class AttendanceSession(models.Model):
     manual_device_key = models.CharField(max_length=64, null=True, blank=True, db_index=True)
     data_processing_consent = models.BooleanField(default=False)
     data_processing_consent_at = models.DateTimeField(null=True, blank=True)
-    # Fotografie WebP/JPEG redusa, realizata exclusiv la check-in-ul manual.
+    # Fotografii WebP/JPEG reduse și confirmate explicit pentru fiecare acțiune manuală.
     checkin_photo = models.TextField(blank=True, default="")
+    checkout_photo = models.TextField(blank=True, default="")
 
     class Meta:
         ordering = ['-in_time']

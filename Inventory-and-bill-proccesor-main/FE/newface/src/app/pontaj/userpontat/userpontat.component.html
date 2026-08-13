@@ -102,6 +102,9 @@
             >
               {{ s.in_gps ? 'Vezi check-in' : 'Fara GPS' }}
             </button>
+            <button class="btn secondary map-mini-btn" type="button" [disabled]="!s.in_photo" (click)="openCheckinPhoto(s.in_photo)">
+              {{ s.in_photo ? 'Vezi selfie intrare' : 'Fără selfie' }}
+            </button>
           </div>
           <div class="arrow"><span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></div>
           <div class="time-stack">
@@ -129,9 +132,9 @@
                 <button
                   class="session-menu-action"
                   type="button"
-                  [disabled]="!s.in_photo"
-                  [title]="s.in_photo ? 'Vezi fotografia realizată la check-in' : 'Nu există fotografie la check-in'"
-                  (click)="openCheckinPhoto(s.in_photo)"
+                  [disabled]="!s.out_photo"
+                  [title]="s.out_photo ? 'Vezi fotografia realizată la check-out' : 'Nu există fotografie la check-out'"
+                  (click)="openCheckinPhoto(s.out_photo)"
                 >
                   <span class="material-symbols-rounded" aria-hidden="true">image</span>
                   Vezi poza
@@ -283,11 +286,11 @@
 <div class="checkin-photo-modal" *ngIf="checkinPhotoToView" (click)="closeCheckinPhoto()">
   <section class="checkin-photo-dialog" role="dialog" aria-modal="true" aria-label="Fotografia de la check-in" (click)="$event.stopPropagation()">
     <header>
-      <h3>Fotografia de la check-in</h3>
+      <h3>Selfie de pontaj</h3>
       <button type="button" class="btn secondary" (click)="closeCheckinPhoto()" aria-label="Închide fotografia">
         <span class="material-symbols-rounded" aria-hidden="true">close</span>
       </button>
     </header>
-    <img [src]="checkinPhotoToView" alt="Fotografie realizată la check-in" />
+    <img [src]="checkinPhotoToView" alt="Selfie asociat pontajului" />
   </section>
 </div>

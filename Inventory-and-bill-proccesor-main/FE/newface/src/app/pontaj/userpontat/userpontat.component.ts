@@ -14,6 +14,7 @@ interface SessionRow {
   in_gps?: GpsPoint | null;
   out_gps?: GpsPoint | null;
   in_photo?: string | null;
+  out_photo?: string | null;
 }
 
 interface GpsPoint {

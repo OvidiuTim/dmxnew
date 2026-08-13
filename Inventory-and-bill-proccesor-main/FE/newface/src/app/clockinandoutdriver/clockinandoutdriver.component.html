@@ -65,6 +65,43 @@
             [disabled]="submitting"
           />
 
+          <section class="selfie-section" aria-labelledby="driver-selfie-title">
+            <div class="selfie-heading">
+              <span class="selfie-icon material-symbols-rounded" aria-hidden="true">photo_camera</span>
+              <div>
+                <h3 id="driver-selfie-title">Adaugă selfie</h3>
+                <p>Pentru a continua pontajul, realizează un selfie clar, cu fața vizibilă. Fotografia va fi asociată acestui check-in sau check-out pentru confirmarea identității.</p>
+              </div>
+            </div>
+
+            <div class="selfie-stage" [class.has-content]="cameraOpen || capturedSelfie">
+              <video #cameraPreview class="camera-preview" [class.visible]="cameraOpen" autoplay muted playsinline></video>
+              <img *ngIf="capturedSelfie && !cameraOpen" [src]="capturedSelfie" alt="Selfie realizat pentru pontaj" />
+              <span class="selfie-confirmed" *ngIf="confirmedSelfie">
+                <span class="material-symbols-rounded" aria-hidden="true">check_circle</span> Fotografie confirmată
+              </span>
+            </div>
+
+            <p class="camera-error" *ngIf="cameraError">{{ cameraError }}</p>
+
+            <div class="selfie-actions">
+              <button *ngIf="!cameraOpen && !capturedSelfie" type="button" class="selfie-btn primary" (click)="openCamera()" [disabled]="!pin.trim() || submitting" [title]="!pin.trim() ? 'Introdu mai întâi PIN-ul' : 'Deschide camera pentru selfie'">
+                <span class="material-symbols-rounded" aria-hidden="true">photo_camera</span> Deschide camera
+              </button>
+              <button *ngIf="cameraOpen" type="button" class="selfie-btn primary" (click)="captureSelfie()">
+                <span class="material-symbols-rounded" aria-hidden="true">camera</span> Fă fotografia
+              </button>
+              <ng-container *ngIf="capturedSelfie && !cameraOpen">
+                <button type="button" class="selfie-btn secondary" (click)="retakeSelfie()" [disabled]="submitting">
+                  <span class="material-symbols-rounded" aria-hidden="true">refresh</span> Refă fotografia
+                </button>
+                <button type="button" class="selfie-btn primary" (click)="useSelfie()" [disabled]="!!confirmedSelfie || submitting">
+                  <span class="material-symbols-rounded" aria-hidden="true">check</span> {{ confirmedSelfie ? 'Fotografie folosită' : 'Folosește fotografia' }}
+                </button>
+              </ng-container>
+            </div>
+          </section>
+
           <label class="consent-field" for="driver-data-processing-consent">
             <input
               id="driver-data-processing-consent"
@@ -75,11 +112,9 @@
             />
             <span>
               Sunt de acord cu <a routerLink="/termeniigdpr" target="_blank" (click)="$event.stopPropagation()">prelucrarea datelor</a>.
-              <small>La check-in se realizeaza automat o fotografie pentru evidenta pontajului.</small>
+              <small>Selfie-ul confirmat va fi asociat acestui check-in sau check-out.</small>
             </span>
           </label>
-
-          <video #cameraPreview class="camera-capture" autoplay muted playsinline aria-hidden="true"></video>
 
           <p class="gate-note" [class.ready]="canSubmit">
             {{ gateMessage }}

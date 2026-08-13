@@ -1889,9 +1889,9 @@ def _extract_gps_captured_at(data):
     return _parse_client_ts(raw_value)
 
 
-def _extract_checkin_photo(data):
+def _extract_attendance_photo(data):
     """Accepta doar o miniatura data-URL, pentru a mentine stocarea pontajului mica."""
-    photo = str(data.get("checkin_photo") or "").strip()
+    photo = str(data.get("attendance_photo") or data.get("checkin_photo") or "").strip()
     if not photo:
         return ""
 
@@ -1932,6 +1932,7 @@ def _session_gps_payload(session):
             else None
         ),
         "in_photo": session.checkin_photo or None,
+        "out_photo": session.checkout_photo or None,
     }
 
 
@@ -1976,9 +1977,9 @@ def nfc_scan(request):
         }, status=400)
 
     try:
-        checkin_photo = _extract_checkin_photo(data) if is_manual_scan else ""
+        attendance_photo = _extract_attendance_photo(data) if is_manual_scan else ""
     except ValueError as exc:
-        return JsonResponse({"error": str(exc), "error_code": "INVALID_CHECKIN_PHOTO"}, status=400)
+        return JsonResponse({"error": str(exc), "error_code": "INVALID_ATTENDANCE_PHOTO"}, status=400)
 
     if attendance_mode == "driver" and not gps_payload:
         return JsonResponse({
@@ -2068,14 +2069,10 @@ def nfc_scan(request):
                      .order_by('-in_time')
                      .first())
 
-        is_checkin = not open_sess or open_sess.work_date < today
-        if is_manual_scan and is_checkin and not checkin_photo:
-            # Urmatoarea cerere este retrimisa imediat de client dupa captura camerei.
-            # Nu o tratam drept dublu-scan.
-            _last_seen.pop(key, None)
+        if is_manual_scan and not attendance_photo:
             return JsonResponse({
-                "error": "Fotografia realizata la check-in este obligatorie pentru pontaj.",
-                "error_code": "CHECKIN_PHOTO_REQUIRED",
+                "error": "Selfie-ul confirmat este obligatoriu pentru check-in si check-out.",
+                "error_code": "ATTENDANCE_PHOTO_REQUIRED",
             }, status=400)
 
         if open_sess:
@@ -2106,7 +2103,7 @@ def nfc_scan(request):
                     manual_device_key=manual_device_key if is_manual_scan else None,
                     data_processing_consent=data_processing_consent if is_manual_scan else False,
                     data_processing_consent_at=timezone.now() if is_manual_scan and data_processing_consent else None,
-                    checkin_photo=checkin_photo if is_manual_scan else "",
+                    checkin_photo=attendance_photo if is_manual_scan else "",
                 )
                 _publish("enter", user, when, {"worksite": ws})
                 PresenceEvent.objects.create(
@@ -2144,6 +2141,8 @@ def nfc_scan(request):
                 open_sess.worksite = ws
 
             open_sess.out_time = apply_exit_grace(when)
+            if is_manual_scan:
+                open_sess.checkout_photo = attendance_photo
             if gps_payload:
                 open_sess.out_gps_latitude = gps_payload["lat"]
                 open_sess.out_gps_longitude = gps_payload["lng"]
@@ -2193,7 +2192,7 @@ def nfc_scan(request):
             manual_device_key=manual_device_key if is_manual_scan else None,
             data_processing_consent=data_processing_consent if is_manual_scan else False,
             data_processing_consent_at=timezone.now() if is_manual_scan and data_processing_consent else None,
-            checkin_photo=checkin_photo if is_manual_scan else "",
+            checkin_photo=attendance_photo if is_manual_scan else "",
         )
         PresenceEvent.objects.create(
             user_fk=user, kind=PresenceEvent.Kind.ENTER,
@@ -2351,7 +2350,7 @@ def pontaj_clock(request):
         # Pasăm explicit datele de acord și fotografia către fluxul comun NFC.
         # Fără acestea, wrapperul /pontaj/clock/ le elimina înainte de validare.
         "data_processing_consent": data.get("data_processing_consent"),
-        "checkin_photo": data.get("checkin_photo"),
+        "attendance_photo": data.get("attendance_photo") or data.get("checkin_photo"),
     }
     request._body = json.dumps(payload).encode("utf-8")
     return nfc_scan(request)

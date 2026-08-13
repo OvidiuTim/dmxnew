@@ -473,14 +473,27 @@
 
 .consent-field a { color: var(--primary-hover); text-decoration: underline; text-underline-offset: 2px; }
 
-.camera-capture {
-  position: fixed;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
+.selfie-section { margin: 18px 0; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.selfie-heading { display: flex; align-items: flex-start; gap: 12px; }
+.selfie-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); font-size: 21px; }
+.selfie-heading h3 { margin: 1px 0 7px; color: var(--text); font-size: 16px; }
+.selfie-heading p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+.selfie-stage { display: none; position: relative; width: min(100%, 300px); aspect-ratio: 1; margin: 16px auto 0; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 16px; background: #02060c; }
+.selfie-stage.has-content { display: block; }
+.camera-preview, .selfie-stage img { display: none; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+.camera-preview.visible, .selfie-stage img { display: block; }
+.selfie-confirmed { position: absolute; left: 10px; right: 10px; bottom: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 9px; background: rgba(5, 32, 23, .9); color: var(--primary-hover); font-size: 12px; font-weight: 800; }
+.selfie-confirmed .material-symbols-rounded { font-size: 17px; }
+.selfie-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.selfie-btn { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 1 1 160px; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-strong); font-weight: 750; cursor: pointer; }
+.selfie-btn .material-symbols-rounded { font-size: 19px; }
+.selfie-btn.primary { background: var(--primary); border-color: var(--primary); color: #04150e; }
+.selfie-btn.secondary { background: var(--card); color: var(--text); }
+.selfie-btn:disabled { opacity: .55; cursor: not-allowed; }
+.camera-error { margin: 12px 0 0; padding: 10px 12px; border-radius: 9px; background: rgba(255, 100, 100, .1); color: var(--danger); font-size: 13px; }
 
 @media (max-width: 680px) {
   .driver-page { padding: 16px 12px 28px; }
+  .selfie-actions { flex-direction: column; }
+  .selfie-btn { flex-basis: auto; width: 100%; }
 }

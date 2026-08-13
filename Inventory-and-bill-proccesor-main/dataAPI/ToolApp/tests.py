@@ -8,6 +8,7 @@ from django.utils.timezone import localdate
 
 from ToolApp.models import AttendanceSession, Users
 from ToolApp.security import make_admin_token
+from ToolApp import views as tool_views
 
 
 class MonitorPontajTests(TestCase):
@@ -67,6 +68,7 @@ class ManualAttendanceSecurityTests(TestCase):
                     "worksite": "Tractorului Bloc B2",
                     "mode": mode,
                     "data_processing_consent": True,
+                    "attendance_photo": "data:image/webp;base64,MTIz",
                 }
                 if mode == "driver":
                     payload["gps"] = {
@@ -120,6 +122,7 @@ class ManualAttendanceSecurityTests(TestCase):
                 "timestamp": now.isoformat(),
                 "mode": "manual",
                 "data_processing_consent": True,
+                "attendance_photo": "data:image/webp;base64,MTIz",
             }),
             content_type="application/json",
         )
@@ -148,7 +151,7 @@ class ManualAttendanceSecurityTests(TestCase):
             "gps": {"lat": 45.81, "lng": 24.13, "accuracy": 10},
             "mode": "manual",
             "data_processing_consent": True,
-            "checkin_photo": "data:image/webp;base64,MTIz",
+            "attendance_photo": "data:image/webp;base64,MTIz",
         }
 
         first_response = self.client.post(
@@ -184,7 +187,7 @@ class ManualAttendanceSecurityTests(TestCase):
             "mode": "manual",
             "device_key": "telefon-comun",
             "data_processing_consent": True,
-            "checkin_photo": "data:image/webp;base64,MTIz",
+            "attendance_photo": "data:image/webp;base64,MTIz",
         }
         for pin in ("1205", "1206"):
             response = self.client.post(
@@ -197,7 +200,39 @@ class ManualAttendanceSecurityTests(TestCase):
 
         first_session = AttendanceSession.objects.get(user_fk=first)
         self.assertTrue(first_session.data_processing_consent)
-        self.assertEqual(first_session.checkin_photo, base_payload["checkin_photo"])
+        self.assertEqual(first_session.checkin_photo, base_payload["attendance_photo"])
+
+    def test_manual_checkin_and_checkout_save_their_own_selfies(self):
+        user = Users(UserName="Muncitor cu doua selfie-uri", UserSerie="SER-209")
+        user.set_pin("1209")
+        user.save()
+        base_payload = {
+            "pin": "1209",
+            "mode": "manual",
+            "data_processing_consent": True,
+        }
+
+        enter_photo = "data:image/webp;base64,SU4="
+        exit_photo = "data:image/webp;base64,T1VU"
+        enter_response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({**base_payload, "attendance_photo": enter_photo}),
+            content_type="application/json",
+        )
+        tool_views._last_seen.clear()
+        exit_response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({**base_payload, "attendance_photo": exit_photo}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(enter_response.status_code, 200)
+        self.assertEqual(enter_response.json()["state"], "ENTER")
+        self.assertEqual(exit_response.status_code, 200)
+        self.assertEqual(exit_response.json()["state"], "EXIT")
+        session = AttendanceSession.objects.get(user_fk=user)
+        self.assertEqual(session.checkin_photo, enter_photo)
+        self.assertEqual(session.checkout_photo, exit_photo)
 
     def test_manual_clock_requires_data_processing_consent(self):
         user = Users(UserName="Muncitor fara acord", UserSerie="SER-207")

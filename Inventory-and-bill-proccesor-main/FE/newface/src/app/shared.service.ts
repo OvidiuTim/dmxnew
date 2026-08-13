@@ -6,7 +6,7 @@ type ManualAttendanceOptions = {
   worksite?: string;
   mode?: 'driver' | 'manual';
   dataProcessingConsent?: boolean;
-  checkinPhoto?: string | null;
+  attendancePhoto?: string | null;
   gps?: {
     lat: number;
     lng: number;
@@ -172,8 +172,8 @@ getAttendanceDay(date?: string) {
     }
 
     body.data_processing_consent = options.dataProcessingConsent === true;
-    if (options.checkinPhoto) {
-      body.checkin_photo = options.checkinPhoto;
+    if (options.attendancePhoto) {
+      body.attendance_photo = options.attendancePhoto;
     }
 
     return this.http.post<any>(`${this.API}/pontaj/clock/`, {
@@ -184,7 +184,7 @@ getAttendanceDay(date?: string) {
       gps: body.gps,
       mode: body.mode,
       data_processing_consent: body.data_processing_consent,
-      checkin_photo: body.checkin_photo,
+      attendance_photo: body.attendance_photo,
     });
   }
 
