@@ -87,6 +87,18 @@
         </div>
 
         <div class="field">
+          <label for="user-hire-date">Data angajării</label>
+          <input id="user-hire-date" type="date" formControlName="hire_date">
+          <small *ngIf="!form.value.hire_date && effectiveHireDate">Dacă rămâne necompletată, se folosește automat {{ effectiveHireDate | date:'dd.MM.yyyy' }}{{ hireDateSource === 'first_attendance' ? ' (prima zi pontată)' : '' }}.</small>
+        </div>
+
+        <div class="field" *ngIf="isEditMode">
+          <label for="user-prior-leave">Zile de concediu folosite anterior în {{ currentYear }}</label>
+          <input id="user-prior-leave" type="number" min="0" step="1" formControlName="prior_paid_leave_days">
+          <small>Concedii luate înainte ca pontajul să fie gestionat în aplicație.</small>
+        </div>
+
+        <div class="field">
           <label for="user-accommodation">Cazare</label>
           <select id="user-accommodation" formControlName="accommodation_id">
             <option [ngValue]="null">Fără cazare</option>

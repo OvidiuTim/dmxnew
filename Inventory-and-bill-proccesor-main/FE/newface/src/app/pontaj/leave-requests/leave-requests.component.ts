@@ -81,6 +81,7 @@ export class LeaveRequestsComponent implements OnInit {
         this.requests = response.leave_requests || [];
         this.canManageAll = !!response.permissions?.can_manage_all;
         this.loading = false;
+        window.dispatchEvent(new CustomEvent('team-notifications-changed'));
       },
       error: error => {
         this.loading = false;
@@ -103,6 +104,7 @@ export class LeaveRequestsComponent implements OnInit {
         if (index >= 0) this.requests[index] = response.leave_request;
         this.busyIds.delete(item.id);
         this.notice = action === 'approve' ? 'Cererea a fost aprobată.' : 'Cererea a fost respinsă.';
+        window.dispatchEvent(new CustomEvent('team-notifications-changed'));
       },
       error: error => {
         this.busyIds.delete(item.id);

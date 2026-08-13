@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from ToolApp.mobile_services import (
     accrued_leave_days,
+    build_leave_summary,
     build_inventory,
     build_salary_payments,
     build_team,
@@ -345,6 +346,44 @@ class MobileEmployeeApiTests(TestCase):
 
         self.assertEqual(completed_full_months(None, date(2026, 8, 31)), 8)
         self.assertEqual(accrued_leave_days(self.employee, date(2026, 8, 31)), Decimal("13.28"))
+
+    def test_first_attendance_is_used_when_hire_date_is_missing(self):
+        self.employee.hire_date = None
+        self.employee.save(update_fields=("hire_date",))
+        AttendanceSession.objects.create(
+            user_fk=self.employee,
+            work_date=date(2026, 5, 10),
+        )
+
+        self.assertEqual(accrued_leave_days(self.employee, date(2026, 8, 31)), Decimal("4.98"))
+
+    def test_prior_and_manually_marked_leave_days_reduce_balance_without_duplicates(self):
+        self.employee.hire_date = date(2024, 1, 1)
+        self.employee.prior_paid_leave_days = 3
+        self.employee.prior_paid_leave_year = 2026
+        self.employee.save(update_fields=("hire_date", "prior_paid_leave_days", "prior_paid_leave_year"))
+        LeaveDay.objects.create(
+            user_fk=self.employee,
+            work_date=date(2026, 8, 3),
+            reason=LeaveDay.Reason.CO,
+        )
+        approved = LeaveRequest.objects.create(
+            employee=self.employee,
+            leave_type=LeaveRequest.LeaveType.PAID_LEAVE,
+            start_date=date(2026, 8, 4),
+            end_date=date(2026, 8, 5),
+            status=LeaveRequest.Status.APPROVED,
+        )
+
+        summary = build_leave_summary(self.employee, date(2026, 8, 31))
+
+        self.assertEqual(summary["total_used_days"], 6)
+        self.assertEqual(summary["prior_used_days"], 3)
+        self.assertEqual(summary["remaining_days"], "7.28")
+        self.assertEqual(LeaveDay.objects.filter(source_leave_request=approved).count(), 2)
+        next_year = build_leave_summary(self.employee, date(2027, 8, 31))
+        self.assertEqual(next_year["prior_used_days"], 0)
+        self.assertEqual(next_year["remaining_days"], "13.28")
 
     @patch("ToolApp.mobile_views.localdate", return_value=date(2026, 8, 31))
     def test_leave_balance_api_exposes_accrued_used_and_remaining_days(self, _localdate_mock):

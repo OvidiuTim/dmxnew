@@ -41,6 +41,8 @@ class UserSerializer(serializers.ModelSerializer):
             "photo",
             "trade",
             "hire_date",
+            "prior_paid_leave_days",
+            "prior_paid_leave_year",
             "housing_location",
             "accommodation_id",
             "accommodation",
@@ -58,6 +60,8 @@ class UserSerializer(serializers.ModelSerializer):
             "photo": {"required": False, "allow_null": True, "allow_blank": True},
             "trade": {"required": False, "allow_null": True, "allow_blank": True},
             "hire_date": {"required": False, "allow_null": True},
+            "prior_paid_leave_days": {"required": False, "min_value": 0},
+            "prior_paid_leave_year": {"required": False, "allow_null": True, "min_value": 2000, "max_value": 2200},
             "housing_location": {"required": False, "allow_blank": True},
             "active": {"required": False},
         }

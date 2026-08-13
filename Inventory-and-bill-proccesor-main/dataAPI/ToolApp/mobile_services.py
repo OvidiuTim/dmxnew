@@ -293,10 +293,22 @@ def completed_full_months(hire_date, as_of_date):
 
 
 def accrued_leave_days(employee, as_of_date):
-    completed_months = completed_full_months(employee.hire_date, as_of_date)
+    completed_months = completed_full_months(employee_effective_hire_date(employee, as_of_date), as_of_date)
     if completed_months >= 12:
         return ANNUAL_LEAVE_DAYS
     return (Decimal(completed_months) * LEAVE_ACCRUAL_PER_MONTH).quantize(MONEY_PLACES)
+
+
+def employee_effective_hire_date(employee, as_of_date=None):
+    if employee.hire_date:
+        return employee.hire_date
+    first_attendance = AttendanceSession.objects.filter(user_fk=employee).order_by("work_date").values_list(
+        "work_date", flat=True
+    ).first()
+    if first_attendance:
+        return first_attendance
+    reference = as_of_date or date.today()
+    return date(reference.year, 1, 1)
 
 
 def approved_paid_leave_dates(employee, year=None, exclude_request_id=None):
@@ -315,13 +327,29 @@ def approved_paid_leave_dates(employee, year=None, exclude_request_id=None):
     return _request_dates(queryset, year_start, year_end)
 
 
+def used_paid_leave_dates(employee, year, exclude_request_id=None):
+    year_start = date(year, 1, 1)
+    year_end = date(year, 12, 31)
+    dates = approved_paid_leave_dates(employee, year=year, exclude_request_id=exclude_request_id)
+    leave_days = LeaveDay.objects.filter(
+        user_fk=employee,
+        reason=LeaveDay.Reason.CO,
+        work_date__range=(year_start, year_end),
+    )
+    if exclude_request_id:
+        leave_days = leave_days.exclude(source_leave_request_id=exclude_request_id)
+    dates.update(leave_days.values_list("work_date", flat=True))
+    return dates
+
+
+def used_paid_leave_days(employee, year, exclude_request_id=None):
+    prior_days = int(employee.prior_paid_leave_days or 0) if employee.prior_paid_leave_year == year else 0
+    return len(used_paid_leave_dates(employee, year, exclude_request_id)) + prior_days
+
+
 def calculate_available_leave_days(employee, as_of_date, exclude_request_id=None):
     remaining = accrued_leave_days(employee, as_of_date) - Decimal(
-        len(approved_paid_leave_dates(
-            employee,
-            year=as_of_date.year,
-            exclude_request_id=exclude_request_id,
-        ))
+        used_paid_leave_days(employee, as_of_date.year, exclude_request_id=exclude_request_id)
     )
     return max(0, int(max(remaining, Decimal("0")).to_integral_value(rounding=ROUND_FLOOR)))
 
@@ -329,7 +357,7 @@ def calculate_available_leave_days(employee, as_of_date, exclude_request_id=None
 def build_leave_summary(employee, as_of_date):
     year_start = date(as_of_date.year, 1, 1)
     year_end = date(as_of_date.year, 12, 31)
-    approved_dates = approved_paid_leave_dates(employee, year=as_of_date.year)
+    used = used_paid_leave_days(employee, as_of_date.year)
     pending_dates = _request_dates(LeaveRequest.objects.filter(
         employee=employee,
         leave_type=LeaveRequest.LeaveType.PAID_LEAVE,
@@ -338,15 +366,21 @@ def build_leave_summary(employee, as_of_date):
         end_date__gte=year_start,
     ), year_start, year_end)
     accrued = accrued_leave_days(employee, as_of_date)
-    used = len(approved_dates)
     remaining = max(Decimal("0.00"), accrued - Decimal(used)).quantize(MONEY_PLACES)
+    effective_hire_date = employee_effective_hire_date(employee, as_of_date)
     return {
         "year": as_of_date.year,
         "annual_entitlement_days": int(ANNUAL_LEAVE_DAYS),
         "monthly_accrual_days": f"{LEAVE_ACCRUAL_PER_MONTH:.2f}",
-        "completed_employment_months": completed_full_months(employee.hire_date, as_of_date),
+        "completed_employment_months": completed_full_months(effective_hire_date, as_of_date),
+        "effective_hire_date": effective_hire_date.isoformat(),
+        "hire_date_source": "manual" if employee.hire_date else (
+            "first_attendance" if AttendanceSession.objects.filter(user_fk=employee).exists() else "year_start_fallback"
+        ),
         "total_accrued_days": f"{accrued:.2f}",
         "total_used_days": used,
+        "prior_used_days": int(employee.prior_paid_leave_days or 0) if employee.prior_paid_leave_year == as_of_date.year else 0,
+        "prior_used_days_year": employee.prior_paid_leave_year,
         "remaining_days": f"{remaining:.2f}",
         "accrued_days": f"{accrued:.2f}",
         "available_days": calculate_available_leave_days(employee, as_of_date),

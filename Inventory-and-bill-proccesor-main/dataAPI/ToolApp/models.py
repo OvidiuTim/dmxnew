@@ -105,6 +105,8 @@ class Users(models.Model):
     photo = models.TextField(null=True, blank=True)
     trade = models.CharField(max_length=100, null=True, blank=True)
     hire_date = models.DateField(null=True, blank=True)
+    prior_paid_leave_days = models.PositiveIntegerField(default=0)
+    prior_paid_leave_year = models.PositiveSmallIntegerField(null=True, blank=True)
     housing_location = models.CharField(max_length=255, blank=True, default="")
     accommodation = models.ForeignKey(
         Accommodation,

@@ -18,6 +18,16 @@ interface EmployeeProfile {
   phone_number?: string | null;
   photo?: string | null;
   trade?: string | null;
+  hire_date?: string | null;
+  effective_hire_date?: string | null;
+  hire_date_source?: string | null;
+  seniority_months?: number | null;
+  prior_paid_leave_days?: number;
+  leave_balance?: {
+    total_accrued_days: string;
+    total_used_days: number;
+    remaining_days: string;
+  } | null;
   housing_location?: string | null;
   accommodation?: { id: number; name: string; address?: string } | null;
 }
@@ -148,6 +158,15 @@ export class FisaAngajatComponent implements OnInit {
     const raw = this.employee?.hourly_rate ?? '0';
     const rate = Number(String(raw).replace(',', '.'));
     return Number.isFinite(rate) && rate > 0 ? `${rate.toFixed(2)} lei / ora` : '-';
+  }
+
+  get seniorityLabel(): string {
+    const months = Number(this.employee?.seniority_months || 0);
+    const years = Math.floor(months / 12);
+    const remainingMonths = months % 12;
+    if (!years) return `${remainingMonths} luni`;
+    if (!remainingMonths) return `${years} ${years === 1 ? 'an' : 'ani'}`;
+    return `${years} ${years === 1 ? 'an' : 'ani'} și ${remainingMonths} luni`;
   }
 
   get inWorkCount(): number {

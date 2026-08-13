@@ -21,6 +21,7 @@ from ToolApp.models import (
     Users,
 )
 from ToolApp.security import get_app_user_from_request, request_has_admin
+from ToolApp.mobile_services import build_leave_summary
 from ToolApp.team_email import send_worker_request_email
 from ToolApp.team_serializers import (
     TeamMembersSerializer,
@@ -87,6 +88,7 @@ def _employee_payload(employee, team=None, member_status=None, include_requests=
         payload.update({
             "ssm_complete": member_status["ssm_complete"],
             "presence": member_status["presence"],
+            "leave_balance": member_status["leave_balance"],
         })
         if include_requests:
             payload["active_requests"] = member_status["active_requests"]
@@ -191,6 +193,11 @@ def _team_member_statuses(teams, app_user, can_manage_all):
         work_date=timezone.localdate(),
         user_fk_id__in=employee_ids,
     ).values_list("user_fk_id", flat=True))
+    employees = Users.objects.in_bulk(employee_ids)
+    leave_balances = {
+        employee_id: build_leave_summary(employee, timezone.localdate())
+        for employee_id, employee in employees.items()
+    }
 
     request_rows = {employee_id: [] for employee_id in employee_ids}
     visible_team_ids = {
@@ -220,6 +227,7 @@ def _team_member_statuses(teams, app_user, can_manage_all):
         employee_id: {
             "ssm_complete": required_ssm.issubset(ssm_by_employee[employee_id]),
             "presence": "present" if employee_id in present_ids else "absent",
+            "leave_balance": leave_balances.get(employee_id),
             "active_requests": request_rows[employee_id],
         }
         for employee_id in employee_ids

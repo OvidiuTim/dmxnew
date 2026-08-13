@@ -36,6 +36,7 @@ interface EmployeeProfile {
   phone_number?: string | null;
   photo?: string | null;
   trade?: string | null;
+  leave_balance?: { remaining_days: string; total_used_days: number; total_accrued_days: string } | null;
 }
 
 interface LeaveCell {
@@ -89,6 +90,11 @@ export class UserpontatComponent implements OnInit {
   monthTotal = '00:00:00';
   monthSalary: number | null = null;
   checkinPhotoToView: string | null = null;
+  leaveRangeOpen = false;
+  leaveRangeSaving = false;
+  leaveRangeError: string | null = null;
+  leaveRangeNotice: string | null = null;
+  leaveRangeForm = { start_date: '', end_date: '' };
 
   // editor
   editingDate: string | null = null;
@@ -256,6 +262,46 @@ export class UserpontatComponent implements OnInit {
 
   goToEmployeeSheet(): void {
     this.router.navigate(['/pontaj/fisa-angajat', this.userId]);
+  }
+
+  openLeaveRange(): void {
+    const today = new Date();
+    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    this.leaveRangeForm = { start_date: iso, end_date: iso };
+    this.leaveRangeError = null;
+    this.leaveRangeOpen = true;
+  }
+
+  closeLeaveRange(): void {
+    if (!this.leaveRangeSaving) this.leaveRangeOpen = false;
+  }
+
+  markLeaveRange(): void {
+    const { start_date, end_date } = this.leaveRangeForm;
+    if (!start_date || !end_date) {
+      this.leaveRangeError = 'Selectează data de început și data de sfârșit.';
+      return;
+    }
+    if (end_date < start_date) {
+      this.leaveRangeError = 'Data de sfârșit nu poate fi înaintea datei de început.';
+      return;
+    }
+    this.leaveRangeSaving = true;
+    this.leaveRangeError = null;
+    this.api.markLeaveRange(this.userId, start_date, end_date).subscribe({
+      next: response => {
+        this.leaveRangeSaving = false;
+        this.leaveRangeOpen = false;
+        this.leaveRangeNotice = `${response?.marked_days || 0} zile au fost marcate ca „Concediu de odihnă”.`;
+        if (this.employeeProfile) this.employeeProfile.leave_balance = response?.leave_balance || this.employeeProfile.leave_balance;
+        this.load();
+        this.refreshMonthSalary();
+      },
+      error: error => {
+        this.leaveRangeSaving = false;
+        this.leaveRangeError = error?.error?.error || 'Perioada nu a putut fi marcată.';
+      },
+    });
   }
 
 

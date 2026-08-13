@@ -14,6 +14,7 @@ export interface TeamEmployee {
   team?: { id: number; name: string } | null;
   category?: 'leader' | 'permanent' | 'received' | 'sent' | 'available';
   presence?: 'present' | 'absent' | 'leave';
+  leave_balance?: { remaining_days: string; total_used_days: number; total_accrued_days: string } | null;
   leave?: { reason: string; label: string } | null;
   worksite?: string;
   temporary_team?: { id: number; name: string } | null;

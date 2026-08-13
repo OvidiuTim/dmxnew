@@ -51,6 +51,13 @@ export class SharedService {
   decideLeaveRequest(requestId: number, action: 'approve' | 'reject') {
     return this.http.post<any>(`${this.API}/leave-requests/${requestId}/decision/`, { action });
   }
+  markLeaveRange(employeeId: number, startDate: string, endDate: string) {
+    return this.http.post<any>(`${this.API}/leave/mark-range/`, {
+      user_id: employeeId,
+      start_date: startDate,
+      end_date: endDate,
+    });
+  }
 
   // --- Documente angajați ---
   getEmployeeDocumentTypes()           { return this.http.get<any>(`${this.API}/employee-document-types/`); }

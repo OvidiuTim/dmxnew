@@ -218,3 +218,49 @@ class LeaveRequestWorkflowApiTests(TestCase):
 
         self.assertEqual(self.decide(self.client_a, item, "approve").status_code, 200)
         self.assertEqual(self.client_a.get(reverse("team_notifications_summary")).json()["attention_count"], 0)
+
+    def test_resolved_unseen_leave_notification_disappears_immediately(self):
+        self.assertEqual(self.mobile_create("5101").status_code, 201)
+        item = LeaveRequest.objects.get()
+        self.assertEqual(self.client_a.get(reverse("team_notifications_summary")).json()["attention_count"], 1)
+
+        self.assertEqual(self.decide(self.client_a, item, "reject").status_code, 200)
+
+        item.refresh_from_db()
+        self.assertIsNotNone(item.seen_at)
+        self.assertEqual(self.client_a.get(reverse("team_notifications_summary")).json()["attention_count"], 0)
+
+    def test_admin_can_mark_leave_range_and_it_reduces_employee_balance(self):
+        response = self.admin.post(
+            reverse("leave_mark_range"),
+            data=json.dumps({
+                "user_id": self.worker_a.pk,
+                "start_date": "2026-08-17",
+                "end_date": "2026-08-19",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["marked_days"], 3)
+        self.assertEqual(
+            LeaveDay.objects.filter(user_fk=self.worker_a, reason=LeaveDay.Reason.CO).count(),
+            3,
+        )
+        self.assertEqual(response.json()["leave_balance"]["total_used_days"], 3)
+
+    def test_employee_api_exposes_effective_hire_date_and_leave_balance(self):
+        self.worker_a.hire_date = None
+        self.worker_a.prior_paid_leave_days = 2
+        self.worker_a.prior_paid_leave_year = 2026
+        self.worker_a.save(update_fields=("hire_date", "prior_paid_leave_days", "prior_paid_leave_year"))
+        from ToolApp.models import AttendanceSession
+        AttendanceSession.objects.create(user_fk=self.worker_a, work_date=date(2026, 2, 10))
+
+        response = self.admin.get(f"/api/user/{self.worker_a.pk}")
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["effective_hire_date"], "2026-02-10")
+        self.assertEqual(response.json()["hire_date_source"], "first_attendance")
+        self.assertEqual(response.json()["prior_paid_leave_days"], 2)
+        self.assertIn("remaining_days", response.json()["leave_balance"])

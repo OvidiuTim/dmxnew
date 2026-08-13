@@ -31,6 +31,7 @@ PUBLIC_API_PREFIXES = (
 
 API_ROUTE_REQUIREMENTS = (
     ("/api/leave-requests/", ("/pontaj/concedii",)),
+    ("/api/leave/", ("/user/:id", "/pontaj")),
     ("/api/accommodations/", ("/pontaj/cazari",)),
     ("/api/employee-document-types/", ("/pontaj/fisa-angajat", "/hr/documente")),
     ("/api/employees/", ("/pontaj/fisa-angajat", "/hr/documente")),
@@ -64,6 +65,7 @@ API_ROUTE_REQUIREMENTS = (
 
 API_MODULE_REQUIREMENTS = (
     ("/api/leave-requests/", ("teams_schedule",)),
+    ("/api/leave/", ("attendance",)),
     ("/api/accommodations/", ("attendance",)),
     ("/api/employee-document-types/", ("attendance", "human_resources")),
     ("/api/employees/", ("attendance", "human_resources")),

@@ -381,6 +381,23 @@ def _user_name_with_serie(user) -> str:
 
 # Create your views here.
 #api angajati
+def _employee_api_payload(user):
+    from ToolApp.mobile_services import build_leave_summary, employee_effective_hire_date, seniority_months
+
+    today = localdate()
+    payload = dict(UserSerializer(user).data)
+    effective_hire_date = employee_effective_hire_date(user, today)
+    payload.update({
+        "effective_hire_date": effective_hire_date.isoformat(),
+        "hire_date_source": "manual" if user.hire_date else (
+            "first_attendance" if AttendanceSession.objects.filter(user_fk=user).exists() else "year_start_fallback"
+        ),
+        "seniority_months": seniority_months(effective_hire_date, today),
+        "leave_balance": build_leave_summary(user, today),
+    })
+    return payload
+
+
 @csrf_exempt
 def userApi(request,id=0):
     if request.method=='GET':
@@ -390,8 +407,7 @@ def userApi(request,id=0):
             except Users.DoesNotExist:
                 return JsonResponse({"error": "User not found"}, status=404)
 
-            user_serializer = UserSerializer(user)
-            return JsonResponse(user_serializer.data, safe=False)
+            return JsonResponse(_employee_api_payload(user), safe=False)
 
         users = Users.objects.all()
         users_serializer = UserSerializer(users, many=True)
@@ -402,7 +418,7 @@ def userApi(request,id=0):
         user_serializer = UserSerializer(data=user_data)
         if user_serializer.is_valid():
             user = user_serializer.save()
-            return JsonResponse(UserSerializer(user).data , safe=False, status=201)
+            return JsonResponse(_employee_api_payload(user), safe=False, status=201)
         return JsonResponse({"error": "Failed to Add.", "details": user_serializer.errors},safe=False, status=400)
     
     elif request.method=='PUT':
@@ -415,7 +431,7 @@ def userApi(request,id=0):
         user_serializer=UserSerializer(user,data=user_data)
         if user_serializer.is_valid():
             saved = user_serializer.save()
-            return JsonResponse(UserSerializer(saved).data, safe=False)
+            return JsonResponse(_employee_api_payload(saved), safe=False)
         return JsonResponse({"error": "Failed to Update.", "details": user_serializer.errors}, safe=False, status=400)
 
     elif request.method=='DELETE':
@@ -3222,6 +3238,67 @@ def leave_upsert(request):
             "total_seconds": snap.total_seconds,
             "day_pay": str(snap.day_pay),
         },
+    })
+
+
+@csrf_exempt
+@transaction.atomic
+def leave_mark_range(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+    try:
+        data = json.loads(request.body or "{}")
+        user = Users.objects.get(UserId=int(data.get("user_id")))
+        start_date = _date.fromisoformat(str(data.get("start_date") or ""))
+        end_date = _date.fromisoformat(str(data.get("end_date") or ""))
+    except Users.DoesNotExist:
+        return JsonResponse({"error": "Angajatul nu există."}, status=404)
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Angajatul și perioada sunt obligatorii."}, status=400)
+    if end_date < start_date:
+        return JsonResponse({"error": "Data de sfârșit nu poate fi înaintea datei de început."}, status=400)
+    if (end_date - start_date).days > 366:
+        return JsonResponse({"error": "Perioada nu poate depăși 366 de zile."}, status=400)
+
+    rate = user.hourly_rate or Decimal("0.00")
+    hours = Decimal("8.00")
+    marked_dates = []
+    current = start_date
+    while current <= end_date:
+        if current.isoweekday() <= 6:
+            LeaveDay.objects.update_or_create(
+                user_fk=user,
+                work_date=current,
+                defaults={
+                    "reason": LeaveDay.Reason.CO,
+                    "hours": hours,
+                    "multiplier": Decimal("1.00"),
+                    "hourly_rate_snapshot": rate,
+                    "pay_amount": rate * hours,
+                    "note": "Concediu de odihnă marcat manual",
+                },
+            )
+            recompute_daily_pay(user, current)
+            marked_dates.append(current.isoformat())
+        current += timedelta(days=1)
+
+    from ToolApp.mobile_services import build_leave_summary
+
+    try:
+        _audit_line(request, f"s-a marcat concediu pentru {user.UserName}: {start_date} - {end_date}", {
+            "user_id": user.pk,
+            "marked_dates": marked_dates,
+        })
+    except Exception:
+        pass
+    return JsonResponse({
+        "ok": True,
+        "user_id": user.pk,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "marked_days": len(marked_dates),
+        "dates": marked_dates,
+        "leave_balance": build_leave_summary(user, localdate()),
     })
 
 

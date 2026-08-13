@@ -36,6 +36,7 @@
             <span>Marime: <b>{{ displayText(employee.equipment_size) }}</b></span>
             <span>Telefon: <b>{{ displayText(employee.phone_number) }}</b></span>
             <span>Serie: <b>{{ displayText(employee.UserSerie) }}</b></span>
+            <span>Concediu rămas: <b>{{ employee.leave_balance?.remaining_days || '0.00' }} zile</b></span>
           </div>
         </div>
       </div>
@@ -112,6 +113,27 @@
         <div class="general-item">
           <span>Cazare</span>
           <strong>{{ displayText(employee.accommodation?.name || employee.housing_location) }}</strong>
+        </div>
+        <div class="general-item">
+          <span>Data angajării</span>
+          <strong>{{ employee.effective_hire_date | date:'dd.MM.yyyy' }}</strong>
+          <small *ngIf="employee.hire_date_source === 'first_attendance'">Preluată din prima zi pontată</small>
+        </div>
+        <div class="general-item">
+          <span>Vechime</span>
+          <strong>{{ seniorityLabel }}</strong>
+        </div>
+        <div class="general-item">
+          <span>Concediu acumulat</span>
+          <strong>{{ employee.leave_balance?.total_accrued_days || '0.00' }} zile</strong>
+        </div>
+        <div class="general-item">
+          <span>Concediu folosit</span>
+          <strong>{{ employee.leave_balance?.total_used_days || 0 }} zile</strong>
+        </div>
+        <div class="general-item">
+          <span>Concediu rămas</span>
+          <strong>{{ employee.leave_balance?.remaining_days || '0.00' }} zile</strong>
         </div>
       </div>
     </section>

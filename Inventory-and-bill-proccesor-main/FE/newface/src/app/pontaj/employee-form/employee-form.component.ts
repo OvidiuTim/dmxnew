@@ -9,6 +9,7 @@ import { SharedService } from '../../shared.service';
   styleUrls: ['./employee-form.component.css']
 })
 export class EmployeeFormComponent implements OnInit {
+  readonly currentYear = new Date().getFullYear();
   readonly addCompanyOptionValue = '__ADD_NEW_COMPANY__';
   isEditMode = false;
   userId: number | null = null;
@@ -22,6 +23,8 @@ export class EmployeeFormComponent implements OnInit {
   selectedCompanyOption = 'RNX';
   isAddingNewCompany = false;
   accommodationOptions: Array<{ id: number; name: string; address?: string }> = [];
+  effectiveHireDate: string | null = null;
+  hireDateSource: string | null = null;
 
   readonly form = this.fb.group({
     UserName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -36,6 +39,8 @@ export class EmployeeFormComponent implements OnInit {
     email: ['', [Validators.email, Validators.maxLength(254)]],
     photo: [null as string | null],
     trade: ['', [Validators.maxLength(100)]],
+    hire_date: [null as string | null],
+    prior_paid_leave_days: [0, [Validators.required, Validators.min(0)]],
     accommodation_id: [null as number | null],
   });
 
@@ -241,8 +246,14 @@ export class EmployeeFormComponent implements OnInit {
           email: user?.email ?? '',
           photo: user?.photo ?? null,
           trade: user?.trade ?? '',
+          hire_date: user?.hire_date ?? null,
+          prior_paid_leave_days: Number(user?.prior_paid_leave_year) === this.currentYear
+            ? Number(user?.prior_paid_leave_days || 0)
+            : 0,
           accommodation_id: user?.accommodation_id ?? null,
         });
+        this.effectiveHireDate = user?.effective_hire_date ?? null;
+        this.hireDateSource = user?.hire_date_source ?? null;
         this.photoPreview = user?.photo ?? null;
         this.generatedPinPreview = null;
         this.syncCompanySelection(user?.Company ?? 'RNX');
@@ -271,6 +282,9 @@ export class EmployeeFormComponent implements OnInit {
       email: (value.email ?? '').trim(),
       photo: value.photo || null,
       trade: this.normalizeOptionalString(value.trade),
+      hire_date: value.hire_date || null,
+      prior_paid_leave_days: Math.max(0, Math.trunc(Number(value.prior_paid_leave_days || 0))),
+      prior_paid_leave_year: this.currentYear,
       accommodation_id: value.accommodation_id ? Number(value.accommodation_id) : null,
     };
 

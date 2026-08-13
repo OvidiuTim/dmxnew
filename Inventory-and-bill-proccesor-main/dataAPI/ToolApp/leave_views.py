@@ -134,6 +134,7 @@ def leave_request_decision(request, request_id):
 
     item.status = target_status
     item.reviewed_at = timezone.now()
+    item.seen_at = item.seen_at or item.reviewed_at
     item.reviewed_by_app_user = app_user
     item.approved_at = item.reviewed_at if target_status == LeaveRequest.Status.APPROVED else None
     try:

@@ -40,8 +40,13 @@
         </div>
       </div>
 
-      <button class="btn profile-sheet-btn" type="button" (click)="goToEmployeeSheet()">Spre fisa angajatului</button>
+      <div class="profile-actions">
+        <button class="btn profile-sheet-btn" type="button" (click)="goToEmployeeSheet()">Spre fișa angajatului</button>
+        <button class="btn profile-sheet-btn" type="button" (click)="openLeaveRange()"><span class="material-symbols-rounded" aria-hidden="true">calendar_add_on</span>Marchează concediu</button>
+      </div>
     </div>
+
+    <div class="state success" *ngIf="leaveRangeNotice">{{ leaveRangeNotice }}</div>
 
     <div class="state" *ngIf="profileLoading">Se încarcă detaliile angajatului…</div>
     <div class="state error" *ngIf="profileError">{{ profileError }}</div>
@@ -281,6 +286,19 @@
       <!-- /editor -->
     </div>
   </div>
+</div>
+
+<div class="checkin-photo-modal" *ngIf="leaveRangeOpen" (click)="closeLeaveRange()">
+  <section class="checkin-photo-dialog leave-range-dialog" role="dialog" aria-modal="true" aria-labelledby="leave-range-title" (click)="$event.stopPropagation()">
+    <header><h3 id="leave-range-title">Marchează concediu</h3><button type="button" class="btn secondary" (click)="closeLeaveRange()" aria-label="Închide"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></header>
+    <p>Zilele de luni până sâmbătă din perioada selectată vor fi completate în Pontaj ca „Concediu de odihnă”.</p>
+    <div class="leave-range-fields">
+      <label><span>Data de început</span><input type="date" [(ngModel)]="leaveRangeForm.start_date"></label>
+      <label><span>Data de sfârșit</span><input type="date" [(ngModel)]="leaveRangeForm.end_date"></label>
+    </div>
+    <div class="state error" *ngIf="leaveRangeError">{{ leaveRangeError }}</div>
+    <div class="leave-range-actions"><button type="button" class="btn secondary" (click)="closeLeaveRange()" [disabled]="leaveRangeSaving">Renunță</button><button type="button" class="btn" (click)="markLeaveRange()" [disabled]="leaveRangeSaving">{{ leaveRangeSaving ? 'Se salvează…' : 'Marchează concediu' }}</button></div>
+  </section>
 </div>
 
 <div class="checkin-photo-modal" *ngIf="checkinPhotoToView" (click)="closeCheckinPhoto()">

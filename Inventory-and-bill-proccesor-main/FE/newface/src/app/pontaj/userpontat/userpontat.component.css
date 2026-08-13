@@ -365,6 +365,8 @@ h2 { margin:0; font-size:18px; }
   background: #163c27;
   border-color: #248554;
 }
+.profile-actions { display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.profile-actions .material-symbols-rounded { font-size: 18px; line-height: 1; }
 
 .profile-grid {
   display: grid;
@@ -518,3 +520,9 @@ h2 { margin:0; font-size:18px; }
   border-radius: 10px;
   object-fit: cover;
 }
+.leave-range-dialog p { color: #aeb8c8; line-height: 1.5; }
+.leave-range-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.leave-range-fields label { display: grid; gap: 6px; color: #aeb8c8; font-size: 12px; }
+.leave-range-fields input { min-height: 42px; padding: 8px 10px; border: 1px solid #293244; border-radius: 9px; background: #0f1725; color: #fff; }
+.leave-range-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+@media (max-width: 560px) { .leave-range-fields { grid-template-columns: 1fr; } }

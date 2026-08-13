@@ -16,12 +16,13 @@ from ToolApp.mobile_services import (
     dashboard_salary_period,
     first_payment_date,
     normalize_trade_code,
+    employee_effective_hire_date,
     salary_period_payment_month,
     salary_period_is_eligible,
     seniority_months,
     serialize_leave_request,
 )
-from ToolApp.models import EmployeeSalaryProfile, EmployeeTeam, EmployeeTeamMember, LeaveRequest
+from ToolApp.models import AttendanceSession, EmployeeSalaryProfile, EmployeeTeam, EmployeeTeamMember, LeaveRequest
 from ToolApp.views import _find_user_by_pin, _log_pin_attempt, _pin_is_blocked
 
 
@@ -74,10 +75,11 @@ def employee_dashboard(request):
     if error:
         return error
     today = localdate()
+    effective_hire_date = employee_effective_hire_date(employee, today)
     profile = EmployeeSalaryProfile.objects.filter(employee=employee).first()
-    salary_year, salary_month = dashboard_salary_period(today, employee.hire_date)
+    salary_year, salary_month = dashboard_salary_period(today, effective_hire_date)
     payroll = calculate_payroll(employee, profile, salary_year, salary_month)
-    eligible = salary_period_is_eligible(employee.hire_date, salary_year, salary_month)
+    eligible = salary_period_is_eligible(effective_hire_date, salary_year, salary_month)
     payment_year, payment_month = salary_period_payment_month(salary_year, salary_month)
     salary_payments = (
         build_salary_payments(profile, payroll, payment_year, payment_month)
@@ -92,8 +94,11 @@ def employee_dashboard(request):
             "role_code": normalize_trade_code(employee.trade),
             "role": employee.trade,
             "company": employee.Company,
-            "hire_date": employee.hire_date.isoformat() if employee.hire_date else None,
-            "seniority_months": seniority_months(employee.hire_date, today),
+            "hire_date": effective_hire_date.isoformat(),
+            "hire_date_source": "manual" if employee.hire_date else (
+                "first_attendance" if AttendanceSession.objects.filter(user_fk=employee).exists() else "year_start_fallback"
+            ),
+            "seniority_months": seniority_months(effective_hire_date, today),
             "housing_location": employee.housing_location,
         },
         "payroll": payroll,
@@ -103,7 +108,7 @@ def employee_dashboard(request):
         "tools": tools,
         "team": build_team(employee),
     }
-    first_date = first_payment_date(employee.hire_date)
+    first_date = first_payment_date(effective_hire_date)
     if first_date and today < first_date:
         payload.update({
             "first_payment_date": first_date.isoformat(),
@@ -207,5 +212,6 @@ def leave_request_cancel(request, request_id):
         return _error("LEAVE_REQUEST_NOT_CANCELLABLE", "Doar cererile în așteptare pot fi anulate.", 409)
     item.status = LeaveRequest.Status.REJECTED
     item.reviewed_at = timezone.now()
-    item.save(update_fields=("status", "reviewed_at"))
+    item.seen_at = item.reviewed_at
+    item.save(update_fields=("status", "reviewed_at", "seen_at"))
     return JsonResponse({"success": True, "leave_request": serialize_leave_request(item)})
