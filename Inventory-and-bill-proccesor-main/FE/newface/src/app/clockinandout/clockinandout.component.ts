@@ -697,16 +697,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
         const checkinPhoto = await this.captureAttendancePhoto();
         response = await firstValueFrom(this.submitAttendanceRequest(cleanPin, checkinPhoto));
       } catch (photoError) {
-        // Camera poate lipsi pe un computer sau poate fi blocată de browser.
-        // Pontajul rămâne disponibil, iar fotografia este păstrată când camera există.
-        try {
-          response = await firstValueFrom(this.submitAttendanceRequest(cleanPin, undefined, true));
-        } catch (fallbackError) {
-          this.submitting = false;
-          this.showError(this.resolveAttendanceError(fallbackError));
-          this.clearPin();
-          return;
-        }
+        this.submitting = false;
+        this.showError(photoError instanceof Error ? photoError.message : 'Nu am putut face fotografia pentru pontaj.');
+        return;
       }
     }
 
@@ -765,7 +758,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     return typeof error?.error?.error === 'string' ? error.error.error : this.t.genericError;
   }
 
-  private submitAttendanceRequest(pin: string, checkinPhoto?: string, photoCaptureUnavailable = false) {
+  private submitAttendanceRequest(pin: string, checkinPhoto?: string) {
     return this.api.manualAttendanceByPin(pin, {
       worksite: this.selectedWorksite!.name,
       mode: 'manual',
@@ -777,7 +770,6 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       dataProcessingConsent: this.dataProcessingConsent,
       checkinPhoto,
-      photoCaptureUnavailable,
     });
   }
 
