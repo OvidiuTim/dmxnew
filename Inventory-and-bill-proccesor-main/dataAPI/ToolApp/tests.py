@@ -305,6 +305,88 @@ class ManualAttendanceSecurityTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error_code"], "DATA_PROCESSING_CONSENT_REQUIRED")
 
+    def test_android_consent_allows_checkin_and_checkout_without_web_selfie(self):
+        for index, mode in enumerate(("manual", "driver"), start=1):
+            with self.subTest(mode=mode):
+                user = Users(UserName=f"Android {mode}", UserSerie=f"ANDROID-{index}")
+                user.set_pin(f"991{index}")
+                user.save()
+                payload = {
+                    "pin": f"991{index}",
+                    "device_key": f"android-device-{index}",
+                    "client_type": "android",
+                    "mode": mode,
+                    "worksite": "Santier Android",
+                    "timestamp": timezone.now().isoformat(),
+                    "data_processing_consent": True,
+                    "gps": {
+                        "lat": 45.81,
+                        "lng": 24.13,
+                        "accuracy": 10,
+                        "captured_at": timezone.now().isoformat(),
+                    },
+                }
+
+                checkin_response = self.client.post(
+                    "/api/pontaj/clock/",
+                    data=json.dumps(payload),
+                    content_type="application/json",
+                )
+                self.assertEqual(checkin_response.status_code, 200)
+                self.assertEqual(checkin_response.json()["state"], "ENTER")
+
+                tool_views._last_seen.clear()
+                checkout_response = self.client.post(
+                    "/api/pontaj/clock/",
+                    data=json.dumps(payload),
+                    content_type="application/json",
+                )
+                self.assertEqual(checkout_response.status_code, 200)
+                self.assertEqual(checkout_response.json()["state"], "EXIT")
+
+                session = AttendanceSession.objects.get(user_fk=user)
+                self.assertTrue(session.data_processing_consent)
+                self.assertEqual(session.checkin_photo, "")
+                self.assertEqual(session.checkout_photo, "")
+
+    def test_android_clock_still_requires_explicit_consent(self):
+        user = Users(UserName="Android fara acord", UserSerie="ANDROID-NO-CONSENT")
+        user.set_pin("9919")
+        user.save()
+
+        response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({
+                "pin": "9919",
+                "device_key": "android-no-consent",
+                "client_type": "android",
+                "mode": "manual",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "DATA_PROCESSING_CONSENT_REQUIRED")
+
+    def test_web_clock_still_requires_confirmed_selfie(self):
+        user = Users(UserName="Web fara selfie", UserSerie="WEB-NO-PHOTO")
+        user.set_pin("9920")
+        user.save()
+
+        response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({
+                "pin": "9920",
+                "device_key": "web-device",
+                "mode": "manual",
+                "data_processing_consent": True,
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "ATTENDANCE_PHOTO_REQUIRED")
+
     def test_successful_pin_lookup_uses_plain_userpin(self):
         user = Users(UserName="Muncitor 3", UserSerie="SER-203")
         user.set_pin("5555")

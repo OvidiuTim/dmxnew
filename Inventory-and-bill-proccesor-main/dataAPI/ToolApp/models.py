@@ -76,6 +76,8 @@ class Accommodation(models.Model):
     name = models.CharField(max_length=160, unique=True)
     address = models.CharField(max_length=255, blank=True, default="")
     notes = models.TextField(blank=True, default="")
+    total_places = models.PositiveIntegerField(default=0)
+    number_of_rooms = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=True, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -87,10 +89,36 @@ class Accommodation(models.Model):
         return self.name
 
 
+class AccommodationRoom(models.Model):
+    accommodation = models.ForeignKey(
+        Accommodation,
+        on_delete=models.CASCADE,
+        related_name="rooms",
+    )
+    position = models.PositiveIntegerField()
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        ordering = ("position", "name")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("accommodation", "position"),
+                name="unique_accommodation_room_position",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.accommodation.name} · {self.name}"
+
+
 class Users(models.Model):
     class PersonType(models.TextChoices):
         EMPLOYEE = "employee", "Angajat"
         COLLABORATOR = "collaborator", "Colaborator"
+
+    class EmploymentStatus(models.TextChoices):
+        ACTIVE = "active", "Activ"
+        DISMISSED = "dismissed", "Demis"
 
     UserId = models.AutoField(primary_key=True)
     UserName = models.CharField(max_length=100)
@@ -108,6 +136,13 @@ class Users(models.Model):
         default=PersonType.EMPLOYEE,
         db_index=True,
     )
+    employment_status = models.CharField(
+        max_length=16,
+        choices=EmploymentStatus.choices,
+        default=EmploymentStatus.ACTIVE,
+        db_index=True,
+    )
+    dismissed_at = models.DateField(null=True, blank=True, db_index=True)
     Company = models.CharField(max_length=100, null=True, blank=True)
     equipment_size = models.CharField(max_length=100, null=True, blank=True)
     received_equipment = models.BooleanField(null=True, blank=True)
@@ -125,6 +160,13 @@ class Users(models.Model):
     housing_location = models.CharField(max_length=255, blank=True, default="")
     accommodation = models.ForeignKey(
         Accommodation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="employees",
+    )
+    accommodation_room = models.ForeignKey(
+        AccommodationRoom,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -544,6 +586,7 @@ class LeaveDay(models.Model):
         CM  = "CM",  "Concediu medical"
         UNPAID = "UNPAID", "Concediu fără plată"
         UNEXCUSED = "UNEXCUSED", "Absență nemotivată"
+        INDIA = "INDIA", "Plecat în India"
         ALT = "ALT", "Alt motiv"
 
     id = models.AutoField(primary_key=True)

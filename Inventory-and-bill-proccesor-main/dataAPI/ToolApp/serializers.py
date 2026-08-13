@@ -5,7 +5,7 @@ from rest_framework import serializers
 from django.utils import timezone
 from ToolApp.models import (
     Consumables, Materials, MijloaceFixes, Shed, Tools, Histories, Unfunctional,
-    Accommodation, Users, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras,
+    Accommodation, AccommodationRoom, Users, WorkField, CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras,
     SchelaFatadas, SchelaFatadaModularas, Combustibils, HistorieScheles,DailyPay
 )
 
@@ -21,6 +21,12 @@ class UserSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     accommodation = serializers.SerializerMethodField(read_only=True)
+    accommodation_room_id = serializers.PrimaryKeyRelatedField(
+        source="accommodation_room",
+        queryset=AccommodationRoom.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = Users
@@ -35,6 +41,8 @@ class UserSerializer(serializers.ModelSerializer):
             "hourly_rate",
             "total_salary_ron",
             "person_type",
+            "employment_status",
+            "dismissed_at",
             "Company",
             "equipment_size",
             "received_equipment",
@@ -52,6 +60,7 @@ class UserSerializer(serializers.ModelSerializer):
             "housing_location",
             "accommodation_id",
             "accommodation",
+            "accommodation_room_id",
             "active",
         )
         extra_kwargs = {
@@ -60,6 +69,8 @@ class UserSerializer(serializers.ModelSerializer):
             "hourly_rate": {"required": False, "allow_null": True},
             "total_salary_ron": {"required": False, "allow_null": True, "min_value": 0},
             "person_type": {"required": False},
+            "employment_status": {"required": False},
+            "dismissed_at": {"required": False, "allow_null": True},
             "Company": {"required": False, "allow_null": True, "allow_blank": True},
             "equipment_size": {"required": False, "allow_null": True, "allow_blank": True},
             "received_equipment": {"required": False, "allow_null": True},
@@ -88,13 +99,26 @@ class UserSerializer(serializers.ModelSerializer):
             "id": obj.accommodation_id,
             "name": obj.accommodation.name,
             "address": obj.accommodation.address,
+            "room": ({
+                "id": obj.accommodation_room_id,
+                "name": obj.accommodation_room.name,
+            } if obj.accommodation_room_id else None),
         }
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        accommodation = attrs.get("accommodation", getattr(self.instance, "accommodation", None))
+        room = attrs.get("accommodation_room", getattr(self.instance, "accommodation_room", None))
+        if room and (not accommodation or room.accommodation_id != accommodation.pk):
+            raise serializers.ValidationError({"accommodation_room_id": "Camera nu aparține cazării selectate."})
+        return attrs
 
     def create(self, validated_data):
         raw_pin = validated_data.pop("UserPin", None)
         accommodation = validated_data.get("accommodation")
         if accommodation:
             validated_data["housing_location"] = accommodation.name
+        self._normalize_employment_status(validated_data)
         user = Users(**validated_data)
         if raw_pin is not None:
             user.set_pin(raw_pin)
@@ -108,6 +132,9 @@ class UserSerializer(serializers.ModelSerializer):
         if "accommodation" in validated_data:
             accommodation = validated_data.get("accommodation")
             validated_data["housing_location"] = accommodation.name if accommodation else ""
+            if not accommodation:
+                validated_data["accommodation_room"] = None
+        self._normalize_employment_status(validated_data, instance)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if raw_pin is not None:
@@ -127,6 +154,19 @@ class UserSerializer(serializers.ModelSerializer):
                 instance.leave_remaining_override_accrued_days = accrued_leave_days(instance, today)
         instance.save()
         return instance
+
+    def _normalize_employment_status(self, validated_data, instance=None):
+        status = validated_data.get(
+            "employment_status",
+            getattr(instance, "employment_status", Users.EmploymentStatus.ACTIVE),
+        )
+        if status == Users.EmploymentStatus.DISMISSED:
+            validated_data["active"] = False
+            if not validated_data.get("dismissed_at"):
+                validated_data["dismissed_at"] = timezone.localdate()
+        elif "employment_status" in validated_data:
+            validated_data["active"] = True
+            validated_data["dismissed_at"] = None
 
 
 
