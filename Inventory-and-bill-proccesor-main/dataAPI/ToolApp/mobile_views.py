@@ -125,6 +125,15 @@ def leave_request_create(request):
         end_date = date.fromisoformat(str(data.get("end_date") or ""))
     except ValueError:
         return _error("INVALID_DATE", "Datele trebuie trimise în format YYYY-MM-DD.", 400)
+    reason = str(
+        data.get("reason")
+        or data.get("notes")
+        or data.get("observations")
+        or data.get("observatii")
+        or ""
+    ).strip()
+    if len(reason) > 2000:
+        return _error("REASON_TOO_LONG", "Motivul sau observațiile pot avea maximum 2000 de caractere.", 400)
     membership = (
         EmployeeTeamMember.objects.select_related("team__leader")
         .filter(employee=employee, active=True, team__active=True)
@@ -147,6 +156,7 @@ def leave_request_create(request):
         leave_type=leave_type,
         start_date=start_date,
         end_date=end_date,
+        reason=reason,
     )
     try:
         item.save()

@@ -1,6 +1,8 @@
 import json
 import shutil
 import tempfile
+from datetime import timedelta
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
@@ -18,6 +20,11 @@ from ToolApp.models import (
     Users,
 )
 from ToolApp.security import make_admin_token, make_app_user_token
+from ToolApp.document_expiry_email import (
+    DOCUMENT_EXPIRY_RECIPIENTS,
+    build_document_expiry_email,
+    process_due_document_expiry_notifications,
+)
 
 
 TEST_MEDIA_ROOT = tempfile.mkdtemp(prefix="dmx-test-documents-")
@@ -136,6 +143,43 @@ class EmployeeRecordsApiTests(TestCase):
         )
         self.assertEqual(valid.status_code, 201, valid.content)
         self.assertIsNone(EmployeeDocument.objects.get().expiry_date)
+
+    @patch("ToolApp.document_expiry_email.send_document_expiry_email")
+    def test_document_expiry_notification_is_sent_once_with_required_details(self, send_email_mock):
+        document_type = EmployeeDocumentType.objects.create(
+            name="Pașaport",
+            category=EmployeeDocumentType.Category.PERSONAL,
+        )
+        expiry_date = timezone.localdate() + timedelta(days=14)
+        document = EmployeeDocument.objects.create(
+            employee=self.employee,
+            document_type=document_type,
+            file=SimpleUploadedFile("pasaport.pdf", b"%PDF-1.4 test", content_type="application/pdf"),
+            original_file_name="pasaport.pdf",
+            has_expiry=True,
+            expiry_date=expiry_date,
+        )
+
+        notified = process_due_document_expiry_notifications()
+        document.refresh_from_db()
+
+        self.assertEqual([item.pk for item in notified], [document.pk])
+        send_email_mock.assert_called_once()
+        self.assertEqual(send_email_mock.call_args.kwargs.get("recipients"), None)
+        self.assertEqual(document.expiry_notification_sent_for, expiry_date)
+        self.assertIsNotNone(document.expiry_notification_sent_at)
+        self.assertEqual(process_due_document_expiry_notifications(), [])
+
+        subject, text, html = build_document_expiry_email([document])
+        self.assertIn(self.employee.UserName, text)
+        self.assertIn("Pașaport", text)
+        self.assertIn(expiry_date.strftime("%d.%m.%Y"), text)
+        self.assertIn(self.employee.UserName, html)
+        self.assertTrue(subject)
+        self.assertEqual(
+            DOCUMENT_EXPIRY_RECIPIENTS,
+            ("info@novarion.ro", "achizitii2@dmxconstruction.ro", "hr@xuxinvestment.ro"),
+        )
 
     def test_module_allows_reads_but_granular_permission_controls_writes(self):
         app_user = AppUser.objects.create(employee=self.employee, username="records.user", pin_hash="unused")

@@ -67,6 +67,7 @@ def _serialize(item, can_decide):
         "leave_type_label": item.get_leave_type_display(),
         "start_date": item.start_date.isoformat(),
         "end_date": item.end_date.isoformat(),
+        "reason": item.reason,
         "leave_days": count_salary_days_in_range(item.start_date, item.end_date),
         "status": item.status,
         "status_label": item.get_status_display(),

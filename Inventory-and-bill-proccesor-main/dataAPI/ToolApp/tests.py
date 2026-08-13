@@ -228,11 +228,15 @@ class ManualAttendanceSecurityTests(TestCase):
 
         self.assertEqual(enter_response.status_code, 200)
         self.assertEqual(enter_response.json()["state"], "ENTER")
+        user.refresh_from_db()
+        self.assertEqual(user.photo, enter_photo)
         self.assertEqual(exit_response.status_code, 200)
         self.assertEqual(exit_response.json()["state"], "EXIT")
         session = AttendanceSession.objects.get(user_fk=user)
         self.assertEqual(session.checkin_photo, enter_photo)
         self.assertEqual(session.checkout_photo, exit_photo)
+        user.refresh_from_db()
+        self.assertEqual(user.photo, exit_photo)
 
     def test_manual_clock_requires_data_processing_consent(self):
         user = Users(UserName="Muncitor fara acord", UserSerie="SER-207")

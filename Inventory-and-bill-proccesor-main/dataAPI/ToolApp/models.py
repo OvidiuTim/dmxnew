@@ -168,6 +168,8 @@ class EmployeeDocument(models.Model):
     original_file_name = models.CharField(max_length=255, blank=True, default="")
     has_expiry = models.BooleanField(default=False)
     expiry_date = models.DateField(null=True, blank=True)
+    expiry_notification_sent_for = models.DateField(null=True, blank=True)
+    expiry_notification_sent_at = models.DateTimeField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -183,6 +185,9 @@ class EmployeeDocument(models.Model):
 
     def save(self, *args, **kwargs):
         self.full_clean()
+        if self.expiry_notification_sent_for and self.expiry_notification_sent_for != self.expiry_date:
+            self.expiry_notification_sent_for = None
+            self.expiry_notification_sent_at = None
         return super().save(*args, **kwargs)
 
     def __str__(self):
@@ -518,7 +523,7 @@ from decimal import Decimal
 
 class LeaveDay(models.Model):
     class Reason(models.TextChoices):
-        CO  = "CO",  "Concediu odihnă"
+        CO  = "CO",  "Concediu de odihnă"
         CM  = "CM",  "Concediu medical"
         UNPAID = "UNPAID", "Concediu fără plată"
         UNEXCUSED = "UNEXCUSED", "Absență nemotivată"
@@ -613,6 +618,7 @@ class LeaveRequest(models.Model):
     leave_type = models.CharField(max_length=32, choices=LeaveType.choices)
     start_date = models.DateField()
     end_date = models.DateField()
+    reason = models.TextField(blank=True, default="")
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
@@ -681,7 +687,7 @@ class LeaveRequest(models.Model):
             hourly_rate = self.employee.hourly_rate or Decimal("0.00")
             while current <= self.end_date:
                 if current.isoweekday() <= 6:
-                    LeaveDay.objects.get_or_create(
+                    LeaveDay.objects.update_or_create(
                         user_fk=self.employee,
                         work_date=current,
                         defaults={
@@ -690,7 +696,7 @@ class LeaveRequest(models.Model):
                             "multiplier": Decimal("1.00"),
                             "hourly_rate_snapshot": hourly_rate,
                             "pay_amount": hourly_rate * Decimal("8.00"),
-                            "note": "",
+                            "note": self.reason[:255],
                             "source_leave_request": self,
                         },
                     )

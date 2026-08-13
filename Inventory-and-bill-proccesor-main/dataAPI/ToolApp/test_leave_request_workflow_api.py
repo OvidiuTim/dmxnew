@@ -43,15 +43,23 @@ class LeaveRequestWorkflowApiTests(TestCase):
         client.cookies["appj"] = make_app_user_token(app_user)
         return client, app_user
 
-    def mobile_create(self, pin, start="2026-09-01", end="2026-09-03"):
+    def mobile_create(
+        self,
+        pin,
+        start="2026-09-01",
+        end="2026-09-03",
+        leave_type="unpaid_leave",
+        reason="Programare personală",
+    ):
         return self.client.post(
             reverse("mobile_leave_request_create"),
             data=json.dumps({
                 "pin": pin,
                 "device_key": f"android-{pin}",
-                "leave_type": "unpaid_leave",
+                "leave_type": leave_type,
                 "start_date": start,
                 "end_date": end,
+                "reason": reason,
             }),
             content_type="application/json",
         )
@@ -70,7 +78,9 @@ class LeaveRequestWorkflowApiTests(TestCase):
         item = LeaveRequest.objects.get()
         self.assertEqual(item.team, self.team_a)
         self.assertEqual(item.assigned_leader, self.leader_a)
+        self.assertEqual(item.reason, "Programare personală")
         self.assertEqual(response.json()["leave_request"]["status"], "pending")
+        self.assertEqual(response.json()["leave_request"]["reason"], "Programare personală")
 
     def test_mobile_request_without_active_team_is_rejected(self):
         response = self.mobile_create("5103")
@@ -125,6 +135,25 @@ class LeaveRequestWorkflowApiTests(TestCase):
         payload = mobile.json()["leave_requests"][0]
         self.assertEqual(payload["status"], "approved")
         self.assertEqual(payload["status_label"], "Aprobată")
+        self.assertEqual(payload["reason"], "Programare personală")
+
+    def test_approved_paid_leave_populates_attendance_as_annual_leave(self):
+        response = self.mobile_create(
+            "5101",
+            leave_type="paid_leave",
+            reason="Vacanță planificată",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        item = LeaveRequest.objects.get()
+
+        decision = self.decide(self.client_a, item, "approve")
+
+        self.assertEqual(decision.status_code, 200, decision.content)
+        leave_days = LeaveDay.objects.filter(source_leave_request=item).order_by("work_date")
+        self.assertEqual(leave_days.count(), 3)
+        self.assertTrue(all(day.reason == LeaveDay.Reason.CO for day in leave_days))
+        self.assertTrue(all(day.get_reason_display() == "Concediu de odihnă" for day in leave_days))
+        self.assertTrue(all(day.note == "Vacanță planificată" for day in leave_days))
 
     def test_leader_can_reject_request(self):
         self.mobile_create("5101")

@@ -118,7 +118,7 @@ export class UserpontatComponent implements OnInit {
   };
 
   mapLeave: Record<string, string> = {
-    CO: 'Concediu odihnă',
+    CO: 'Concediu de odihnă',
     CM: 'Concediu medical',
     ALT: 'Absență'
   };

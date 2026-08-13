@@ -42,7 +42,7 @@
   <section class="requests-card" *ngIf="!loading && filteredRequests.length">
     <div class="table-scroll">
       <table>
-        <thead><tr><th>Angajat</th><th>Echipă</th><th>Tip concediu</th><th>Perioadă</th><th>Zile</th><th>Trimisă</th><th>Status</th><th>Acțiuni</th></tr></thead>
+        <thead><tr><th>Angajat</th><th>Echipă</th><th>Tip concediu</th><th>Perioadă</th><th>Zile</th><th>Motiv / observații</th><th>Trimisă</th><th>Status</th><th>Acțiuni</th></tr></thead>
         <tbody>
           <tr *ngFor="let item of filteredRequests; trackBy: trackById">
             <td><div class="employee-cell"><span class="avatar">{{ item.employee.name.charAt(0) }}</span><span><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || 'Profesie necompletată' }} · {{ item.employee.serie }}</small></span></div></td>
@@ -50,6 +50,7 @@
             <td>{{ item.leave_type_label }}</td>
             <td class="period"><span>{{ item.start_date | date:'dd.MM.yyyy' }}</span><span class="material-symbols-rounded" aria-hidden="true">arrow_right_alt</span><span>{{ item.end_date | date:'dd.MM.yyyy' }}</span></td>
             <td><strong>{{ item.leave_days }}</strong></td>
+            <td class="request-reason">{{ item.reason || '—' }}</td>
             <td><span>{{ item.created_at | date:'dd.MM.yyyy' }}</span><small>{{ item.created_at | date:'HH:mm' }}</small></td>
             <td><span class="status-chip" [attr.data-status]="item.status">{{ statusLabel(item.status) }}</span><small *ngIf="item.reviewed_by">de {{ item.reviewed_by.name }}</small></td>
             <td><div class="row-actions" *ngIf="item.can_decide; else solved">

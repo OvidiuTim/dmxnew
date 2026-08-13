@@ -2105,6 +2105,9 @@ def nfc_scan(request):
                     data_processing_consent_at=timezone.now() if is_manual_scan and data_processing_consent else None,
                     checkin_photo=attendance_photo if is_manual_scan else "",
                 )
+                if is_manual_scan and attendance_photo:
+                    Users.objects.filter(pk=user.pk).update(photo=attendance_photo)
+                    user.photo = attendance_photo
                 _publish("enter", user, when, {"worksite": ws})
                 PresenceEvent.objects.create(
                     user_fk=user, kind=PresenceEvent.Kind.ENTER,
@@ -2143,6 +2146,8 @@ def nfc_scan(request):
             open_sess.out_time = apply_exit_grace(when)
             if is_manual_scan:
                 open_sess.checkout_photo = attendance_photo
+                Users.objects.filter(pk=user.pk).update(photo=attendance_photo)
+                user.photo = attendance_photo
             if gps_payload:
                 open_sess.out_gps_latitude = gps_payload["lat"]
                 open_sess.out_gps_longitude = gps_payload["lng"]
@@ -2194,6 +2199,9 @@ def nfc_scan(request):
             data_processing_consent_at=timezone.now() if is_manual_scan and data_processing_consent else None,
             checkin_photo=attendance_photo if is_manual_scan else "",
         )
+        if is_manual_scan and attendance_photo:
+            Users.objects.filter(pk=user.pk).update(photo=attendance_photo)
+            user.photo = attendance_photo
         PresenceEvent.objects.create(
             user_fk=user, kind=PresenceEvent.Kind.ENTER,
             timestamp=when, worksite=ws

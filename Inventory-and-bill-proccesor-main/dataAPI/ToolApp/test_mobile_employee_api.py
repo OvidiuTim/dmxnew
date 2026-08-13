@@ -366,7 +366,7 @@ class MobileEmployeeApiTests(TestCase):
         self.assertEqual(second.status_code, 400)
         self.assertEqual(second.json()["error_code"], "OVERLAPPING_LEAVE_REQUEST")
 
-    def test_leave_request_needs_no_reason_field(self):
+    def test_leave_request_accepts_reason_field(self):
         team = self.assign_employee_to_team()
         response = self.post(
             "/api/mobile/leave-requests/",
@@ -374,6 +374,7 @@ class MobileEmployeeApiTests(TestCase):
                 leave_type="paid_leave",
                 start_date="2026-08-12",
                 end_date="2026-08-18",
+                reason="Vacanță cu familia",
             ),
         )
         self.assertEqual(response.status_code, 201)
@@ -382,7 +383,7 @@ class MobileEmployeeApiTests(TestCase):
         self.assertEqual(payload["status"], "pending")
         self.assertEqual(payload["status_label"], "În așteptare")
         self.assertEqual(payload["team"], {"id": team.pk, "name": team.name})
-        self.assertNotIn("reason", payload)
+        self.assertEqual(payload["reason"], "Vacanță cu familia")
         self.assertNotIn("rejection_reason", payload)
 
     def test_history_net_quantity_and_fully_returned_tools(self):
@@ -474,5 +475,5 @@ class MobileEmployeeApiTests(TestCase):
         )
         payload = serialize_leave_request(leave)
         self.assertEqual(payload["leave_days"], 2)
-        self.assertNotIn("reason", payload)
+        self.assertEqual(payload["reason"], "")
         self.assertNotIn("calendar_days", payload)

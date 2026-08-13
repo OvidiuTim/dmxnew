@@ -454,6 +454,7 @@ def serialize_leave_request(item):
         "status_label": item.get_status_display(),
         "start_date": item.start_date.isoformat(),
         "end_date": item.end_date.isoformat(),
+        "reason": item.reason,
         "leave_days": count_salary_days_in_range(item.start_date, item.end_date),
         "created_at": item.created_at.isoformat() if item.created_at else None,
         "approved_at": item.approved_at.isoformat() if item.approved_at else None,

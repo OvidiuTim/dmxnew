@@ -33,9 +33,10 @@ class EmployeeDocumentTypeAdmin(admin.ModelAdmin):
 
 @admin.register(EmployeeDocument)
 class EmployeeDocumentAdmin(admin.ModelAdmin):
-    list_display = ("employee", "document_type", "has_expiry", "expiry_date", "uploaded_at")
+    list_display = ("employee", "document_type", "has_expiry", "expiry_date", "expiry_notification_sent_at", "uploaded_at")
     list_filter = ("document_type__category", "has_expiry", "expiry_date")
     search_fields = ("employee__UserName", "employee__UserSerie", "document_type__name", "original_file_name")
+    readonly_fields = ("expiry_notification_sent_for", "expiry_notification_sent_at")
 
 
 @admin.register(AppModuleAccess)
@@ -100,7 +101,7 @@ class EmployeeSalaryProfileAdmin(admin.ModelAdmin):
 class LeaveRequestAdmin(admin.ModelAdmin):
     list_display = ("employee", "team", "assigned_leader", "leave_type", "start_date", "end_date", "status")
     list_filter = ("status", "leave_type", "start_date")
-    search_fields = ("employee__UserName", "employee__UserSerie")
+    search_fields = ("employee__UserName", "employee__UserSerie", "reason")
     readonly_fields = ("created_at", "approved_at", "approved_by", "reviewed_at", "reviewed_by_app_user")
 
     def save_model(self, request, obj, form, change):

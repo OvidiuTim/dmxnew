@@ -13,6 +13,7 @@ type LeaveRequest = {
   leave_type_label: string;
   start_date: string;
   end_date: string;
+  reason: string;
   leave_days: number;
   status: LeaveStatus;
   status_label: string;
@@ -54,6 +55,7 @@ export class LeaveRequestsComponent implements OnInit {
         item.employee.company,
         item.team?.name || '',
         item.leave_type_label,
+        item.reason,
       ].join(' ')).includes(search);
       return statusMatches && searchMatches;
     });
