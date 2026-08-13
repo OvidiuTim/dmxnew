@@ -213,6 +213,27 @@ class ManualAttendanceSecurityTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error_code"], "DATA_PROCESSING_CONSENT_REQUIRED")
 
+    def test_manual_clock_can_continue_when_camera_is_not_available(self):
+        user = Users(UserName="Muncitor fara camera", UserSerie="SER-208")
+        user.set_pin("1208")
+        user.save()
+
+        response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps({
+                "pin": "1208",
+                "mode": "manual",
+                "data_processing_consent": True,
+                "photo_capture_unavailable": True,
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["state"], "ENTER")
+        session = AttendanceSession.objects.get(user_fk=user)
+        self.assertEqual(session.checkin_photo, "")
+
     def test_successful_pin_lookup_uses_plain_userpin(self):
         user = Users(UserName="Muncitor 3", UserSerie="SER-203")
         user.set_pin("5555")

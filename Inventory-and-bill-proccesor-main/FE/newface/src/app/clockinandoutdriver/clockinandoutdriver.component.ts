@@ -247,9 +247,15 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
         const checkinPhoto = await this.captureAttendancePhoto();
         response = await firstValueFrom(this.submitAttendanceRequest(cleanPin, checkinPhoto));
       } catch (photoError) {
-        this.submitting = false;
-        this.showError(photoError instanceof Error ? photoError.message : 'Nu am putut face fotografia pentru pontaj.');
-        return;
+        // Pe dispozitive fără cameră pontajul rămâne disponibil; fotografia se face automat când există cameră.
+        try {
+          response = await firstValueFrom(this.submitAttendanceRequest(cleanPin, undefined, true));
+        } catch (fallbackError) {
+          this.submitting = false;
+          this.showError(this.resolveAttendanceError(fallbackError));
+          this.clearPin();
+          return;
+        }
       }
     }
 
@@ -318,7 +324,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       : 'Nu am putut inregistra pontajul acum. Incearca din nou.';
   }
 
-  private submitAttendanceRequest(pin: string, checkinPhoto?: string) {
+  private submitAttendanceRequest(pin: string, checkinPhoto?: string, photoCaptureUnavailable = false) {
     return this.api.manualAttendanceByPin(pin, {
       mode: 'driver',
       gps: {
@@ -329,6 +335,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
       },
       dataProcessingConsent: this.dataProcessingConsent,
       checkinPhoto,
+      photoCaptureUnavailable,
     });
   }
 

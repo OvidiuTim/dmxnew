@@ -1968,6 +1968,8 @@ def nfc_scan(request):
     gps_captured_at = _extract_gps_captured_at(data)
     raw_consent = data.get("data_processing_consent")
     data_processing_consent = raw_consent is True or str(raw_consent).strip().lower() in {"1", "true", "yes"}
+    raw_photo_unavailable = data.get("photo_capture_unavailable")
+    photo_capture_unavailable = raw_photo_unavailable is True or str(raw_photo_unavailable).strip().lower() in {"1", "true", "yes"}
 
     if is_manual_scan and not data_processing_consent:
         return JsonResponse({
@@ -2069,7 +2071,7 @@ def nfc_scan(request):
                      .first())
 
         is_checkin = not open_sess or open_sess.work_date < today
-        if is_manual_scan and is_checkin and not checkin_photo:
+        if is_manual_scan and is_checkin and not checkin_photo and not photo_capture_unavailable:
             # Urmatoarea cerere este retrimisa imediat de client dupa captura camerei.
             # Nu o tratam drept dublu-scan.
             _last_seen.pop(key, None)
@@ -2348,6 +2350,11 @@ def pontaj_clock(request):
         "gps": data.get("gps"),
         "worksite": data.get("worksite") or data.get("site") or data.get("santier"),
         "mode": data.get("mode") or data.get("attendance_mode") or "manual",
+        # Pasăm explicit datele de acord și fotografia către fluxul comun NFC.
+        # Fără acestea, wrapperul /pontaj/clock/ le elimina înainte de validare.
+        "data_processing_consent": data.get("data_processing_consent"),
+        "checkin_photo": data.get("checkin_photo"),
+        "photo_capture_unavailable": data.get("photo_capture_unavailable"),
     }
     request._body = json.dumps(payload).encode("utf-8")
     return nfc_scan(request)
