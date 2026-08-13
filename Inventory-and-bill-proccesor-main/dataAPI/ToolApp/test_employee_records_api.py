@@ -2,6 +2,7 @@ import json
 import shutil
 import tempfile
 from datetime import timedelta
+from decimal import Decimal
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -58,6 +59,43 @@ class EmployeeRecordsApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["rows"][0]["trade"], "Dulgher")
+
+    def test_employee_can_be_created_with_total_salary_in_ron(self):
+        response = self.admin.post(
+            "/api/user/",
+            data=json.dumps({
+                "UserName": "Angajat Salariu",
+                "UserSerie": "EMP-SALARY-CREATE",
+                "UserPin": "8877",
+                "hourly_rate": "25.00",
+                "total_salary_ron": "4750.50",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json()["total_salary_ron"], "4750.50")
+        employee = Users.objects.get(UserSerie="EMP-SALARY-CREATE")
+        self.assertEqual(employee.total_salary_ron, Decimal("4750.50"))
+
+    def test_employee_total_salary_can_be_edited_and_loaded_again(self):
+        response = self.admin.put(
+            "/api/user/",
+            data=json.dumps({
+                "UserId": self.employee.pk,
+                "UserName": self.employee.UserName,
+                "UserSerie": self.employee.UserSerie,
+                "hourly_rate": "23.00",
+                "total_salary_ron": "5125.75",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["total_salary_ron"], "5125.75")
+        loaded = self.admin.get(f"/api/user/{self.employee.pk}")
+        self.assertEqual(loaded.status_code, 200, loaded.content)
+        self.assertEqual(loaded.json()["total_salary_ron"], "5125.75")
 
     def test_attendance_day_exposes_leave_without_marking_employee_absent(self):
         LeaveDay.objects.create(

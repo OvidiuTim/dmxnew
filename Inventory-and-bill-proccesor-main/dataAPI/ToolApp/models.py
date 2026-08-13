@@ -97,6 +97,7 @@ class Users(models.Model):
     uid = models.CharField(max_length=128, null=True, blank=True, db_index=True)
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=0)  # lei/oră
+    total_salary_ron = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     Company = models.CharField(max_length=100, null=True, blank=True)
     equipment_size = models.CharField(max_length=100, null=True, blank=True)
     received_equipment = models.BooleanField(null=True, blank=True)

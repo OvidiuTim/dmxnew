@@ -62,6 +62,12 @@
         </div>
 
         <div class="field">
+          <label for="user-total-salary">Salariu total în lei</label>
+          <input id="user-total-salary" type="number" inputmode="decimal" min="0" step="0.01" formControlName="total_salary_ron" placeholder="Ex: 5000.00">
+          <small *ngIf="form.controls.total_salary_ron.invalid && form.controls.total_salary_ron.touched">Salariul trebuie să fie zero sau o valoare pozitivă.</small>
+        </div>
+
+        <div class="field">
           <label for="user-company">Companie</label>
           <select
             id="user-company"
