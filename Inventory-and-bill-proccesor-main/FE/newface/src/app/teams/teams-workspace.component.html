@@ -148,11 +148,11 @@
 
   <ng-container *ngIf="!loading && mode === 'notifications'">
     <section class="stats-grid notification-stats" aria-label="Situația notificărilor">
-      <article><span class="stat-icon amber material-symbols-rounded" aria-hidden="true">notifications_active</span><div><strong>{{ filteredRequests.length }}</strong><small>Cereri primite</small></div></article>
+      <article><span class="stat-icon amber material-symbols-rounded" aria-hidden="true">notifications_active</span><div><strong>{{ notificationCount }}</strong><small>Cereri primite</small></div></article>
       <article><span class="stat-icon green material-symbols-rounded" aria-hidden="true">pending_actions</span><div><strong>{{ pendingRequestCount }}</strong><small>În așteptare</small></div></article>
     </section>
     <section class="toolbar one-column"><label class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="searchTerm" placeholder="Caută angajat sau echipă" aria-label="Caută notificări"></label></section>
-    <section class="requests-card" *ngIf="filteredRequests.length; else noNotifications">
+    <section class="requests-card" *ngIf="filteredRequests.length">
       <div class="table-scroll"><table class="notifications-table"><thead><tr><th>Tip</th><th>Muncitor</th><th>Solicitare</th><th>Perioadă</th><th>Motiv</th><th>Status</th><th>Acțiuni</th></tr></thead>
         <tbody><tr *ngFor="let item of filteredRequests; trackBy: trackById" [class.unseen-request]="item.is_unseen">
           <td><span class="type-chip" [class.permanent]="item.request_type === 'permanent'">{{ item.request_type_label }}</span></td>
@@ -169,7 +169,20 @@
         </tr></tbody>
       </table></div>
     </section>
-    <ng-template #noNotifications><div class="empty-state"><span class="material-symbols-rounded" aria-hidden="true">notifications_off</span><strong>Nu ai notificări de soluționat.</strong></div></ng-template>
+    <section class="requests-card" *ngIf="filteredLeaveNotifications.length">
+      <div class="table-scroll"><table class="notifications-table"><thead><tr><th>Tip</th><th>Angajat</th><th>Echipă</th><th>Perioadă</th><th>Motiv</th><th>Status</th><th>Acțiuni</th></tr></thead>
+        <tbody><tr *ngFor="let item of filteredLeaveNotifications" [class.unseen-request]="item.is_unseen">
+          <td><span class="type-chip">Concediu</span><small>{{ item.leave_type_label }}</small></td>
+          <td><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || item.employee.serie }}</small></td>
+          <td>{{ item.team?.name || 'Fără echipă' }}</td>
+          <td class="mono">{{ item.start_date | date:'dd.MM.yyyy' }} – {{ item.end_date | date:'dd.MM.yyyy' }}</td>
+          <td>{{ item.reason || '—' }}</td>
+          <td><span class="status-chip" [attr.data-status]="item.status">{{ item.status_label }}</span></td>
+          <td><a class="button compact secondary" routerLink="/pontaj/concedii"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span>Deschide</a></td>
+        </tr></tbody>
+      </table></div>
+    </section>
+    <div class="empty-state" *ngIf="!filteredRequests.length && !filteredLeaveNotifications.length"><span class="material-symbols-rounded" aria-hidden="true">notifications_off</span><strong>Nu ai notificări de soluționat.</strong></div>
   </ng-container>
 </section>
 

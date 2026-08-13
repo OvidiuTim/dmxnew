@@ -198,3 +198,23 @@ class LeaveRequestWorkflowApiTests(TestCase):
         second = self.decide(self.client_a, item, "approve")
 
         self.assertEqual(second.status_code, 409)
+
+    def test_new_leave_request_notifies_assigned_leader_until_seen_and_resolved(self):
+        response = self.mobile_create("5101")
+        self.assertEqual(response.status_code, 201, response.content)
+
+        summary = self.client_a.get(reverse("team_notifications_summary"))
+        self.assertEqual(summary.status_code, 200, summary.content)
+        self.assertEqual(summary.json()["leave_attention_count"], 1)
+        self.assertEqual(summary.json()["attention_count"], 1)
+
+        opened = self.client_a.get(reverse("team_notifications"))
+        self.assertEqual(opened.status_code, 200, opened.content)
+        self.assertEqual(len(opened.json()["leave_requests"]), 1)
+        item = LeaveRequest.objects.get()
+        item.refresh_from_db()
+        self.assertIsNotNone(item.seen_at)
+        self.assertEqual(self.client_a.get(reverse("team_notifications_summary")).json()["attention_count"], 1)
+
+        self.assertEqual(self.decide(self.client_a, item, "approve").status_code, 200)
+        self.assertEqual(self.client_a.get(reverse("team_notifications_summary")).json()["attention_count"], 0)

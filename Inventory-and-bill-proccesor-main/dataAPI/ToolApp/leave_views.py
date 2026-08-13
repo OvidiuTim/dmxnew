@@ -87,7 +87,9 @@ def leave_requests_collection(request):
     if not is_admin and not app_user:
         return _error("Autentificare necesară.", 401)
 
-    items = list(_visible_queryset(app_user, is_admin))
+    queryset = _visible_queryset(app_user, is_admin)
+    queryset.filter(seen_at__isnull=True).update(seen_at=timezone.now())
+    items = list(queryset)
     counts = {status: 0 for status in LeaveRequest.Status.values}
     for item in items:
         counts[item.status] = counts.get(item.status, 0) + 1

@@ -59,6 +59,21 @@ export interface TeamRequest {
   email_sent: boolean;
 }
 
+export interface LeaveNotification {
+  id: number;
+  employee: { id: number; name: string; serie: string; trade: string };
+  team: { id: number; name: string } | null;
+  leave_type: string;
+  leave_type_label: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  status_label: string;
+  created_at: string | null;
+  is_unseen: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TeamApiService {
   private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/teams';

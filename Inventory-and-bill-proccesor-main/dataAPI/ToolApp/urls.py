@@ -65,6 +65,7 @@ urlpatterns = [
     path('api/pontaj/clock/', pontaj_clock, name='pontaj_clock'),
     path('api/mobile/employee-dashboard/', mobile_views.employee_dashboard, name='mobile_employee_dashboard'),
     path('api/mobile/leave-requests/', mobile_views.leave_request_create, name='mobile_leave_request_create'),
+    path('api/mobile/leave-balance/', mobile_views.leave_balance, name='mobile_leave_balance'),
     path('api/mobile/leave-requests/list/', mobile_views.leave_request_list, name='mobile_leave_request_list'),
     path('api/mobile/leave-requests/<int:request_id>/cancel/', mobile_views.leave_request_cancel, name='mobile_leave_request_cancel'),
     path('api/pontaj/day/', attendance_day, name='attendance_day'),              # GET day aggregate

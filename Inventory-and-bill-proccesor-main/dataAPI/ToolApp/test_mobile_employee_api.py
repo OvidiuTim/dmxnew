@@ -320,15 +320,52 @@ class MobileEmployeeApiTests(TestCase):
         self.employee.hire_date = date(2026, 6, 20)
         self.employee.save(update_fields=("hire_date",))
         expectations = (
-            (date(2026, 7, 31), 1, Decimal("1.75"), 1),
-            (date(2026, 8, 31), 2, Decimal("3.50"), 3),
-            (date(2026, 9, 30), 3, Decimal("5.25"), 5),
-            (date(2027, 6, 30), 12, Decimal("21.00"), 21),
+            (date(2026, 7, 31), 1, Decimal("1.66"), 1),
+            (date(2026, 8, 31), 2, Decimal("3.32"), 3),
+            (date(2026, 9, 30), 3, Decimal("4.98"), 4),
+            (date(2026, 12, 31), 6, Decimal("9.96"), 9),
+            (date(2027, 6, 30), 6, Decimal("9.96"), 9),
         )
         for as_of, months, accrued, available in expectations:
             self.assertEqual(completed_full_months(self.employee.hire_date, as_of), months)
             self.assertEqual(accrued_leave_days(self.employee, as_of), accrued)
             self.assertEqual(calculate_available_leave_days(self.employee, as_of), available)
+
+    def test_full_calendar_year_is_capped_at_twenty_leave_days(self):
+        self.employee.hire_date = date(2024, 1, 1)
+        self.employee.save(update_fields=("hire_date",))
+
+        self.assertEqual(completed_full_months(self.employee.hire_date, date(2026, 12, 31)), 12)
+        self.assertEqual(accrued_leave_days(self.employee, date(2026, 12, 31)), Decimal("20.00"))
+        self.assertEqual(calculate_available_leave_days(self.employee, date(2026, 12, 31)), 20)
+
+    def test_employee_without_hire_date_is_treated_as_legacy_employee(self):
+        self.employee.hire_date = None
+        self.employee.save(update_fields=("hire_date",))
+
+        self.assertEqual(completed_full_months(None, date(2026, 8, 31)), 8)
+        self.assertEqual(accrued_leave_days(self.employee, date(2026, 8, 31)), Decimal("13.28"))
+
+    @patch("ToolApp.mobile_views.localdate", return_value=date(2026, 8, 31))
+    def test_leave_balance_api_exposes_accrued_used_and_remaining_days(self, _localdate_mock):
+        LeaveRequest.objects.create(
+            employee=self.employee,
+            leave_type=LeaveRequest.LeaveType.PAID_LEAVE,
+            start_date=date(2026, 8, 3),
+            end_date=date(2026, 8, 4),
+            status=LeaveRequest.Status.APPROVED,
+        )
+
+        response = self.post("/api/mobile/leave-balance/", self.credentials())
+
+        self.assertEqual(response.status_code, 200, response.content)
+        balance = response.json()["leave_balance"]
+        self.assertEqual(balance["annual_entitlement_days"], 20)
+        self.assertEqual(balance["monthly_accrual_days"], "1.66")
+        self.assertEqual(balance["total_accrued_days"], "13.28")
+        self.assertEqual(balance["total_used_days"], 2)
+        self.assertEqual(balance["remaining_days"], "11.28")
+        self.assertEqual(balance["available_days"], 11)
 
     def test_paid_leave_cannot_be_approved_over_available_balance(self):
         self.employee.hire_date = date(2026, 6, 20)

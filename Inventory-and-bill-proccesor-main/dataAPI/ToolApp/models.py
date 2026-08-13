@@ -623,6 +623,7 @@ class LeaveRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
+    seen_at = models.DateTimeField(null=True, blank=True)
     reviewed_by_app_user = models.ForeignKey(
         AppUser,
         on_delete=models.SET_NULL,

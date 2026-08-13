@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
-import { EmployeeTeam, TeamApiService, TeamEmployee, TeamRequest } from './team-api.service';
+import { EmployeeTeam, LeaveNotification, TeamApiService, TeamEmployee, TeamRequest } from './team-api.service';
 
 type TeamMode = 'permanent' | 'mine' | 'today' | 'available' | 'notifications';
 
@@ -28,6 +28,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   teams: EmployeeTeam[] = [];
   employees: TeamEmployee[] = [];
   requests: TeamRequest[] = [];
+  leaveNotifications: LeaveNotification[] = [];
   dailyTeams: any[] = [];
   dailyAvailable: TeamEmployee[] = [];
   availableEmployees: TeamEmployee[] = [];
@@ -69,7 +70,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   get subtitle(): string {
     if (this.mode === 'today') return 'Situația echipelor, transferurilor și absențelor pentru data selectată.';
     if (this.mode === 'available') return 'Gestionează separat angajații atribuiți și neatribuiți.';
-    if (this.mode === 'notifications') return 'Cererile de personal primite de la celelalte echipe.';
+    if (this.mode === 'notifications') return 'Cererile de personal și de concediu care necesită atenția ta.';
     if (this.mode === 'mine') return 'Vezi și actualizează membrii echipei pe care o conduci.';
     return 'Configurează echipele, șefii și apartenența permanentă a muncitorilor.';
   }
@@ -106,8 +107,20 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     return this.requests.filter(item => !search || this.normalize(`${item.employee.name} ${item.source_team.name} ${item.requester_team.name} ${item.status_label}`).includes(search));
   }
 
+  get filteredLeaveNotifications(): LeaveNotification[] {
+    const search = this.normalize(this.searchTerm);
+    return this.leaveNotifications.filter(item => !search || this.normalize(
+      `${item.employee.name} ${item.employee.trade} ${item.team?.name || ''} ${item.leave_type_label} ${item.status_label}`
+    ).includes(search));
+  }
+
+  get notificationCount(): number {
+    return this.filteredRequests.length + this.filteredLeaveNotifications.length;
+  }
+
   get pendingRequestCount(): number {
-    return this.requests.filter(item => item.status === 'pending').length;
+    return this.requests.filter(item => item.status === 'pending').length
+      + this.leaveNotifications.filter(item => item.status === 'pending').length;
   }
 
   get activeTeams(): EmployeeTeam[] {
@@ -193,6 +206,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       this.api.getNotifications().subscribe({
         next: response => {
           this.requests = response.requests || [];
+          this.leaveNotifications = response.leave_requests || [];
           this.loading = false;
           window.dispatchEvent(new CustomEvent('team-notifications-changed'));
         },

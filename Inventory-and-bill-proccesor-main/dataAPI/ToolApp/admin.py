@@ -102,7 +102,7 @@ class LeaveRequestAdmin(admin.ModelAdmin):
     list_display = ("employee", "team", "assigned_leader", "leave_type", "start_date", "end_date", "status")
     list_filter = ("status", "leave_type", "start_date")
     search_fields = ("employee__UserName", "employee__UserSerie", "reason")
-    readonly_fields = ("created_at", "approved_at", "approved_by", "reviewed_at", "reviewed_by_app_user")
+    readonly_fields = ("created_at", "seen_at", "approved_at", "approved_by", "reviewed_at", "reviewed_by_app_user")
 
     def save_model(self, request, obj, form, change):
         if obj.status == LeaveRequest.Status.APPROVED and not obj.approved_at:

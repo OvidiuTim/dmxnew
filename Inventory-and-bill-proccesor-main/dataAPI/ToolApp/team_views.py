@@ -15,6 +15,7 @@ from ToolApp.models import (
     EmployeeTeam,
     EmployeeTeamMember,
     LeaveDay,
+    LeaveRequest,
     TemporaryWorkerRequest,
     Tools,
     Users,
@@ -659,6 +660,38 @@ def _incoming_requests(app_user, can_manage_all):
     return query.filter(source_team__leader_id=app_user.employee_id)
 
 
+def _incoming_leave_requests(app_user, can_manage_all):
+    query = LeaveRequest.objects.select_related("employee", "team", "assigned_leader")
+    if can_manage_all:
+        return query
+    if not app_user:
+        return query.none()
+    return query.filter(assigned_leader_id=app_user.employee_id)
+
+
+def _leave_notification_payload(item):
+    return {
+        "id": item.pk,
+        "employee": {
+            "id": item.employee_id,
+            "name": item.employee.UserName,
+            "serie": item.employee.UserSerie,
+            "trade": item.employee.trade or "",
+        },
+        "team": {"id": item.team_id, "name": item.team.name} if item.team_id else None,
+        "leave_type": item.leave_type,
+        "leave_type_label": item.get_leave_type_display(),
+        "start_date": item.start_date.isoformat(),
+        "end_date": item.end_date.isoformat(),
+        "reason": item.reason,
+        "status": item.status,
+        "status_label": item.get_status_display(),
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "seen_at": item.seen_at.isoformat() if item.seen_at else None,
+        "is_unseen": item.seen_at is None,
+    }
+
+
 @csrf_exempt
 def notifications_summary(request):
     if request.method != "GET":
@@ -667,10 +700,17 @@ def notifications_summary(request):
     if not can_manage_all and not app_user:
         return _error("Autentificare necesară.", 401)
     query = _incoming_requests(app_user, can_manage_all)
-    attention_count = query.filter(
+    transfer_attention_count = query.filter(
         Q(status=TemporaryWorkerRequest.Status.PENDING) | Q(seen_at__isnull=True)
     ).count()
-    return JsonResponse({"attention_count": attention_count})
+    leave_attention_count = _incoming_leave_requests(app_user, can_manage_all).filter(
+        Q(status=LeaveRequest.Status.PENDING) | Q(seen_at__isnull=True)
+    ).count()
+    return JsonResponse({
+        "attention_count": transfer_attention_count + leave_attention_count,
+        "transfer_attention_count": transfer_attention_count,
+        "leave_attention_count": leave_attention_count,
+    })
 
 
 @csrf_exempt
@@ -681,12 +721,19 @@ def team_notifications(request):
     if not can_manage_all and not app_user:
         return _error("Autentificare necesară.", 401)
     query = _incoming_requests(app_user, can_manage_all)
+    leave_query = _incoming_leave_requests(app_user, can_manage_all)
     now = timezone.now()
     query.filter(seen_at__isnull=True).update(seen_at=now)
+    leave_query.filter(seen_at__isnull=True).update(seen_at=now)
     items = list(query)
+    leave_items = list(leave_query)
     return JsonResponse({
         "requests": [_request_payload(item, app_user, can_manage_all) for item in items],
-        "pending_count": sum(item.status == item.Status.PENDING for item in items),
+        "leave_requests": [_leave_notification_payload(item) for item in leave_items],
+        "pending_count": (
+            sum(item.status == item.Status.PENDING for item in items)
+            + sum(item.status == item.Status.PENDING for item in leave_items)
+        ),
     })
 
 

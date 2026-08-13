@@ -113,6 +113,17 @@ def employee_dashboard(request):
 
 
 @csrf_exempt
+def leave_balance(request):
+    data, employee, error = _mobile_post(request)
+    if error:
+        return error
+    return JsonResponse({
+        "success": True,
+        "leave_balance": build_leave_summary(employee, localdate()),
+    })
+
+
+@csrf_exempt
 def leave_request_create(request):
     data, employee, error = _mobile_post(request)
     if error:
@@ -164,7 +175,11 @@ def leave_request_create(request):
         message = "; ".join(exc.messages)
         code = "OVERLAPPING_LEAVE_REQUEST" if "suprapune" in message else "INVALID_DATE_RANGE"
         return _error(code, message, 400)
-    return JsonResponse({"success": True, "leave_request": serialize_leave_request(item)}, status=201)
+    return JsonResponse({
+        "success": True,
+        "leave_request": serialize_leave_request(item),
+        "leave_balance": build_leave_summary(employee, localdate()),
+    }, status=201)
 
 
 @csrf_exempt
@@ -176,6 +191,7 @@ def leave_request_list(request):
     return JsonResponse({
         "success": True,
         "leave_requests": [serialize_leave_request(item) for item in items],
+        "leave_balance": build_leave_summary(employee, localdate()),
     })
 
 
