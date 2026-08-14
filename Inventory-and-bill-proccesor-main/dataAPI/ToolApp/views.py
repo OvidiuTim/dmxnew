@@ -1988,8 +1988,6 @@ def nfc_scan(request):
     # Acceptăm mai multe chei: worksite/site/santier
     ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip() or None
     attendance_mode = (data.get("mode") or data.get("attendance_mode") or "").strip().lower() or None
-    attendance_client = str(data.get("client_type") or "web").strip().lower()
-    is_android_client = attendance_client == "android"
     is_manual_scan = _is_manual_attendance_scan(uid, tag_type)
     manual_device_key = _normalize_manual_device_key(data.get("device_key")) if is_manual_scan else None
     manual_client_ip = None
@@ -1997,12 +1995,6 @@ def nfc_scan(request):
     gps_captured_at = _extract_gps_captured_at(data)
     raw_consent = data.get("data_processing_consent")
     data_processing_consent = raw_consent is True or str(raw_consent).strip().lower() in {"1", "true", "yes"}
-
-    if is_manual_scan and not data_processing_consent:
-        return JsonResponse({
-            "error": "Este necesar acordul pentru prelucrarea datelor inainte de pontaj.",
-            "error_code": "DATA_PROCESSING_CONSENT_REQUIRED",
-        }, status=400)
 
     try:
         attendance_photo = _extract_attendance_photo(data) if is_manual_scan else ""
@@ -2099,14 +2091,6 @@ def nfc_scan(request):
                      .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
                      .order_by('-in_time')
                      .first())
-
-        # Selfie-ul a fost introdus pentru paginile publice de pontaj web.
-        # Aplicatia Android confirma acordul explicit, dar nu are fluxul web de selfie.
-        if is_manual_scan and not is_android_client and not attendance_photo:
-            return JsonResponse({
-                "error": "Selfie-ul confirmat este obligatoriu pentru check-in si check-out.",
-                "error_code": "ATTENDANCE_PHOTO_REQUIRED",
-            }, status=400)
 
         if open_sess:
             # dacă sesiunea e din altă zi, o închidem la ora de închidere a zilei anterioare
@@ -2368,9 +2352,7 @@ def pontaj_clock(request):
       "device_key": "android-device-id",
       "gps": {"lat": 45.1, "lng": 25.1, "accuracy": 20, "captured_at": "..."},
       "worksite": "Tractorului Bloc B2",
-      "mode": "manual" | "driver",
-      "client_type": "android",
-      "data_processing_consent": true
+      "mode": "manual" | "driver"
     }
     """
     if request.method != "POST":
@@ -2390,7 +2372,6 @@ def pontaj_clock(request):
         "gps": data.get("gps"),
         "worksite": data.get("worksite") or data.get("site") or data.get("santier"),
         "mode": data.get("mode") or data.get("attendance_mode") or "manual",
-        "client_type": data.get("client_type") or "web",
         # Pasăm explicit datele de acord și fotografia către fluxul comun NFC.
         # Fără acestea, wrapperul /pontaj/clock/ le elimina înainte de validare.
         "data_processing_consent": data.get("data_processing_consent"),
