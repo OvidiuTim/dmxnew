@@ -291,8 +291,9 @@
 <div class="checkin-photo-modal" *ngIf="leaveRangeOpen" (click)="closeLeaveRange()">
   <section class="checkin-photo-dialog leave-range-dialog" role="dialog" aria-modal="true" aria-labelledby="leave-range-title" (click)="$event.stopPropagation()">
     <header><h3 id="leave-range-title">Marchează concediu</h3><button type="button" class="btn secondary" (click)="closeLeaveRange()" aria-label="Închide"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></header>
-    <p>Zilele de luni până sâmbătă din perioada selectată vor fi completate în Pontaj ca „Concediu de odihnă”.</p>
+    <p>Zilele de luni până sâmbătă din perioada selectată vor fi completate în Pontaj cu tipul ales.</p>
     <div class="leave-range-fields">
+      <label><span>Tip concediu</span><select [(ngModel)]="leaveRangeForm.leave_type"><option value="CO">Concediu de odihnă</option><option value="CM">Concediu medical</option><option value="UNPAID">Concediu fără plată</option><option value="INDIA">Plecat în India</option></select></label>
       <label><span>Data de început</span><input type="date" [(ngModel)]="leaveRangeForm.start_date"></label>
       <label><span>Data de sfârșit</span><input type="date" [(ngModel)]="leaveRangeForm.end_date"></label>
     </div>

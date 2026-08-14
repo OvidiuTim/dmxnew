@@ -23,6 +23,7 @@ from ToolApp.mobile_services import (
     seniority_months,
     serialize_leave_request,
 )
+from ToolApp.leave_email import send_leave_request_email
 from ToolApp.models import AttendanceSession, EmployeeSalaryProfile, EmployeeTeam, EmployeeTeamMember, LeaveRequest
 from ToolApp.views import _find_user_by_pin, _log_pin_attempt, _pin_is_blocked
 
@@ -183,6 +184,7 @@ def leave_request_create(request):
         message = "; ".join(exc.messages)
         code = "OVERLAPPING_LEAVE_REQUEST" if "suprapune" in message else "INVALID_DATE_RANGE"
         return _error(code, message, 400)
+    send_leave_request_email(item)
     return JsonResponse({
         "success": True,
         "leave_request": serialize_leave_request(item),

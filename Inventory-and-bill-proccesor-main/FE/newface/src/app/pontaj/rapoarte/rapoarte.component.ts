@@ -75,6 +75,7 @@ export class RapoarteComponent implements OnInit {
       next: (users: any[]) => {
         // extragem numele de firmă din useri
         const names = users
+          .filter(u => (u.employment_status || 'active') !== 'dismissed')
           .map(u => (u.Company || '').trim())
           .filter(c => c.length > 0);
 

@@ -3,6 +3,7 @@ from django.utils import timezone
 
 from ToolApp.models import (
     Accommodation,
+    AccommodationRoom,
     EmployeeDocument,
     EmployeeDocumentType,
     EmployeeSalaryProfile,
@@ -19,9 +20,16 @@ from ToolApp.models import (
 
 @admin.register(Accommodation)
 class AccommodationAdmin(admin.ModelAdmin):
-    list_display = ("name", "address", "active", "updated_at")
+    list_display = ("name", "address", "total_places", "number_of_rooms", "active", "updated_at")
     list_filter = ("active",)
     search_fields = ("name", "address", "notes")
+
+
+@admin.register(AccommodationRoom)
+class AccommodationRoomAdmin(admin.ModelAdmin):
+    list_display = ("name", "accommodation", "position")
+    list_filter = ("accommodation",)
+    search_fields = ("name", "accommodation__name")
 
 
 @admin.register(EmployeeDocumentType)
@@ -77,8 +85,8 @@ class EmployeeSalaryProfileInline(admin.StackedInline):
 
 @admin.register(Users)
 class UsersAdmin(admin.ModelAdmin):
-    list_display = ("UserName", "UserSerie", "email", "Company", "trade", "active", "hire_date", "accommodation")
-    list_filter = ("active", "Company", "trade")
+    list_display = ("UserName", "UserSerie", "email", "Company", "trade", "employment_status", "dismissed_at", "active", "hire_date", "accommodation", "accommodation_room")
+    list_filter = ("employment_status", "active", "Company", "trade")
     search_fields = ("UserName", "UserSerie", "email", "phone_number", "housing_location")
     inlines = (EmployeeSalaryProfileInline,)
 

@@ -39,10 +39,11 @@ export class SharedService {
   getAccommodations()                  { return this.http.get<any>(`${this.API}/accommodations/`); }
   addAccommodation(val: any)           { return this.http.post<any>(`${this.API}/accommodations/`, val); }
   updateAccommodation(val: any)        { return this.http.put<any>(`${this.API}/accommodations/`, val); }
-  assignAccommodation(employeeId: number, accommodationId: number | null) {
+  assignAccommodation(employeeId: number, accommodationId: number | null, accommodationRoomId: number | null = null) {
     return this.http.post<any>(`${this.API}/accommodations/assign/`, {
       employee_id: employeeId,
       accommodation_id: accommodationId,
+      accommodation_room_id: accommodationRoomId,
     });
   }
 
@@ -51,11 +52,12 @@ export class SharedService {
   decideLeaveRequest(requestId: number, action: 'approve' | 'reject') {
     return this.http.post<any>(`${this.API}/leave-requests/${requestId}/decision/`, { action });
   }
-  markLeaveRange(employeeId: number, startDate: string, endDate: string) {
+  markLeaveRange(employeeId: number, startDate: string, endDate: string, leaveType: 'CO' | 'CM' | 'UNPAID' | 'INDIA') {
     return this.http.post<any>(`${this.API}/leave/mark-range/`, {
       user_id: employeeId,
       start_date: startDate,
       end_date: endDate,
+      leave_type: leaveType,
     });
   }
 

@@ -1,11 +1,13 @@
 import json
 from datetime import date
+from unittest.mock import patch
 
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from ToolApp.models import AppUser, EmployeeTeam, EmployeeTeamMember, LeaveDay, LeaveRequest, Users
 from ToolApp.security import make_admin_token, make_app_user_token
+from ToolApp.leave_email import LEAVE_REQUEST_OFFICE_EMAIL, leave_request_recipients
 
 
 class LeaveRequestWorkflowApiTests(TestCase):
@@ -81,6 +83,21 @@ class LeaveRequestWorkflowApiTests(TestCase):
         self.assertEqual(item.reason, "Programare personală")
         self.assertEqual(response.json()["leave_request"]["status"], "pending")
         self.assertEqual(response.json()["leave_request"]["reason"], "Programare personală")
+
+    @patch("ToolApp.mobile_views.send_leave_request_email")
+    def test_new_leave_request_is_emailed_to_office_and_team_leader(self, send_email):
+        self.leader_a.email = "lider@dmxconstruction.ro"
+        self.leader_a.save(update_fields=("email",))
+
+        response = self.mobile_create("5101")
+
+        self.assertEqual(response.status_code, 201, response.content)
+        item = LeaveRequest.objects.select_related("assigned_leader").get()
+        send_email.assert_called_once_with(item)
+        self.assertEqual(
+            leave_request_recipients(item),
+            ["lider@dmxconstruction.ro", LEAVE_REQUEST_OFFICE_EMAIL],
+        )
 
     def test_mobile_request_without_active_team_is_rejected(self):
         response = self.mobile_create("5103")
@@ -248,6 +265,32 @@ class LeaveRequestWorkflowApiTests(TestCase):
             3,
         )
         self.assertEqual(response.json()["leave_balance"]["total_used_days"], 3)
+
+    def test_admin_can_mark_each_supported_leave_type(self):
+        expected = {
+            "CO": (LeaveDay.Reason.CO, "1.00"),
+            "CM": (LeaveDay.Reason.CM, "0.75"),
+            "UNPAID": (LeaveDay.Reason.UNPAID, "0.00"),
+            "INDIA": (LeaveDay.Reason.INDIA, "0.00"),
+        }
+        work_days = (1, 2, 3, 5)
+        for day_number, (leave_type, (reason, multiplier)) in zip(work_days, expected.items()):
+            with self.subTest(leave_type=leave_type):
+                target = date(2026, 10, day_number)
+                response = self.admin.post(
+                    reverse("leave_mark_range"),
+                    data=json.dumps({
+                        "user_id": self.worker_a.pk,
+                        "start_date": target.isoformat(),
+                        "end_date": target.isoformat(),
+                        "leave_type": leave_type,
+                    }),
+                    content_type="application/json",
+                )
+                self.assertEqual(response.status_code, 200, response.content)
+                day = LeaveDay.objects.get(user_fk=self.worker_a, work_date=target)
+                self.assertEqual(day.reason, reason)
+                self.assertEqual(str(day.multiplier), multiplier)
 
     def test_employee_api_exposes_effective_hire_date_and_leave_balance(self):
         self.worker_a.hire_date = None

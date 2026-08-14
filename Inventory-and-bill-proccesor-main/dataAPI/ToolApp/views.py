@@ -23,7 +23,7 @@ from django.utils import timezone
 from django.utils.timezone import localtime, localdate
 from django.db import transaction
 from django.db.models.deletion import ProtectedError
-from django.db.models import Sum, Min, Max, OuterRef, Subquery, Q
+from django.db.models import F, Sum, Min, Max, OuterRef, Subquery, Q
 from django.core import signing
 from django.core.cache import cache
 
@@ -396,6 +396,30 @@ def _employee_api_payload(user):
         "leave_balance": build_leave_summary(user, today),
     })
     return payload
+
+
+def _employee_valid_on_q(day, prefix=""):
+    return (
+        Q(**{f"{prefix}employment_status": Users.EmploymentStatus.ACTIVE})
+        | Q(
+            **{
+                f"{prefix}employment_status": Users.EmploymentStatus.DISMISSED,
+                f"{prefix}dismissed_at__gte": day,
+            }
+        )
+    )
+
+
+def _session_within_employment_q(prefix="user_fk__"):
+    return (
+        Q(**{f"{prefix}employment_status": Users.EmploymentStatus.ACTIVE})
+        | Q(
+            **{
+                f"{prefix}employment_status": Users.EmploymentStatus.DISMISSED,
+                f"{prefix}dismissed_at__gte": F("work_date"),
+            }
+        )
+    )
 
 
 @csrf_exempt
@@ -1866,6 +1890,8 @@ def _find_user_by_pin(raw_pin):
             UserId=cached_user_id,
             UserPin=raw_pin,
             person_type=Users.PersonType.EMPLOYEE,
+            active=True,
+            employment_status=Users.EmploymentStatus.ACTIVE,
         ).first()
         if cached_user:
             return cached_user
@@ -1873,6 +1899,8 @@ def _find_user_by_pin(raw_pin):
     user = Users.objects.filter(
         UserPin=raw_pin,
         person_type=Users.PersonType.EMPLOYEE,
+        active=True,
+        employment_status=Users.EmploymentStatus.ACTIVE,
     ).first()
     if user:
         cache.set(_pin_cache_key(raw_pin), user.UserId, PIN_LOGIN_CACHE_SECONDS)
@@ -2391,6 +2419,7 @@ def attendance_today(request):
     today = localdate()
     qs = (AttendanceSession.objects
           .filter(work_date=today, user_fk__person_type=Users.PersonType.EMPLOYEE)
+          .filter(_session_within_employment_q())
           .values("user_fk__UserId", "user_fk__UserName")
           .annotate(first_in=Min("in_time"),
                     last_out=Max("out_time"),
@@ -2442,11 +2471,12 @@ def attendance_day(request):
         for x in LeaveDay.objects.filter(
             work_date=day,
             user_fk__person_type=Users.PersonType.EMPLOYEE,
-        ).select_related("user_fk")
+        ).filter(_session_within_employment_q()).select_related("user_fk")
     }
 
     qs = (AttendanceSession.objects
           .filter(work_date=day, user_fk__person_type=Users.PersonType.EMPLOYEE)
+          .filter(_session_within_employment_q())
           .select_related("user_fk")
           .order_by("user_fk__UserName", "in_time"))
 
@@ -2559,6 +2589,7 @@ def attendance_present(request):
                    out_time__isnull=True,
                    user_fk__person_type=Users.PersonType.EMPLOYEE,
                )
+               .filter(_session_within_employment_q())
                .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
                .select_related("user_fk")
                .order_by("in_time"))
@@ -2702,6 +2733,7 @@ def attendance_range(request):
               work_date__range=(start, end),
               user_fk__person_type=Users.PersonType.EMPLOYEE,
           )
+          .filter(_session_within_employment_q())
           .values("user_fk__UserId", "user_fk__UserName", "work_date")
           .annotate(
               first_in=Min("in_time"),
@@ -2745,6 +2777,7 @@ def attendance_worksite_report(request):
             work_date__range=(start, end),
             user_fk__person_type=Users.PersonType.EMPLOYEE,
         )
+        .filter(_session_within_employment_q())
         .select_related("user_fk")
         .order_by("worksite", "user_fk__UserName", "in_time")
     )
@@ -2871,6 +2904,7 @@ def attendance_day_cost_report(request):
             work_date=day,
             user_fk__person_type=Users.PersonType.EMPLOYEE,
         )
+        .filter(_session_within_employment_q())
         .select_related("user_fk")
         .order_by("user_fk__UserName", "in_time")
     )
@@ -2945,6 +2979,7 @@ def _monitor_initial_events(limit: int = 24):
             work_date=today,
             user_fk__person_type=Users.PersonType.EMPLOYEE,
         )
+        .filter(_session_within_employment_q())
         .select_related("user_fk")
         .order_by("in_time", "id")
     )
@@ -3305,8 +3340,25 @@ def leave_mark_range(request):
     if (end_date - start_date).days > 366:
         return JsonResponse({"error": "Perioada nu poate depăși 366 de zile."}, status=400)
 
+    leave_type = str(data.get("leave_type") or LeaveDay.Reason.CO).strip().upper()
+    allowed_types = {
+        LeaveDay.Reason.CO,
+        LeaveDay.Reason.CM,
+        LeaveDay.Reason.UNPAID,
+        LeaveDay.Reason.INDIA,
+    }
+    if leave_type not in allowed_types:
+        return JsonResponse({"error": "Tipul concediului nu este valid."}, status=400)
+
     rate = user.hourly_rate or Decimal("0.00")
     hours = Decimal("8.00")
+    multiplier = {
+        LeaveDay.Reason.CO: Decimal("1.00"),
+        LeaveDay.Reason.CM: Decimal("0.75"),
+        LeaveDay.Reason.UNPAID: Decimal("0.00"),
+        LeaveDay.Reason.INDIA: Decimal("0.00"),
+    }[leave_type]
+    leave_label = dict(LeaveDay.Reason.choices)[leave_type]
     marked_dates = []
     current = start_date
     while current <= end_date:
@@ -3315,12 +3367,12 @@ def leave_mark_range(request):
                 user_fk=user,
                 work_date=current,
                 defaults={
-                    "reason": LeaveDay.Reason.CO,
+                    "reason": leave_type,
                     "hours": hours,
-                    "multiplier": Decimal("1.00"),
+                    "multiplier": multiplier,
                     "hourly_rate_snapshot": rate,
-                    "pay_amount": rate * hours,
-                    "note": "Concediu de odihnă marcat manual",
+                    "pay_amount": rate * hours * multiplier,
+                    "note": f"{leave_label} marcat manual",
                 },
             )
             recompute_daily_pay(user, current)
@@ -3330,9 +3382,10 @@ def leave_mark_range(request):
     from ToolApp.mobile_services import build_leave_summary
 
     try:
-        _audit_line(request, f"s-a marcat concediu pentru {user.UserName}: {start_date} - {end_date}", {
+        _audit_line(request, f"s-a marcat {leave_label} pentru {user.UserName}: {start_date} - {end_date}", {
             "user_id": user.pk,
             "marked_dates": marked_dates,
+            "leave_type": leave_type,
         })
     except Exception:
         pass
@@ -3342,6 +3395,8 @@ def leave_mark_range(request):
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "marked_days": len(marked_dates),
+        "leave_type": leave_type,
+        "leave_type_label": leave_label,
         "dates": marked_dates,
         "leave_balance": build_leave_summary(user, localdate()),
     })
@@ -4734,7 +4789,7 @@ def generate_excel(request):
     # --- toți angajații din DB, apoi filtrăm manual pe firmă ---
     all_users_qs = Users.objects.filter(
         person_type=Users.PersonType.EMPLOYEE,
-    ).order_by("UserName")
+    ).filter(_employee_valid_on_q(start_day)).order_by("UserName")
     all_users = list(all_users_qs)
 
     # filtrare pe firmă (dacă e cazul)
@@ -4813,7 +4868,7 @@ def generate_excel(request):
             return None
 
         up = t.upper()
-        if up in ("CO", "CM", "ALT"):
+        if up in ("CO", "CM", "UNPAID", "INDIA", "ALT"):
             return up
 
         low = t.lower()
@@ -4830,6 +4885,7 @@ def generate_excel(request):
             work_date__range=(start_day, end_day),
             user_fk__person_type=Users.PersonType.EMPLOYEE,
         )
+        .filter(_session_within_employment_q())
         .select_related("user_fk")
         .order_by("user_fk__UserName", "work_date", "in_time")
     )
@@ -4862,6 +4918,7 @@ def generate_excel(request):
     leaves_qs = (
         LeaveDay.objects
         .filter(work_date__range=(start_day, end_day), user_fk__in=users_list)
+        .filter(_session_within_employment_q())
         .select_related("user_fk")
         .order_by("user_fk__UserName", "work_date")
     )
@@ -4961,6 +5018,8 @@ def generate_excel(request):
         for day in range(1, days_in_month + 1):
             day_date = _date(year, month_idx, day)
             col_letter = get_column_letter(start_column + day - 1)
+            if user.dismissed_at and day_date > user.dismissed_at:
+                continue
             #Ia concediul din ziua respectivă (dacă există)
             leave_info = per_day_leave.get(day)
 

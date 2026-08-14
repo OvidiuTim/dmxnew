@@ -21,13 +21,22 @@ export class EmployeeFormComponent implements OnInit {
   companyOptions: string[] = [];
   selectedCompanyOption = 'RNX';
   isAddingNewCompany = false;
-  accommodationOptions: Array<{ id: number; name: string; address?: string }> = [];
+  accommodationOptions: Array<{
+    id: number;
+    name: string;
+    address?: string;
+    total_places?: number;
+    available_places?: number | null;
+    rooms?: Array<{ id: number; name: string; position: number }>;
+  }> = [];
   effectiveHireDate: string | null = null;
   hireDateSource: string | null = null;
   initialLeaveRemaining: string | null = null;
 
   readonly form = this.fb.group({
     person_type: ['employee', [Validators.required]],
+    employment_status: ['active', [Validators.required]],
+    dismissed_at: [null as string | null],
     UserName: ['', [Validators.required, Validators.maxLength(100)]],
     UserSerie: ['', [Validators.required, Validators.maxLength(100)]],
     UserPin: ['', [Validators.required, Validators.maxLength(100)]],
@@ -44,6 +53,7 @@ export class EmployeeFormComponent implements OnInit {
     hire_date: [null as string | null],
     leave_remaining_days: ['0.00', [Validators.required, Validators.min(0)]],
     accommodation_id: [null as number | null],
+    accommodation_room_id: [null as number | null],
   });
 
   constructor(
@@ -86,6 +96,19 @@ export class EmployeeFormComponent implements OnInit {
     return this.form.value.person_type === 'collaborator';
   }
 
+  get isDismissed(): boolean {
+    return this.form.value.employment_status === 'dismissed';
+  }
+
+  get selectedAccommodationRooms(): Array<{ id: number; name: string; position: number }> {
+    const accommodationId = Number(this.form.value.accommodation_id || 0);
+    return this.accommodationOptions.find(item => item.id === accommodationId)?.rooms ?? [];
+  }
+
+  onAccommodationChange(): void {
+    this.form.patchValue({ accommodation_room_id: null });
+  }
+
   onPersonTypeChange(value: string): void {
     this.form.patchValue({ person_type: value });
     if (!this.isEditMode && value === 'employee') {
@@ -94,7 +117,14 @@ export class EmployeeFormComponent implements OnInit {
       this.form.controls.UserPin.setValidators([Validators.maxLength(100)]);
     }
     if (value === 'collaborator') {
-      this.form.patchValue({ UserPin: '', uid: '' });
+      this.form.patchValue({
+        UserPin: '',
+        uid: '',
+        employment_status: 'active',
+        dismissed_at: null,
+        accommodation_id: null,
+        accommodation_room_id: null,
+      });
     }
     this.form.controls.UserPin.updateValueAndValidity();
   }
@@ -265,6 +295,8 @@ export class EmployeeFormComponent implements OnInit {
         this.loading = false;
         this.form.patchValue({
           person_type: user?.person_type ?? 'employee',
+          employment_status: user?.employment_status ?? 'active',
+          dismissed_at: user?.dismissed_at ?? null,
           UserName: user?.UserName ?? '',
           UserSerie: user?.UserSerie ?? '',
           UserPin: '',
@@ -281,6 +313,7 @@ export class EmployeeFormComponent implements OnInit {
           hire_date: user?.hire_date ?? null,
           leave_remaining_days: String(user?.leave_balance?.remaining_days ?? '0.00'),
           accommodation_id: user?.accommodation_id ?? null,
+          accommodation_room_id: user?.accommodation_room_id ?? null,
         });
         this.effectiveHireDate = user?.effective_hire_date ?? null;
         this.hireDateSource = user?.hire_date_source ?? null;
@@ -303,6 +336,8 @@ export class EmployeeFormComponent implements OnInit {
       ...(this.userId ? { UserId: this.userId } : {}),
       UserName: (value.UserName ?? '').trim(),
       person_type: value.person_type ?? 'employee',
+      employment_status: value.employment_status ?? 'active',
+      dismissed_at: value.employment_status === 'dismissed' ? (value.dismissed_at || null) : null,
       UserSerie: (value.UserSerie ?? '').trim(),
       uid: this.normalizeOptionalString(value.uid),
       hourly_rate: this.normalizeRate(value.hourly_rate),
@@ -317,6 +352,7 @@ export class EmployeeFormComponent implements OnInit {
       trade: this.normalizeOptionalString(value.trade),
       hire_date: value.hire_date || null,
       accommodation_id: value.accommodation_id ? Number(value.accommodation_id) : null,
+      accommodation_room_id: value.accommodation_room_id ? Number(value.accommodation_room_id) : null,
     };
 
     if (this.isEditMode) {

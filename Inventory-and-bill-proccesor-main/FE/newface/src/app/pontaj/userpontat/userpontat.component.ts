@@ -94,7 +94,7 @@ export class UserpontatComponent implements OnInit {
   leaveRangeSaving = false;
   leaveRangeError: string | null = null;
   leaveRangeNotice: string | null = null;
-  leaveRangeForm = { start_date: '', end_date: '' };
+  leaveRangeForm = { start_date: '', end_date: '', leave_type: 'CO' as 'CO' | 'CM' | 'UNPAID' | 'INDIA' };
 
   // editor
   editingDate: string | null = null;
@@ -126,6 +126,9 @@ export class UserpontatComponent implements OnInit {
   mapLeave: Record<string, string> = {
     CO: 'Concediu de odihnă',
     CM: 'Concediu medical',
+    UNPAID: 'Concediu fără plată',
+    INDIA: 'Plecat în India',
+    UNEXCUSED: 'Absență nemotivată',
     ALT: 'Absență'
   };
 
@@ -267,7 +270,7 @@ export class UserpontatComponent implements OnInit {
   openLeaveRange(): void {
     const today = new Date();
     const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    this.leaveRangeForm = { start_date: iso, end_date: iso };
+    this.leaveRangeForm = { start_date: iso, end_date: iso, leave_type: 'CO' };
     this.leaveRangeError = null;
     this.leaveRangeOpen = true;
   }
@@ -277,7 +280,7 @@ export class UserpontatComponent implements OnInit {
   }
 
   markLeaveRange(): void {
-    const { start_date, end_date } = this.leaveRangeForm;
+    const { start_date, end_date, leave_type } = this.leaveRangeForm;
     if (!start_date || !end_date) {
       this.leaveRangeError = 'Selectează data de început și data de sfârșit.';
       return;
@@ -288,11 +291,11 @@ export class UserpontatComponent implements OnInit {
     }
     this.leaveRangeSaving = true;
     this.leaveRangeError = null;
-    this.api.markLeaveRange(this.userId, start_date, end_date).subscribe({
+    this.api.markLeaveRange(this.userId, start_date, end_date, leave_type).subscribe({
       next: response => {
         this.leaveRangeSaving = false;
         this.leaveRangeOpen = false;
-        this.leaveRangeNotice = `${response?.marked_days || 0} zile au fost marcate ca „Concediu de odihnă”.`;
+        this.leaveRangeNotice = `${response?.marked_days || 0} zile au fost marcate ca „${response?.leave_type_label || this.mapLeave[leave_type]}”.`;
         if (this.employeeProfile) this.employeeProfile.leave_balance = response?.leave_balance || this.employeeProfile.leave_balance;
         this.load();
         this.refreshMonthSalary();

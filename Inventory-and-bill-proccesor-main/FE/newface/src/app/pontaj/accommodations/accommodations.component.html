@@ -3,7 +3,7 @@
     <div><span class="eyebrow">Pontaj</span><h1>Cazări</h1><p>Administrează locațiile și repartizează rapid angajații.</p></div>
     <div class="header-actions">
       <button class="button secondary" type="button" (click)="load()"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Actualizează</button>
-      <button class="button primary" type="button" (click)="showForm = !showForm"><span class="material-symbols-rounded" aria-hidden="true">add_home</span>Adaugă cazare</button>
+      <button class="button primary" type="button" (click)="openNewAccommodation()"><span class="material-symbols-rounded" aria-hidden="true">add_home</span>Adaugă cazare</button>
     </div>
   </header>
 
@@ -13,8 +13,15 @@
   <form class="accommodation-form" *ngIf="showForm" (ngSubmit)="saveAccommodation()">
     <label><span>Denumire</span><input required [(ngModel)]="form.name" name="name" placeholder="Ex: Cazare Centrală"></label>
     <label><span>Adresă</span><input [(ngModel)]="form.address" name="address" placeholder="Stradă, număr, localitate"></label>
+    <label><span>Număr total de locuri</span><input type="number" min="0" step="1" [(ngModel)]="form.total_places" name="total_places" placeholder="Ex: 24"></label>
+    <label><span>Număr de camere</span><input type="number" min="0" step="1" [ngModel]="form.number_of_rooms" (ngModelChange)="onRoomCountChange($event)" name="number_of_rooms" placeholder="Ex: 6"></label>
+    <div class="rooms-editor" *ngIf="form.rooms.length">
+      <span>Numerotarea sau denumirea camerelor</span>
+      <div class="rooms-grid"><label *ngFor="let room of form.rooms; let index = index"><small>Camera {{ index + 1 }}</small><input [(ngModel)]="form.rooms[index]" [name]="'room_' + index" [placeholder]="'Camera ' + (index + 1)"></label></div>
+    </div>
     <label class="notes"><span>Observații</span><input [(ngModel)]="form.notes" name="notes" placeholder="Detalii opționale"></label>
-    <div class="form-actions"><button class="button secondary" type="button" (click)="showForm = false">Renunță</button><button class="button primary" type="submit" [disabled]="saving">{{ saving ? 'Se salvează…' : 'Salvează cazarea' }}</button></div>
+    <label class="active-control" *ngIf="editingAccommodationId"><input type="checkbox" [(ngModel)]="form.active" name="active"><span>Cazare activă</span></label>
+    <div class="form-actions"><button class="button secondary" type="button" (click)="cancelAccommodationForm()">Renunță</button><button class="button primary" type="submit" [disabled]="saving">{{ saving ? 'Se salvează…' : (editingAccommodationId ? 'Salvează modificările' : 'Salvează cazarea') }}</button></div>
   </form>
 
   <div class="loading-state" *ngIf="loading">Se încarcă datele…</div>
@@ -23,14 +30,15 @@
     <section class="stats-grid">
       <article><span class="material-symbols-rounded" aria-hidden="true">apartment</span><div><strong>{{ activeAccommodations.length }}</strong><small>Cazări active</small></div></article>
       <article><span class="material-symbols-rounded" aria-hidden="true">groups</span><div><strong>{{ employees.length }}</strong><small>Angajați activi</small></div></article>
+      <article><span class="material-symbols-rounded" aria-hidden="true">bed</span><div><strong>{{ totalConfiguredPlaces }}</strong><small>Locuri configurate</small></div></article>
       <article><span class="material-symbols-rounded" aria-hidden="true">person_off</span><div><strong>{{ unassignedCount }}</strong><small>Fără cazare</small></div></article>
     </section>
 
     <section class="accommodation-grid" *ngIf="accommodations.length">
       <article *ngFor="let item of accommodations; trackBy: trackById" [class.inactive]="!item.active">
         <span class="home-icon material-symbols-rounded" aria-hidden="true">home_work</span>
-        <div><h2>{{ item.name }}</h2><p>{{ item.address || 'Adresă necompletată' }}</p><small *ngIf="item.notes">{{ item.notes }}</small></div>
-        <strong>{{ item.employee_count }} <small>angajați</small></strong>
+        <div><h2>{{ item.name }}</h2><p>{{ item.address || 'Adresă necompletată' }}</p><small>{{ item.number_of_rooms }} camere · {{ item.total_places || '—' }} locuri</small><small *ngIf="item.notes">{{ item.notes }}</small></div>
+        <div class="card-actions"><strong>{{ item.employee_count }} <small>angajați</small></strong><button class="icon-button" type="button" (click)="editAccommodation(item)" [attr.aria-label]="'Editează ' + item.name"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button></div>
       </article>
     </section>
 
@@ -38,14 +46,15 @@
       <div class="section-head"><div><span class="eyebrow">Repartizare</span><h2>Cazarea angajaților</h2></div><label class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="searchTerm" placeholder="Caută angajat sau cazare" aria-label="Caută angajat"></label></div>
       <div class="table-scroll">
         <table>
-          <thead><tr><th>Angajat</th><th>Profesie</th><th>Companie</th><th>Cazare</th><th>Stare</th></tr></thead>
+          <thead><tr><th>Angajat</th><th>Profesie</th><th>Companie</th><th>Cazare</th><th>Camera</th><th>Stare</th></tr></thead>
           <tbody>
             <tr *ngFor="let employee of filteredEmployees; trackBy: trackById">
               <td><strong>{{ employee.name }}</strong><small>{{ employee.serie }}</small></td>
               <td>{{ employee.trade || 'Necompletată' }}</td>
               <td>{{ employee.company || '—' }}</td>
-              <td><select [value]="assignments[employee.id] ?? ''" (change)="assign(employee, $any($event.target).value)" [disabled]="savingEmployee[employee.id]" [attr.aria-label]="'Cazare pentru ' + employee.name"><option value="">Fără cazare</option><option *ngFor="let item of activeAccommodations" [value]="item.id">{{ item.name }}</option></select></td>
-              <td><span class="saving" *ngIf="savingEmployee[employee.id]">Se salvează…</span><span class="saved" *ngIf="!savingEmployee[employee.id] && savedEmployee[employee.id]">Salvat</span><span class="muted" *ngIf="!savingEmployee[employee.id] && !savedEmployee[employee.id]">{{ employee.housing_location || 'Nealocat' }}</span></td>
+              <td><select [ngModel]="assignments[employee.id]" (ngModelChange)="onAccommodationChange(employee, $event)" [ngModelOptions]="{standalone: true}" [disabled]="savingEmployee[employee.id]" [attr.aria-label]="'Cazare pentru ' + employee.name"><option [ngValue]="null">Fără cazare</option><option *ngFor="let item of accommodationOptionsForEmployee(employee)" [ngValue]="item.id">{{ item.name }}<ng-container *ngIf="item.total_places"> · {{ item.available_places }} libere</ng-container></option></select></td>
+              <td><select *ngIf="roomsForEmployee(employee).length" [ngModel]="roomAssignments[employee.id]" (ngModelChange)="onRoomChange(employee, $event)" [ngModelOptions]="{standalone: true}" [disabled]="savingEmployee[employee.id]" [attr.aria-label]="'Camera pentru ' + employee.name"><option [ngValue]="null">Selectează camera</option><option *ngFor="let room of roomsForEmployee(employee)" [ngValue]="room.id">{{ room.name }}</option></select><span class="muted" *ngIf="!roomsForEmployee(employee).length">—</span></td>
+              <td><span class="saving" *ngIf="savingEmployee[employee.id]">Se salvează…</span><span class="saved" *ngIf="!savingEmployee[employee.id] && savedEmployee[employee.id]">Salvat</span><span class="muted" *ngIf="!savingEmployee[employee.id] && !savedEmployee[employee.id]">{{ employee.housing_location || 'Nealocat' }}<ng-container *ngIf="employee.accommodation_room_name"> · {{ employee.accommodation_room_name }}</ng-container></span></td>
             </tr>
           </tbody>
         </table>

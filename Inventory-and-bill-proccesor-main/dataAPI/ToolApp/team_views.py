@@ -100,7 +100,11 @@ def _team_payload(team, app_user=None, can_manage_all=False, member_statuses=Non
     member_statuses = member_statuses or {}
     include_requests = can_manage_all or _is_leader(app_user, team)
     memberships = list(
-        team.memberships.filter(active=True)
+        team.memberships.filter(
+            active=True,
+            employee__active=True,
+            employee__employment_status=Users.EmploymentStatus.ACTIVE,
+        )
         .select_related("employee")
         .order_by("employee__UserName")
     )
@@ -171,7 +175,14 @@ def _team_member_statuses(teams, app_user, can_manage_all):
     employee_ids = {
         employee_id
         for team in teams
-        for employee_id in [team.leader_id, *team.memberships.filter(active=True).values_list("employee_id", flat=True)]
+        for employee_id in [
+            team.leader_id,
+            *team.memberships.filter(
+                active=True,
+                employee__active=True,
+                employee__employment_status=Users.EmploymentStatus.ACTIVE,
+            ).values_list("employee_id", flat=True),
+        ]
     }
     if not employee_ids:
         return {}
@@ -281,7 +292,12 @@ def _presence_maps(day):
 def _membership_map(active_only=True):
     query = EmployeeTeamMember.objects.select_related("team", "employee")
     if active_only:
-        query = query.filter(active=True, team__active=True)
+        query = query.filter(
+            active=True,
+            team__active=True,
+            employee__active=True,
+            employee__employment_status=Users.EmploymentStatus.ACTIVE,
+        )
     return {membership.employee_id: membership.team for membership in query.order_by("pk")}
 
 
@@ -788,12 +804,18 @@ def teams_today(request):
     app_user, can_manage_all = _actor(request)
     day = _parse_date(request.GET.get("date"))
     present_ids, worksites, leaves = _presence_maps(day)
-    teams = list(_teams_queryset().filter(active=True))
+    teams = list(_teams_queryset().filter(
+        active=True,
+        leader__active=True,
+        leader__employment_status=Users.EmploymentStatus.ACTIVE,
+    ))
     transfers = list(TemporaryWorkerRequest.objects.select_related("employee", "source_team", "requester_team").filter(
         request_type=TemporaryWorkerRequest.RequestType.TEMPORARY,
         status=TemporaryWorkerRequest.Status.APPROVED,
         start_date__lte=day,
         end_date__gte=day,
+        employee__active=True,
+        employee__employment_status=Users.EmploymentStatus.ACTIVE,
     ))
     received = {}
     sent = {}
@@ -805,7 +827,14 @@ def teams_today(request):
     rows = []
     assigned_ids = set()
     for team in teams:
-        members = [membership.employee for membership in team.memberships.filter(active=True).select_related("employee")]
+        members = [
+            membership.employee
+            for membership in team.memberships.filter(
+                active=True,
+                employee__active=True,
+                employee__employment_status=Users.EmploymentStatus.ACTIVE,
+            ).select_related("employee")
+        ]
         if team.leader_id not in {member.pk for member in members}:
             members.insert(0, team.leader)
         assigned_ids.update(member.pk for member in members)
@@ -839,6 +868,7 @@ def teams_today(request):
         for employee in Users.objects.filter(
             active=True,
             person_type=Users.PersonType.EMPLOYEE,
+            employment_status=Users.EmploymentStatus.ACTIVE,
         ).order_by("UserName")
         if employee.pk not in assigned_ids and employee.pk not in transferred_ids and employee.pk not in leaves
     ]
@@ -876,6 +906,7 @@ def available_personnel(request):
     for employee in Users.objects.filter(
         active=True,
         person_type=Users.PersonType.EMPLOYEE,
+        employment_status=Users.EmploymentStatus.ACTIVE,
     ).order_by("UserName"):
         team = memberships.get(employee.pk)
         leave = leaves.get(employee.pk)

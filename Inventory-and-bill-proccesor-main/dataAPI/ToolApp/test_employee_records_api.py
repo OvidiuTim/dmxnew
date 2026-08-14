@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from ToolApp.models import (
     Accommodation,
+    AccommodationRoom,
     AppModuleAccess,
     AppPagePermission,
     AppUser,
@@ -153,6 +154,77 @@ class EmployeeRecordsApiTests(TestCase):
         listing = self.admin.get(reverse("accommodations")).json()
         self.assertEqual(listing["accommodations"][0]["employee_count"], 1)
         self.assertEqual(listing["employees"][0]["accommodation_id"], accommodation_id)
+
+    def test_accommodation_rooms_are_named_and_saved_with_employee_assignment(self):
+        created = self.admin.post(
+            reverse("accommodations"),
+            data=json.dumps({
+                "name": "Cazare cu camere",
+                "address": "Strada Camerelor 2",
+                "total_places": 8,
+                "number_of_rooms": 2,
+                "rooms": [{"name": "Parter"}, {"name": "Etaj 1"}],
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(created.status_code, 201, created.content)
+        accommodation = created.json()["accommodation"]
+        self.assertEqual(accommodation["total_places"], 8)
+        self.assertEqual(accommodation["number_of_rooms"], 2)
+        self.assertEqual([room["name"] for room in accommodation["rooms"]], ["Parter", "Etaj 1"])
+
+        missing_room = self.admin.post(
+            reverse("accommodation_assignment"),
+            data=json.dumps({"employee_id": self.employee.pk, "accommodation_id": accommodation["id"]}),
+            content_type="application/json",
+        )
+        self.assertEqual(missing_room.status_code, 400)
+
+        room_id = accommodation["rooms"][1]["id"]
+        assigned = self.admin.post(
+            reverse("accommodation_assignment"),
+            data=json.dumps({
+                "employee_id": self.employee.pk,
+                "accommodation_id": accommodation["id"],
+                "accommodation_room_id": room_id,
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(assigned.status_code, 200, assigned.content)
+        self.employee.refresh_from_db()
+        self.assertEqual(self.employee.accommodation_room_id, room_id)
+        self.assertEqual(assigned.json()["employee"]["accommodation_room_name"], "Etaj 1")
+
+        updated = self.admin.put(
+            reverse("accommodations"),
+            data=json.dumps({
+                "id": accommodation["id"],
+                "name": "Cazare cu camere",
+                "total_places": 10,
+                "number_of_rooms": 2,
+                "rooms": ["Camera A", "Camera B"],
+                "active": True,
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(updated.status_code, 200, updated.content)
+        self.assertEqual([room["name"] for room in updated.json()["accommodation"]["rooms"]], ["Camera A", "Camera B"])
+        self.assertEqual(AccommodationRoom.objects.get(pk=room_id).name, "Camera B")
+
+        remove_occupied_room = self.admin.put(
+            reverse("accommodations"),
+            data=json.dumps({
+                "id": accommodation["id"],
+                "name": "Cazare cu camere",
+                "total_places": 10,
+                "number_of_rooms": 1,
+                "rooms": ["Camera A"],
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(remove_occupied_room.status_code, 400)
+        self.assertIn("angajați atribuiți", remove_occupied_room.json()["error"])
+        self.assertTrue(AccommodationRoom.objects.filter(pk=room_id).exists())
 
     def test_user_serializer_accepts_accommodation_field(self):
         accommodation = Accommodation.objects.create(name="Cazare Vest")

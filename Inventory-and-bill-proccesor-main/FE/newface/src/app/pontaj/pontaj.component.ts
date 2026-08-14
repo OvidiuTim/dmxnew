@@ -79,7 +79,11 @@ seeFisaAngajat(id: number): void {
       users: this.api.getUsrList()
     }).subscribe({
       next: ({ day, users }) => {
-        users = (users ?? []).filter((user: any) => (user.person_type || 'employee') === 'employee');
+        users = (users ?? []).filter((user: any) => {
+          if ((user.person_type || 'employee') !== 'employee') return false;
+          if ((user.employment_status || 'active') !== 'dismissed') return true;
+          return Boolean(user.dismissed_at && this.selectedDate <= user.dismissed_at);
+        });
         const byId = new Map<number, DayUserRow>();
         for (const r of (day?.rows ?? [])) {
           byId.set(r.UserId, r);

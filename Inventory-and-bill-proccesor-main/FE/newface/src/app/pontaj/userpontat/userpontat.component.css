@@ -520,9 +520,10 @@ h2 { margin:0; font-size:18px; }
   border-radius: 10px;
   object-fit: cover;
 }
-.leave-range-dialog p { color: #aeb8c8; line-height: 1.5; }
-.leave-range-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.leave-range-dialog { width: min(620px, 100%); padding: 24px; max-height: calc(100vh - 40px); overflow-y: auto; }
+.leave-range-dialog p { color: #aeb8c8; line-height: 1.5; margin: 0 0 20px; }
+.leave-range-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .leave-range-fields label { display: grid; gap: 6px; color: #aeb8c8; font-size: 12px; }
-.leave-range-fields input { min-height: 42px; padding: 8px 10px; border: 1px solid #293244; border-radius: 9px; background: #0f1725; color: #fff; }
+.leave-range-fields input, .leave-range-fields select { width: 100%; min-height: 46px; padding: 9px 12px; border: 1px solid #293244; border-radius: 9px; background: #0f1725; color: #fff; box-sizing: border-box; }
 .leave-range-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-@media (max-width: 560px) { .leave-range-fields { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .leave-range-dialog { padding: 18px; } .leave-range-actions { flex-direction: column-reverse; } .leave-range-actions .btn { width: 100%; } }

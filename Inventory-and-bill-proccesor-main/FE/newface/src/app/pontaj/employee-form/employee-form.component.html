@@ -29,6 +29,21 @@
           <small *ngIf="isCollaborator">Colaboratorul poate primi unelte, dar nu apare în Pontaj și nu se poate ponta.</small>
         </div>
 
+        <div class="field" *ngIf="isEditMode && !isCollaborator">
+          <label for="employment-status">Stare angajat</label>
+          <select id="employment-status" formControlName="employment_status">
+            <option value="active">Activ</option>
+            <option value="dismissed">Demis</option>
+          </select>
+          <small *ngIf="isDismissed">Datele sunt păstrate timp de 2 ani de la data demiterii.</small>
+        </div>
+
+        <div class="field" *ngIf="isEditMode && !isCollaborator && isDismissed">
+          <label for="dismissed-at">Data demiterii</label>
+          <input id="dismissed-at" type="date" formControlName="dismissed_at">
+          <small>Dacă nu completezi data, se folosește data de astăzi.</small>
+        </div>
+
         <div class="field">
           <label for="user-name">Nume persoană</label>
           <input id="user-name" type="text" formControlName="UserName" placeholder="Nume si prenume">
@@ -113,11 +128,19 @@
           <small>Valoarea calculată în aplicație. O poți modifica manual, iar noul sold va fi folosit peste tot.</small>
         </div>
 
-        <div class="field">
+        <div class="field" *ngIf="!isCollaborator">
           <label for="user-accommodation">Cazare</label>
-          <select id="user-accommodation" formControlName="accommodation_id">
+          <select id="user-accommodation" formControlName="accommodation_id" (change)="onAccommodationChange()">
             <option [ngValue]="null">Fără cazare</option>
             <option *ngFor="let item of accommodationOptions" [ngValue]="item.id">{{ item.name }}<ng-container *ngIf="item.address"> · {{ item.address }}</ng-container></option>
+          </select>
+        </div>
+
+        <div class="field" *ngIf="!isCollaborator && selectedAccommodationRooms.length">
+          <label for="user-accommodation-room">Camera</label>
+          <select id="user-accommodation-room" formControlName="accommodation_room_id">
+            <option [ngValue]="null">Selectează camera</option>
+            <option *ngFor="let room of selectedAccommodationRooms" [ngValue]="room.id">{{ room.name }}</option>
           </select>
         </div>
 

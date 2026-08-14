@@ -3,6 +3,7 @@ from datetime import date
 from pathlib import Path
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.http import FileResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
@@ -10,6 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from ToolApp.models import (
     Accommodation,
+    AccommodationRoom,
     EmployeeDocument,
     EmployeeDocumentType,
     Users,
@@ -48,13 +50,32 @@ def _date_or_none(value):
 
 
 def _accommodation_payload(item):
+    rooms = list(item.rooms.all())
+    active_employees = {
+        "active": True,
+        "person_type": Users.PersonType.EMPLOYEE,
+        "employment_status": Users.EmploymentStatus.ACTIVE,
+    }
+    employee_count = item.employees.filter(**active_employees).count()
     return {
         "id": item.pk,
         "name": item.name,
         "address": item.address,
         "notes": item.notes,
+        "total_places": item.total_places,
+        "number_of_rooms": item.number_of_rooms,
+        "available_places": max(0, item.total_places - employee_count) if item.total_places else None,
+        "rooms": [
+            {
+                "id": room.pk,
+                "position": room.position,
+                "name": room.name,
+                "employee_count": room.employees.filter(**active_employees).count(),
+            }
+            for room in rooms
+        ],
         "active": item.active,
-        "employee_count": item.employees.filter(active=True).count(),
+        "employee_count": employee_count,
     }
 
 
@@ -66,15 +87,55 @@ def _employee_accommodation_payload(employee):
         "trade": employee.trade or "",
         "company": employee.Company or "",
         "accommodation_id": employee.accommodation_id,
+        "accommodation_room_id": employee.accommodation_room_id,
+        "accommodation_room_name": employee.accommodation_room.name if employee.accommodation_room_id else "",
         "housing_location": employee.accommodation.name if employee.accommodation_id else employee.housing_location,
     }
+
+
+def _non_negative_int(value, field_label):
+    try:
+        parsed = int(value or 0)
+    except (TypeError, ValueError):
+        raise ValidationError({field_label: f"{field_label} trebuie să fie un număr întreg."})
+    if parsed < 0:
+        raise ValidationError({field_label: f"{field_label} nu poate fi negativ."})
+    return parsed
+
+
+def _room_names(body, number_of_rooms):
+    raw_rooms = body.get("rooms") or []
+    if not isinstance(raw_rooms, list):
+        raise ValidationError({"rooms": "Lista camerelor nu este validă."})
+    names = []
+    for position in range(1, number_of_rooms + 1):
+        raw = raw_rooms[position - 1] if position <= len(raw_rooms) else ""
+        name = str(raw.get("name") if isinstance(raw, dict) else raw or "").strip()
+        if len(name) > 100:
+            raise ValidationError({"rooms": "Denumirea unei camere poate avea cel mult 100 de caractere."})
+        names.append(name or f"Camera {position}")
+    return names
+
+
+def _sync_accommodation_rooms(item, names):
+    for position, name in enumerate(names, start=1):
+        AccommodationRoom.objects.update_or_create(
+            accommodation=item,
+            position=position,
+            defaults={"name": name},
+        )
+    item.rooms.filter(position__gt=len(names)).delete()
 
 
 @csrf_exempt
 def accommodations(request):
     if request.method == "GET":
-        items = Accommodation.objects.prefetch_related("employees").order_by("name")
-        employees = Users.objects.select_related("accommodation").filter(active=True).order_by("UserName")
+        items = Accommodation.objects.prefetch_related("employees", "rooms__employees").order_by("name")
+        employees = Users.objects.select_related("accommodation", "accommodation_room").filter(
+            active=True,
+            person_type=Users.PersonType.EMPLOYEE,
+            employment_status=Users.EmploymentStatus.ACTIVE,
+        ).order_by("UserName")
         return JsonResponse({
             "accommodations": [_accommodation_payload(item) for item in items],
             "employees": [_employee_accommodation_payload(employee) for employee in employees],
@@ -100,14 +161,39 @@ def accommodations(request):
         duplicate = duplicate.exclude(pk=item.pk)
     if duplicate.exists():
         return _error("Există deja o cazare cu această denumire.")
-    item = item or Accommodation()
-    item.name = name
-    item.address = str(body.get("address") or "").strip()
-    if len(item.address) > 255:
-        return _error("Adresa poate avea cel mult 255 de caractere.")
-    item.notes = str(body.get("notes") or "").strip()
-    item.active = bool(body.get("active", True))
-    item.save()
+    try:
+        total_places = _non_negative_int(body.get("total_places"), "Numărul total de locuri")
+        number_of_rooms = _non_negative_int(body.get("number_of_rooms"), "Numărul de camere")
+        room_names = _room_names(body, number_of_rooms)
+    except ValidationError as exc:
+        return _error("Datele cazării nu sunt valide.", details=exc.message_dict)
+    current_employee_count = item.employees.filter(
+        active=True,
+        person_type=Users.PersonType.EMPLOYEE,
+        employment_status=Users.EmploymentStatus.ACTIVE,
+    ).count() if item else 0
+    if total_places and total_places < current_employee_count:
+        return _error(f"Cazarea are deja {current_employee_count} angajați atribuiți.")
+    if item and item.rooms.filter(
+        position__gt=number_of_rooms,
+        employees__active=True,
+        employees__person_type=Users.PersonType.EMPLOYEE,
+        employees__employment_status=Users.EmploymentStatus.ACTIVE,
+    ).exists():
+        return _error("Nu poți elimina camere care au angajați atribuiți. Mută mai întâi angajații în alte camere.")
+    with transaction.atomic():
+        item = item or Accommodation()
+        item.name = name
+        item.address = str(body.get("address") or "").strip()
+        if len(item.address) > 255:
+            return _error("Adresa poate avea cel mult 255 de caractere.")
+        item.notes = str(body.get("notes") or "").strip()
+        item.total_places = total_places
+        item.number_of_rooms = number_of_rooms
+        item.active = _as_bool(body.get("active", True))
+        item.save()
+        _sync_accommodation_rooms(item, room_names)
+    item = Accommodation.objects.prefetch_related("employees", "rooms__employees").get(pk=item.pk)
     return JsonResponse({"accommodation": _accommodation_payload(item)}, status=201 if request.method == "POST" else 200)
 
 
@@ -118,18 +204,41 @@ def accommodation_assignment(request):
     body = _json_body(request)
     if body is None:
         return _error("JSON invalid.")
-    employee = Users.objects.select_related("accommodation").filter(pk=body.get("employee_id")).first()
+    employee = Users.objects.select_related("accommodation", "accommodation_room").filter(
+        pk=body.get("employee_id"),
+        active=True,
+        person_type=Users.PersonType.EMPLOYEE,
+        employment_status=Users.EmploymentStatus.ACTIVE,
+    ).first()
     if not employee:
         return _error("Angajatul nu există.", 404)
     accommodation_id = body.get("accommodation_id")
     accommodation = None
     if accommodation_id not in (None, ""):
-        accommodation = Accommodation.objects.filter(pk=accommodation_id, active=True).first()
+        accommodation = Accommodation.objects.prefetch_related("rooms").filter(pk=accommodation_id, active=True).first()
         if not accommodation:
             return _error("Cazarea selectată nu există sau este inactivă.", 404)
+    room = None
+    room_id = body.get("accommodation_room_id")
+    if accommodation:
+        has_rooms = accommodation.rooms.exists()
+        if has_rooms and room_id in (None, ""):
+            return _error("Selectează camera pentru cazarea aleasă.")
+        if room_id not in (None, ""):
+            room = accommodation.rooms.filter(pk=room_id).first()
+            if not room:
+                return _error("Camera selectată nu aparține cazării alese.")
+        assigned_count = accommodation.employees.filter(
+            active=True,
+            person_type=Users.PersonType.EMPLOYEE,
+            employment_status=Users.EmploymentStatus.ACTIVE,
+        ).exclude(pk=employee.pk).count()
+        if accommodation.total_places and assigned_count >= accommodation.total_places:
+            return _error("Cazarea selectată nu mai are locuri disponibile.")
     employee.accommodation = accommodation
+    employee.accommodation_room = room
     employee.housing_location = accommodation.name if accommodation else ""
-    employee.save(update_fields=("accommodation", "housing_location"))
+    employee.save(update_fields=("accommodation", "accommodation_room", "housing_location"))
     return JsonResponse({"employee": _employee_accommodation_payload(employee)})
 
 

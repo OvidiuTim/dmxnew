@@ -1,7 +1,9 @@
 # serializers.py
+import hashlib
 import uuid
 
 from rest_framework import serializers
+from django.core.cache import cache
 from django.utils import timezone
 from ToolApp.models import (
     Consumables, Materials, MijloaceFixes, Shed, Tools, Histories, Unfunctional,
@@ -111,6 +113,18 @@ class UserSerializer(serializers.ModelSerializer):
         room = attrs.get("accommodation_room", getattr(self.instance, "accommodation_room", None))
         if room and (not accommodation or room.accommodation_id != accommodation.pk):
             raise serializers.ValidationError({"accommodation_room_id": "Camera nu aparține cazării selectate."})
+        if accommodation:
+            if accommodation.rooms.exists() and not room:
+                raise serializers.ValidationError({"accommodation_room_id": "Selectează camera pentru cazarea aleasă."})
+            assigned = accommodation.employees.filter(
+                active=True,
+                person_type=Users.PersonType.EMPLOYEE,
+                employment_status=Users.EmploymentStatus.ACTIVE,
+            )
+            if self.instance:
+                assigned = assigned.exclude(pk=self.instance.pk)
+            if accommodation.total_places and assigned.count() >= accommodation.total_places:
+                raise serializers.ValidationError({"accommodation_id": "Cazarea selectată nu mai are locuri disponibile."})
         return attrs
 
     def create(self, validated_data):
@@ -123,6 +137,7 @@ class UserSerializer(serializers.ModelSerializer):
         if raw_pin is not None:
             user.set_pin(raw_pin)
         user.save()
+        self._apply_employment_transition(user)
         return user
 
     def update(self, instance, validated_data):
@@ -153,6 +168,7 @@ class UserSerializer(serializers.ModelSerializer):
                 instance.leave_remaining_override_used_days = used_paid_leave_days(instance, current_year)
                 instance.leave_remaining_override_accrued_days = accrued_leave_days(instance, today)
         instance.save()
+        self._apply_employment_transition(instance)
         return instance
 
     def _normalize_employment_status(self, validated_data, instance=None):
@@ -167,6 +183,18 @@ class UserSerializer(serializers.ModelSerializer):
         elif "employment_status" in validated_data:
             validated_data["active"] = True
             validated_data["dismissed_at"] = None
+
+    def _apply_employment_transition(self, instance):
+        if instance.employment_status != Users.EmploymentStatus.DISMISSED:
+            return
+        from ToolApp.models import AppUser, EmployeeTeam, EmployeeTeamMember
+
+        EmployeeTeamMember.objects.filter(employee=instance, active=True).update(active=False)
+        EmployeeTeam.objects.filter(leader=instance, active=True).update(active=False)
+        AppUser.objects.filter(employee=instance, is_active=True).update(is_active=False)
+        if instance.UserPin:
+            digest = hashlib.sha256(str(instance.UserPin).strip().encode("utf-8")).hexdigest()
+            cache.delete(f"pin-login-user:{digest}")
 
 
 
