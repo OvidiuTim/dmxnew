@@ -27,4 +27,27 @@ describe('EmployeeFormComponent numeric fields', () => {
     expect(payload.total_salary_ron).toBe('5500.50');
     expect(payload.leave_remaining_override_days).toBe('8.00');
   });
+
+  it('construiește colaboratorul fără serie introdusă manual', () => {
+    const component = new EmployeeFormComponent(
+      new FormBuilder(),
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    component.onPersonTypeChange('collaborator');
+    component.form.patchValue({
+      Company: 'Partener Test SRL',
+      UserName: 'Responsabil Test',
+      phone_number: '0712 345 678',
+    });
+
+    const payload = (component as any).buildPayload();
+
+    expect(component.form.valid).toBeTrue();
+    expect(payload.Company).toBe('Partener Test SRL');
+    expect(payload.UserName).toBe('Responsabil Test');
+    expect(payload.phone_number).toBe('0712 345 678');
+    expect(payload.UserSerie).toBeUndefined();
+  });
 });

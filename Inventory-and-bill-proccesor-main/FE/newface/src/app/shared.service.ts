@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 
 type ManualAttendanceOptions = {
   worksite?: string;
-  mode?: 'driver' | 'manual';
+  mode?: 'driver' | 'manual' | 'chef';
   dataProcessingConsent?: boolean;
   attendancePhoto?: string | null;
   gps?: {

@@ -35,9 +35,9 @@ export class NavbarComponent implements OnDestroy {
         { label: 'Echipe permanente', path: '/pontaj/echipe', icon: 'groups', permissionRoute: '/pontaj/echipe' },
         { label: 'Echipa mea', path: '/pontaj/echipa-mea', icon: 'group', permissionRoute: '/pontaj/echipa-mea' },
         { label: 'Concedii', path: '/pontaj/concedii', icon: 'calendar_month', permissionRoute: '/pontaj/concedii' },
-        { label: 'Notificări', path: '/pontaj/notificari', icon: 'notifications', permissionRoute: '/pontaj/notificari', attentionCount: 0 },
         { label: 'Echipele de azi', path: '/pontaj/echipe-azi', icon: 'today', permissionRoute: '/pontaj/echipe-azi' },
         { label: 'Personal', path: '/pontaj/personal', icon: 'group_add', permissionRoute: '/pontaj/personal' },
+        { label: 'Notificări', path: '/pontaj/notificari', icon: 'notifications', permissionRoute: '/pontaj/notificari', attentionCount: 0 },
       ]
     },
     {

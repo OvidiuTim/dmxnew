@@ -681,3 +681,34 @@
   .selfie-actions { flex-direction: column; }
   .selfie-btn { flex-basis: auto; width: 100%; }
 }
+.chef-site-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 12px 16px;
+  border: 1px solid rgba(45, 212, 191, 0.24);
+  border-radius: 14px;
+  background: rgba(15, 118, 110, 0.12);
+}
+
+.chef-site-summary > .material-symbols-rounded {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+  color: #34d399;
+}
+
+.chef-site-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.chef-site-summary small {
+  color: #94a3b8;
+}

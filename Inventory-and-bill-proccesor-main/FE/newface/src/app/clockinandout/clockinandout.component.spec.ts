@@ -24,4 +24,20 @@ describe('ClockinandoutComponent', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('allows submission in chef mode only for PIN 1165 inside the fixed area', () => {
+    component.chefMode = true;
+    component.selectedWorksite = component.chefWorksite;
+    component.currentPosition = { ...component.chefWorksite.center, accuracy: 8 };
+    component.locationState = 'inside';
+    component.locationCapturedAt = new Date();
+    component.dataProcessingConsent = true;
+    component.confirmedSelfie = 'data:image/webp;base64,MTIz';
+
+    component.pin = '2211';
+    expect(component.canSubmit).toBeFalse();
+
+    component.pin = '1165';
+    expect(component.canSubmit).toBeTrue();
+  });
 });

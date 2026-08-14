@@ -4,8 +4,8 @@
       <header class="hero-card">
         <div class="hero-copy">
           <div class="step-chip">1. {{ t.stepLanguage }}</div>
-          <h1>{{ t.headline }}</h1>
-          <p>{{ t.subtitle }}</p>
+          <h1>{{ chefMode ? 'Pontaj Chef' : t.headline }}</h1>
+          <p>{{ chefMode ? 'Pontaj disponibil exclusiv pentru PIN-ul autorizat, în raza de 100 m.' : t.subtitle }}</p>
         </div>
 
         <div class="clock-card">
@@ -41,7 +41,7 @@
           </select>
         </div>
 
-        <div class="worksite-picker">
+        <div class="worksite-picker" *ngIf="!chefMode">
           <label for="worksite-select">{{ t.worksiteLabel }}</label>
           <select
             id="worksite-select"
@@ -52,6 +52,14 @@
             <option [ngValue]="null">{{ t.worksitePlaceholder }}</option>
             <option *ngFor="let worksite of worksites" [ngValue]="worksite">{{ worksite.name }}</option>
           </select>
+        </div>
+
+        <div class="chef-site-summary" *ngIf="chefMode">
+          <span class="material-symbols-rounded" aria-hidden="true">location_on</span>
+          <div>
+            <strong>Locație Chef</strong>
+            <small>Rază permisă: maximum 100 m</small>
+          </div>
         </div>
       </section>
     </section>

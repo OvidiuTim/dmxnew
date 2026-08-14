@@ -47,6 +47,7 @@ export const routes: Routes = [
   // Pontaj manual separat
   { path: 'clockinandout', component: ClockinandoutComponent },
   { path: 'clockinandoutdriver', component: ClockinandoutdriverComponent },
+  { path: 'chef', component: ClockinandoutComponent, data: { chefMode: true } },
   { path: 'termeniigdpr', component: TermeniIgdprComponent },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)

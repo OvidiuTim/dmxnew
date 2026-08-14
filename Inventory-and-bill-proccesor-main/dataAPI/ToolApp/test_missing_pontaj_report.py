@@ -1,5 +1,8 @@
 from datetime import date, datetime, time, timedelta
+from io import StringIO
+from unittest.mock import patch
 
+from django.core.management import call_command
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
@@ -92,6 +95,19 @@ class MissingPontajReportTests(SimpleTestCase):
         self.assertIn("07:30", html)
         self.assertIn("Șantier Nord", html)
         self.assertIn("DMX — fără check-out: 1", text)
+
+    @patch("ToolApp.management.commands.send_missing_pontaj_report.send_email")
+    def test_sunday_report_is_skipped_without_sending_email(self, send_email_mock):
+        output = StringIO()
+
+        call_command(
+            "send_missing_pontaj_report",
+            date="2026-08-16",
+            stdout=output,
+        )
+
+        send_email_mock.assert_not_called()
+        self.assertIn("duminica nu este zi lucrătoare", output.getvalue())
 
 
 class MissingPontajReportQueryTests(TestCase):

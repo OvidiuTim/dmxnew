@@ -10,8 +10,8 @@
 
       <div class="status-card">
         <div class="status-label">Date obligatorii</div>
-        <div class="status-value">Nume, serie, tarif</div>
-        <div class="status-note">Restul campurilor pot ramane null.</div>
+        <div class="status-value">{{ isCollaborator ? 'Companie, responsabil, contact' : 'Nume, serie, tarif' }}</div>
+        <div class="status-note">{{ isCollaborator ? 'Toate cele trei câmpuri sunt obligatorii.' : 'Restul câmpurilor pot rămâne necompletate.' }}</div>
       </div>
     </div>
 
@@ -19,173 +19,160 @@
     <div class="state error" *ngIf="error">{{ error }}</div>
 
     <form class="editor-card" *ngIf="!loading" [formGroup]="form" (ngSubmit)="submit()">
-      <div class="form-grid">
-        <div class="field">
-          <label for="person-type">Categorie persoană</label>
-          <select id="person-type" formControlName="person_type" (change)="onPersonTypeChange($any($event.target).value)">
-            <option value="employee">Angajat</option>
-            <option value="collaborator">Colaborator</option>
-          </select>
-          <small *ngIf="isCollaborator">Colaboratorul poate primi unelte, dar nu apare în Pontaj și nu se poate ponta.</small>
-        </div>
-
-        <div class="field" *ngIf="isEditMode && !isCollaborator">
-          <label for="employment-status">Stare angajat</label>
-          <select id="employment-status" formControlName="employment_status">
-            <option value="active">Activ</option>
-            <option value="dismissed">Demis</option>
-          </select>
-          <small *ngIf="isDismissed">Datele sunt păstrate timp de 2 ani de la data demiterii.</small>
-        </div>
-
-        <div class="field" *ngIf="isEditMode && !isCollaborator && isDismissed">
-          <label for="dismissed-at">Data demiterii</label>
-          <input id="dismissed-at" type="date" formControlName="dismissed_at">
-          <small>Dacă nu completezi data, se folosește data de astăzi.</small>
-        </div>
-
-        <div class="field">
-          <label for="user-name">Nume persoană</label>
-          <input id="user-name" type="text" formControlName="UserName" placeholder="Nume si prenume">
-        </div>
-
-        <div class="field">
-          <label for="user-serie">Serie angajat</label>
-          <input id="user-serie" type="text" formControlName="UserSerie" placeholder="Ex: SER-001">
-        </div>
-
-        <div class="field pin-field" *ngIf="!isCollaborator">
-          <label for="user-pin">{{ isEditMode ? 'PIN nou' : 'PIN angajat' }}</label>
-          <div class="pin-input-row">
-            <input
-              id="user-pin"
-              [type]="isEditMode ? 'text' : 'password'"
-              inputmode="numeric"
-              formControlName="UserPin"
-              [placeholder]="isEditMode ? 'Completeaza doar daca il schimbi' : 'Ex: 8502'"
-              (input)="onPinInput($any($event.target).value)"
-            >
-            <button *ngIf="isEditMode" type="button" class="btn ghost pin-reset-btn" (click)="resetPin()">Reseteaza PIN</button>
+      <div class="form-sections">
+        <section class="form-section collaborator-section" *ngIf="isCollaborator">
+          <header class="section-heading">
+            <span class="section-icon material-symbols-rounded" aria-hidden="true">handshake</span>
+            <div><h2>Date colaborator</h2><p>Completează compania și persoana responsabilă.</p></div>
+          </header>
+          <div class="form-grid">
+            <div class="field">
+              <label for="collaborator-company">Nume companie</label>
+              <input id="collaborator-company" type="text" formControlName="Company" placeholder="Ex: Compania SRL">
+              <small *ngIf="form.controls.Company.invalid && form.controls.Company.touched">Numele companiei este obligatoriu.</small>
+            </div>
+            <div class="field">
+              <label for="collaborator-responsible">Nume responsabil</label>
+              <input id="collaborator-responsible" type="text" formControlName="UserName" placeholder="Nume și prenume">
+              <small *ngIf="form.controls.UserName.invalid && form.controls.UserName.touched">Numele responsabilului este obligatoriu.</small>
+            </div>
+            <div class="field field-wide">
+              <label for="collaborator-contact">Contact responsabil</label>
+              <input id="collaborator-contact" type="text" formControlName="phone_number" placeholder="Telefon sau altă informație de contact">
+              <small *ngIf="form.controls.phone_number.invalid && form.controls.phone_number.touched">Contactul responsabilului este obligatoriu.</small>
+            </div>
           </div>
-          <p *ngIf="isEditMode && generatedPinPreview" class="pin-preview">
-            PIN nou generat: <strong>{{ generatedPinPreview }}</strong>
-          </p>
-          <p *ngIf="isEditMode && !generatedPinPreview" class="pin-help">
-            Apasa pe „Reseteaza PIN” ca sa generezi unul nou, apoi salveaza modificarile.
-          </p>
-        </div>
+        </section>
 
-        <div class="field">
-          <label for="user-uid">UID tag</label>
-          <input id="user-uid" type="text" formControlName="uid" placeholder="Ex: A54936EF">
-        </div>
+        <ng-container *ngIf="!isCollaborator">
+        <section class="form-section">
+          <header class="section-heading">
+            <span class="section-icon material-symbols-rounded" aria-hidden="true">badge</span>
+            <div><h2>Identitate și statut</h2><p>Datele principale și încadrarea persoanei.</p></div>
+          </header>
+          <div class="form-grid">
+            <div class="field">
+              <label for="person-type">Categorie persoană</label>
+              <select id="person-type" formControlName="person_type" (change)="onPersonTypeChange($any($event.target).value)">
+                <option value="employee">Angajat</option><option value="collaborator">Colaborator</option>
+              </select>
+              <small *ngIf="isCollaborator">Colaboratorul poate primi unelte, dar nu apare în Pontaj și nu se poate ponta.</small>
+            </div>
+            <div class="field" *ngIf="isEditMode && !isCollaborator">
+              <label for="employment-status">Stare angajat</label>
+              <select id="employment-status" formControlName="employment_status"><option value="active">Activ</option><option value="dismissed">Demis</option></select>
+              <small *ngIf="isDismissed">Datele sunt păstrate timp de 2 ani de la data demiterii.</small>
+            </div>
+            <div class="field" *ngIf="isEditMode && !isCollaborator && isDismissed">
+              <label for="dismissed-at">Data demiterii</label><input id="dismissed-at" type="date" formControlName="dismissed_at">
+              <small>Dacă nu completezi data, se folosește data de astăzi.</small>
+            </div>
+            <div class="field"><label for="user-name">Nume persoană</label><input id="user-name" type="text" formControlName="UserName" placeholder="Nume și prenume"></div>
+            <div class="field"><label for="user-serie">Serie angajat</label><input id="user-serie" type="text" formControlName="UserSerie" placeholder="Ex: SER-001"></div>
+            <div class="field">
+              <label for="user-company">Companie</label>
+              <select id="user-company" [value]="selectedCompanyOption" (change)="onCompanySelectionChange($any($event.target).value)">
+                <option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option><option [value]="addCompanyOptionValue">Adaugă companie nouă</option>
+              </select>
+              <input *ngIf="isAddingNewCompany" id="user-company-new" type="text" [value]="form.value.Company ?? ''" placeholder="Scrie numele companiei" (input)="onNewCompanyInput($any($event.target).value)">
+            </div>
+            <div class="field"><label for="user-trade">Meserie</label><input id="user-trade" type="text" formControlName="trade" placeholder="Ex: Dulgher"></div>
+          </div>
+        </section>
 
-        <div class="field">
-          <label for="user-rate">Tarif orar</label>
-          <input id="user-rate" type="text" inputmode="decimal" formControlName="hourly_rate" placeholder="23.00">
-        </div>
+        <section class="form-section">
+          <header class="section-heading">
+            <span class="section-icon material-symbols-rounded" aria-hidden="true">schedule</span>
+            <div><h2>Pontaj și angajare</h2><p>Datele folosite pentru acces, vechime și concedii.</p></div>
+          </header>
+          <div class="form-grid">
+            <div class="field pin-field" *ngIf="!isCollaborator">
+              <label for="user-pin">{{ isEditMode ? 'PIN nou' : 'PIN angajat' }}</label>
+              <div class="pin-input-row">
+                <input id="user-pin" [type]="isEditMode ? 'text' : 'password'" inputmode="numeric" formControlName="UserPin" [placeholder]="isEditMode ? 'Completează doar dacă îl schimbi' : 'Ex: 8502'" (input)="onPinInput($any($event.target).value)">
+                <button *ngIf="isEditMode" type="button" class="btn ghost pin-reset-btn" (click)="resetPin()">Resetează PIN</button>
+              </div>
+              <p *ngIf="isEditMode && generatedPinPreview" class="pin-preview">PIN nou generat: <strong>{{ generatedPinPreview }}</strong></p>
+              <p *ngIf="isEditMode && !generatedPinPreview" class="pin-help">Apasă pe „Resetează PIN” ca să generezi unul nou, apoi salvează modificările.</p>
+            </div>
+            <div class="field"><label for="user-uid">UID tag</label><input id="user-uid" type="text" formControlName="uid" placeholder="Ex: A54936EF"></div>
+            <div class="field">
+              <label for="user-hire-date">Data angajării</label><input id="user-hire-date" type="date" formControlName="hire_date">
+              <small *ngIf="!form.value.hire_date && effectiveHireDate">Dacă rămâne necompletată, se folosește automat {{ effectiveHireDate | date:'dd.MM.yyyy' }}{{ hireDateSource === 'first_attendance' ? ' (prima zi pontată)' : '' }}.</small>
+            </div>
+            <div class="field" *ngIf="isEditMode">
+              <label for="user-leave-remaining">Zile de concediu rămase</label><input id="user-leave-remaining" type="number" min="0" step="0.01" formControlName="leave_remaining_days">
+              <small>Valoarea poate fi modificată manual și va fi folosită peste tot.</small>
+            </div>
+          </div>
+        </section>
 
-        <div class="field">
-          <label for="user-total-salary">Salariu total în lei</label>
-          <input id="user-total-salary" type="number" inputmode="decimal" min="0" step="0.01" formControlName="total_salary_ron" placeholder="Ex: 5000.00">
-          <small *ngIf="form.controls.total_salary_ron.invalid && form.controls.total_salary_ron.touched">Salariul trebuie să fie zero sau o valoare pozitivă.</small>
-        </div>
+        <section class="form-section">
+          <header class="section-heading">
+            <span class="section-icon material-symbols-rounded" aria-hidden="true">payments</span>
+            <div><h2>Financiar și contact</h2><p>Salariul, tariful și datele de contact.</p></div>
+          </header>
+          <div class="form-grid">
+            <div class="field"><label for="user-rate">Tarif orar</label><input id="user-rate" type="text" inputmode="decimal" formControlName="hourly_rate" placeholder="23.00"></div>
+            <div class="field">
+              <label for="user-total-salary">Salariu total în lei</label><input id="user-total-salary" type="number" inputmode="decimal" min="0" step="0.01" formControlName="total_salary_ron" placeholder="Ex: 5000.00">
+              <small *ngIf="form.controls.total_salary_ron.invalid && form.controls.total_salary_ron.touched">Salariul trebuie să fie zero sau o valoare pozitivă.</small>
+            </div>
+            <div class="field"><label for="user-phone">Număr de telefon</label><input id="user-phone" type="tel" formControlName="phone_number" placeholder="Ex: 07xx xxx xxx"></div>
+            <div class="field">
+              <label for="user-email">Email</label><input id="user-email" type="email" formControlName="email" autocomplete="email" placeholder="nume@companie.ro">
+              <small *ngIf="form.controls.email.invalid && form.controls.email.touched">Introdu o adresă de email validă.</small>
+            </div>
+          </div>
+        </section>
 
-        <div class="field">
-          <label for="user-company">Companie</label>
-          <select
-            id="user-company"
-            [value]="selectedCompanyOption"
-            (change)="onCompanySelectionChange($any($event.target).value)"
-          >
-            <option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option>
-            <option [value]="addCompanyOptionValue">Adauga companie noua</option>
-          </select>
-          <input
-            *ngIf="isAddingNewCompany"
-            id="user-company-new"
-            type="text"
-            [value]="form.value.Company ?? ''"
-            placeholder="Scrie numele companiei"
-            (input)="onNewCompanyInput($any($event.target).value)"
-          >
-        </div>
+        <section class="form-section">
+          <header class="section-heading">
+            <span class="section-icon material-symbols-rounded" aria-hidden="true">home_work</span>
+            <div><h2>Cazare și echipament</h2><p>Alocarea cazării și situația echipamentului.</p></div>
+          </header>
+          <div class="form-grid">
+            <div class="field" *ngIf="!isCollaborator">
+              <label for="user-accommodation">Cazare</label>
+              <select id="user-accommodation" formControlName="accommodation_id" (change)="onAccommodationChange()">
+                <option [ngValue]="null">Fără cazare</option><option *ngFor="let item of accommodationOptions" [ngValue]="item.id">{{ item.name }}<ng-container *ngIf="item.address"> · {{ item.address }}</ng-container></option>
+              </select>
+            </div>
+            <div class="field" *ngIf="!isCollaborator && selectedAccommodationRooms.length">
+              <label for="user-accommodation-room">Camera</label><select id="user-accommodation-room" formControlName="accommodation_room_id"><option [ngValue]="null">Selectează camera</option><option *ngFor="let room of selectedAccommodationRooms" [ngValue]="room.id">{{ room.name }}</option></select>
+            </div>
+            <div class="field"><label for="user-size">Mărime echipament</label><input id="user-size" type="text" formControlName="equipment_size" placeholder="Ex: L / 42 / XL"></div>
+            <div class="field">
+              <label for="user-equipment">A primit echipament</label>
+              <select id="user-equipment" [value]="receivedEquipmentValue" (change)="onReceivedEquipmentChange($any($event.target).value)"><option value="">Nesetat</option><option value="true">Da</option><option value="false">Nu</option></select>
+            </div>
+          </div>
+        </section>
 
-        <div class="field">
-          <label for="user-trade">Meserie</label>
-          <input id="user-trade" type="text" formControlName="trade" placeholder="Ex: Dulgher">
-        </div>
-
-        <div class="field">
-          <label for="user-hire-date">Data angajării</label>
-          <input id="user-hire-date" type="date" formControlName="hire_date">
-          <small *ngIf="!form.value.hire_date && effectiveHireDate">Dacă rămâne necompletată, se folosește automat {{ effectiveHireDate | date:'dd.MM.yyyy' }}{{ hireDateSource === 'first_attendance' ? ' (prima zi pontată)' : '' }}.</small>
-        </div>
-
-        <div class="field" *ngIf="isEditMode">
-          <label for="user-leave-remaining">Zile de concediu rămase</label>
-          <input id="user-leave-remaining" type="number" min="0" step="0.01" formControlName="leave_remaining_days">
-          <small>Valoarea calculată în aplicație. O poți modifica manual, iar noul sold va fi folosit peste tot.</small>
-        </div>
-
-        <div class="field" *ngIf="!isCollaborator">
-          <label for="user-accommodation">Cazare</label>
-          <select id="user-accommodation" formControlName="accommodation_id" (change)="onAccommodationChange()">
-            <option [ngValue]="null">Fără cazare</option>
-            <option *ngFor="let item of accommodationOptions" [ngValue]="item.id">{{ item.name }}<ng-container *ngIf="item.address"> · {{ item.address }}</ng-container></option>
-          </select>
-        </div>
-
-        <div class="field" *ngIf="!isCollaborator && selectedAccommodationRooms.length">
-          <label for="user-accommodation-room">Camera</label>
-          <select id="user-accommodation-room" formControlName="accommodation_room_id">
-            <option [ngValue]="null">Selectează camera</option>
-            <option *ngFor="let room of selectedAccommodationRooms" [ngValue]="room.id">{{ room.name }}</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="user-phone">Numar de telefon</label>
-          <input id="user-phone" type="tel" formControlName="phone_number" placeholder="Ex: 07xx xxx xxx">
-        </div>
-
-        <div class="field">
-          <label for="user-email">Email</label>
-          <input id="user-email" type="email" formControlName="email" autocomplete="email" placeholder="nume@companie.ro">
-          <small *ngIf="form.controls.email.invalid && form.controls.email.touched">Introdu o adresă de email validă.</small>
-        </div>
-
-        <div class="field">
-          <label for="user-size">Marime echipament</label>
-          <input id="user-size" type="text" formControlName="equipment_size" placeholder="Ex: L / 42 / XL">
-        </div>
-
-        <div class="field">
-          <label for="user-equipment">A primit echipament</label>
-          <select id="user-equipment" [value]="receivedEquipmentValue" (change)="onReceivedEquipmentChange($any($event.target).value)">
-            <option value="">Nesetat</option>
-            <option value="true">Da</option>
-            <option value="false">Nu</option>
-          </select>
-        </div>
-
-        <div class="photo-card">
+        <section class="form-section photo-section">
+          <header class="section-heading">
+            <span class="section-icon material-symbols-rounded" aria-hidden="true">photo_camera</span>
+            <div><h2>Fotografie</h2><p>Fotografia de profil a persoanei.</p></div>
+          </header>
+          <div class="photo-card">
           <div class="photo-preview" [class.empty]="!photoPreview">
             <img *ngIf="photoPreview" [src]="photoPreview" alt="Poza angajatului">
-            <span *ngIf="!photoPreview">Fara poza</span>
+            <span *ngIf="!photoPreview">Fără poză</span>
           </div>
 
           <div class="photo-meta">
             <div class="field field-photo">
-              <label for="user-photo">Poza</label>
+              <label for="user-photo">Poză</label>
               <input id="user-photo" type="file" accept="image/*" (change)="onPhotoSelected($event)">
               <p *ngIf="photoFileName" class="photo-name">{{ photoFileName }}</p>
-              <p class="photo-help">Poza este optionala si se poate adauga direct din telefon sau calculator.</p>
+              <p class="photo-help">Poza este opțională și se poate adăuga direct din telefon sau calculator.</p>
             </div>
 
-            <button type="button" class="btn ghost" (click)="clearPhoto()" [disabled]="!photoPreview">Sterge poza</button>
+            <button type="button" class="btn ghost" (click)="clearPhoto()" [disabled]="!photoPreview">Șterge poza</button>
           </div>
         </div>
+        </section>
+        </ng-container>
       </div>
 
       <div class="form-actions">

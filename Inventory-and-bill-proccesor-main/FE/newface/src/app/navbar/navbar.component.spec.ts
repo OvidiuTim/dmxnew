@@ -24,7 +24,7 @@ describe('NavbarComponent module filtering', () => {
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual(['Echipe și program']);
     expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual([
-      '/pontaj/echipe', '/pontaj/echipa-mea', '/pontaj/concedii', '/pontaj/notificari', '/pontaj/echipe-azi', '/pontaj/personal'
+      '/pontaj/echipe', '/pontaj/echipa-mea', '/pontaj/concedii', '/pontaj/echipe-azi', '/pontaj/personal', '/pontaj/notificari'
     ]);
   });
 

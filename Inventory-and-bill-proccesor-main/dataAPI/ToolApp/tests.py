@@ -42,7 +42,160 @@ class MonitorPontajTests(TestCase):
         self.assertEqual(response["Content-Type"], "text/event-stream")
 
 
+class CollaboratorCreationTests(TestCase):
+    def setUp(self):
+        self.auth = {"HTTP_AUTHORIZATION": f"Bearer {make_admin_token()}"}
+
+    def test_collaborator_can_be_created_with_only_company_responsible_and_contact(self):
+        response = self.client.post(
+            "/api/user/",
+            data=json.dumps({
+                "person_type": Users.PersonType.COLLABORATOR,
+                "Company": "Partener Test SRL",
+                "UserName": "Responsabil Test",
+                "phone_number": "0712 345 678",
+            }),
+            content_type="application/json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, 201)
+        collaborator = Users.objects.get(pk=response.json()["UserId"])
+        self.assertEqual(collaborator.Company, "Partener Test SRL")
+        self.assertEqual(collaborator.UserName, "Responsabil Test")
+        self.assertEqual(collaborator.phone_number, "0712 345 678")
+        self.assertTrue(collaborator.UserSerie.startswith("COL-"))
+        self.assertEqual(collaborator.person_type, Users.PersonType.COLLABORATOR)
+
+    def test_collaborator_contact_is_required(self):
+        response = self.client.post(
+            "/api/user/",
+            data=json.dumps({
+                "person_type": Users.PersonType.COLLABORATOR,
+                "Company": "Partener Test SRL",
+                "UserName": "Responsabil Test",
+            }),
+            content_type="application/json",
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("phone_number", response.json()["details"])
+
+
 class ManualAttendanceSecurityTests(TestCase):
+    chef_center = {
+        "lat": 45.79680855369633,
+        "lng": 24.14230494031001,
+        "accuracy": 8,
+    }
+
+    def create_chef_user(self):
+        user = Users(UserName="Chef autorizat", UserSerie="CHEF-1165")
+        user.set_pin("1165")
+        user.save()
+        return user
+
+    def chef_payload(self, **overrides):
+        payload = {
+            "pin": "1165",
+            "mode": "chef",
+            "device_key": "chef-browser",
+            "timestamp": timezone.now().isoformat(),
+            "gps": {
+                **self.chef_center,
+                "captured_at": timezone.now().isoformat(),
+            },
+            "data_processing_consent": True,
+            "attendance_photo": "data:image/webp;base64,MTIz",
+        }
+        payload.update(overrides)
+        return payload
+
+    def post_clock(self, payload):
+        return self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    def test_chef_mode_rejects_every_other_pin(self):
+        other = Users(UserName="Alt angajat", UserSerie="CHEF-OTHER")
+        other.set_pin("2211")
+        other.save()
+
+        response = self.post_clock(self.chef_payload(pin="2211"))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error_code"], "CHEF_PIN_ONLY")
+        self.assertFalse(AttendanceSession.objects.exists())
+
+    def test_chef_pin_cannot_bypass_location_using_manual_mode(self):
+        self.create_chef_user()
+
+        response = self.post_clock(self.chef_payload(mode="manual", gps=None))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error_code"], "CHEF_MODE_REQUIRED")
+        self.assertFalse(AttendanceSession.objects.exists())
+
+    def test_chef_pin_cannot_bypass_location_through_nfc_endpoint(self):
+        self.create_chef_user()
+
+        response = self.client.post(
+            "/api/nfc/scan/",
+            data=json.dumps({
+                "uid": "356337EF",
+                "tag_type": "nfc",
+                "content": "",
+                "timestamp": timezone.now().isoformat(),
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()["error_code"], "CHEF_MODE_REQUIRED")
+        self.assertFalse(AttendanceSession.objects.exists())
+
+    def test_chef_mode_rejects_missing_or_outside_gps(self):
+        self.create_chef_user()
+
+        missing_response = self.post_clock(self.chef_payload(gps=None))
+        outside_response = self.post_clock(self.chef_payload(gps={
+            "lat": 45.79880855369633,
+            "lng": 24.14230494031001,
+            "accuracy": 8,
+            "captured_at": timezone.now().isoformat(),
+        }))
+
+        self.assertEqual(missing_response.status_code, 400)
+        self.assertEqual(missing_response.json()["error_code"], "CHEF_GPS_REQUIRED")
+        self.assertEqual(outside_response.status_code, 403)
+        self.assertEqual(outside_response.json()["error_code"], "CHEF_OUTSIDE_ALLOWED_AREA")
+        self.assertGreater(outside_response.json()["distance_meters"], 100)
+        self.assertFalse(AttendanceSession.objects.exists())
+
+    def test_chef_checkin_and_checkout_succeed_inside_100_meters(self):
+        user = self.create_chef_user()
+
+        checkin_response = self.post_clock(self.chef_payload())
+        self.assertEqual(checkin_response.status_code, 200)
+        self.assertEqual(checkin_response.json()["state"], "ENTER")
+
+        session = AttendanceSession.objects.get(user_fk=user)
+        self.assertEqual(session.source, "manual-chef")
+        self.assertEqual(session.worksite, "Chef")
+        self.assertAlmostEqual(session.in_gps_latitude, self.chef_center["lat"])
+
+        tool_views._last_seen.clear()
+        checkout_response = self.post_clock(self.chef_payload())
+        self.assertEqual(checkout_response.status_code, 200)
+        self.assertEqual(checkout_response.json()["state"], "EXIT")
+
+        session.refresh_from_db()
+        self.assertIsNotNone(session.out_time)
+        self.assertAlmostEqual(session.out_gps_longitude, self.chef_center["lng"])
+
     def test_collaborator_cannot_log_in_or_clock(self):
         collaborator = Users(
             UserName="Colaborator fără pontaj",

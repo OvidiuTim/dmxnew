@@ -66,3 +66,45 @@ def send_leave_request_email(item):
         logger.exception("Trimiterea emailului pentru cererea de concediu #%s a eșuat.", item.pk)
         return False
     return 200 <= int(getattr(response, "status_code", 0) or 0) < 300
+
+
+def leave_approval_message(item, approver_name):
+    period = f"{item.start_date.strftime('%d.%m.%Y')} – {item.end_date.strftime('%d.%m.%Y')}"
+    return (
+        f"{approver_name} a aprobat cererea de concediu pentru "
+        f"{item.employee.UserName}, pentru perioada {period}."
+    )
+
+
+def send_leave_approval_email(item, approver_name):
+    api_key = str(getattr(settings, "SENDGRID_API_KEY", "") or "").strip()
+    if not api_key:
+        logger.warning(
+            "Aprobarea cererii de concediu #%s nu a fost trimisă prin email: SENDGRID_API_KEY lipsește.",
+            item.pk,
+        )
+        return False
+
+    message = leave_approval_message(item, approver_name)
+    subject = f"Cerere de concediu aprobată – {item.employee.UserName}"
+    html = f"""
+      <div style="font-family:Arial,sans-serif;color:#142033;line-height:1.55">
+        <h2 style="margin:0 0 16px">Cerere de concediu aprobată</h2>
+        <p>{escape(message)}</p>
+      </div>
+    """
+    try:
+        from sendgrid import SendGridAPIClient
+        from sendgrid.helpers.mail import Mail
+
+        response = SendGridAPIClient(api_key).send(Mail(
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to_emails=[LEAVE_REQUEST_OFFICE_EMAIL],
+            subject=subject,
+            plain_text_content=message,
+            html_content=html,
+        ))
+    except Exception:
+        logger.exception("Trimiterea aprobării pentru cererea de concediu #%s a eșuat.", item.pk)
+        return False
+    return 200 <= int(getattr(response, "status_code", 0) or 0) < 300

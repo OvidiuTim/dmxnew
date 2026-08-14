@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from ToolApp.mobile_services import count_salary_days_in_range
 from ToolApp.models import LeaveRequest
 from ToolApp.security import get_app_user_from_request, request_has_admin
+from ToolApp.leave_email import send_leave_approval_email
 
 
 def _error(message, status=400, details=None):
@@ -142,4 +143,7 @@ def leave_request_decision(request, request_id):
     except ValidationError as exc:
         details = exc.message_dict if hasattr(exc, "message_dict") else {"non_field_errors": exc.messages}
         return _error("Cererea nu a putut fi soluționată.", 400, details)
+    if target_status == LeaveRequest.Status.APPROVED:
+        approver_name = app_user.employee.UserName if app_user and app_user.employee_id else "Administrator"
+        send_leave_approval_email(item, approver_name)
     return JsonResponse({"leave_request": _serialize(item, False)})

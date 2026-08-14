@@ -9,7 +9,7 @@ import { filter } from 'rxjs/operators';
 })
 export class AppComponent {
   shellVisible = false;
-  private readonly publicRoutes = ['/login', '/clockinandout', '/clockinandoutdriver', '/termeniigdpr', '/admin-app-page', '/no-access'];
+  private readonly publicRoutes = ['/login', '/clockinandout', '/clockinandoutdriver', '/chef', '/termeniigdpr', '/admin-app-page', '/no-access'];
   private readonly legacyRoutes = ['/unelte', '/predare-unealta', '/history'];
 
   constructor(private router: Router) {

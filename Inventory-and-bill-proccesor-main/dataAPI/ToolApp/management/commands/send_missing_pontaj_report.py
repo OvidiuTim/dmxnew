@@ -364,6 +364,14 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         target_day = get_target_day(options.get("date"))
+        if target_day.isoweekday() == 7:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"Raport omis pentru {target_day.isoformat()}: duminica nu este zi lucrătoare."
+                )
+            )
+            return
+
         missing_users = get_missing_users_for_day(target_day)
         consecutive_missing_user_ids = get_consecutive_missing_user_ids(target_day, missing_users)
         open_checkouts = get_open_checkouts_for_day(target_day)

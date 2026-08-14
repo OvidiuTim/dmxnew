@@ -1,4 +1,5 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import * as L from 'leaflet';
 import { SharedService } from '../shared.service';
 
@@ -107,6 +108,12 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   ];
 
   readonly sharedLakeHomeCenter = { lat: 45.81027575048179, lng: 24.130539205078342 };
+  readonly chefWorksite: WorksiteDefinition = {
+    name: 'Chef',
+    type: 'circle',
+    center: { lat: 45.79680855369633, lng: 24.14230494031001 },
+    radiusMeters: 100,
+  };
 
   readonly worksites: WorksiteDefinition[] = [
     { name: 'The Lake Home Bloc A', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 90 },
@@ -387,6 +394,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   };
 
   selectedLanguage: LanguageCode = this.readSavedLanguage();
+  chefMode = false;
   selectedWorksite: WorksiteDefinition | null = null;
   pin = '';
   submitting = false;
@@ -412,9 +420,13 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
   private cameraStream: MediaStream | null = null;
 
-  constructor(private api: SharedService) {}
+  constructor(private api: SharedService, private route: ActivatedRoute) {}
 
   ngOnInit(): void {
+    this.chefMode = this.route.snapshot.data['chefMode'] === true;
+    if (this.chefMode) {
+      this.selectedWorksite = this.chefWorksite;
+    }
     this.clockTimer = setInterval(() => {
       this.currentTime = new Date();
     }, 1000);
@@ -422,6 +434,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   ngAfterViewInit(): void {
     this.initMap();
+    if (this.selectedWorksite) {
+      this.updateZoneVisualization();
+    }
   }
 
   ngOnDestroy(): void {
@@ -470,6 +485,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   get canSubmit(): boolean {
     return !!this.pin.trim()
+      && (!this.chefMode || this.pin.trim() === '1165')
       && !!this.selectedWorksite
       && this.effectiveLocationState === 'inside'
       && this.dataProcessingConsent
@@ -526,6 +542,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
     if (state === 'loading') {
       return this.t.gpsLoadingDetail;
+    }
+
+    if (this.chefMode && this.pin.trim() && this.pin.trim() !== '1165') {
+      return 'Pe această pagină este permis exclusiv PIN-ul 1165.';
     }
 
     if (!this.dataProcessingConsent) {
@@ -680,6 +700,11 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       return;
     }
 
+    if (this.chefMode && this.pin.trim() !== '1165') {
+      this.showError('Pe această pagină este permis exclusiv PIN-ul 1165.');
+      return;
+    }
+
     if (!this.dataProcessingConsent) {
       this.showError('Bifeaza acordul pentru prelucrarea datelor inainte de pontaj.');
       return;
@@ -762,7 +787,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   private submitAttendanceRequest(pin: string, attendancePhoto: string) {
     return this.api.manualAttendanceByPin(pin, {
       worksite: this.selectedWorksite!.name,
-      mode: 'manual',
+      mode: this.chefMode ? 'chef' : 'manual',
       gps: {
         lat: this.currentPosition!.lat,
         lng: this.currentPosition!.lng,

@@ -2,12 +2,17 @@ import json
 from datetime import date
 from unittest.mock import patch
 
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from ToolApp.models import AppUser, EmployeeTeam, EmployeeTeamMember, LeaveDay, LeaveRequest, Users
 from ToolApp.security import make_admin_token, make_app_user_token
-from ToolApp.leave_email import LEAVE_REQUEST_OFFICE_EMAIL, leave_request_recipients
+from ToolApp.leave_email import (
+    LEAVE_REQUEST_OFFICE_EMAIL,
+    leave_approval_message,
+    leave_request_recipients,
+    send_leave_approval_email,
+)
 
 
 class LeaveRequestWorkflowApiTests(TestCase):
@@ -153,6 +158,61 @@ class LeaveRequestWorkflowApiTests(TestCase):
         self.assertEqual(payload["status"], "approved")
         self.assertEqual(payload["status_label"], "Aprobată")
         self.assertEqual(payload["reason"], "Programare personală")
+
+    @patch("ToolApp.leave_views.send_leave_approval_email")
+    def test_approval_email_uses_reviewer_name_and_is_sent_once(self, send_approval_email):
+        self.mobile_create("5101", start="2026-09-01", end="2026-09-03")
+        item = LeaveRequest.objects.get()
+
+        response = self.decide(self.client_a, item, "approve")
+
+        self.assertEqual(response.status_code, 200, response.content)
+        send_approval_email.assert_called_once()
+        emailed_item, approver_name = send_approval_email.call_args.args
+        self.assertEqual(emailed_item.pk, item.pk)
+        self.assertEqual(approver_name, "Lider A")
+        self.assertEqual(
+            leave_approval_message(emailed_item, approver_name),
+            "Lider A a aprobat cererea de concediu pentru Muncitor A, pentru perioada 01.09.2026 – 03.09.2026.",
+        )
+
+    @patch("ToolApp.leave_views.send_leave_approval_email")
+    def test_rejection_does_not_send_approval_email(self, send_approval_email):
+        self.mobile_create("5101")
+        item = LeaveRequest.objects.get()
+
+        response = self.decide(self.client_a, item, "reject")
+
+        self.assertEqual(response.status_code, 200, response.content)
+        send_approval_email.assert_not_called()
+
+    @override_settings(SENDGRID_API_KEY="test-key", DEFAULT_FROM_EMAIL="test@dmxconstruction.ro")
+    @patch("sendgrid.helpers.mail.Mail")
+    @patch("sendgrid.SendGridAPIClient")
+    @patch("ToolApp.mobile_views.send_leave_request_email")
+    def test_approval_email_is_addressed_only_to_office(
+        self,
+        _send_request_email,
+        sendgrid_client,
+        mail,
+    ):
+        self.mobile_create("5101", start="2026-09-01", end="2026-09-03")
+        item = LeaveRequest.objects.select_related("employee").get()
+        sendgrid_client.return_value.send.return_value.status_code = 202
+
+        sent = send_leave_approval_email(item, "Lider A")
+
+        self.assertTrue(sent)
+        mail.assert_called_once_with(
+            from_email="test@dmxconstruction.ro",
+            to_emails=[LEAVE_REQUEST_OFFICE_EMAIL],
+            subject="Cerere de concediu aprobată – Muncitor A",
+            plain_text_content=(
+                "Lider A a aprobat cererea de concediu pentru Muncitor A, "
+                "pentru perioada 01.09.2026 – 03.09.2026."
+            ),
+            html_content=mail.call_args.kwargs["html_content"],
+        )
 
     def test_approved_paid_leave_populates_attendance_as_annual_leave(self):
         response = self.mobile_create(

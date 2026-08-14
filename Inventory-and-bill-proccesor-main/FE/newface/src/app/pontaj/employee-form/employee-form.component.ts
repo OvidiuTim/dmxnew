@@ -72,6 +72,7 @@ export class EmployeeFormComponent implements OnInit {
       const requestedType = this.route.snapshot.queryParamMap.get('person_type');
       if (requestedType === 'collaborator') {
         this.onPersonTypeChange('collaborator');
+        return;
       }
       this.syncCompanySelection(this.form.value.Company ?? 'RNX');
       return;
@@ -117,19 +118,36 @@ export class EmployeeFormComponent implements OnInit {
       this.form.controls.UserPin.setValidators([Validators.maxLength(100)]);
     }
     if (value === 'collaborator') {
+      this.form.controls.UserSerie.setValidators([Validators.maxLength(100)]);
+      this.form.controls.Company.setValidators([Validators.required, Validators.maxLength(100)]);
+      this.form.controls.phone_number.setValidators([Validators.required, Validators.maxLength(50)]);
       this.form.patchValue({
         UserPin: '',
+        UserSerie: '',
         uid: '',
+        Company: '',
         employment_status: 'active',
         dismissed_at: null,
         accommodation_id: null,
         accommodation_room_id: null,
       });
+    } else {
+      this.form.controls.UserSerie.setValidators([Validators.required, Validators.maxLength(100)]);
+      this.form.controls.Company.setValidators([Validators.maxLength(100)]);
+      this.form.controls.phone_number.setValidators([Validators.maxLength(50)]);
     }
     this.form.controls.UserPin.updateValueAndValidity();
+    this.form.controls.UserSerie.updateValueAndValidity();
+    this.form.controls.Company.updateValueAndValidity();
+    this.form.controls.phone_number.updateValueAndValidity();
   }
 
   get pageSubtitle(): string {
+    if (this.isCollaborator) {
+      return this.isEditMode
+        ? 'Actualizează compania, responsabilul și datele sale de contact.'
+        : 'Completează datele de contact ale colaboratorului.';
+    }
     return this.isEditMode
       ? 'Actualizeaza datele angajatului si salveaza modificarile in acelasi formular.'
       : 'Completeaza datele de baza pentru angajat. Campurile optionale pot ramane necompletate.';
@@ -315,6 +333,7 @@ export class EmployeeFormComponent implements OnInit {
           accommodation_id: user?.accommodation_id ?? null,
           accommodation_room_id: user?.accommodation_room_id ?? null,
         });
+        this.configureLoadedPersonType(user?.person_type ?? 'employee');
         this.effectiveHireDate = user?.effective_hire_date ?? null;
         this.hireDateSource = user?.hire_date_source ?? null;
         this.initialLeaveRemaining = this.normalizeRate(String(user?.leave_balance?.remaining_days ?? '0.00'));
@@ -366,7 +385,25 @@ export class EmployeeFormComponent implements OnInit {
     if (pin) {
       payload.UserPin = pin;
     }
+    if (payload.person_type === 'collaborator' && !payload.UserSerie) {
+      delete payload.UserSerie;
+    }
     return payload;
+  }
+
+  private configureLoadedPersonType(value: string): void {
+    if (value === 'collaborator') {
+      this.form.controls.UserSerie.setValidators([Validators.maxLength(100)]);
+      this.form.controls.Company.setValidators([Validators.required, Validators.maxLength(100)]);
+      this.form.controls.phone_number.setValidators([Validators.required, Validators.maxLength(50)]);
+    } else {
+      this.form.controls.UserSerie.setValidators([Validators.required, Validators.maxLength(100)]);
+      this.form.controls.Company.setValidators([Validators.maxLength(100)]);
+      this.form.controls.phone_number.setValidators([Validators.maxLength(50)]);
+    }
+    this.form.controls.UserSerie.updateValueAndValidity();
+    this.form.controls.Company.updateValueAndValidity();
+    this.form.controls.phone_number.updateValueAndValidity();
   }
 
   private normalizeOptionalString(value: string | null | undefined): string | null {

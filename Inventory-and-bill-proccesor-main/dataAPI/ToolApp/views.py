@@ -1768,6 +1768,11 @@ def _fmt_hms(seconds: int):
 # Config rapid — schimbă după programul tău
 PONTAJ_SHIFT_END_HOUR = 18   # 18:00 ora locală = sfârșitul zilei
 PONTAJ_MAX_SHIFT_HOURS = 14  # limită de siguranță (cap durată sesiune)
+CHEF_ATTENDANCE_PIN = "1165"
+CHEF_ATTENDANCE_LATITUDE = 45.79680855369633
+CHEF_ATTENDANCE_LONGITUDE = 24.14230494031001
+CHEF_ATTENDANCE_RADIUS_METERS = 100
+CHEF_ATTENDANCE_WORKSITE = "Chef"
 
 
 #--- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
@@ -1943,6 +1948,20 @@ def _extract_gps_captured_at(data):
     return _parse_client_ts(raw_value)
 
 
+def _gps_distance_meters(lat_a, lng_a, lat_b, lng_b):
+    """Distanța geodezică dintre două coordonate, calculată pe server."""
+    earth_radius_meters = 6_371_000
+    lat_a_rad = math.radians(lat_a)
+    lat_b_rad = math.radians(lat_b)
+    delta_lat = math.radians(lat_b - lat_a)
+    delta_lng = math.radians(lng_b - lng_a)
+    haversine = (
+        math.sin(delta_lat / 2) ** 2
+        + math.cos(lat_a_rad) * math.cos(lat_b_rad) * math.sin(delta_lng / 2) ** 2
+    )
+    return earth_radius_meters * 2 * math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine))
+
+
 def _extract_attendance_photo(data):
     """Accepta doar o miniatura data-URL, pentru a mentine stocarea pontajului mica."""
     photo = str(data.get("attendance_photo") or data.get("checkin_photo") or "").strip()
@@ -2071,6 +2090,50 @@ def nfc_scan(request):
 
     effective_pin = mapped_pin or raw_pin or ""
 
+    # PIN-ul rezervat paginii /chef nu poate folosi fluxul manual obișnuit.
+    # Verificarea rămâne aici, în fluxul comun, astfel încât să nu poată fi
+    # ocolită printr-un POST direct către /api/pontaj/clock/.
+    if attendance_mode == "chef" or effective_pin == CHEF_ATTENDANCE_PIN:
+        if effective_pin != CHEF_ATTENDANCE_PIN:
+            return JsonResponse({
+                "error": "Pagina Chef permite pontajul exclusiv cu PIN-ul autorizat.",
+                "error_code": "CHEF_PIN_ONLY",
+            }, status=403)
+
+        if attendance_mode != "chef":
+            return JsonResponse({
+                "error": "Acest PIN poate fi folosit numai din pagina Chef.",
+                "error_code": "CHEF_MODE_REQUIRED",
+            }, status=403)
+
+        if not gps_payload:
+            return JsonResponse({
+                "error": "Locația GPS este obligatorie pentru pontajul Chef.",
+                "error_code": "CHEF_GPS_REQUIRED",
+            }, status=400)
+
+        if not gps_captured_at:
+            return JsonResponse({
+                "error": "Locația GPS trebuie citită din nou înainte de pontaj.",
+                "error_code": "CHEF_GPS_CAPTURE_TIME_REQUIRED",
+            }, status=400)
+
+        distance_meters = _gps_distance_meters(
+            gps_payload["lat"],
+            gps_payload["lng"],
+            CHEF_ATTENDANCE_LATITUDE,
+            CHEF_ATTENDANCE_LONGITUDE,
+        )
+        if distance_meters > CHEF_ATTENDANCE_RADIUS_METERS:
+            return JsonResponse({
+                "error": "Pontajul Chef este permis numai la maximum 100 de metri de locația autorizată.",
+                "error_code": "CHEF_OUTSIDE_ALLOWED_AREA",
+                "distance_meters": round(distance_meters, 1),
+                "allowed_radius_meters": CHEF_ATTENDANCE_RADIUS_METERS,
+            }, status=403)
+
+        ws = CHEF_ATTENDANCE_WORKSITE
+
     blocked, retry_after = _pin_is_blocked(request, device_key=data.get("device_key"), uid=uid)
     if blocked:
         return JsonResponse({
@@ -2142,7 +2205,12 @@ def nfc_scan(request):
                     in_gps_latitude=gps_payload["lat"] if gps_payload else None,
                     in_gps_longitude=gps_payload["lng"] if gps_payload else None,
                     in_gps_accuracy_m=gps_payload["accuracy"] if gps_payload else None,
-                    source="manual-driver" if attendance_mode == "driver" else ("manual-web" if is_manual_scan else "nfc"),
+                    source=(
+                        "manual-chef" if attendance_mode == "chef"
+                        else "manual-driver" if attendance_mode == "driver"
+                        else "manual-web" if is_manual_scan
+                        else "nfc"
+                    ),
                     worksite=ws,
                     manual_client_ip=manual_client_ip if is_manual_scan else None,
                     manual_device_key=manual_device_key if is_manual_scan else None,
@@ -2236,7 +2304,12 @@ def nfc_scan(request):
             in_gps_latitude=gps_payload["lat"] if gps_payload else None,
             in_gps_longitude=gps_payload["lng"] if gps_payload else None,
             in_gps_accuracy_m=gps_payload["accuracy"] if gps_payload else None,
-            source="manual-driver" if attendance_mode == "driver" else ("manual-web" if is_manual_scan else "nfc"),
+            source=(
+                "manual-chef" if attendance_mode == "chef"
+                else "manual-driver" if attendance_mode == "driver"
+                else "manual-web" if is_manual_scan
+                else "nfc"
+            ),
             worksite=ws,
             manual_client_ip=manual_client_ip if is_manual_scan else None,
             manual_device_key=manual_device_key if is_manual_scan else None,

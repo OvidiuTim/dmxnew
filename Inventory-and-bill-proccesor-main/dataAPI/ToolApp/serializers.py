@@ -66,6 +66,7 @@ class UserSerializer(serializers.ModelSerializer):
             "active",
         )
         extra_kwargs = {
+            "UserSerie": {"required": False, "allow_blank": True},
             "NameAndSerie": {"required": False, "allow_null": True, "allow_blank": True},
             "uid": {"required": False, "allow_null": True, "allow_blank": True},
             "hourly_rate": {"required": False, "allow_null": True},
@@ -109,6 +110,17 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
+        person_type = attrs.get("person_type", getattr(self.instance, "person_type", Users.PersonType.EMPLOYEE))
+        if person_type == Users.PersonType.COLLABORATOR:
+            if not str(attrs.get("Company", getattr(self.instance, "Company", "")) or "").strip():
+                raise serializers.ValidationError({"Company": "Numele companiei este obligatoriu."})
+            if not str(attrs.get("phone_number", getattr(self.instance, "phone_number", "")) or "").strip():
+                raise serializers.ValidationError({"phone_number": "Contactul responsabilului este obligatoriu."})
+            if not self.instance and not str(attrs.get("UserSerie") or "").strip():
+                attrs["UserSerie"] = f"COL-{uuid.uuid4().hex[:12].upper()}"
+        elif not str(attrs.get("UserSerie", getattr(self.instance, "UserSerie", "")) or "").strip():
+            raise serializers.ValidationError({"UserSerie": "Seria angajatului este obligatorie."})
+
         accommodation = attrs.get("accommodation", getattr(self.instance, "accommodation", None))
         room = attrs.get("accommodation_room", getattr(self.instance, "accommodation_room", None))
         if room and (not accommodation or room.accommodation_id != accommodation.pk):
