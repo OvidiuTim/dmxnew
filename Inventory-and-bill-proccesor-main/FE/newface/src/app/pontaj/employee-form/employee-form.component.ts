@@ -374,8 +374,8 @@ export class EmployeeFormComponent implements OnInit {
     return normalized ? normalized : null;
   }
 
-  private normalizeRate(value: string | null | undefined): string | null {
-    const normalized = (value ?? '').trim().replace(',', '.');
+  private normalizeRate(value: string | number | null | undefined): string | null {
+    const normalized = String(value ?? '').trim().replace(',', '.');
     if (!normalized) {
       return null;
     }

@@ -21,6 +21,7 @@
 }
 
 .back-btn,
+.edit-employee-btn,
 .dropdown-btn,
 .tab,
 .action-btn,
@@ -30,6 +31,38 @@
   background: #0d1525;
   color: #ffffff;
   cursor: pointer;
+}
+
+.employee-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.edit-employee-btn {
+  min-height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px;
+  border-color: #2e6c9f;
+  border-radius: 8px;
+  background: #153b5b;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.edit-employee-btn .material-symbols-rounded {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+  font-size: 19px;
 }
 
 .back-btn {
@@ -458,6 +491,15 @@
   .dropdown {
     width: 100%;
   }
+
+  .employee-actions {
+    width: 100%;
+  }
+
+  .edit-employee-btn,
+  .employee-actions .dropdown {
+    flex: 1;
+  }
 }
 
 @media (max-width: 760px) {
@@ -471,6 +513,15 @@
   }
 
   .back-btn {
+    width: 100%;
+  }
+
+  .employee-actions {
+    flex-direction: column;
+  }
+
+  .edit-employee-btn,
+  .employee-actions .dropdown {
     width: 100%;
   }
 

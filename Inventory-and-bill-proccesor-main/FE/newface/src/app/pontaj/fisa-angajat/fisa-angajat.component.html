@@ -41,11 +41,13 @@
         </div>
       </div>
 
-      <div class="dropdown">
-        <button class="dropdown-btn" type="button" (click)="toggleDropdown()">Predare / preluare</button>
-        <div class="dropdown-menu" [class.show]="dropdownOpen">
-          <button type="button" class="dropdown-item" (click)="goToTools()">Gestioneaza scule</button>
-          <button type="button" class="dropdown-item" (click)="editEmployee()">Editeaza angajat</button>
+      <div class="employee-actions">
+        <button class="edit-employee-btn" type="button" (click)="editEmployee()"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Editează</button>
+        <div class="dropdown">
+          <button class="dropdown-btn" type="button" (click)="toggleDropdown()">Predare / preluare</button>
+          <div class="dropdown-menu" [class.show]="dropdownOpen">
+            <button type="button" class="dropdown-item" (click)="goToTools()">Gestionează scule</button>
+          </div>
         </div>
       </div>
     </section>
