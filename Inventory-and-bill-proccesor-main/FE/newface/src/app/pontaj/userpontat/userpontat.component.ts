@@ -132,6 +132,11 @@ export class UserpontatComponent implements OnInit {
     ALT: 'Absență'
   };
 
+  get selectedEditingDay(): DayRow | null {
+    if (!this.editingDate) return null;
+    return this.days.find(day => day.date === this.editingDate) ?? null;
+  }
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -398,6 +403,10 @@ export class UserpontatComponent implements OnInit {
 
   closeCheckinPhoto(): void {
     this.checkinPhotoToView = null;
+  }
+
+  preferredSessionPhoto(session: SessionRow): string | null {
+    return session.out_photo || session.in_photo || null;
   }
 
   durataOre(hms: string) {

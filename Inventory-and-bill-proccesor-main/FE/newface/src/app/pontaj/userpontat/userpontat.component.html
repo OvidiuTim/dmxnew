@@ -55,237 +55,86 @@
   <div class="state" *ngIf="loading">Se încarcă…</div>
   <div class="state error" *ngIf="error">{{ error }}</div>
 
-  <div class="table" *ngIf="!loading && !error">
-    <div class="thead">
-      <div>Zi</div>
-      <div>Locație (zi)</div>
-      <div>Sesiuni (Intrare–Ieșire)</div>
-      <div>Total zi</div>
-      <div>#Intrări / #Ieșiri</div>
-      <div>Acțiuni</div>
+  <section class="attendance-table-card" *ngIf="!loading && !error">
+    <div class="table-scroll">
+      <table class="attendance-table">
+        <thead>
+          <tr><th>Zi</th><th>Locație</th><th>Intrare</th><th>Ieșire</th><th>Total ore</th><th>Nr. intrări/ieșiri</th><th>Acțiuni</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let d of days">
+            <td class="date-cell"><strong>{{ d.date | date:'dd MMM' }}</strong><small>{{ d.date | date:'EEEE' }}</small></td>
+            <td class="location-cell">
+              <span class="location-chip" *ngIf="d.day_worksite; else noLocation">{{ d.day_worksite }}</span>
+              <ng-template #noLocation><span class="muted">—</span></ng-template>
+              <span class="leave-chip" *ngIf="d.leave" [title]="(mapLeave[d.leave.reason] || d.leave.reason) + ' · ' + fmtLeaveHours(d.leave.hours) + ' ×' + d.leave.multiplier">{{ mapLeave[d.leave.reason] || d.leave.reason }}</span>
+            </td>
+            <td class="time-cell"><span *ngFor="let s of d.sessions; let index = index"><small *ngIf="d.sessions.length > 1">{{ index + 1 }}.</small>{{ hm(s.in_time) }}</span><span class="muted" *ngIf="!d.sessions.length">—</span></td>
+            <td class="time-cell"><span *ngFor="let s of d.sessions; let index = index"><small *ngIf="d.sessions.length > 1">{{ index + 1 }}.</small><ng-container *ngIf="s.out_time; else noCheckout">{{ hm(s.out_time) }}</ng-container><ng-template #noCheckout><em [class.open]="!s.missing_exit">{{ s.missing_exit ? '—' : 'deschis' }}</em></ng-template></span><span class="muted" *ngIf="!d.sessions.length">—</span></td>
+            <td class="total-cell">{{ durataOre(d.total_hms) }}</td>
+            <td class="count-cell">{{ d.entries }} / {{ d.exits }}</td>
+            <td class="day-actions-cell">
+              <details class="day-actions-menu" #dayMenu>
+                <summary [attr.aria-label]="'Acțiuni pentru ' + d.date" title="Acțiuni"><span class="material-symbols-rounded" aria-hidden="true">more_vert</span></summary>
+                <div class="day-actions-popover">
+                  <button type="button" (click)="dayMenu.open = false; openEditor(d)"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Editează</button>
+                  <button type="button" class="danger-action" (click)="dayMenu.open = false; clearDayConfirm(d)"><span class="material-symbols-rounded" aria-hidden="true">delete</span>Șterge</button>
+                  <ng-container *ngFor="let s of d.sessions; let index = index">
+                    <div class="menu-divider"></div>
+                    <span class="session-menu-label">Sesiunea {{ index + 1 }}</span>
+                    <button type="button" [disabled]="!s.in_gps" (click)="dayMenu.open = false; openGpsOnMap(s.in_gps)"><span class="material-symbols-rounded" aria-hidden="true">login</span>Vezi check-in</button>
+                    <button type="button" [disabled]="!s.out_gps" (click)="dayMenu.open = false; openGpsOnMap(s.out_gps)"><span class="material-symbols-rounded" aria-hidden="true">location_on</span>Vezi locația</button>
+                    <button type="button" [disabled]="!preferredSessionPhoto(s)" (click)="dayMenu.open = false; openCheckinPhoto(preferredSessionPhoto(s))"><span class="material-symbols-rounded" aria-hidden="true">image</span>Vezi poza</button>
+                  </ng-container>
+                </div>
+              </details>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="attendance-editor-modal" *ngIf="selectedEditingDay as editingDay" (click)="cancelEditor()">
+  <section class="attendance-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="attendance-editor-title" (click)="$event.stopPropagation()">
+    <header class="editor-dialog-header">
+      <div><span>EDITARE PONTAJ</span><h3 id="attendance-editor-title">{{ editingDay.date | date:'dd MMMM yyyy' }}</h3></div>
+      <button class="modal-close" type="button" (click)="cancelEditor()" aria-label="Închide editorul"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+    </header>
+
+    <div class="editor-tabs">
+      <button type="button" [class.active]="mode === 'sessions'" (click)="mode = 'sessions'">Sesiuni</button>
+      <button type="button" [class.active]="mode === 'leave'" (click)="mode = 'leave'">Lipsă zi de lucru</button>
     </div>
 
-    <div class="row" *ngFor="let d of days">
-      <!-- Zi -->
-      <div class="cell date">
-        <div class="d1">{{ d.date | date:'dd MMM' }}</div>
-        <div class="d2">{{ d.date | date:'EEEE' }}</div>
-      </div>
-
-      <!-- Locație (zi) + Concediu/Abs -->
-      <div class="cell site-day">
-        <ng-container *ngIf="d.day_worksite; else noSite">
-          <span class="chip">{{ d.day_worksite }}</span>
-        </ng-container>
-        <ng-template #noSite><span class="muted">—</span></ng-template>
-
-        <!-- Leave badge, dacă există -->
-        <div class="leave-line" *ngIf="d.leave">
-          <span class="chip leave"
-            [title]="(mapLeave[d.leave.reason] || d.leave.reason) + ' · ' + fmtLeaveHours(d.leave.hours) + ' ×' + d.leave.multiplier">
-            {{ mapLeave[d.leave.reason] || d.leave.reason }}
-            — {{ fmtLeaveHours(d.leave.hours) }} ×{{ d.leave.multiplier }}
-          </span>
+    <div class="sessions-editor" *ngIf="mode === 'sessions'">
+      <p>Editează sesiunile zilei. Fiecare sesiune este afișată separat, una sub alta.</p>
+      <article class="session-edit-card" *ngFor="let session of sessForm; let index = index">
+        <div class="session-edit-head"><strong>Sesiunea {{ index + 1 }}</strong><button type="button" class="remove-session" *ngIf="sessForm.length > 1" (click)="removeSessionRow(index)" [attr.aria-label]="'Șterge sesiunea ' + (index + 1)"><span class="material-symbols-rounded" aria-hidden="true">delete</span></button></div>
+        <div class="session-fields">
+          <label><span>Intrare</span><input type="text" placeholder="07:30" [(ngModel)]="session.in"></label>
+          <label><span>Ieșire</span><input type="text" placeholder="17:30" [(ngModel)]="session.out"></label>
+          <label><span>Locație</span><input type="text" placeholder="Ex: Bloc F" [(ngModel)]="session.worksite"></label>
         </div>
-      </div>
-
-      <!-- Sesiuni -->
-      <div class="cell sess-col">
-        <div class="sess-row" *ngIf="d.sessions.length === 0">
-          <span class="muted">—</span>
-        </div>
-
-        <div class="sess-row" *ngFor="let s of d.sessions">
-          <div class="time-stack">
-            <div class="in">{{ hm(s.in_time) }}</div>
-            <button
-              class="btn secondary map-mini-btn"
-              type="button"
-              [disabled]="!s.in_gps"
-              [title]="'Vezi pe harta punctul de check-in: ' + gpsTitle(s.in_gps)"
-              (click)="openGpsOnMap(s.in_gps)"
-            >
-              {{ s.in_gps ? 'Vezi check-in' : 'Fara GPS' }}
-            </button>
-            <button class="btn secondary map-mini-btn" type="button" [disabled]="!s.in_photo" (click)="openCheckinPhoto(s.in_photo)">
-              {{ s.in_photo ? 'Vezi selfie intrare' : 'Fără selfie' }}
-            </button>
-          </div>
-          <div class="arrow"><span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span></div>
-          <div class="time-stack">
-            <ng-container *ngIf="s.out_time; else outFallback">{{ hm(s.out_time) }}</ng-container>
-            <ng-template #outFallback>
-              <span *ngIf="s.missing_exit; else openTag" class="muted">—</span>
-            </ng-template>
-            <ng-template #openTag><span class="open">deschis</span></ng-template>
-            <details class="session-actions-menu">
-              <summary class="btn secondary map-mini-btn" aria-label="Opțiuni check-out">
-                <span class="material-symbols-rounded" aria-hidden="true">more_horiz</span>
-                Opțiuni
-              </summary>
-              <div class="session-actions-popover">
-                <button
-                  class="session-menu-action"
-                  type="button"
-                  [disabled]="!s.out_gps"
-                  [title]="s.out_gps ? 'Vezi pe harta punctul de check-out: ' + gpsTitle(s.out_gps) : 'Nu există locație la check-out'"
-                  (click)="openGpsOnMap(s.out_gps)"
-                >
-                  <span class="material-symbols-rounded" aria-hidden="true">location_on</span>
-                  Vezi locația
-                </button>
-                <button
-                  class="session-menu-action"
-                  type="button"
-                  [disabled]="!s.out_photo"
-                  [title]="s.out_photo ? 'Vezi fotografia realizată la check-out' : 'Nu există fotografie la check-out'"
-                  (click)="openCheckinPhoto(s.out_photo)"
-                >
-                  <span class="material-symbols-rounded" aria-hidden="true">image</span>
-                  Vezi poza
-                </button>
-              </div>
-            </details>
-          </div>
-          <div class="dur">{{ durataOre(s.duration_hms) }}</div>
-
-          <!-- Site + buton ștergere sesiune -->
-          <div class="site">
-            <span class="chip" *ngIf="s.worksite">{{ s.worksite }}</span>
-            <button class="btn danger" *ngIf="s.session_id" style="margin-left:8px" title="Șterge această sesiune"
-              (click)="deleteSingleSession(s)">
-              Șterge
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Total / Counts -->
-      <div class="cell total">{{ durataOre(d.total_hms) }}</div>
-      <div class="cell counts">{{ d.entries }} / {{ d.exits }}</div>
-
-      <!-- Acțiuni -->
-      <div class="cell actions">
-        <button class="btn" (click)="openEditor(d)">Editează</button>
-        <button class="btn danger" (click)="clearDayConfirm(d)">Șterge</button>
-      </div>
-
-      <!-- Editor in-line -->
-      <div class="editor" *ngIf="editingDate === d.date">
-        <div class="editor-bar">
-          <div class="modes">
-            <button class="tab" [class.active]="mode==='sessions'" (click)="mode='sessions'">Sesiuni</button>
-            <button class="tab" [class.active]="mode==='leave'" (click)="mode='leave'">Lipsă zi de lucru</button>
-          </div>
-          <div class="spacer"></div>
-          <button class="btn secondary" (click)="cancelEditor()">Anulează</button>
-        </div>
-
-        <!-- MOD: SESSIUNI -->
-        <div *ngIf="mode==='sessions'" class="form-grid">
-          <p class="full hint">Editează intrarea, ieșirea și șantierul. Poți adăuga/șterge rânduri.</p>
-
-          <div class="sess-edit-row" *ngFor="let s of sessForm; let i = index">
-            <div>
-              <label>Intrare</label>
-              <input type="text" placeholder="07:30" [(ngModel)]="s.in">
-            </div>
-            <div>
-              <label>Ieșire</label>
-              <input type="text" placeholder="17:30" [(ngModel)]="s.out">
-            </div>
-            <div>
-              <label>Locație</label>
-              <input type="text" placeholder="ex: Bloc F" [(ngModel)]="s.worksite">
-            </div>
-            <div class="row-actions">
-              <button class="btn danger" (click)="removeSessionRow(i)" *ngIf="sessForm.length>1"
-                title="Șterge rândul">−</button>
-            </div>
-          </div>
-
-          <div class="full">
-            <button class="btn secondary" (click)="addSessionRow()">+ Adaugă sesiune</button>
-          </div>
-
-          <div class="full actions-right">
-            <button class="btn" [disabled]="saving" (click)="saveSessions(d)">Salvează sesiunile</button>
-          </div>
-        </div>
-
-               <!-- MOD: LIPSA ZI DE LUCRU -->
-        <div *ngIf="mode==='leave'" class="form-grid">
-          <p class="full hint">
-            Marchează ziua ca absență plătită/neplătită (CO, CM sau Alt motiv) și calculează suma de plată pentru
-            această zi.
-          </p>
-
-          <!-- Motiv -->
-          <div>
-            <label>Motiv lipsă</label>
-            <select [(ngModel)]="leaveForm.reason">
-              <option value="CO">CONCEDIU ODIHNĂ</option>
-              <option value="CM">CONCEDIU MEDICAL</option>
-              <option value="ALT">ALT MOTIV</option>
-            </select>
-          </div>
-
-          <!-- Ore -->
-          <div>
-            <label>Ore pontate (HH.h)</label>
-            <input type="number"
-                   [(ngModel)]="leaveForm.hours"
-                   min="0"
-                   step="0.25">
-          </div>
-
-          <!-- Tarif orar – DOAR AFIȘARE -->
-          <div>
-            <label>Tarif orar (lei)</label>
-            <input type="text"
-                   [value]="leaveForm.rate | number:'1.2-2'"
-                   readonly>
-            <div class="hint">preluat automat din fișa angajatului</div>
-          </div>
-
-          <!-- Multiplicator -->
-          <div class="full" style="margin-top:8px;">
-            <label class="checkbox-inline">
-              <input type="checkbox"
-                     [(ngModel)]="leaveForm.multiplierEnabled">
-              <span>Aplică multiplicator</span>
-            </label>
-          </div>
-
-          <div>
-            <label>Multiplicator</label>
-            <input type="number"
-                   [(ngModel)]="leaveForm.multiplier"
-                   [disabled]="!leaveForm.multiplierEnabled"
-                   step="0.05">
-            <div class="hint">(ex: CM plătit 75% ⇒ multiplicator 0.75)</div>
-          </div>
-
-          <!-- Total -->
-          <div class="full" style="margin-top:8px; font-weight:600;">
-            Total de plată (zi): {{ leaveComputedTotal() | number:'1.2-2' }} lei
-          </div>
-
-          <!-- Butoane -->
-          <div class="full actions-right" style="gap:8px; display:flex; justify-content:flex-end;">
-            <button class="btn" [disabled]="saving" (click)="saveLeave(d)">
-              Salvează lipsa
-            </button>
-            <button class="btn danger" *ngIf="d.leave" [disabled]="saving" (click)="deleteLeave(d)">
-              Șterge lipsa
-            </button>
-          </div>
-        </div>
-
-      </div>
-      <!-- /editor -->
+      </article>
+      <button class="btn secondary add-session" type="button" (click)="addSessionRow()"><span class="material-symbols-rounded" aria-hidden="true">add</span>Adaugă sesiune</button>
+      <footer class="editor-actions"><button class="btn secondary" type="button" (click)="cancelEditor()">Renunță</button><button class="btn" type="button" [disabled]="saving" (click)="saveSessions(editingDay)">{{ saving ? 'Se salvează…' : 'Salvează sesiunile' }}</button></footer>
     </div>
-  </div>
+
+    <div class="leave-day-editor" *ngIf="mode === 'leave'">
+      <p>Marchează ziua ca absență plătită sau neplătită.</p>
+      <div class="leave-day-fields">
+        <label><span>Motiv lipsă</span><select [(ngModel)]="leaveForm.reason"><option value="CO">Concediu de odihnă</option><option value="CM">Concediu medical</option><option value="ALT">Alt motiv</option></select></label>
+        <label><span>Ore pontate</span><input type="number" [(ngModel)]="leaveForm.hours" min="0" step="0.25"></label>
+        <label><span>Tarif orar (lei)</span><input type="text" [value]="leaveForm.rate | number:'1.2-2'" readonly></label>
+        <label class="multiplier-check"><input type="checkbox" [(ngModel)]="leaveForm.multiplierEnabled"><span>Aplică multiplicator</span></label>
+        <label><span>Multiplicator</span><input type="number" [(ngModel)]="leaveForm.multiplier" [disabled]="!leaveForm.multiplierEnabled" step="0.05"></label>
+      </div>
+      <div class="leave-total">Total de plată: <strong>{{ leaveComputedTotal() | number:'1.2-2' }} lei</strong></div>
+      <footer class="editor-actions"><button class="btn danger" type="button" *ngIf="editingDay.leave" [disabled]="saving" (click)="deleteLeave(editingDay)">Șterge lipsa</button><span></span><button class="btn secondary" type="button" (click)="cancelEditor()">Renunță</button><button class="btn" type="button" [disabled]="saving" (click)="saveLeave(editingDay)">{{ saving ? 'Se salvează…' : 'Salvează lipsa' }}</button></footer>
+    </div>
+  </section>
 </div>
 
 <div class="checkin-photo-modal" *ngIf="leaveRangeOpen" (click)="closeLeaveRange()">
