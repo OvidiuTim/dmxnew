@@ -31,14 +31,14 @@
       <article><span class="material-symbols-rounded" aria-hidden="true">apartment</span><div><strong>{{ activeAccommodations.length }}</strong><small>Cazări active</small></div></article>
       <article><span class="material-symbols-rounded" aria-hidden="true">groups</span><div><strong>{{ employees.length }}</strong><small>Angajați activi</small></div></article>
       <article><span class="material-symbols-rounded" aria-hidden="true">bed</span><div><strong>{{ totalConfiguredPlaces }}</strong><small>Locuri configurate</small></div></article>
-      <article><span class="material-symbols-rounded" aria-hidden="true">person_off</span><div><strong>{{ unassignedCount }}</strong><small>Fără cazare</small></div></article>
+      <article><span class="material-symbols-rounded" aria-hidden="true">event_available</span><div><strong>{{ totalAvailablePlaces }}</strong><small>Total disponibil</small></div></article>
     </section>
 
     <section class="accommodation-grid" *ngIf="accommodations.length">
       <article *ngFor="let item of accommodations; trackBy: trackById" [class.inactive]="!item.active">
         <span class="home-icon material-symbols-rounded" aria-hidden="true">home_work</span>
         <div><h2>{{ item.name }}</h2><p>{{ item.address || 'Adresă necompletată' }}</p><small>{{ item.number_of_rooms }} camere · {{ item.total_places || '—' }} locuri</small><small *ngIf="item.notes">{{ item.notes }}</small></div>
-        <div class="card-actions"><strong>{{ item.employee_count }} <small>angajați</small></strong><button class="icon-button" type="button" (click)="editAccommodation(item)" [attr.aria-label]="'Editează ' + item.name"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button></div>
+        <div class="card-actions"><strong>{{ availablePlaces(item) }} <small>disponibile</small></strong><button class="icon-button" type="button" (click)="editAccommodation(item)" [attr.aria-label]="'Editează ' + item.name"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button></div>
       </article>
     </section>
 
@@ -52,7 +52,7 @@
               <td><strong>{{ employee.name }}</strong><small>{{ employee.serie }}</small></td>
               <td>{{ employee.trade || 'Necompletată' }}</td>
               <td>{{ employee.company || '—' }}</td>
-              <td><select [ngModel]="assignments[employee.id]" (ngModelChange)="onAccommodationChange(employee, $event)" [ngModelOptions]="{standalone: true}" [disabled]="savingEmployee[employee.id]" [attr.aria-label]="'Cazare pentru ' + employee.name"><option [ngValue]="null">Fără cazare</option><option *ngFor="let item of accommodationOptionsForEmployee(employee)" [ngValue]="item.id">{{ item.name }}<ng-container *ngIf="item.total_places"> · {{ item.available_places }} libere</ng-container></option></select></td>
+              <td><select [ngModel]="assignments[employee.id]" (ngModelChange)="onAccommodationChange(employee, $event)" [ngModelOptions]="{standalone: true}" [disabled]="savingEmployee[employee.id]" [attr.aria-label]="'Cazare pentru ' + employee.name"><option [ngValue]="null">Fără cazare</option><option *ngFor="let item of accommodationOptionsForEmployee(employee)" [ngValue]="item.id">{{ item.name }}</option></select></td>
               <td><select *ngIf="roomsForEmployee(employee).length" [ngModel]="roomAssignments[employee.id]" (ngModelChange)="onRoomChange(employee, $event)" [ngModelOptions]="{standalone: true}" [disabled]="savingEmployee[employee.id]" [attr.aria-label]="'Camera pentru ' + employee.name"><option [ngValue]="null">Selectează camera</option><option *ngFor="let room of roomsForEmployee(employee)" [ngValue]="room.id">{{ room.name }}</option></select><span class="muted" *ngIf="!roomsForEmployee(employee).length">—</span></td>
               <td><span class="saving" *ngIf="savingEmployee[employee.id]">Se salvează…</span><span class="saved" *ngIf="!savingEmployee[employee.id] && savedEmployee[employee.id]">Salvat</span><span class="muted" *ngIf="!savingEmployee[employee.id] && !savedEmployee[employee.id]">{{ employee.housing_location || 'Nealocat' }}<ng-container *ngIf="employee.accommodation_room_name"> · {{ employee.accommodation_room_name }}</ng-container></span></td>
             </tr>

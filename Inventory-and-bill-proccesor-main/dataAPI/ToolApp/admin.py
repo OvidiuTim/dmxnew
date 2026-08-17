@@ -85,7 +85,7 @@ class EmployeeSalaryProfileInline(admin.StackedInline):
 
 @admin.register(Users)
 class UsersAdmin(admin.ModelAdmin):
-    list_display = ("UserName", "UserSerie", "email", "Company", "trade", "employment_status", "dismissed_at", "active", "hire_date", "accommodation", "accommodation_room")
+    list_display = ("UserName", "UserSerie", "email", "Company", "trade", "total_salary_ron", "salary_advance_ron", "salary_remainder_ron", "meal_vouchers_ron", "employment_status", "dismissed_at", "active", "hire_date", "accommodation", "accommodation_room")
     list_filter = ("employment_status", "active", "Company", "trade")
     search_fields = ("UserName", "UserSerie", "email", "phone_number", "housing_location")
     inlines = (EmployeeSalaryProfileInline,)

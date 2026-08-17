@@ -118,6 +118,20 @@
               <label for="user-total-salary">Salariu total în lei</label><input id="user-total-salary" type="number" inputmode="decimal" min="0" step="0.01" formControlName="total_salary_ron" placeholder="Ex: 5000.00">
               <small *ngIf="form.controls.total_salary_ron.invalid && form.controls.total_salary_ron.touched">Salariul trebuie să fie zero sau o valoare pozitivă.</small>
             </div>
+            <div class="salary-details field-wide">
+              <div class="field">
+                <label for="user-salary-advance">Avans</label><input id="user-salary-advance" type="number" inputmode="decimal" min="0" step="0.01" formControlName="salary_advance_ron" placeholder="Opțional">
+                <small *ngIf="form.controls.salary_advance_ron.invalid && form.controls.salary_advance_ron.touched">Avansul trebuie să fie zero sau o valoare pozitivă.</small>
+              </div>
+              <div class="field">
+                <label for="user-salary-remainder">Rest</label><input id="user-salary-remainder" type="number" inputmode="decimal" min="0" step="0.01" formControlName="salary_remainder_ron" placeholder="Opțional">
+                <small *ngIf="form.controls.salary_remainder_ron.invalid && form.controls.salary_remainder_ron.touched">Restul trebuie să fie zero sau o valoare pozitivă.</small>
+              </div>
+              <div class="field">
+                <label for="user-meal-vouchers">Bonuri</label><input id="user-meal-vouchers" type="number" inputmode="decimal" min="0" step="0.01" formControlName="meal_vouchers_ron" placeholder="Opțional">
+                <small *ngIf="form.controls.meal_vouchers_ron.invalid && form.controls.meal_vouchers_ron.touched">Bonurile trebuie să fie zero sau o valoare pozitivă.</small>
+              </div>
+            </div>
             <div class="field"><label for="user-phone">Număr de telefon</label><input id="user-phone" type="tel" formControlName="phone_number" placeholder="Ex: 07xx xxx xxx"></div>
             <div class="field">
               <label for="user-email">Email</label><input id="user-email" type="email" formControlName="email" autocomplete="email" placeholder="nume@companie.ro">

@@ -130,6 +130,9 @@ class Users(models.Model):
     NameAndSerie = models.CharField(max_length=100, null=True, blank=True)
     hourly_rate = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True, default=0)  # lei/oră
     total_salary_ron = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    salary_advance_ron = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    salary_remainder_ron = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    meal_vouchers_ron = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     person_type = models.CharField(
         max_length=16,
         choices=PersonType.choices,

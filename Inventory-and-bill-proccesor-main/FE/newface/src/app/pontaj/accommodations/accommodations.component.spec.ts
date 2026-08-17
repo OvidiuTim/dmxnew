@@ -21,4 +21,17 @@ describe('AccommodationsComponent', () => {
     expect(component.employees[0].housing_location).toBe('Cazare Nord');
     expect(component.accommodations[0].employee_count).toBe(1);
   });
+
+  it('calculează totalul disponibil numai din cazările active', () => {
+    const component = new AccommodationsComponent({} as any);
+    component.accommodations = [
+      { id: 1, name: 'Nord', address: '', notes: '', active: true, employee_count: 3, total_places: 10, number_of_rooms: 0, available_places: 7, rooms: [] },
+      { id: 2, name: 'Sud', address: '', notes: '', active: true, employee_count: 2, total_places: 4, number_of_rooms: 0, available_places: 2, rooms: [] },
+      { id: 3, name: 'Închisă', address: '', notes: '', active: false, employee_count: 1, total_places: 20, number_of_rooms: 0, available_places: 19, rooms: [] },
+    ];
+
+    expect(component.totalConfiguredPlaces).toBe(14);
+    expect(component.totalAvailablePlaces).toBe(9);
+    expect(component.availablePlaces(component.accommodations[0])).toBe(7);
+  });
 });

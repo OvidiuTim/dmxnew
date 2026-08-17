@@ -52,6 +52,9 @@ class MobileEmployeeApiTests(TestCase):
             hire_date=date(2024, 1, 15),
             housing_location="Cazare Centrală",
             total_salary_ron=Decimal("4750.50"),
+            salary_advance_ron=Decimal("1200.00"),
+            salary_remainder_ron=Decimal("3550.50"),
+            meal_vouchers_ron=Decimal("600.00"),
         )
         self.other_employee = Users.objects.create(
             UserName="Alt Angajat",
@@ -567,12 +570,16 @@ class MobileEmployeeApiTests(TestCase):
         self.assertNotIn("calendar_configured", payload["payroll"])
         self.assertTrue(all("status" not in item for item in payload["salary_payments"]))
         self.assertEqual(payload["total_salary_ron"], "4750.50")
+        self.assertEqual(payload["salary_advance_ron"], "1200.00")
+        self.assertEqual(payload["salary_remainder_ron"], "3550.50")
+        self.assertEqual(payload["meal_vouchers_ron"], "600.00")
         self.assertEqual(payload["attendance"]["year"], timezone.localdate().year)
         self.assertEqual(payload["attendance"]["month"], timezone.localdate().month)
         self.assertEqual(
             set(payload),
             {
-                "success", "profile", "total_salary_ron", "attendance", "payroll",
+                "success", "profile", "total_salary_ron", "salary_advance_ron",
+                "salary_remainder_ron", "meal_vouchers_ron", "attendance", "payroll",
                 "salary_payments", "leave_summary", "equipment", "tools", "team",
             },
         )

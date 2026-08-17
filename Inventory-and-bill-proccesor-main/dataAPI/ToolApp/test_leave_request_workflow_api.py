@@ -1,6 +1,8 @@
 import json
+import sys
 from datetime import date
-from unittest.mock import patch
+from types import ModuleType
+from unittest.mock import Mock, patch
 
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
@@ -187,20 +189,25 @@ class LeaveRequestWorkflowApiTests(TestCase):
         send_approval_email.assert_not_called()
 
     @override_settings(SENDGRID_API_KEY="test-key", DEFAULT_FROM_EMAIL="test@dmxconstruction.ro")
-    @patch("sendgrid.helpers.mail.Mail")
-    @patch("sendgrid.SendGridAPIClient")
     @patch("ToolApp.mobile_views.send_leave_request_email")
-    def test_approval_email_is_addressed_only_to_office(
-        self,
-        _send_request_email,
-        sendgrid_client,
-        mail,
-    ):
+    def test_approval_email_is_addressed_only_to_office(self, _send_request_email):
         self.mobile_create("5101", start="2026-09-01", end="2026-09-03")
         item = LeaveRequest.objects.select_related("employee").get()
+        mail = Mock()
+        sendgrid_client = Mock()
         sendgrid_client.return_value.send.return_value.status_code = 202
+        sendgrid_module = ModuleType("sendgrid")
+        helpers_module = ModuleType("sendgrid.helpers")
+        mail_module = ModuleType("sendgrid.helpers.mail")
+        sendgrid_module.SendGridAPIClient = sendgrid_client
+        mail_module.Mail = mail
 
-        sent = send_leave_approval_email(item, "Lider A")
+        with patch.dict(sys.modules, {
+            "sendgrid": sendgrid_module,
+            "sendgrid.helpers": helpers_module,
+            "sendgrid.helpers.mail": mail_module,
+        }):
+            sent = send_leave_approval_email(item, "Lider A")
 
         self.assertTrue(sent)
         mail.assert_called_once_with(

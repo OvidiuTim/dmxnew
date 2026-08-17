@@ -80,10 +80,6 @@ export class AccommodationsComponent implements OnInit {
     ).includes(search));
   }
 
-  get unassignedCount(): number {
-    return this.employees.filter(employee => !employee.accommodation_id).length;
-  }
-
   load(): void {
     this.loading = true;
     this.error = '';
@@ -257,6 +253,14 @@ export class AccommodationsComponent implements OnInit {
 
   get totalConfiguredPlaces(): number {
     return this.activeAccommodations.reduce((sum, item) => sum + Number(item.total_places || 0), 0);
+  }
+
+  get totalAvailablePlaces(): number {
+    return this.activeAccommodations.reduce((sum, item) => sum + this.availablePlaces(item), 0);
+  }
+
+  availablePlaces(item: Accommodation): number {
+    return Math.max(0, Number(item.total_places || 0) - Number(item.employee_count || 0));
   }
 
   private roomsForAccommodation(accommodationId: number | null): AccommodationRoom[] {

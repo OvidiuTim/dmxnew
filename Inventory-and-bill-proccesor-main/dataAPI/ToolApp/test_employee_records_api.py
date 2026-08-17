@@ -70,14 +70,23 @@ class EmployeeRecordsApiTests(TestCase):
                 "UserPin": "8877",
                 "hourly_rate": "25.00",
                 "total_salary_ron": "4750.50",
+                "salary_advance_ron": "1200.00",
+                "salary_remainder_ron": "3550.50",
+                "meal_vouchers_ron": "600.00",
             }),
             content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(response.json()["total_salary_ron"], "4750.50")
+        self.assertEqual(response.json()["salary_advance_ron"], "1200.00")
+        self.assertEqual(response.json()["salary_remainder_ron"], "3550.50")
+        self.assertEqual(response.json()["meal_vouchers_ron"], "600.00")
         employee = Users.objects.get(UserSerie="EMP-SALARY-CREATE")
         self.assertEqual(employee.total_salary_ron, Decimal("4750.50"))
+        self.assertEqual(employee.salary_advance_ron, Decimal("1200.00"))
+        self.assertEqual(employee.salary_remainder_ron, Decimal("3550.50"))
+        self.assertEqual(employee.meal_vouchers_ron, Decimal("600.00"))
 
     def test_employee_total_salary_can_be_edited_and_loaded_again(self):
         response = self.admin.put(
@@ -88,15 +97,24 @@ class EmployeeRecordsApiTests(TestCase):
                 "UserSerie": self.employee.UserSerie,
                 "hourly_rate": "23.00",
                 "total_salary_ron": "5125.75",
+                "salary_advance_ron": "1000.00",
+                "salary_remainder_ron": "4125.75",
+                "meal_vouchers_ron": "700.00",
             }),
             content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["total_salary_ron"], "5125.75")
+        self.assertEqual(response.json()["salary_advance_ron"], "1000.00")
+        self.assertEqual(response.json()["salary_remainder_ron"], "4125.75")
+        self.assertEqual(response.json()["meal_vouchers_ron"], "700.00")
         loaded = self.admin.get(f"/api/user/{self.employee.pk}")
         self.assertEqual(loaded.status_code, 200, loaded.content)
         self.assertEqual(loaded.json()["total_salary_ron"], "5125.75")
+        self.assertEqual(loaded.json()["salary_advance_ron"], "1000.00")
+        self.assertEqual(loaded.json()["salary_remainder_ron"], "4125.75")
+        self.assertEqual(loaded.json()["meal_vouchers_ron"], "700.00")
 
     def test_attendance_day_exposes_leave_without_marking_employee_absent(self):
         LeaveDay.objects.create(
