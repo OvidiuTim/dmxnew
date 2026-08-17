@@ -22,7 +22,6 @@ import { ClockinandoutComponent } from './clockinandout/clockinandout.component'
 import { ClockinandoutdriverComponent } from './clockinandoutdriver/clockinandoutdriver.component';
 import { AdminAppPageComponent } from './admin-app-page/admin-app-page.component';
 import { NoAccessComponent } from './no-access/no-access.component';
-import { PortalPlaceholderComponent } from './portal-placeholder/portal-placeholder.component';
 import { InventoryCatalogComponent } from './inventory-catalog/inventory-catalog.component';
 import { InventoryHistoryComponent } from './inventory-history/inventory-history.component';
 import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
@@ -62,15 +61,6 @@ export const routes: Routes = [
   { path: 'pontaj/personal', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/personal', moduleCode: 'teams_schedule', teamMode: 'available' } },
   { path: 'pontaj/personal-disponibil', redirectTo: 'pontaj/personal', pathMatch: 'full' },
   { path: 'pontaj/concedii', component: LeaveRequestsComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/concedii', moduleCode: 'teams_schedule' } },
-  {
-    path: 'hr/documente', component: PortalPlaceholderComponent, canActivate: [AuthGuard],
-    data: {
-      permissionRoute: '/hr/documente', moduleCode: 'human_resources', title: 'Documente angajați', icon: 'document',
-      description: 'Evidența documentelor și a termenelor de valabilitate pentru personal.',
-      missingData: 'Nu există în serviciul frontend endpoint-uri confirmate pentru documente, tipuri de document și expirări.'
-    }
-  },
-
   // Formular angajat
   { path: 'users/new', component: EmployeeFormComponent, canActivate: [AuthGuard], data: { permissionRoute: '/users/new', moduleCode: 'attendance', requiresGranular: true } },
   { path: 'users/:id/edit', component: EmployeeFormComponent, canActivate: [AuthGuard], data: { permissionRoute: '/user/:id', moduleCode: 'attendance', requiresGranular: true } },

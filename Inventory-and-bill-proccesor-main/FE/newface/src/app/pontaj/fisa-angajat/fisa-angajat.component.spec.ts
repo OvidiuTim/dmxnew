@@ -2,6 +2,20 @@ import { of } from 'rxjs';
 import { FisaAngajatComponent } from './fisa-angajat.component';
 
 describe('FisaAngajatComponent documents', () => {
+  it('separă angajații activi de cei demiși și deschide doar istoricul pentru demiși', () => {
+    const router: any = { navigate: jasmine.createSpy() };
+    const component = new FisaAngajatComponent({} as any, router, {} as any);
+    component.employeeDirectory = [
+      { UserId: 1, UserName: 'Activ', employment_status: 'active' },
+      { UserId: 2, UserName: 'Demis', employment_status: 'dismissed', dismissed_at: '2026-08-17' },
+    ];
+
+    expect(component.activeEmployeeDirectory.map(item => item.UserId)).toEqual([1]);
+    expect(component.dismissedEmployeeDirectory.map(item => item.UserId)).toEqual([2]);
+    component.openAttendanceHistory(component.dismissedEmployeeDirectory[0]);
+    expect(router.navigate).toHaveBeenCalledWith(['/user', 2]);
+  });
+
   it('separă documentele personale de cele de angajare', () => {
     const component = new FisaAngajatComponent({} as any, {} as any, {} as any);
     component.documents = [

@@ -20,10 +20,10 @@ describe('Module route mapping', () => {
       ['dashboard', 'attendance'],
       ['pontaj/echipe', 'teams_schedule'],
       ['magazie', 'warehouse'],
-      ['hr/documente', 'human_resources'],
       ['unelte', 'tools']
     ];
     expect(expected.map(([path, code]) => routes.find(item => item.path === path)?.data?.['moduleCode'] === code))
-      .toEqual([true, true, true, true, true]);
+      .toEqual([true, true, true, true]);
+    expect(routes.some(item => item.path === 'hr/documente')).toBeFalse();
   });
 });

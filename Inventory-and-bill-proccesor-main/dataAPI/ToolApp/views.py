@@ -422,6 +422,15 @@ def _session_within_employment_q(prefix="user_fk__"):
     )
 
 
+def _dismissed_attendance_response(user):
+    if user.employment_status != Users.EmploymentStatus.DISMISSED:
+        return None
+    return JsonResponse({
+        "error": "Angajatul este demis. Istoricul pontajului poate fi doar consultat.",
+        "error_code": "DISMISSED_EMPLOYEE_ATTENDANCE_READ_ONLY",
+    }, status=409)
+
+
 @csrf_exempt
 def userApi(request,id=0):
     if request.method=='GET':
@@ -2079,6 +2088,8 @@ def nfc_scan(request):
             mapped_user = Users.objects.filter(
                 uid__iexact=uid,
                 person_type=Users.PersonType.EMPLOYEE,
+                active=True,
+                employment_status=Users.EmploymentStatus.ACTIVE,
             ).first() if uid and uid != "MANUAL" else None
             if mapped_user:
                 print(
@@ -2163,6 +2174,10 @@ def nfc_scan(request):
         print(f"[NFC] {timezone.now()} UID={uid} type={tag_type} pin_scanned={effective_pin} -> no user match")
         _log_pin_attempt(request, success=False, reason="invalid_pin", device_key=data.get("device_key"), uid=uid, worksite=ws)
         return JsonResponse({"ok": True, "match": None, "received": data})
+
+    dismissed_response = _dismissed_attendance_response(user)
+    if dismissed_response:
+        return dismissed_response
 
     _log_pin_attempt(request, success=True, reason="ok", device_key=data.get("device_key"), uid=uid, worksite=ws)
 
@@ -2544,12 +2559,16 @@ def attendance_day(request):
         for x in LeaveDay.objects.filter(
             work_date=day,
             user_fk__person_type=Users.PersonType.EMPLOYEE,
-        ).filter(_session_within_employment_q()).select_related("user_fk")
+            user_fk__employment_status=Users.EmploymentStatus.ACTIVE,
+        ).select_related("user_fk")
     }
 
     qs = (AttendanceSession.objects
-          .filter(work_date=day, user_fk__person_type=Users.PersonType.EMPLOYEE)
-          .filter(_session_within_employment_q())
+          .filter(
+              work_date=day,
+              user_fk__person_type=Users.PersonType.EMPLOYEE,
+              user_fk__employment_status=Users.EmploymentStatus.ACTIVE,
+          )
           .select_related("user_fk")
           .order_by("user_fk__UserName", "in_time"))
 
@@ -3303,6 +3322,9 @@ def leave_upsert(request):
         user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
     if not user:
         return JsonResponse({"error": "user not found"}, status=404)
+    dismissed_response = _dismissed_attendance_response(user)
+    if dismissed_response:
+        return dismissed_response
 
     # date
     try:
@@ -3408,6 +3430,9 @@ def leave_mark_range(request):
         return JsonResponse({"error": "Angajatul nu există."}, status=404)
     except (TypeError, ValueError):
         return JsonResponse({"error": "Angajatul și perioada sunt obligatorii."}, status=400)
+    dismissed_response = _dismissed_attendance_response(user)
+    if dismissed_response:
+        return dismissed_response
     if end_date < start_date:
         return JsonResponse({"error": "Data de sfârșit nu poate fi înaintea datei de început."}, status=400)
     if (end_date - start_date).days > 366:
@@ -3556,6 +3581,9 @@ def leave_delete(request):
         user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
     if not user:
         return JsonResponse({"error": "user not found"}, status=404)
+    dismissed_response = _dismissed_attendance_response(user)
+    if dismissed_response:
+        return dismissed_response
 
     try:
         d = _date.fromisoformat(str(data.get("date")))
@@ -3703,7 +3731,6 @@ APP_PERMISSION_ROUTES = [
     "/pontaj/rapoarte",
     "/pontaj/fisa-angajat",
     "/pontaj/cazari",
-    "/hr/documente",
     "/pontaj/echipe",
     "/pontaj/echipa-mea",
     "/pontaj/concedii",
@@ -4273,6 +4300,9 @@ def attendance_edit_day(request):
         user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
     if not user:
         return JsonResponse({"error": "user not found"}, status=404)
+    dismissed_response = _dismissed_attendance_response(user)
+    if dismissed_response:
+        return dismissed_response
 
     # day
     try:
@@ -4613,6 +4643,9 @@ def attendance_session_update(request):
     try:
         with transaction.atomic():
             s = AttendanceSession.objects.select_for_update().get(id=sid)
+            dismissed_response = _dismissed_attendance_response(s.user_fk)
+            if dismissed_response:
+                return dismissed_response
             day = s.work_date
 
             # Folosim helperul deja definit in fișier: _parse_hm_or_iso_for_day
@@ -4666,6 +4699,9 @@ def attendance_session_delete(request):
         with transaction.atomic():
             s = AttendanceSession.objects.select_for_update().get(id=sid)
             user = s.user_fk
+            dismissed_response = _dismissed_attendance_response(user)
+            if dismissed_response:
+                return dismissed_response
             day  = s.work_date
             in_t  = s.in_time
             out_t = s.out_time
@@ -4700,9 +4736,15 @@ def attendance_day_delete(request):
         return JsonResponse({"error": "Only DELETE or POST allowed"}, status=405)
 
     if method == "DELETE":
-        user_id = request.GET.get("user_id")
-        d_str   = request.GET.get("date")
-        rewrite_presence = str(request.GET.get("rewrite_presence","1")).lower() in ("1","true","yes","on")
+        try:
+            body = json.loads(request.body or "{}")
+        except Exception:
+            body = {}
+        user_id = body.get("user_id") or request.GET.get("user_id")
+        d_str = body.get("date") or request.GET.get("date")
+        rewrite_presence = str(
+            body.get("rewrite_presence", request.GET.get("rewrite_presence", "1"))
+        ).lower() in ("1", "true", "yes", "on")
     else:
         try:
             body = json.loads(request.body or "{}")
@@ -4718,6 +4760,9 @@ def attendance_day_delete(request):
         user = Users.objects.get(UserId=user_id)
     except Exception:
         return JsonResponse({"error": "user not found"}, status=404)
+    dismissed_response = _dismissed_attendance_response(user)
+    if dismissed_response:
+        return dismissed_response
 
     try:
         day = _date.fromisoformat(d_str)

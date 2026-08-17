@@ -36,7 +36,9 @@ interface EmployeeProfile {
   phone_number?: string | null;
   photo?: string | null;
   trade?: string | null;
-  leave_balance?: { remaining_days: string; total_used_days: number; total_accrued_days: string } | null;
+  employment_status?: 'active' | 'dismissed' | string;
+  dismissed_at?: string | null;
+  leave_balance?: { remaining_days: string; total_used_days: number; total_accrued_days: string; extra_days_taken?: string } | null;
 }
 
 interface LeaveCell {
@@ -135,6 +137,10 @@ export class UserpontatComponent implements OnInit {
   get selectedEditingDay(): DayRow | null {
     if (!this.editingDate) return null;
     return this.days.find(day => day.date === this.editingDate) ?? null;
+  }
+
+  get isDismissed(): boolean {
+    return this.employeeProfile?.employment_status === 'dismissed';
   }
 
   constructor(
@@ -273,6 +279,7 @@ export class UserpontatComponent implements OnInit {
   }
 
   openLeaveRange(): void {
+    if (this.isDismissed) return;
     const today = new Date();
     const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     this.leaveRangeForm = { start_date: iso, end_date: iso, leave_type: 'CO' };
@@ -423,6 +430,7 @@ export class UserpontatComponent implements OnInit {
 
   // ================== EDITOR ==================
   openEditor(day: DayRow): void {
+    if (this.isDismissed) return;
     this.editingDate = day.date;
     this.mode = 'sessions';
 
@@ -477,6 +485,7 @@ export class UserpontatComponent implements OnInit {
   }
 
   deleteSingleSession(row: SessionRow): void {
+    if (this.isDismissed) return;
     if (!row.session_id) return;
     if (!confirm('Ștergi această sesiune?')) return;
 
@@ -496,6 +505,7 @@ export class UserpontatComponent implements OnInit {
   }
 
   clearDayConfirm(day: DayRow): void {
+    if (this.isDismissed) return;
     if (!confirm(`Ștergi toate sesiunile pentru ${day.date}?`)) return;
     this.saving = true;
     this.api.deleteDay(this.userId, day.date).subscribe({
@@ -515,6 +525,7 @@ export class UserpontatComponent implements OnInit {
 
   // ================== SAVE TOTAL ==================
   saveTotal(day: DayRow): void {
+    if (this.isDismissed) return;
     if (!this.validHHMM(this.form.totalHms)) {
       alert('Total invalid. Folosește format HH:MM (ex: 07:30).');
       return;
@@ -591,6 +602,7 @@ export class UserpontatComponent implements OnInit {
 
   // ================== SAVE SESSIONS ==================
   saveSessions(day: DayRow): void {
+    if (this.isDismissed) return;
     if (!this.sessForm.length) {
       alert('Adaugă cel puțin o sesiune.');
       return;
@@ -639,6 +651,7 @@ export class UserpontatComponent implements OnInit {
   }
 
   saveLeave(day: DayRow): void {
+    if (this.isDismissed) return;
     if (!this.leaveForm.hours || this.leaveForm.hours < 0) {
       alert('Setează orele pontate pentru ziua lipsă.');
       return;
@@ -674,6 +687,7 @@ export class UserpontatComponent implements OnInit {
   }
 
   deleteLeave(day: DayRow): void {
+    if (this.isDismissed) return;
     if (!confirm('Ștergi marcajul de lipsă pentru această zi?')) return;
 
     this.saving = true;

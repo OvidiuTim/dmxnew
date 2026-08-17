@@ -10,6 +10,8 @@ interface EmployeeProfile {
   UserId?: number;
   UserName?: string | null;
   UserSerie?: string | null;
+  employment_status?: 'active' | 'dismissed' | string;
+  dismissed_at?: string | null;
   uid?: string | null;
   hourly_rate?: string | number | null;
   Company?: string | null;
@@ -27,6 +29,7 @@ interface EmployeeProfile {
     total_accrued_days: string;
     total_used_days: number;
     remaining_days: string;
+    extra_days_taken: string;
   } | null;
   housing_location?: string | null;
   accommodation?: { id: number; name: string; address?: string } | null;
@@ -144,6 +147,22 @@ export class FisaAngajatComponent implements OnInit {
     if (employee.UserId) this.router.navigate(['/pontaj/fisa-angajat', employee.UserId]);
   }
 
+  openAttendanceHistory(employee: EmployeeProfile): void {
+    if (employee.UserId) this.router.navigate(['/user', employee.UserId]);
+  }
+
+  get activeEmployeeDirectory(): EmployeeProfile[] {
+    return this.employeeDirectory.filter(employee => employee.employment_status !== 'dismissed');
+  }
+
+  get dismissedEmployeeDirectory(): EmployeeProfile[] {
+    return this.employeeDirectory.filter(employee => employee.employment_status === 'dismissed');
+  }
+
+  get isEmployeeDismissed(): boolean {
+    return this.employee?.employment_status === 'dismissed';
+  }
+
   get currentTools(): EmployeeTool[] {
     return this.activeTab === 'site' ? this.siteTools : this.ssmTools;
   }
@@ -218,6 +237,11 @@ export class FisaAngajatComponent implements OnInit {
       documentTypes: this.api.getEmployeeDocumentTypes(),
     }).subscribe({
       next: ({ employee, siteTools, ssmTools, documents, documentTypes }) => {
+        if (employee?.employment_status === 'dismissed') {
+          this.loading = false;
+          this.router.navigate(['/user', userId]);
+          return;
+        }
         this.employee = employee ?? null;
         this.siteTools = (siteTools ?? []) as EmployeeTool[];
         this.ssmTools = (ssmTools ?? []) as EmployeeTool[];
@@ -336,7 +360,7 @@ export class FisaAngajatComponent implements OnInit {
   }
 
   editEmployee(): void {
-    if (this.userId) {
+    if (this.userId && !this.isEmployeeDismissed) {
       this.router.navigate(['/users', this.userId, 'edit']);
     }
   }

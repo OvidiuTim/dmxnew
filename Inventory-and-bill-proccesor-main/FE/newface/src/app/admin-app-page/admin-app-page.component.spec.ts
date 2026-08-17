@@ -10,11 +10,10 @@ describe('AdminAppPageComponent modules', () => {
     { code: 'attendance', label: 'Pontaj', description: '', icon: 'schedule', main_route: '/dashboard' },
     { code: 'teams_schedule', label: 'Echipe și program', description: '', icon: 'groups', main_route: '/pontaj/echipe' },
     { code: 'warehouse', label: 'Magazie', description: '', icon: 'warehouse', main_route: '/magazie' },
-    { code: 'human_resources', label: 'Resurse umane', description: '', icon: 'description', main_route: '/hr/documente' },
     { code: 'tools', label: 'Unelte', description: '', icon: 'construction', main_route: '/unelte' }
   ];
 
-  it('afișează cele cinci carduri în pagină', async () => {
+  it('afișează cele patru carduri în pagină', async () => {
     const auth = {
       adminAppVerify: () => of({ ok: true }),
       getAdminModules: () => of({ modules, routes: [], users: [] })
@@ -26,10 +25,10 @@ describe('AdminAppPageComponent modules', () => {
     }).compileComponents();
     const fixture = TestBed.createComponent(AdminAppPageComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelectorAll('.module-card').length).toBe(5);
+    expect(fixture.nativeElement.querySelectorAll('.module-card').length).toBe(4);
   });
 
-  it('încarcă exact cele cinci module și salvează selecția multiplă', () => {
+  it('încarcă exact cele patru module și salvează selecția multiplă', () => {
     const users = [
       { id: 1, username: 'ana', employee: { name: 'Ana' }, module_access: { attendance: true } },
       { id: 2, username: 'ion', employee: { name: 'Ion' }, module_access: { attendance: false } }

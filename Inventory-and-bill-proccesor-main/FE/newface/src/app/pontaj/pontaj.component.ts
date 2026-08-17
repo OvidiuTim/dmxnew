@@ -81,8 +81,7 @@ seeFisaAngajat(id: number): void {
       next: ({ day, users }) => {
         users = (users ?? []).filter((user: any) => {
           if ((user.person_type || 'employee') !== 'employee') return false;
-          if ((user.employment_status || 'active') !== 'dismissed') return true;
-          return Boolean(user.dismissed_at && this.selectedDate <= user.dismissed_at);
+          return (user.employment_status || 'active') !== 'dismissed';
         });
         const byId = new Map<number, DayUserRow>();
         for (const r of (day?.rows ?? [])) {

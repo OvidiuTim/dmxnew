@@ -82,7 +82,6 @@ describe('AuthGuard module access', () => {
       { moduleCode: 'warehouse', permissionRoute: '/magazie/scule' },
       { moduleCode: 'warehouse', permissionRoute: '/magazie/echipamente-ssm' },
       { moduleCode: 'warehouse', permissionRoute: '/magazie/istoric' },
-      { moduleCode: 'human_resources', permissionRoute: '/hr/documente' },
       { moduleCode: 'tools', permissionRoute: '/unelte' },
       { moduleCode: 'tools', permissionRoute: '/unelte/adauga-unealta' },
       { moduleCode: 'tools', permissionRoute: '/predare-unealta' }

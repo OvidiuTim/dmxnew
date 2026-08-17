@@ -4,7 +4,6 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.core.cache import cache
-from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.utils import timezone
@@ -326,31 +325,31 @@ class MobileEmployeeApiTests(TestCase):
         self.employee.hire_date = date(2026, 6, 20)
         self.employee.save(update_fields=("hire_date",))
         expectations = (
-            (date(2026, 7, 31), 1, Decimal("1.66"), 1),
-            (date(2026, 8, 31), 2, Decimal("3.32"), 3),
-            (date(2026, 9, 30), 3, Decimal("4.98"), 4),
-            (date(2026, 12, 31), 6, Decimal("9.96"), 9),
-            (date(2027, 6, 30), 6, Decimal("9.96"), 9),
+            (date(2026, 7, 31), 1, Decimal("1.75"), 1),
+            (date(2026, 8, 31), 2, Decimal("3.50"), 3),
+            (date(2026, 9, 30), 3, Decimal("5.25"), 5),
+            (date(2026, 12, 31), 6, Decimal("10.50"), 10),
+            (date(2027, 6, 30), 6, Decimal("10.50"), 10),
         )
         for as_of, months, accrued, available in expectations:
             self.assertEqual(completed_full_months(self.employee.hire_date, as_of), months)
             self.assertEqual(accrued_leave_days(self.employee, as_of), accrued)
             self.assertEqual(calculate_available_leave_days(self.employee, as_of), available)
 
-    def test_full_calendar_year_is_capped_at_twenty_leave_days(self):
+    def test_full_calendar_year_accrues_twenty_one_leave_days(self):
         self.employee.hire_date = date(2024, 1, 1)
         self.employee.save(update_fields=("hire_date",))
 
         self.assertEqual(completed_full_months(self.employee.hire_date, date(2026, 12, 31)), 12)
-        self.assertEqual(accrued_leave_days(self.employee, date(2026, 12, 31)), Decimal("20.00"))
-        self.assertEqual(calculate_available_leave_days(self.employee, date(2026, 12, 31)), 20)
+        self.assertEqual(accrued_leave_days(self.employee, date(2026, 12, 31)), Decimal("21.00"))
+        self.assertEqual(calculate_available_leave_days(self.employee, date(2026, 12, 31)), 21)
 
     def test_employee_without_hire_date_is_treated_as_legacy_employee(self):
         self.employee.hire_date = None
         self.employee.save(update_fields=("hire_date",))
 
         self.assertEqual(completed_full_months(None, date(2026, 8, 31)), 8)
-        self.assertEqual(accrued_leave_days(self.employee, date(2026, 8, 31)), Decimal("13.28"))
+        self.assertEqual(accrued_leave_days(self.employee, date(2026, 8, 31)), Decimal("14.00"))
 
     def test_first_attendance_is_used_when_hire_date_is_missing(self):
         self.employee.hire_date = None
@@ -360,7 +359,7 @@ class MobileEmployeeApiTests(TestCase):
             work_date=date(2026, 5, 10),
         )
 
-        self.assertEqual(accrued_leave_days(self.employee, date(2026, 8, 31)), Decimal("4.98"))
+        self.assertEqual(accrued_leave_days(self.employee, date(2026, 8, 31)), Decimal("5.25"))
 
     def test_prior_and_manually_marked_leave_days_reduce_balance_without_duplicates(self):
         self.employee.hire_date = date(2024, 1, 1)
@@ -384,18 +383,18 @@ class MobileEmployeeApiTests(TestCase):
 
         self.assertEqual(summary["total_used_days"], 6)
         self.assertEqual(summary["prior_used_days"], 3)
-        self.assertEqual(summary["remaining_days"], "7.28")
+        self.assertEqual(summary["remaining_days"], "8.00")
         self.assertEqual(LeaveDay.objects.filter(source_leave_request=approved).count(), 2)
         next_year = build_leave_summary(self.employee, date(2027, 8, 31))
         self.assertEqual(next_year["prior_used_days"], 0)
-        self.assertEqual(next_year["remaining_days"], "13.28")
+        self.assertEqual(next_year["remaining_days"], "14.00")
 
     def test_manual_remaining_balance_override_tracks_new_leave_days(self):
         self.employee.hire_date = date(2024, 1, 1)
         self.employee.leave_remaining_override_days = Decimal("6.50")
         self.employee.leave_remaining_override_year = 2026
         self.employee.leave_remaining_override_used_days = 0
-        self.employee.leave_remaining_override_accrued_days = Decimal("13.28")
+        self.employee.leave_remaining_override_accrued_days = Decimal("14.00")
         self.employee.save(update_fields=(
             "hire_date",
             "leave_remaining_override_days",
@@ -414,8 +413,8 @@ class MobileEmployeeApiTests(TestCase):
         summary = build_leave_summary(self.employee, date(2026, 8, 31))
         self.assertEqual(summary["remaining_days"], "5.50")
         self.assertTrue(summary["remaining_days_overridden"])
-        self.assertEqual(build_leave_summary(self.employee, date(2026, 9, 30))["remaining_days"], "7.16")
-        self.assertEqual(build_leave_summary(self.employee, date(2027, 8, 31))["remaining_days"], "13.28")
+        self.assertEqual(build_leave_summary(self.employee, date(2026, 9, 30))["remaining_days"], "7.25")
+        self.assertEqual(build_leave_summary(self.employee, date(2027, 8, 31))["remaining_days"], "14.00")
 
     @patch("ToolApp.mobile_views.localdate", return_value=date(2026, 8, 31))
     def test_leave_balance_api_exposes_accrued_used_and_remaining_days(self, _localdate_mock):
@@ -431,14 +430,15 @@ class MobileEmployeeApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.content)
         balance = response.json()["leave_balance"]
-        self.assertEqual(balance["annual_entitlement_days"], 20)
-        self.assertEqual(balance["monthly_accrual_days"], "1.66")
-        self.assertEqual(balance["total_accrued_days"], "13.28")
+        self.assertEqual(balance["annual_entitlement_days"], 21)
+        self.assertEqual(balance["monthly_accrual_days"], "1.75")
+        self.assertEqual(balance["total_accrued_days"], "14.00")
         self.assertEqual(balance["total_used_days"], 2)
-        self.assertEqual(balance["remaining_days"], "11.28")
-        self.assertEqual(balance["available_days"], 11)
+        self.assertEqual(balance["remaining_days"], "12.00")
+        self.assertEqual(balance["extra_days_taken"], "0.00")
+        self.assertEqual(balance["available_days"], 12)
 
-    def test_paid_leave_cannot_be_approved_over_available_balance(self):
+    def test_paid_leave_over_available_balance_is_recorded_as_extra_days(self):
         self.employee.hire_date = date(2026, 6, 20)
         self.employee.save(update_fields=("hire_date",))
         leave = LeaveRequest(
@@ -448,9 +448,24 @@ class MobileEmployeeApiTests(TestCase):
             end_date=date(2026, 8, 4),
             status=LeaveRequest.Status.APPROVED,
         )
-        with patch("django.utils.timezone.localdate", return_value=date(2026, 7, 31)):
-            with self.assertRaises(ValidationError):
-                leave.save()
+        leave.save()
+        summary = build_leave_summary(self.employee, date(2026, 7, 31))
+        self.assertEqual(summary["remaining_days"], "0.00")
+        self.assertEqual(summary["extra_days_taken"], "0.25")
+
+    def test_india_leave_reduces_balance_like_paid_leave(self):
+        self.employee.hire_date = date(2024, 1, 1)
+        self.employee.save(update_fields=("hire_date",))
+        LeaveDay.objects.create(
+            user_fk=self.employee,
+            work_date=date(2026, 8, 3),
+            reason=LeaveDay.Reason.INDIA,
+        )
+
+        summary = build_leave_summary(self.employee, date(2026, 8, 31))
+
+        self.assertEqual(summary["total_used_days"], 1)
+        self.assertEqual(summary["remaining_days"], "13.00")
 
     def test_overlapping_leave_requests_are_rejected(self):
         self.assign_employee_to_team()

@@ -1,14 +1,27 @@
 <div class="employee-directory" *ngIf="!userId">
-  <header class="directory-header"><div><span>Resurse umane</span><h1>Fișe angajați</h1><p>Selectează un angajat pentru profil, date generale și echipamentele alocate.</p></div><button type="button" (click)="goBack()">Înapoi la pontaj</button></header>
+  <header class="directory-header"><div><span>Personal</span><h1>Fișe angajați</h1><p>Selectează un angajat pentru profil, date generale și echipamentele alocate.</p></div><button type="button" (click)="goBack()">Înapoi la pontaj</button></header>
   <div class="state error" *ngIf="error">{{ error }}</div>
   <div class="state" *ngIf="loading">Se încarcă angajații…</div>
-  <div class="directory-empty" *ngIf="!loading && !error && !employeeDirectory.length"><strong>Nu există angajați</strong><span>Adaugă primul angajat din pagina de pontaj.</span></div>
-  <section class="directory-grid" *ngIf="!loading && employeeDirectory.length">
-    <button type="button" *ngFor="let person of employeeDirectory" (click)="openEmployeeSheet(person)">
+  <div class="directory-empty" *ngIf="!loading && !error && !activeEmployeeDirectory.length"><strong>Nu există angajați activi</strong><span>Adaugă primul angajat din pagina de pontaj.</span></div>
+  <section class="directory-grid" *ngIf="!loading && activeEmployeeDirectory.length">
+    <button type="button" *ngFor="let person of activeEmployeeDirectory" (click)="openEmployeeSheet(person)">
       <span class="directory-avatar">{{ (person.UserName || '?').charAt(0) }}</span>
       <span class="directory-copy"><strong>{{ displayText(person.UserName) }}</strong><small>{{ displayText(person.trade) }} · {{ displayText(person.Company) }}</small></span>
       <i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i>
     </button>
+  </section>
+  <section class="dismissed-directory" *ngIf="!loading && dismissedEmployeeDirectory.length">
+    <div class="dismissed-heading"><div><span>Arhivă personal</span><h2>Demiși</h2><p>Datele sunt disponibile numai pentru consultarea istoricului de pontaj.</p></div><strong>{{ dismissedEmployeeDirectory.length }}</strong></div>
+    <div class="dismissed-table-scroll">
+      <table class="dismissed-table">
+        <thead><tr><th>Angajat</th><th>Profesie</th><th>Firmă</th><th>Data demiterii</th><th>Acțiuni</th></tr></thead>
+        <tbody><tr *ngFor="let person of dismissedEmployeeDirectory">
+          <td><div class="dismissed-person"><span class="directory-avatar">{{ (person.UserName || '?').charAt(0) }}</span><span><strong>{{ displayText(person.UserName) }}</strong><small>{{ displayText(person.UserSerie) }}</small></span></div></td>
+          <td>{{ displayText(person.trade) }}</td><td>{{ displayText(person.Company) }}</td><td>{{ person.dismissed_at ? (person.dismissed_at | date:'dd.MM.yyyy') : '—' }}</td>
+          <td><button class="history-button" type="button" (click)="openAttendanceHistory(person)"><span class="material-symbols-rounded" aria-hidden="true">history</span>Istoric pontaj</button></td>
+        </tr></tbody>
+      </table>
+    </div>
   </section>
 </div>
 
@@ -41,7 +54,7 @@
         </div>
       </div>
 
-      <div class="employee-actions">
+      <div class="employee-actions" *ngIf="!isEmployeeDismissed">
         <button class="edit-employee-btn" type="button" (click)="editEmployee()"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Editează</button>
         <div class="dropdown">
           <button class="dropdown-btn" type="button" (click)="toggleDropdown()">Predare / preluare</button>
@@ -136,6 +149,10 @@
         <div class="general-item">
           <span>Concediu rămas</span>
           <strong>{{ employee.leave_balance?.remaining_days || '0.00' }} zile</strong>
+        </div>
+        <div class="general-item extra-leave-item">
+          <span>Zile suplimentare luate</span>
+          <strong>{{ employee.leave_balance?.extra_days_taken || '0.00' }} zile</strong>
         </div>
       </div>
     </section>

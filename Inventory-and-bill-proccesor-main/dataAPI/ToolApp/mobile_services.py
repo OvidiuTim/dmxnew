@@ -11,8 +11,8 @@ from ToolApp.models import AttendanceSession, EmployeeTeam, Histories, LeaveDay,
 
 
 MONEY_PLACES = Decimal("0.01")
-ANNUAL_LEAVE_DAYS = Decimal("20.00")
-LEAVE_ACCRUAL_PER_MONTH = Decimal("1.66")
+LEAVE_ACCRUAL_PER_MONTH = Decimal("1.75")
+ANNUAL_LEAVE_DAYS = LEAVE_ACCRUAL_PER_MONTH * Decimal("12")
 SALARY_ADVANCE = "salary_advance"
 SALARY_REMAINDER = "salary_remainder"
 FOOD_MONEY = "food_money"
@@ -365,7 +365,7 @@ def used_paid_leave_dates(employee, year, exclude_request_id=None):
     dates = approved_paid_leave_dates(employee, year=year, exclude_request_id=exclude_request_id)
     leave_days = LeaveDay.objects.filter(
         user_fk=employee,
-        reason=LeaveDay.Reason.CO,
+        reason__in=(LeaveDay.Reason.CO, LeaveDay.Reason.INDIA),
         work_date__range=(year_start, year_end),
     )
     if exclude_request_id:
@@ -379,7 +379,7 @@ def used_paid_leave_days(employee, year, exclude_request_id=None):
     return len(used_paid_leave_dates(employee, year, exclude_request_id)) + prior_days
 
 
-def remaining_paid_leave_days(employee, as_of_date, exclude_request_id=None):
+def raw_remaining_paid_leave_days(employee, as_of_date, exclude_request_id=None):
     used = used_paid_leave_days(employee, as_of_date.year, exclude_request_id=exclude_request_id)
     if (
         employee.leave_remaining_override_days is not None
@@ -390,13 +390,30 @@ def remaining_paid_leave_days(employee, as_of_date, exclude_request_id=None):
             accrued_leave_days(employee, as_of_date)
             - Decimal(employee.leave_remaining_override_accrued_days or 0)
         )
-        return max(
-            Decimal("0.00"),
+        return (
             Decimal(employee.leave_remaining_override_days)
             + accrued_since_override
-            - Decimal(used_since_override),
+            - Decimal(used_since_override)
         ).quantize(MONEY_PLACES)
-    return max(Decimal("0.00"), accrued_leave_days(employee, as_of_date) - Decimal(used)).quantize(MONEY_PLACES)
+    return (accrued_leave_days(employee, as_of_date) - Decimal(used)).quantize(MONEY_PLACES)
+
+
+def remaining_paid_leave_days(employee, as_of_date, exclude_request_id=None):
+    raw_remaining = raw_remaining_paid_leave_days(
+        employee,
+        as_of_date,
+        exclude_request_id=exclude_request_id,
+    )
+    return max(Decimal("0.00"), raw_remaining).quantize(MONEY_PLACES)
+
+
+def extra_paid_leave_days(employee, as_of_date, exclude_request_id=None):
+    raw_remaining = raw_remaining_paid_leave_days(
+        employee,
+        as_of_date,
+        exclude_request_id=exclude_request_id,
+    )
+    return max(Decimal("0.00"), -raw_remaining).quantize(MONEY_PLACES)
 
 
 def calculate_available_leave_days(employee, as_of_date, exclude_request_id=None):
@@ -417,6 +434,7 @@ def build_leave_summary(employee, as_of_date):
     ), year_start, year_end)
     accrued = accrued_leave_days(employee, as_of_date)
     remaining = remaining_paid_leave_days(employee, as_of_date)
+    extra_days_taken = extra_paid_leave_days(employee, as_of_date)
     effective_hire_date = employee_effective_hire_date(employee, as_of_date)
     return {
         "year": as_of_date.year,
@@ -432,6 +450,7 @@ def build_leave_summary(employee, as_of_date):
         "prior_used_days": int(employee.prior_paid_leave_days or 0) if employee.prior_paid_leave_year == as_of_date.year else 0,
         "prior_used_days_year": employee.prior_paid_leave_year,
         "remaining_days": f"{remaining:.2f}",
+        "extra_days_taken": f"{extra_days_taken:.2f}",
         "remaining_days_overridden": bool(
             employee.leave_remaining_override_days is not None
             and employee.leave_remaining_override_year == as_of_date.year

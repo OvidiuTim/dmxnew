@@ -51,11 +51,6 @@ export class NavbarComponent implements OnDestroy {
       ]
     },
     {
-      label: 'Resurse umane',
-      moduleCode: 'human_resources',
-      links: [{ label: 'Documente', path: '/hr/documente', icon: 'description', permissionRoute: '/hr/documente' }]
-    },
-    {
       label: 'Unelte',
       moduleCode: 'tools',
       links: [{ label: 'Registru unelte', path: '/unelte', icon: 'construction', permissionRoute: '/unelte' }]

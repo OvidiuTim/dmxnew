@@ -8,7 +8,7 @@ from django.utils import timezone
 from openpyxl import load_workbook
 
 from ToolApp.employee_retention import purge_expired_dismissed_employees
-from ToolApp.models import AttendanceSession, Histories, Users
+from ToolApp.models import AttendanceSession, Histories, LeaveDay, Users
 from ToolApp.security import make_admin_token
 from ToolApp.views import _find_user_by_pin
 
@@ -67,6 +67,61 @@ class EmployeeDismissalTests(TestCase):
         after_day = self.admin.get(reverse("attendance_day"), {"date": "2026-08-11"})
         self.assertEqual(after_day.status_code, 200, after_day.content)
         self.assertFalse(any(row["UserId"] == self.employee.pk for row in after_day.json()["rows"]))
+        historical_day = self.admin.get(reverse("attendance_day"), {"date": "2026-08-09"})
+        self.assertEqual(historical_day.status_code, 200, historical_day.content)
+        self.assertFalse(any(row["UserId"] == self.employee.pk for row in historical_day.json()["rows"]))
+
+    def test_dismissed_employee_attendance_is_read_only(self):
+        self.employee.employment_status = Users.EmploymentStatus.DISMISSED
+        self.employee.dismissed_at = date(2026, 8, 10)
+        self.employee.active = False
+        self.employee.save(update_fields=("employment_status", "dismissed_at", "active"))
+        session = AttendanceSession.objects.create(
+            user_fk=self.employee,
+            work_date=date(2026, 8, 9),
+            in_time=timezone.now(),
+            out_time=timezone.now(),
+            duration_seconds=3600,
+        )
+        requests = {
+            "edit_day": self.admin.post(
+                reverse("attendance_edit_day"),
+                data=json.dumps({
+                    "user_id": self.employee.pk,
+                    "date": "2026-08-09",
+                    "sessions": [{"in": "08:00", "out": "17:00"}],
+                }),
+                content_type="application/json",
+            ),
+            "update_session": self.admin.post(
+                reverse("attendance_session_update"),
+                data=json.dumps({"session_id": session.pk, "in": "09:00"}),
+                content_type="application/json",
+            ),
+            "delete_day": self.admin.generic(
+                "DELETE",
+                reverse("attendance_day_delete"),
+                data=json.dumps({"user_id": self.employee.pk, "date": "2026-08-09"}),
+                content_type="application/json",
+            ),
+            "leave_upsert": self.admin.post(
+                "/api/leave/upsert/",
+                data=json.dumps({"user_id": self.employee.pk, "date": "2026-08-09", "reason": "CO"}),
+                content_type="application/json",
+            ),
+            "leave_range": self.admin.post(
+                reverse("leave_mark_range"),
+                data=json.dumps({"user_id": self.employee.pk, "start_date": "2026-08-09", "end_date": "2026-08-10"}),
+                content_type="application/json",
+            ),
+        }
+
+        for operation, response in requests.items():
+            with self.subTest(operation=operation):
+                self.assertEqual(response.status_code, 409, response.content)
+                self.assertEqual(response.json()["error_code"], "DISMISSED_EMPLOYEE_ATTENDANCE_READ_ONLY")
+        self.assertTrue(AttendanceSession.objects.filter(pk=session.pk).exists())
+        self.assertFalse(LeaveDay.objects.filter(user_fk=self.employee).exists())
 
     def test_excel_after_dismissal_does_not_include_employee(self):
         Users.objects.create(UserName="Angajat activ", UserSerie="ACTIVE-EXCEL")

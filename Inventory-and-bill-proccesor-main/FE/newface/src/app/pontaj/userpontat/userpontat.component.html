@@ -40,13 +40,14 @@
         </div>
       </div>
 
-      <div class="profile-actions">
+      <div class="profile-actions" *ngIf="!isDismissed">
         <button class="btn profile-sheet-btn" type="button" (click)="goToEmployeeSheet()">Spre fișa angajatului</button>
         <button class="btn profile-sheet-btn" type="button" (click)="openLeaveRange()"><span class="material-symbols-rounded" aria-hidden="true">calendar_add_on</span>Marchează concediu</button>
       </div>
     </div>
 
     <div class="state success" *ngIf="leaveRangeNotice">{{ leaveRangeNotice }}</div>
+    <div class="state dismissed-readonly" *ngIf="isDismissed"><span class="material-symbols-rounded" aria-hidden="true">lock</span>Angajat demis — istoricul pontajului este disponibil numai pentru consultare.</div>
 
     <div class="state" *ngIf="profileLoading">Se încarcă detaliile angajatului…</div>
     <div class="state error" *ngIf="profileError">{{ profileError }}</div>
@@ -74,11 +75,11 @@
             <td class="total-cell">{{ durataOre(d.total_hms) }}</td>
             <td class="count-cell">{{ d.entries }} / {{ d.exits }}</td>
             <td class="day-actions-cell">
-              <details class="day-actions-menu" #dayMenu>
+              <details class="day-actions-menu" #dayMenu *ngIf="!isDismissed || d.sessions.length; else noActions">
                 <summary [attr.aria-label]="'Acțiuni pentru ' + d.date" title="Acțiuni"><span class="material-symbols-rounded" aria-hidden="true">more_vert</span></summary>
                 <div class="day-actions-popover">
-                  <button type="button" (click)="dayMenu.open = false; openEditor(d)"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Editează</button>
-                  <button type="button" class="danger-action" (click)="dayMenu.open = false; clearDayConfirm(d)"><span class="material-symbols-rounded" aria-hidden="true">delete</span>Șterge</button>
+                  <button *ngIf="!isDismissed" type="button" (click)="dayMenu.open = false; openEditor(d)"><span class="material-symbols-rounded" aria-hidden="true">edit</span>Editează</button>
+                  <button *ngIf="!isDismissed" type="button" class="danger-action" (click)="dayMenu.open = false; clearDayConfirm(d)"><span class="material-symbols-rounded" aria-hidden="true">delete</span>Șterge</button>
                   <ng-container *ngFor="let s of d.sessions; let index = index">
                     <div class="menu-divider"></div>
                     <span class="session-menu-label">Sesiunea {{ index + 1 }}</span>
@@ -88,6 +89,7 @@
                   </ng-container>
                 </div>
               </details>
+              <ng-template #noActions><span class="muted">—</span></ng-template>
             </td>
           </tr>
         </tbody>

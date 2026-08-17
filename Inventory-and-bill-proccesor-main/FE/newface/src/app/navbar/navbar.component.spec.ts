@@ -46,11 +46,9 @@ describe('NavbarComponent module filtering', () => {
     ]);
   });
 
-  it('utilizatorul doar cu Resurse umane vede Documente', () => {
+  it('nu mai afișează vechiul modul Resurse umane', () => {
     const component = componentFor(['human_resources']);
-    const groups = visibleGroups(component);
-    expect(groups.map(group => group.label)).toEqual(['Resurse umane']);
-    expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual(['/hr/documente']);
+    expect(visibleGroups(component)).toEqual([]);
   });
 
   it('combină toate paginile pentru două module', () => {
@@ -68,9 +66,9 @@ describe('NavbarComponent module filtering', () => {
     const component = componentFor([], true);
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual([
-      'Pontaj', 'Echipe și program', 'Magazie', 'Resurse umane', 'Unelte'
+      'Pontaj', 'Echipe și program', 'Magazie', 'Unelte'
     ]);
-    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(17);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(16);
   });
 
   it('marchează o singură rută de echipe ca activă', () => {

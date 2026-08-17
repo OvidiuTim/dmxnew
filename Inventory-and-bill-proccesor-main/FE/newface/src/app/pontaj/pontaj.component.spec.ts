@@ -15,4 +15,19 @@ describe('PontajComponent', () => {
     component.searchTerm = 'dulgher';
     expect(component.filteredRows.length).toBe(1);
   });
+
+  it('exclude angajații demiși din Registrul zilei', () => {
+    const api: any = {
+      getAttendanceDay: () => of({ rows: [{ UserId: 2, UserName: 'Fost Angajat', status: 'OUT', sessions: [], total_hms: '08:00:00' }] }),
+      getUsrList: () => of([
+        { UserId: 1, UserName: 'Angajat Activ', employment_status: 'active' },
+        { UserId: 2, UserName: 'Fost Angajat', employment_status: 'dismissed', dismissed_at: '2026-08-17' },
+      ]),
+    };
+    const component = new PontajComponent(api, {} as any);
+
+    component.loadDay();
+
+    expect(component.rows.map(row => row.UserName)).toEqual(['Angajat Activ']);
+  });
 });

@@ -41,15 +41,6 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/magazie/istoric", "label": "Istoric", "icon": "history"},
         ],
     }),
-    ("human_resources", {
-        "label": "Resurse umane",
-        "description": "Documentele și informațiile administrative ale angajaților.",
-        "icon": "description",
-        "main_route": "/hr/documente",
-        "routes": [
-            {"path": "/hr/documente", "label": "Documente", "icon": "description"},
-        ],
-    }),
     ("tools", {
         "label": "Unelte",
         "description": "Registrul separat pentru adăugarea și predarea uneltelor.",

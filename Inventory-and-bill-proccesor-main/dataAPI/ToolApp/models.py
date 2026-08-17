@@ -313,7 +313,6 @@ class AppModuleAccess(models.Model):
         ATTENDANCE = "attendance", "Pontaj"
         TEAMS_SCHEDULE = "teams_schedule", "Echipe și program"
         WAREHOUSE = "warehouse", "Magazie"
-        HUMAN_RESOURCES = "human_resources", "Resurse umane"
         TOOLS = "tools", "Unelte"
 
     AccessId = models.AutoField(primary_key=True)
@@ -722,22 +721,10 @@ class LeaveRequest(models.Model):
                 raise ValidationError("Cererea de concediu se suprapune cu o cerere existentă.")
         if (
             self.employee_id
-            and self.leave_type == self.LeaveType.PAID_LEAVE
             and self.status == self.Status.APPROVED
-            and self.start_date
-            and self.end_date
-            and self.end_date >= self.start_date
+            and self.employee.employment_status == Users.EmploymentStatus.DISMISSED
         ):
-            from ToolApp.mobile_services import calculate_available_leave_days, count_salary_days_in_range
-
-            requested_days = count_salary_days_in_range(self.start_date, self.end_date)
-            available_days = calculate_available_leave_days(
-                self.employee,
-                timezone.localdate(),
-                exclude_request_id=self.pk,
-            )
-            if requested_days > available_days:
-                raise ValidationError("Concediul plătit depășește numărul de zile disponibile.")
+            raise ValidationError("Nu se poate aproba concediu pentru un angajat demis.")
 
     def save(self, *args, **kwargs):
         self.full_clean()

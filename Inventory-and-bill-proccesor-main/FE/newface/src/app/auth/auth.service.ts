@@ -22,7 +22,6 @@ export class AuthService {
     attendance: '/dashboard',
     teams_schedule: '/pontaj/echipe',
     warehouse: '/magazie',
-    human_resources: '/hr/documente',
     tools: '/unelte'
   };
   private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api';

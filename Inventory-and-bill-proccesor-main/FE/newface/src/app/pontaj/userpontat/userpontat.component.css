@@ -91,6 +91,7 @@
 .state { margin: 16px 4px; color: #bdc5d1; }
 .state.error { color: #ff9999; }
 .state.success { color: #8ee3b1; }
+.state.dismissed-readonly { display: flex; align-items: center; gap: 8px; padding: 11px 13px; border: 1px solid rgba(248,113,113,.25); border-radius: 10px; background: rgba(248,113,113,.08); color: #fca5a5; }.state.dismissed-readonly span { font-size: 19px; line-height: 1; }
 
 .profile-card {
   margin: 14px 0 18px;

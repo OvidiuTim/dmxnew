@@ -188,10 +188,6 @@ class ModuleAccessApiTests(TestCase):
             ["/magazie", "/magazie/scule", "/magazie/echipamente-ssm", "/magazie/istoric"],
         )
         self.assertEqual(
-            [route["path"] for route in MODULE_DEFINITIONS["human_resources"]["routes"]],
-            ["/hr/documente"],
-        )
-        self.assertEqual(
             [route["path"] for route in MODULE_DEFINITIONS["tools"]["routes"]],
             ["/unelte", "/unelte/adauga-unealta", "/predare-unealta"],
         )
@@ -202,11 +198,11 @@ class ModuleAccessApiTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(
             [module["code"] for module in response.json()["modules"]],
-            ["attendance", "teams_schedule", "warehouse", "human_resources", "tools"],
+            ["attendance", "teams_schedule", "warehouse", "tools"],
         )
         current = self.admin_client.get("/api/app-auth/modules/")
         self.assertEqual(current.status_code, 200)
         self.assertEqual(
             current.json()["granted_modules"],
-            ["attendance", "teams_schedule", "warehouse", "human_resources", "tools"],
+            ["attendance", "teams_schedule", "warehouse", "tools"],
         )
