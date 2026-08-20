@@ -104,3 +104,5 @@ h1 { margin: 7px 0 5px; color: var(--text); font-size: clamp(29px, 4vw, 38px); l
   .member-remove-action { display: none; }
   .member-actions-menu-wrap { display: block; margin-left: auto; }
 }
+
+.leader-row.supervisor-row { margin-top: -5px; border-color: rgba(84,168,255,.2); }

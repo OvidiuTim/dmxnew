@@ -91,6 +91,23 @@ class LeaveRequestWorkflowApiTests(TestCase):
         self.assertEqual(response.json()["leave_request"]["status"], "pending")
         self.assertEqual(response.json()["leave_request"]["reason"], "Programare personală")
 
+    def test_distinct_supervisor_receives_and_decides_leave_instead_of_team_leader(self):
+        supervisor = self.employee("Supervisor A", "LR-SA", "Supervisor")
+        self.team_a.supervisor = supervisor
+        self.team_a.save(update_fields=("supervisor",))
+        supervisor_client, _ = self.app_client(supervisor, "leave-supervisor-a")
+
+        response = self.mobile_create("5101")
+        self.assertEqual(response.status_code, 201, response.content)
+        item = LeaveRequest.objects.get()
+        self.assertEqual(item.assigned_leader, supervisor)
+
+        leader_denied = self.decide(self.client_a, item, "approve")
+        self.assertEqual(leader_denied.status_code, 403, leader_denied.content)
+        supervisor_approved = self.decide(supervisor_client, item, "approve")
+        self.assertEqual(supervisor_approved.status_code, 200, supervisor_approved.content)
+        self.assertEqual(supervisor_approved.json()["leave_request"]["status"], "approved")
+
     @patch("ToolApp.mobile_views.send_leave_request_email")
     def test_new_leave_request_is_emailed_to_office_and_team_leader(self, send_email):
         self.leader_a.email = "lider@dmxconstruction.ro"

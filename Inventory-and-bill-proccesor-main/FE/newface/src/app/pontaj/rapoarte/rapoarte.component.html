@@ -176,13 +176,13 @@
                   />
 
                   <div class="people-dropdown-list" *ngIf="getFilteredPeople(row).length; else noPeopleFound">
-                    <div class="person-list-item" *ngFor="let person of getFilteredPeople(row)">
+                    <button type="button" class="person-list-item" *ngFor="let person of getFilteredPeople(row)" (click)="router.navigate(['/user', person.UserId])">
                       <div class="person-main">
                         <span>{{ person.UserName }}</span>
                         <small *ngIf="person.Company">{{ person.Company }}</small>
                       </div>
                       <span class="person-time">{{ person.total_hms }}</span>
-                    </div>
+                    </button>
                   </div>
 
                   <ng-template #noPeopleFound>

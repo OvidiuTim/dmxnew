@@ -34,10 +34,12 @@ export interface EmployeeTeam {
   active: boolean;
   default_worksite: string;
   leader: TeamEmployee;
+  supervisor: TeamEmployee;
   members: TeamEmployee[];
   member_ids: number[];
   can_edit: boolean;
   can_manage_settings: boolean;
+  can_update_leader_email?: boolean;
 }
 
 export interface TeamRequest {

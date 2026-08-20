@@ -64,6 +64,33 @@ class TeamManagementApiTests(TestCase):
             {self.leader_a.pk, self.worker_a.pk, self.worker_b.pk},
         )
 
+    def test_team_can_have_distinct_supervisor_and_supervisor_can_manage_members(self):
+        supervisor = self.employee("Supervisor A", "SUP-A", "Supervisor")
+        response = self.admin.post(
+            reverse("teams_collection"),
+            data=json.dumps({
+                "name": "Echipa cu supervisor",
+                "leader_id": self.leader_a.pk,
+                "supervisor_id": supervisor.pk,
+                "active": True,
+                "member_ids": [self.worker_a.pk],
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        team = EmployeeTeam.objects.get(pk=response.json()["team"]["id"])
+        self.assertEqual(team.supervisor, supervisor)
+        self.assertEqual(response.json()["team"]["supervisor"]["id"], supervisor.pk)
+
+        supervisor_client, _ = self.leader_client(supervisor, "supervisor-a")
+        updated = supervisor_client.post(
+            reverse("team_members", args=[team.pk]),
+            data=json.dumps({"employee_id": self.worker_free.pk, "action": "add"}),
+            content_type="application/json",
+        )
+        self.assertEqual(updated.status_code, 200, updated.content)
+        self.assertTrue(EmployeeTeamMember.objects.filter(team=team, employee=self.worker_free, active=True).exists())
+
     def test_create_team_saves_leader_email(self):
         response = self.admin.post(
             reverse("teams_collection"),

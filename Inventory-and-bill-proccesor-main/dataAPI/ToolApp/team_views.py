@@ -72,6 +72,15 @@ def _is_leader(app_user, team):
     return bool(app_user and app_user.employee_id == team.leader_id and team.active)
 
 
+def _is_supervisor(app_user, team):
+    supervisor_id = team.supervisor_id or team.leader_id
+    return bool(app_user and app_user.employee_id == supervisor_id and team.active)
+
+
+def _is_team_manager(app_user, team):
+    return _is_leader(app_user, team) or _is_supervisor(app_user, team)
+
+
 def _employee_payload(employee, team=None, member_status=None, include_requests=False):
     payload = {
         "id": employee.UserId,
@@ -98,7 +107,7 @@ def _employee_payload(employee, team=None, member_status=None, include_requests=
 
 def _team_payload(team, app_user=None, can_manage_all=False, member_statuses=None):
     member_statuses = member_statuses or {}
-    include_requests = can_manage_all or _is_leader(app_user, team)
+    include_requests = can_manage_all or _is_team_manager(app_user, team)
     memberships = list(
         team.memberships.filter(
             active=True,
@@ -138,15 +147,22 @@ def _team_payload(team, app_user=None, can_manage_all=False, member_statuses=Non
             member_statuses.get(team.leader_id),
             include_requests,
         ),
+        "supervisor": _employee_payload(
+            team.effective_supervisor,
+            team,
+            member_statuses.get(team.effective_supervisor.UserId),
+            include_requests,
+        ),
         "members": members,
         "member_ids": [item["id"] for item in members],
-        "can_edit": can_manage_all or _is_leader(app_user, team),
+        "can_edit": can_manage_all or _is_team_manager(app_user, team),
         "can_manage_settings": can_manage_all,
+        "can_update_leader_email": can_manage_all or _is_leader(app_user, team),
     }
 
 
 def _teams_queryset():
-    return EmployeeTeam.objects.select_related("leader").prefetch_related("memberships__employee")
+    return EmployeeTeam.objects.select_related("leader", "supervisor").prefetch_related("memberships__employee")
 
 
 def _normalize_text(value):
@@ -221,7 +237,7 @@ def _team_member_statuses(teams, app_user, can_manage_all):
     request_rows = {employee_id: [] for employee_id in employee_ids}
     visible_team_ids = {
         team.pk for team in teams
-        if can_manage_all or _is_leader(app_user, team)
+        if can_manage_all or _is_team_manager(app_user, team)
     }
     if visible_team_ids:
         pending_requests = TemporaryWorkerRequest.objects.select_related("source_team", "requester_team").filter(
@@ -318,12 +334,17 @@ def teams_collection(request):
             start_date__lte=today,
             end_date__gte=today,
         ).values_list("employee_id", flat=True))
-        leader_ids = {team.leader_id for team in teams if team.active}
+        role_holder_ids = {
+            employee_id
+            for team in teams if team.active
+            for employee_id in (team.leader_id, team.supervisor_id)
+            if employee_id
+        }
         employees = []
         for employee in Users.objects.filter(person_type=Users.PersonType.EMPLOYEE).order_by("UserName"):
             row = _employee_payload(employee, membership.get(employee.pk))
             row["can_request"] = bool(
-                employee.active and row["team"] and employee.pk not in leader_ids and employee.pk not in unavailable_ids
+                employee.active and row["team"] and employee.pk not in role_holder_ids and employee.pk not in unavailable_ids
             )
             employees.append(row)
         return JsonResponse({
@@ -335,6 +356,16 @@ def teams_collection(request):
                 "leader_team_ids": list(
                     EmployeeTeam.objects.filter(active=True, leader_id=getattr(app_user, "employee_id", None))
                     .values_list("id", flat=True)
+                ) if app_user else [],
+                "supervisor_team_ids": list(
+                    EmployeeTeam.objects.filter(active=True, supervisor_id=getattr(app_user, "employee_id", None))
+                    .values_list("id", flat=True)
+                ) if app_user else [],
+                "manager_team_ids": list(
+                    EmployeeTeam.objects.filter(active=True).filter(
+                        Q(leader_id=getattr(app_user, "employee_id", None))
+                        | Q(supervisor_id=getattr(app_user, "employee_id", None))
+                    ).values_list("id", flat=True)
                 ) if app_user else [],
             },
         })
@@ -371,8 +402,17 @@ def _save_team(data, team=None, members_only=False):
         ).first()
         if not leader:
             raise ValidationError({"leader_id": "Șeful selectat nu există sau este inactiv."})
+        supervisor_id = data.get("supervisor_id") or leader.pk
+        supervisor = Users.objects.select_for_update().filter(
+            pk=supervisor_id,
+            active=True,
+            person_type=Users.PersonType.EMPLOYEE,
+        ).first()
+        if not supervisor:
+            raise ValidationError({"supervisor_id": "Supervisorul selectat nu există sau este inactiv."})
         team.name = data["name"]
         team.leader = leader
+        team.supervisor = supervisor
         team.default_worksite = data.get("default_worksite", "")
         team.active = data.get("active", True)
         leader_email = str(data.get("leader_email") or "").strip()
@@ -454,7 +494,7 @@ def team_detail(request, team_id):
         return JsonResponse({"team": _team_payload(team, app_user, can_manage_all)})
     if request.method not in ("PUT", "PATCH"):
         return _error("Metodă nepermisă.", 405)
-    can_edit_own = _is_leader(app_user, team)
+    can_edit_own = _is_team_manager(app_user, team)
     if not can_manage_all and not can_edit_own:
         return _error("Nu poți modifica echipa altui șef.", 403)
     body = _json_body(request)
@@ -466,7 +506,8 @@ def team_detail(request, team_id):
         serializer = TeamWriteSerializer(data={
             "name": team.name,
             "leader_id": team.leader_id,
-            "leader_email": body.get("leader_email", team.leader.email),
+            "supervisor_id": team.supervisor_id or team.leader_id,
+            "leader_email": body.get("leader_email", team.leader.email) if _is_leader(app_user, team) else team.leader.email,
             "default_worksite": team.default_worksite,
             "active": team.active,
             "member_ids": body.get("member_ids", []),
@@ -488,7 +529,7 @@ def team_members(request, team_id):
     team = _teams_queryset().filter(pk=team_id).first()
     if not team:
         return _error("Echipa nu există.", 404)
-    if not can_manage_all and not _is_leader(app_user, team):
+    if not can_manage_all and not _is_team_manager(app_user, team):
         return _error("Nu poți modifica echipa altui șef.", 403)
     serializer = TeamMembersSerializer(data=_json_body(request) or {})
     if not serializer.is_valid():
@@ -504,6 +545,7 @@ def team_members(request, team_id):
     data = {
         "name": team.name,
         "leader_id": team.leader_id,
+        "supervisor_id": team.supervisor_id or team.leader_id,
         "default_worksite": team.default_worksite,
         "active": team.active,
         "member_ids": member_ids,
@@ -516,8 +558,8 @@ def team_members(request, team_id):
 
 
 def _request_payload(item, app_user=None, can_manage_all=False):
-    can_resolve = can_manage_all or _is_leader(app_user, item.source_team)
-    can_cancel = can_manage_all or _is_leader(app_user, item.requester_team) or (
+    can_resolve = can_manage_all or _is_team_manager(app_user, item.source_team)
+    can_cancel = can_manage_all or _is_team_manager(app_user, item.requester_team) or (
         app_user and item.requested_by_id == app_user.pk
     )
     requested_by = item.requested_by
@@ -569,7 +611,9 @@ def temporary_requests(request):
             employee_id = app_user.employee_id
             query = query.filter(
                 Q(source_team__leader_id=employee_id)
+                | Q(source_team__supervisor_id=employee_id)
                 | Q(requester_team__leader_id=employee_id)
+                | Q(requester_team__supervisor_id=employee_id)
                 | Q(requested_by=app_user)
             ).distinct()
         return JsonResponse({
@@ -594,9 +638,9 @@ def temporary_requests(request):
     ).first()
     if not source_membership:
         return _error("Pentru un angajat fără echipă folosește alocarea permanentă.")
-    if source_membership.team.leader_id == employee.pk:
-        return _error("Un șef de echipă nu poate fi solicitat temporar.")
-    if not can_manage_all and not _is_leader(app_user, requester_team):
+    if employee.pk in {source_membership.team.leader_id, source_membership.team.supervisor_id}:
+        return _error("Un șef de echipă sau supervisor nu poate fi solicitat temporar.")
+    if not can_manage_all and not _is_team_manager(app_user, requester_team):
         return _error("Poți solicita personal numai pentru propria echipă.", 403)
     try:
         with transaction.atomic():
@@ -641,8 +685,8 @@ def temporary_request_action(request, request_id):
             ).filter(pk=request_id).first()
             if not item:
                 return _error("Solicitarea nu există.", 404)
-            can_resolve = can_manage_all or _is_leader(app_user, item.source_team)
-            can_cancel = can_manage_all or _is_leader(app_user, item.requester_team) or (
+            can_resolve = can_manage_all or _is_team_manager(app_user, item.source_team)
+            can_cancel = can_manage_all or _is_team_manager(app_user, item.requester_team) or (
                 app_user and item.requested_by_id == app_user.pk
             )
             if action in ("approve", "reject") and not can_resolve:
@@ -706,16 +750,22 @@ def _incoming_requests(app_user, can_manage_all):
         return query
     if not app_user:
         return query.none()
-    return query.filter(source_team__leader_id=app_user.employee_id)
+    return query.filter(
+        Q(source_team__leader_id=app_user.employee_id)
+        | Q(source_team__supervisor_id=app_user.employee_id)
+    )
 
 
 def _incoming_leave_requests(app_user, can_manage_all):
-    query = LeaveRequest.objects.select_related("employee", "team", "assigned_leader")
+    query = LeaveRequest.objects.select_related("employee", "team", "team__supervisor", "assigned_leader")
     if can_manage_all:
         return query
     if not app_user:
         return query.none()
-    return query.filter(assigned_leader_id=app_user.employee_id)
+    return query.filter(
+        Q(team__supervisor_id=app_user.employee_id)
+        | Q(team__supervisor__isnull=True, team__leader_id=app_user.employee_id)
+    )
 
 
 def _leave_notification_payload(item):
@@ -840,6 +890,7 @@ def teams_today(request):
         assigned_ids.update(member.pk for member in members)
         sent_ids = {item.employee_id for item in sent.get(team.pk, [])}
         leader_row = _daily_employee(team.leader, team, present_ids, worksites, leaves, "leader")
+        supervisor_row = _daily_employee(team.effective_supervisor, team, present_ids, worksites, leaves, "supervisor")
         permanent = []
         absent = []
         for member in members:
@@ -852,6 +903,7 @@ def teams_today(request):
             "name": team.name,
             "default_worksite": team.default_worksite,
             "leader": leader_row,
+            "supervisor": supervisor_row,
             "permanent": permanent,
             "received": [
                 _daily_employee(item.employee, team, present_ids, worksites, leaves, "received")
@@ -896,8 +948,13 @@ def available_personnel(request):
     }
     reserved_ids = {item.employee_id for item in active_requests}
     leader_ids = set(EmployeeTeam.objects.filter(active=True).values_list("leader_id", flat=True))
+    role_holder_ids = leader_ids | set(
+        EmployeeTeam.objects.filter(active=True, supervisor__isnull=False).values_list("supervisor_id", flat=True)
+    )
     actor_teams = list(
-        EmployeeTeam.objects.filter(active=True, leader_id=app_user.employee_id)
+        EmployeeTeam.objects.filter(active=True).filter(
+            Q(leader_id=app_user.employee_id) | Q(supervisor_id=app_user.employee_id)
+        )
         if app_user else []
     )
     actor_team_ids = {team.pk for team in actor_teams}
@@ -921,19 +978,19 @@ def available_personnel(request):
                 actor_can_allocate
                 and team
                 and (can_manage_all or team.pk not in actor_team_ids)
-                and employee.pk not in leader_ids and not leave and employee.pk not in reserved_ids
+                and employee.pk not in role_holder_ids and not leave and employee.pk not in reserved_ids
             ),
             "can_request_permanent": bool(
                 actor_can_allocate
                 and team
                 and (can_manage_all or team.pk not in actor_team_ids)
-                and employee.pk not in leader_ids
+                and employee.pk not in role_holder_ids
             ),
         })
         employees.append(row)
     teams = [
         _team_payload(team, app_user, can_manage_all)
         for team in _teams_queryset().filter(active=True)
-        if can_manage_all or _is_leader(app_user, team)
+        if can_manage_all or _is_team_manager(app_user, team)
     ]
     return JsonResponse({"date": day.isoformat(), "employees": employees, "manageable_teams": teams})

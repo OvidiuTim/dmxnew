@@ -2,6 +2,7 @@ import json
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -29,6 +30,7 @@ def _base_queryset():
     return LeaveRequest.objects.select_related(
         "employee",
         "team",
+        "team__supervisor",
         "assigned_leader",
         "reviewed_by_app_user__employee",
     )
@@ -40,7 +42,10 @@ def _visible_queryset(app_user, is_admin):
         return queryset
     if not app_user:
         return queryset.none()
-    return queryset.filter(assigned_leader_id=app_user.employee_id)
+    return queryset.filter(
+        Q(team__supervisor_id=app_user.employee_id)
+        | Q(team__supervisor__isnull=True, team__leader_id=app_user.employee_id)
+    )
 
 
 def _employee_payload(employee):
@@ -128,8 +133,9 @@ def leave_request_decision(request, request_id):
     item = _base_queryset().select_for_update().filter(pk=request_id).first()
     if not item:
         return _error("Cererea de concediu nu există.", 404)
-    if not is_admin and item.assigned_leader_id != app_user.employee_id:
-        return _error("Poți soluționa numai cererile angajaților din propria echipă.", 403)
+    supervisor_id = (item.team.supervisor_id or item.team.leader_id) if item.team_id else item.assigned_leader_id
+    if not is_admin and supervisor_id != app_user.employee_id:
+        return _error("Numai supervisorul echipei poate soluționa această cerere.", 403)
     if item.status != LeaveRequest.Status.PENDING:
         return _error("Cererea a fost deja soluționată.", 409)
 

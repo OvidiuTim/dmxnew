@@ -66,6 +66,7 @@ class UserSerializer(serializers.ModelSerializer):
             "accommodation_id",
             "accommodation",
             "accommodation_room_id",
+            "attendance_exempt",
             "active",
         )
         extra_kwargs = {
@@ -95,6 +96,7 @@ class UserSerializer(serializers.ModelSerializer):
             "leave_remaining_override_used_days": {"read_only": True},
             "leave_remaining_override_accrued_days": {"read_only": True},
             "housing_location": {"required": False, "allow_blank": True},
+            "attendance_exempt": {"required": False},
             "active": {"required": False},
         }
 

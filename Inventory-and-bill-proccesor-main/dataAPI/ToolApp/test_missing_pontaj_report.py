@@ -171,3 +171,11 @@ class MissingPontajReportQueryTests(TestCase):
         self.assertEqual(len(open_checkouts), 1)
         self.assertEqual(open_checkouts[0].user, open_user)
         self.assertEqual(len(open_checkouts[0].sessions), 2)
+
+    def test_attendance_exempt_employee_is_omitted_from_missing_and_open_checkout_lists(self):
+        exempt_missing = self.create_user("Nu se pontează", "DMX-EX-1", attendance_exempt=True)
+        exempt_open = self.create_user("Pontaj exceptat", "DMX-EX-2", attendance_exempt=True)
+        self.attendance(exempt_open, self.target_day, open_session=True)
+
+        self.assertNotIn(exempt_missing, get_missing_users_for_day(self.target_day))
+        self.assertNotIn(exempt_open, [row.user for row in get_open_checkouts_for_day(self.target_day)])

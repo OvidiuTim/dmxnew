@@ -43,6 +43,7 @@
       <div class="profile-actions" *ngIf="!isDismissed">
         <button class="btn profile-sheet-btn" type="button" (click)="goToEmployeeSheet()">Spre fișa angajatului</button>
         <button class="btn profile-sheet-btn" type="button" (click)="openLeaveRange()"><span class="material-symbols-rounded" aria-hidden="true">calendar_add_on</span>Marchează concediu</button>
+        <button class="btn attendance-exempt-btn" [class.active]="employeeProfile?.attendance_exempt" type="button" (click)="toggleAttendanceExempt()" [disabled]="attendanceExemptSaving"><span class="material-symbols-rounded" aria-hidden="true">{{ employeeProfile?.attendance_exempt ? 'do_not_disturb_on' : 'person_off' }}</span>{{ attendanceExemptSaving ? 'Se salvează…' : 'Nu se pontează' }}</button>
       </div>
     </div>
 

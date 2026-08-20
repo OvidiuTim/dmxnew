@@ -53,6 +53,7 @@ def get_missing_users_for_day(target_day):
             active=True,
             person_type=Users.PersonType.EMPLOYEE,
             employment_status=Users.EmploymentStatus.ACTIVE,
+            attendance_exempt=False,
         )
         .exclude(UserId__in=excluded_ids)
         .order_by("UserName")
@@ -108,6 +109,7 @@ def get_open_checkouts_for_day(target_day):
             user_fk__active=True,
             user_fk__person_type=Users.PersonType.EMPLOYEE,
             user_fk__employment_status=Users.EmploymentStatus.ACTIVE,
+            user_fk__attendance_exempt=False,
         )
         .order_by("user_fk__UserName", "in_time")
     )

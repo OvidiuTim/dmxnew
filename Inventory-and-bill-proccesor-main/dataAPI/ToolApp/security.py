@@ -174,7 +174,10 @@ def app_user_has_route(app_user, route: str) -> bool:
     if not app_user or not route:
         return False
     team_routes = {"/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/echipe-azi", "/pontaj/personal", "/pontaj/notificari"}
-    if route in team_routes and app_user.employee.led_employee_teams.filter(active=True).exists():
+    if route in team_routes and (
+        app_user.employee.led_employee_teams.filter(active=True).exists()
+        or app_user.employee.supervised_employee_teams.filter(active=True).exists()
+    ):
         return True
     from ToolApp.models import AppPagePermission
     return AppPagePermission.objects.filter(

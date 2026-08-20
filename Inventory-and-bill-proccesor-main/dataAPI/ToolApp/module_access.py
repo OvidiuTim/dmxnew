@@ -75,8 +75,11 @@ def effective_module_codes(app_user):
     codes = set(
         app_user.module_accesses.filter(can_access=True).values_list("module_code", flat=True)
     )
-    # Șefii de echipă păstrează accesul implicit necesar administrării propriei echipe.
-    if app_user.employee.led_employee_teams.filter(active=True).exists():
+    # Șefii și supervisorii păstrează accesul implicit necesar administrării echipelor lor.
+    if (
+        app_user.employee.led_employee_teams.filter(active=True).exists()
+        or app_user.employee.supervised_employee_teams.filter(active=True).exists()
+    ):
         codes.add("teams_schedule")
     return [code for code in MODULE_ORDER if code in codes]
 

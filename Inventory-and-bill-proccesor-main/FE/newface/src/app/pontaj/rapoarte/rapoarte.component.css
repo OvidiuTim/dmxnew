@@ -459,6 +459,7 @@
 }
 
 .person-list-item {
+  width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -467,7 +468,12 @@
   border-radius: 10px;
   background: #171922;
   border: 1px solid #2a2d38;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
+
+.person-list-item:hover { border-color: #31d68f; background: #1b2430; }
 
 .person-main {
   display: flex;

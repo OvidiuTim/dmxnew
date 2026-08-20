@@ -83,6 +83,28 @@ class CollaboratorCreationTests(TestCase):
         self.assertIn("phone_number", response.json()["details"])
 
 
+class AttendanceExemptionApiTests(TestCase):
+    def setUp(self):
+        self.client.cookies["ptj"] = make_admin_token()
+        self.user = Users.objects.create(UserName="Fără pontaj obligatoriu", UserSerie="EXEMPT-1")
+
+    def test_toggle_excludes_employee_from_daily_attendance_payload(self):
+        AttendanceSession.objects.create(
+            user_fk=self.user,
+            work_date=localdate(),
+            in_time=timezone.now() - timedelta(hours=1),
+        )
+        response = self.client.post(
+            f"/api/user/{self.user.pk}/attendance-exempt/",
+            data=json.dumps({"attendance_exempt": True}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json()["attendance_exempt"])
+        self.assertEqual(self.client.get(f"/api/pontaj/day/?date={localdate()}").json()["rows"], [])
+
+
 class ManualAttendanceSecurityTests(TestCase):
     chef_center = {
         "lat": 45.79680855369633,
@@ -579,3 +601,9 @@ class AttendanceReportsTests(TestCase):
         self.assertEqual(payload["summary"]["total_hms"], "03:30:00")
         self.assertEqual(payload["summary"]["total_cost"], "89.25")
         self.assertEqual(payload["people"][0]["display_name"], "Mihai Popescu (SER-401)")
+        self.assertEqual(payload["worksites"], [{
+            "worksite": "Bloc B2",
+            "total_seconds": (3 * 3600) + (30 * 60),
+            "total_hms": "03:30:00",
+            "total_cost": "89.25",
+        }])

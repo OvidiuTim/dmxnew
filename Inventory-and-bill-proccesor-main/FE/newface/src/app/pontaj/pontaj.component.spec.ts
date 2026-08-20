@@ -30,4 +30,25 @@ describe('PontajComponent', () => {
 
     expect(component.rows.map(row => row.UserName)).toEqual(['Angajat Activ']);
   });
+
+  it('exclude angajații marcați Nu se pontează și filtrează după șantier', () => {
+    const api: any = {
+      getAttendanceDay: () => of({ rows: [
+        { UserId: 1, UserName: 'Activ', status: 'IN', sessions: [], total_hms: '01:00:00', day_worksite: 'Bloc A' },
+        { UserId: 2, UserName: 'Exceptat', status: 'IN', sessions: [], total_hms: '01:00:00', day_worksite: 'Bloc B' },
+      ] }),
+      getUsrList: () => of([
+        { UserId: 1, UserName: 'Activ' },
+        { UserId: 2, UserName: 'Exceptat', attendance_exempt: true },
+      ]),
+    };
+    const component = new PontajComponent(api, {} as any);
+
+    component.loadDay();
+    component.selectedWorksite = 'Bloc A';
+
+    expect(component.rows.map(row => row.UserName)).toEqual(['Activ']);
+    expect(component.worksiteOptions).toEqual(['Bloc A']);
+    expect(component.filteredRows.length).toBe(1);
+  });
 });

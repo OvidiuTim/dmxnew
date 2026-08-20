@@ -88,6 +88,7 @@ urlpatterns = [
     # --- Aliasuri noi cu prefix /api/ pentru toate cele de sus (legacy REST) ---
     path('api/user/', views.userApi),
     path('api/user/<int:id>', views.userApi),
+    path('api/user/<int:id>/attendance-exempt/', views.attendance_exemption, name='attendance_exemption'),
 
     path('api/tool/', views.toolApi),
     path('api/tool/<int:id>', views.toolApi),

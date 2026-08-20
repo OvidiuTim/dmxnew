@@ -153,6 +153,8 @@
 .btn:disabled { cursor: not-allowed; opacity: .55; }
 .btn .material-symbols-rounded { font-size: 18px; }
 .profile-sheet-btn { border-color: #1d6a43; background: #12301f; color: #b8f0cc; }
+.attendance-exempt-btn { border-color: rgba(246,184,74,.35); color: #f6c96f; }
+.attendance-exempt-btn.active { border-color: rgba(255,91,91,.5); background: rgba(255,77,77,.12); color: #ff9b9b; }
 
 .attendance-table-card {
   border: 1px solid #293244;

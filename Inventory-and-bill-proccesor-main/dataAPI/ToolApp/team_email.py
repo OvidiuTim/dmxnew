@@ -8,9 +8,13 @@ logger = logging.getLogger(__name__)
 
 
 def send_worker_request_email(item):
-    recipient = str(item.source_team.leader.email or "").strip()
-    if not recipient:
-        logger.warning("Cererea de personal #%s nu a fost trimisă prin email: șeful nu are email.", item.pk)
+    recipients = []
+    for person in (item.source_team.leader, item.source_team.effective_supervisor):
+        email = str(person.email or "").strip().lower()
+        if email and email not in recipients:
+            recipients.append(email)
+    if not recipients:
+        logger.warning("Cererea de personal #%s nu a fost trimisă prin email: responsabilii echipei nu au email.", item.pk)
         return False
 
     api_key = str(getattr(settings, "SENDGRID_API_KEY", "") or "").strip()
@@ -52,7 +56,7 @@ def send_worker_request_email(item):
 
         message = Mail(
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to_emails=[recipient],
+            to_emails=recipients,
             subject=subject,
             plain_text_content=text,
             html_content=html,

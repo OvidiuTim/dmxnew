@@ -49,4 +49,14 @@ describe('DashboardComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.admin-shortcuts')).toBeNull();
   });
+
+  it('separă absenții fără pontaj de angajații aflați în concediu', () => {
+    const component = fixture.componentInstance;
+    component.totalEmployees = 5;
+    component.clockedToday = 2;
+    component.attendanceRows = [{ status: 'IN' }, { status: 'OUT' }, { status: 'LEAVE' }];
+
+    expect(component.absentToday).toBe(2);
+    expect(component.leaveToday).toBe(1);
+  });
 });

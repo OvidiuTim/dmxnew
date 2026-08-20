@@ -40,6 +40,7 @@ export class DashboardComponent implements OnInit {
   totalWorkedSeconds = 0;
   worksitesCount = 0;
   totalDayCost = 0;
+  worksiteCosts: Array<{ worksite: string; total_cost: number; total_hms: string }> = [];
   loadingAttendance = true;
   loadingHistory = true;
   loadingReports = true;
@@ -63,9 +64,15 @@ export class DashboardComponent implements OnInit {
     forkJoin({ day: this.service.getAttendanceDay(this.todayISO), users: this.service.getUsrList() }).subscribe({
       next: ({ day, users }) => {
         this.attendanceRows = day?.rows ?? [];
-        this.totalEmployees = users?.length ?? 0;
+        const eligibleUsers = (users ?? []).filter((user: any) =>
+          (user.person_type || 'employee') === 'employee'
+          && (user.employment_status || 'active') !== 'dismissed'
+          && user.active !== false
+          && user.attendance_exempt !== true
+        );
+        this.totalEmployees = eligibleUsers.length;
         this.presentNow = this.attendanceRows.filter(row => row.status === 'IN').length;
-        this.clockedToday = this.attendanceRows.filter(row => row.status !== 'ABSENT').length;
+        this.clockedToday = this.attendanceRows.filter(row => row.status === 'IN' || row.status === 'OUT').length;
         this.finishedToday = this.attendanceRows.filter(row => row.status === 'OUT').length;
         this.totalWorkedSeconds = this.attendanceRows.reduce((sum, row) => sum + this.secondsFromRow(row), 0);
         this.loadingAttendance = false;
@@ -87,6 +94,11 @@ export class DashboardComponent implements OnInit {
       next: ({ worksites, dayCost }) => {
         this.worksitesCount = Number(worksites?.summary?.worksites_count ?? worksites?.rows?.length ?? 0);
         this.totalDayCost = Number(dayCost?.summary?.total_cost ?? 0);
+        this.worksiteCosts = (dayCost?.worksites ?? []).map((item: any) => ({
+          worksite: item.worksite || 'Fără șantier asignat',
+          total_cost: Number(item.total_cost ?? 0),
+          total_hms: item.total_hms || '00:00:00',
+        }));
         this.loadingReports = false;
       },
       error: () => {
@@ -115,7 +127,8 @@ export class DashboardComponent implements OnInit {
 
   get recentHistory(): ViewHistory[] { return this.histToolList.slice(0, 6); }
   get isGeneralPasswordSession(): boolean { return this.auth.currentSession()?.auth_type === 'legacy'; }
-  get absentToday(): number { return Math.max(0, this.totalEmployees - this.clockedToday); }
+  get leaveToday(): number { return this.attendanceRows.filter(row => row.status === 'LEAVE').length; }
+  get absentToday(): number { return Math.max(0, this.totalEmployees - this.clockedToday - this.leaveToday); }
   get presencePercent(): number { return this.totalEmployees ? Math.round((this.clockedToday / this.totalEmployees) * 100) : 0; }
   get totalWorkedLabel(): string {
     const hours = Math.floor(this.totalWorkedSeconds / 3600);

@@ -158,11 +158,11 @@ def leave_request_create(request):
     if len(reason) > 2000:
         return _error("REASON_TOO_LONG", "Motivul sau observațiile pot avea maximum 2000 de caractere.", 400)
     membership = (
-        EmployeeTeamMember.objects.select_related("team__leader")
+        EmployeeTeamMember.objects.select_related("team__leader", "team__supervisor")
         .filter(employee=employee, active=True, team__active=True)
         .first()
     )
-    team = membership.team if membership else EmployeeTeam.objects.select_related("leader").filter(
+    team = membership.team if membership else EmployeeTeam.objects.select_related("leader", "supervisor").filter(
         leader=employee,
         active=True,
     ).first()
@@ -175,7 +175,7 @@ def leave_request_create(request):
     item = LeaveRequest(
         employee=employee,
         team=team,
-        assigned_leader=team.leader,
+        assigned_leader=team.effective_supervisor,
         leave_type=leave_type,
         start_date=start_date,
         end_date=end_date,

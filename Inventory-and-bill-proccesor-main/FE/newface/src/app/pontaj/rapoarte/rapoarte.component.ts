@@ -168,7 +168,7 @@ export class RapoarteComponent implements OnInit {
 
   constructor(
     private http: HttpClient,
-    private router: Router,
+    public router: Router,
     private api: SharedService,
   ) {}
 

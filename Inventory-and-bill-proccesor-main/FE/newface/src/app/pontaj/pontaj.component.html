@@ -21,6 +21,7 @@
     <div class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" aria-label="Caută angajat" [value]="searchTerm" (input)="onSearchChange($event)" placeholder="Caută după numele angajatului…" autocomplete="off" /></div>
     <label><span>Firmă</span><select [value]="selectedCompany" (change)="onCompanyChange($event)"><option value="ALL">Toate firmele</option><option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option></select></label>
     <label><span>Status</span><select [value]="selectedStatus" (change)="onStatusChange($event)"><option value="ALL">Toate statusurile</option><option value="IN">În lucru</option><option value="OUT">Ieșit</option><option value="LEAVE">Concediu</option><option value="ABSENT">Fără pontaj</option></select></label>
+    <label><span>Șantier</span><select [value]="selectedWorksite" (change)="onWorksiteChange($event)"><option value="ALL">Toate șantierele</option><option *ngFor="let worksite of worksiteOptions" [value]="worksite">{{ worksite }}</option></select></label>
     <button class="icon-button" type="button" (click)="refresh()" [disabled]="loading" aria-label="Actualizează pontajul" title="Actualizează"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button>
   </section>
 
@@ -32,12 +33,13 @@
     <div class="empty-state" *ngIf="filteredRows.length === 0"><span class="material-symbols-rounded" aria-hidden="true">search_off</span><strong>Niciun rezultat</strong><p>Schimbă filtrele sau termenul de căutare.</p></div>
     <div class="table-scroll" *ngIf="filteredRows.length">
       <table>
-        <thead><tr><th>Angajat</th><th>Profesie</th><th>Firmă</th><th>Prima intrare</th><th>Ultima ieșire</th><th>Sesiuni</th><th>Total</th><th>Status</th><th>Acțiuni</th></tr></thead>
+        <thead><tr><th>Angajat</th><th>Profesie</th><th>Firmă</th><th>Șantier</th><th>Prima intrare</th><th>Ultima ieșire</th><th>Sesiuni</th><th>Total</th><th>Status</th><th>Acțiuni</th></tr></thead>
         <tbody>
           <tr *ngFor="let r of filteredRows; trackBy: trackByUser">
             <td><div class="employee-cell"><span class="avatar">{{ r.UserName.charAt(0) }}</span><strong>{{ r.UserName }}</strong></div></td>
             <td><span class="company">{{ r.trade || 'Necompletată' }}</span></td>
             <td><span class="company">{{ r.Company || 'Fără firmă' }}</span></td>
+            <td><span class="company">{{ r.day_worksite || '—' }}</span></td>
             <td class="mono">{{ r.first_in ? (r.first_in | date:'HH:mm') : '—' }}</td>
             <td class="mono">{{ r.last_out ? (r.last_out | date:'HH:mm') : '—' }}</td>
             <td><div class="sessions"><span *ngFor="let s of r.sessions">{{ hm(s.in_time) }}–{{ s.out_time ? hm(s.out_time) : (s.missing_exit ? '—' : 'acum') }}</span><span class="muted" *ngIf="!r.sessions.length">Nicio sesiune</span></div></td>

@@ -505,6 +505,28 @@ def userApi(request,id=0):
             )
         return JsonResponse("Deleted Succeffully!!", safe=False)
 
+
+@csrf_exempt
+def attendance_exemption(request, id):
+    if request.method not in ("POST", "PATCH"):
+        return JsonResponse({"error": "Only POST or PATCH allowed"}, status=405)
+    try:
+        user = Users.objects.get(
+            UserId=id,
+            person_type=Users.PersonType.EMPLOYEE,
+        )
+    except Users.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+    try:
+        data = JSONParser().parse(request)
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    if not isinstance(data.get("attendance_exempt"), bool):
+        return JsonResponse({"error": "attendance_exempt trebuie să fie boolean."}, status=400)
+    user.attendance_exempt = data["attendance_exempt"]
+    user.save(update_fields=("attendance_exempt",))
+    return JsonResponse(_employee_api_payload(user), safe=False)
+
 # --- BULK USERS: import JSON sau CSV ---
 @csrf_exempt
 def users_bulk(request):
@@ -2506,7 +2528,11 @@ def attendance_today(request):
 
     today = localdate()
     qs = (AttendanceSession.objects
-          .filter(work_date=today, user_fk__person_type=Users.PersonType.EMPLOYEE)
+          .filter(
+              work_date=today,
+              user_fk__person_type=Users.PersonType.EMPLOYEE,
+              user_fk__attendance_exempt=False,
+          )
           .filter(_session_within_employment_q())
           .values("user_fk__UserId", "user_fk__UserName")
           .annotate(first_in=Min("in_time"),
@@ -2560,6 +2586,7 @@ def attendance_day(request):
             work_date=day,
             user_fk__person_type=Users.PersonType.EMPLOYEE,
             user_fk__employment_status=Users.EmploymentStatus.ACTIVE,
+            user_fk__attendance_exempt=False,
         ).select_related("user_fk")
     }
 
@@ -2568,6 +2595,7 @@ def attendance_day(request):
               work_date=day,
               user_fk__person_type=Users.PersonType.EMPLOYEE,
               user_fk__employment_status=Users.EmploymentStatus.ACTIVE,
+              user_fk__attendance_exempt=False,
           )
           .select_related("user_fk")
           .order_by("user_fk__UserName", "in_time"))
@@ -2680,6 +2708,7 @@ def attendance_present(request):
                .filter(
                    out_time__isnull=True,
                    user_fk__person_type=Users.PersonType.EMPLOYEE,
+                   user_fk__attendance_exempt=False,
                )
                .filter(_session_within_employment_q())
                .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
@@ -3006,6 +3035,7 @@ def attendance_day_cost_report(request):
     per_user = {}
     total_seconds = 0
     total_cost = Decimal("0.00")
+    per_worksite = {}
 
     for session in qs:
         user = session.user_fk
@@ -3023,6 +3053,16 @@ def attendance_day_cost_report(request):
             },
         )
         bucket["total_seconds"] += duration
+        worksite_label, worksite_key = _canonicalize_worksite_label(session.worksite)
+        site_bucket = per_worksite.setdefault(worksite_key, {
+            "worksite": worksite_label,
+            "total_seconds": 0,
+            "total_cost": Decimal("0.00"),
+        })
+        site_bucket["total_seconds"] += duration
+        site_bucket["total_cost"] += (
+            Decimal(duration) / Decimal("3600") * bucket["hourly_rate"]
+        )
 
     people = []
     for item in per_user.values():
@@ -3044,6 +3084,16 @@ def attendance_day_cost_report(request):
         })
 
     people.sort(key=lambda person: (-person["total_seconds"], person["display_name"].lower()))
+    worksite_costs = [
+        {
+            "worksite": item["worksite"],
+            "total_seconds": item["total_seconds"],
+            "total_hms": _fmt_hms(item["total_seconds"]),
+            "total_cost": str(item["total_cost"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+        }
+        for item in per_worksite.values()
+    ]
+    worksite_costs.sort(key=lambda item: (-Decimal(item["total_cost"]), item["worksite"].lower()))
 
     return JsonResponse({
         "date": str(day),
@@ -3055,6 +3105,7 @@ def attendance_day_cost_report(request):
             "total_cost": str(total_cost.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
         },
         "people": people,
+        "worksites": worksite_costs,
     })
 
 
@@ -3791,7 +3842,10 @@ def _serialize_app_user(app_user):
     permissions = set(_app_user_permissions(app_user))
     modules = effective_module_codes(app_user)
     inherited_modules = []
-    if app_user.employee.led_employee_teams.filter(active=True).exists():
+    if (
+        app_user.employee.led_employee_teams.filter(active=True).exists()
+        or app_user.employee.supervised_employee_teams.filter(active=True).exists()
+    ):
         inherited_modules.append("teams_schedule")
     return {
         "id": app_user.AppUserId,
@@ -3821,7 +3875,10 @@ def _app_user_permissions(app_user):
         .filter(app_user=app_user, can_access=True)
         .values_list("route", flat=True)
     )
-    if app_user.employee.led_employee_teams.filter(active=True).exists():
+    if (
+        app_user.employee.led_employee_teams.filter(active=True).exists()
+        or app_user.employee.supervised_employee_teams.filter(active=True).exists()
+    ):
         permissions.update({"/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/notificari", "/pontaj/echipe-azi", "/pontaj/personal"})
     return sorted(permissions)
 

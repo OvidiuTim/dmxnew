@@ -38,6 +38,7 @@ interface EmployeeProfile {
   trade?: string | null;
   employment_status?: 'active' | 'dismissed' | string;
   dismissed_at?: string | null;
+  attendance_exempt?: boolean;
   leave_balance?: { remaining_days: string; total_used_days: number; total_accrued_days: string; extra_days_taken?: string } | null;
 }
 
@@ -96,6 +97,7 @@ export class UserpontatComponent implements OnInit {
   leaveRangeSaving = false;
   leaveRangeError: string | null = null;
   leaveRangeNotice: string | null = null;
+  attendanceExemptSaving = false;
   leaveRangeForm = { start_date: '', end_date: '', leave_type: 'CO' as 'CO' | 'CM' | 'UNPAID' | 'INDIA' };
 
   // editor
@@ -276,6 +278,26 @@ export class UserpontatComponent implements OnInit {
 
   goToEmployeeSheet(): void {
     this.router.navigate(['/pontaj/fisa-angajat', this.userId]);
+  }
+
+  toggleAttendanceExempt(): void {
+    if (!this.employeeProfile || this.attendanceExemptSaving || this.isDismissed) return;
+    const nextValue = !this.employeeProfile.attendance_exempt;
+    this.attendanceExemptSaving = true;
+    this.profileError = null;
+    this.api.setAttendanceExempt(this.userId, nextValue).subscribe({
+      next: (user: EmployeeProfile) => {
+        this.attendanceExemptSaving = false;
+        this.employeeProfile = user;
+        this.leaveRangeNotice = nextValue
+          ? 'Angajatul a fost exclus din registrul zilnic și din raportul de pontaj lipsă.'
+          : 'Angajatul a fost inclus din nou în pontajul zilnic.';
+      },
+      error: error => {
+        this.attendanceExemptSaving = false;
+        this.profileError = error?.error?.error || 'Setarea de pontaj nu a putut fi actualizată.';
+      },
+    });
   }
 
   openLeaveRange(): void {

@@ -29,7 +29,7 @@ def send_leave_request_email(item):
     notifications_url = f"{settings.FRONTEND_BASE_URL}/pontaj/concedii"
     period = f"{item.start_date.strftime('%d.%m.%Y')} – {item.end_date.strftime('%d.%m.%Y')}"
     leave_type = item.get_leave_type_display()
-    leader = item.assigned_leader.UserName if item.assigned_leader_id else "Neatribuit"
+    supervisor = item.assigned_leader.UserName if item.assigned_leader_id else "Neatribuit"
     subject = f"Cerere nouă de concediu – {item.employee.UserName}"
     text = (
         f"Cerere nouă de concediu\n\n"
@@ -37,7 +37,7 @@ def send_leave_request_email(item):
         f"Tip: {leave_type}\n"
         f"Perioadă: {period}\n"
         f"Motiv / observații: {item.reason or '-'}\n"
-        f"Șef de echipă: {leader}\n\n"
+        f"Supervisor: {supervisor}\n\n"
         f"Vezi cererea: {notifications_url}"
     )
     html = f"""
@@ -47,7 +47,7 @@ def send_leave_request_email(item):
            <strong>Tip:</strong> {escape(leave_type)}<br>
            <strong>Perioadă:</strong> {escape(period)}<br>
            <strong>Motiv / observații:</strong> {escape(item.reason or '-')}<br>
-           <strong>Șef de echipă:</strong> {escape(leader)}</p>
+           <strong>Supervisor:</strong> {escape(supervisor)}</p>
         <p><a href="{escape(notifications_url)}" style="display:inline-block;padding:11px 16px;border-radius:8px;background:#1c9d69;color:white;text-decoration:none">Deschide cererile</a></p>
       </div>
     """

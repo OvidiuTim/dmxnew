@@ -27,6 +27,18 @@ describe('TeamsWorkspaceComponent', () => {
     expect(component.selectableLeaders).toEqual([]);
   });
 
+  it('permite selectarea aceleiași persoane ca șef și supervisor', () => {
+    const component = new TeamsWorkspaceComponent({} as any, {} as any);
+    const manager = employee(1, 'Ion Manager', 'Maistru');
+    component.employees = [manager];
+
+    component.selectLeader(manager);
+    component.selectSupervisor(manager);
+
+    expect(component.teamForm.leader_id).toBe(1);
+    expect(component.teamForm.supervisor_id).toBe(1);
+  });
+
   it('afișează întâi membrii echipei editate', () => {
     const component = new TeamsWorkspaceComponent({} as any, {} as any);
     const member = { ...employee(2, 'Zoe Membru', 'Fierar'), team: { id: 7, name: 'Echipa Verde' } };

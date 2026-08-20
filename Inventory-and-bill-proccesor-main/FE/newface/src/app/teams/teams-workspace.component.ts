@@ -19,10 +19,12 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   searchTerm = '';
   memberSearch = '';
   leaderSearch = '';
+  supervisorSearch = '';
   teamStatus = 'all';
   availabilityFilter = 'all';
   personnelTab: 'unassigned' | 'assigned' = 'unassigned';
   leaderSearchFocused = false;
+  supervisorSearchFocused = false;
   selectedDate = this.todayISO();
 
   teams: EmployeeTeam[] = [];
@@ -80,7 +82,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     return this.teams.filter(team => {
       const ownershipMatches = this.mode !== 'mine' || this.leaderTeamIds.includes(team.id);
       const statusMatches = this.teamStatus === 'all' || (this.teamStatus === 'active' ? team.active : !team.active);
-      return ownershipMatches && statusMatches && (!search || this.normalize(`${team.name} ${team.leader.name} ${team.members.map(item => item.name).join(' ')}`).includes(search));
+      return ownershipMatches && statusMatches && (!search || this.normalize(`${team.name} ${team.leader.name} ${team.supervisor?.name || ''} ${team.members.map(item => item.name).join(' ')}`).includes(search));
     });
   }
 
@@ -136,8 +138,8 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   }
 
   get requestableEmployees(): TeamEmployee[] {
-    const leaders = new Set(this.activeTeams.map(team => team.leader.id));
-    return this.employees.filter(item => item.active && item.team && item.can_request !== false && !leaders.has(item.id) && item.team.id !== Number(this.requestForm.requester_team_id));
+    const roleHolders = new Set(this.activeTeams.flatMap(team => [team.leader.id, team.supervisor?.id]));
+    return this.employees.filter(item => item.active && item.team && item.can_request !== false && !roleHolders.has(item.id) && item.team.id !== Number(this.requestForm.requester_team_id));
   }
 
   get selectedRequestedEmployee(): TeamEmployee | undefined {
@@ -159,6 +161,16 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
 
   get selectedLeader(): TeamEmployee | undefined {
     return this.employees.find(item => item.id === Number(this.teamForm.leader_id));
+  }
+
+  get supervisorResults(): TeamEmployee[] {
+    const search = this.normalize(this.supervisorSearch);
+    if (!search) return [];
+    return this.employees.filter(item => item.active && this.normalize(item.name).includes(search)).slice(0, 8);
+  }
+
+  get selectedSupervisor(): TeamEmployee | undefined {
+    return this.employees.find(item => item.id === Number(this.teamForm.supervisor_id));
   }
 
   get selectableMembers(): TeamEmployee[] {
@@ -219,7 +231,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
         this.teams = teams.teams || [];
         this.employees = teams.employees || [];
         this.canManageAll = !!teams.permissions?.can_manage_all;
-        this.leaderTeamIds = teams.permissions?.leader_team_ids || [];
+        this.leaderTeamIds = teams.permissions?.manager_team_ids || teams.permissions?.leader_team_ids || [];
         this.requests = requests.requests || [];
         this.loading = false;
       },
@@ -235,6 +247,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     this.teamForm = this.emptyTeamForm();
     this.memberSearch = '';
     this.leaderSearch = '';
+    this.supervisorSearch = '';
     this.teamDialogOpen = true;
   }
 
@@ -243,15 +256,18 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
       id: team.id,
       name: team.name,
       leader_id: team.leader.id,
+      supervisor_id: team.supervisor?.id || team.leader.id,
       default_worksite: team.default_worksite,
       active: team.active,
       member_ids: [...team.member_ids],
       leader_email: team.leader.email || '',
       can_manage_settings: team.can_manage_settings,
       can_edit: team.can_edit,
+      can_update_leader_email: team.can_update_leader_email,
     };
     this.memberSearch = '';
     this.leaderSearch = team.leader.name;
+    this.supervisorSearch = team.supervisor?.name || team.leader.name;
     this.teamDialogOpen = true;
   }
 
@@ -283,12 +299,25 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     }
   }
 
+  selectSupervisor(employee: TeamEmployee): void {
+    this.teamForm.supervisor_id = employee.id;
+    this.supervisorSearch = employee.name;
+    this.supervisorSearchFocused = false;
+  }
+
+  onSupervisorSearchInput(): void {
+    if (this.selectedSupervisor && this.normalize(this.supervisorSearch) !== this.normalize(this.selectedSupervisor.name)) {
+      this.teamForm.supervisor_id = null;
+    }
+  }
+
   saveTeam(): void {
     this.saving = true;
     this.error = '';
     const payload = {
       name: this.teamForm.name,
       leader_id: Number(this.teamForm.leader_id),
+      supervisor_id: Number(this.teamForm.supervisor_id),
       leader_email: (this.teamForm.leader_email || '').trim(),
       default_worksite: this.teamForm.default_worksite || '',
       active: !!this.teamForm.active,
@@ -427,7 +456,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   trackById = (_: number, item: any) => item.id;
 
   private emptyTeamForm(): any {
-    return { id: null, name: '', leader_id: null, leader_email: '', default_worksite: '', active: true, member_ids: [], can_manage_settings: true };
+    return { id: null, name: '', leader_id: null, supervisor_id: null, leader_email: '', default_worksite: '', active: true, member_ids: [], can_manage_settings: true, can_update_leader_email: true };
   }
 
   private emptyRequestForm(): any {

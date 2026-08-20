@@ -175,6 +175,7 @@ class Users(models.Model):
         blank=True,
         related_name="employees",
     )
+    attendance_exempt = models.BooleanField(default=False, db_index=True)
     active = models.BooleanField(default=True, db_index=True)
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
@@ -763,6 +764,13 @@ class LeaveRequest(models.Model):
 class EmployeeTeam(models.Model):
     name = models.CharField(max_length=160)
     leader = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="led_employee_teams")
+    supervisor = models.ForeignKey(
+        Users,
+        on_delete=models.PROTECT,
+        related_name="supervised_employee_teams",
+        null=True,
+        blank=True,
+    )
     default_worksite = models.CharField(max_length=160, blank=True, default="")
     active = models.BooleanField(default=True, db_index=True)
 
@@ -786,6 +794,12 @@ class EmployeeTeam(models.Model):
                 duplicate = duplicate.exclude(pk=self.pk)
             if duplicate.exists():
                 raise ValidationError({"leader": "Angajatul conduce deja o echipă activă."})
+        if self.active and self.supervisor_id and not self.supervisor.active:
+            raise ValidationError({"supervisor": "Supervisorul este inactiv."})
+
+    @property
+    def effective_supervisor(self):
+        return self.supervisor or self.leader
 
     def __str__(self):
         return self.name

@@ -4,6 +4,7 @@ from rest_framework import serializers
 class TeamWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=160)
     leader_id = serializers.IntegerField(min_value=1)
+    supervisor_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     leader_email = serializers.EmailField(required=False, allow_blank=True)
     default_worksite = serializers.CharField(max_length=160, allow_blank=True, required=False, default="")
     active = serializers.BooleanField(required=False, default=True)

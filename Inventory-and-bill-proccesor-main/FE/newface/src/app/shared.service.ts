@@ -33,6 +33,9 @@ export class SharedService {
   getUser(id: number | string)         { return this.http.get<any>(`${this.API}/user/${id}`); }
   addUser(val: any)                    { return this.http.post(`${this.API}/user/`, val); }
   updateUser(val: any)                 { return this.http.put(`${this.API}/user/`, val); }
+  setAttendanceExempt(id: number, attendanceExempt: boolean) {
+    return this.http.post<any>(`${this.API}/user/${id}/attendance-exempt/`, { attendance_exempt: attendanceExempt });
+  }
   deleteUser(id: any, force = false)   { return this.http.delete(`${this.API}/user/${id}${force ? '?force=1' : ''}`); }
 
   // --- Cazări ---

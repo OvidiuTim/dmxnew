@@ -26,8 +26,13 @@
     </article>
     <article class="stat-card">
       <span class="stat-icon amber material-symbols-rounded" aria-hidden="true">person_off</span>
-      <div><strong>{{ loadingAttendance ? '—' : absentToday }}</strong><span>Absenți azi</span></div>
+      <div><strong>{{ loadingAttendance ? '—' : absentToday }}</strong><span>Absenți fără pontaj</span></div>
       <small>Din {{ totalEmployees }} angajați activi</small>
+    </article>
+    <article class="stat-card">
+      <span class="stat-icon leave material-symbols-rounded" aria-hidden="true">beach_access</span>
+      <div><strong>{{ loadingAttendance ? '—' : leaveToday }}</strong><span>Absenți în concediu</span></div>
+      <small>Concedii înregistrate astăzi</small>
     </article>
     <article class="stat-card">
       <span class="stat-icon violet material-symbols-rounded" aria-hidden="true">location_city</span>
@@ -47,6 +52,7 @@
           <div><span class="legend-dot live"></span><span>În lucru acum</span><strong>{{ presentNow }}</strong></div>
           <div><span class="legend-dot done"></span><span>Au încheiat programul</span><strong>{{ finishedToday }}</strong></div>
           <div><span class="legend-dot absent"></span><span>Fără pontaj</span><strong>{{ absentToday }}</strong></div>
+          <div><span class="legend-dot leave"></span><span>În concediu</span><strong>{{ leaveToday }}</strong></div>
         </div>
       </div>
       <div class="loading-line" *ngIf="loadingAttendance"><span></span></div>
@@ -56,6 +62,12 @@
       <div class="panel-head"><div><span class="eyebrow">Cost operațional</span><h2>Cost estimat azi</h2></div><span class="live-pill"><i></i> Actual</span></div>
       <div class="cost-value">{{ loadingReports ? '—' : (totalDayCost | number:'1.2-2') }} <small>lei</small></div>
       <p>Calculat din orele pontate și salariul orar configurat pentru fiecare angajat.</p>
+      <div class="worksite-costs" *ngIf="!loadingReports && worksiteCosts.length">
+        <div *ngFor="let item of worksiteCosts">
+          <span><strong>{{ item.worksite }}</strong><small>{{ item.total_hms }} lucrate</small></span>
+          <b>{{ item.total_cost | number:'1.2-2' }} lei</b>
+        </div>
+      </div>
       <a class="btn ghost wide" routerLink="/pontaj/rapoarte">Analizează costurile</a>
       <div class="inline-alert compact" *ngIf="reportsError">{{ reportsError }}</div>
     </article>

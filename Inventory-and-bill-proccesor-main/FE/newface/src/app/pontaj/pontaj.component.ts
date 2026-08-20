@@ -23,6 +23,7 @@ interface DayUserRow {
   total_hms: string;          // "HH:MM:SS"
   status: 'IN' | 'OUT' | 'ABSENT' | 'LEAVE';
   sessions: SessionRow[];
+  day_worksite?: string | null;
   leave?: { reason: string; label?: string; hours: string; multiplier: string } | null;
 }
 
@@ -44,8 +45,10 @@ export class PontajComponent implements OnInit {
   presentNow = 0;
   selectedCompany = 'ALL';
   selectedStatus: DayUserRow['status'] | 'ALL' = 'ALL';
+  selectedWorksite = 'ALL';
   searchTerm = '';
   companyOptions: string[] = [];
+  worksiteOptions: string[] = [];
 
   constructor(private api: SharedService, private router: Router) {}
 
@@ -81,7 +84,8 @@ seeFisaAngajat(id: number): void {
       next: ({ day, users }) => {
         users = (users ?? []).filter((user: any) => {
           if ((user.person_type || 'employee') !== 'employee') return false;
-          return (user.employment_status || 'active') !== 'dismissed';
+          if ((user.employment_status || 'active') === 'dismissed') return false;
+          return user.active !== false && user.attendance_exempt !== true;
         });
         const byId = new Map<number, DayUserRow>();
         for (const r of (day?.rows ?? [])) {
@@ -106,7 +110,8 @@ seeFisaAngajat(id: number): void {
             last_out: null,
             total_hms: '00:00:00',
             status: 'ABSENT',
-            sessions: []
+            sessions: [],
+            day_worksite: null,
           };
         });
 
@@ -124,6 +129,12 @@ seeFisaAngajat(id: number): void {
 
         if (this.selectedCompany !== 'ALL' && !this.companyOptions.includes(this.selectedCompany)) {
           this.selectedCompany = 'ALL';
+        }
+        this.worksiteOptions = Array.from(new Set(
+          merged.map(row => (row.day_worksite ?? '').trim()).filter(Boolean)
+        )).sort((a, b) => a.localeCompare(b, 'ro'));
+        if (this.selectedWorksite !== 'ALL' && !this.worksiteOptions.includes(this.selectedWorksite)) {
+          this.selectedWorksite = 'ALL';
         }
 
         this.totalUsers = merged.length;
@@ -164,8 +175,9 @@ seeFisaAngajat(id: number): void {
     return this.rows.filter((row) => {
       const matchesCompany = this.selectedCompany === 'ALL' || (row.Company ?? '') === this.selectedCompany;
       const matchesStatus = this.selectedStatus === 'ALL' || row.status === this.selectedStatus;
+      const matchesWorksite = this.selectedWorksite === 'ALL' || (row.day_worksite ?? '') === this.selectedWorksite;
       const matchesSearch = !search || this.normalizeText(`${row.UserName} ${row.trade || ''}`).includes(search);
-      return matchesCompany && matchesStatus && matchesSearch;
+      return matchesCompany && matchesStatus && matchesWorksite && matchesSearch;
     });
   }
 
@@ -180,6 +192,10 @@ seeFisaAngajat(id: number): void {
 
   onStatusChange(event: Event): void {
     this.selectedStatus = ((event.target as HTMLSelectElement).value || 'ALL') as DayUserRow['status'] | 'ALL';
+  }
+
+  onWorksiteChange(event: Event): void {
+    this.selectedWorksite = (event.target as HTMLSelectElement).value || 'ALL';
   }
 
   onSearchChange(event: Event): void {
