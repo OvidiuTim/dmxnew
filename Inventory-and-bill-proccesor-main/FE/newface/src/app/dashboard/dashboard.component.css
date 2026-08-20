@@ -49,11 +49,16 @@
 .cost-value { margin: 5px 0 10px; color: var(--text); font-size: clamp(35px, 4vw, 46px); font-weight: 800; letter-spacing: -1.4px; }
 .cost-value small { color: var(--text-muted); font-size: 14px; font-weight: 600; letter-spacing: 0; }
 .cost-panel > p { margin: 0 0 25px; color: var(--text-muted); font-size: 12px; line-height: 1.7; }
-.worksite-costs { max-height: 210px; display: grid; margin: -8px 0 20px; overflow-y: auto; border-top: 1px solid var(--border); }
-.worksite-costs > div { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 2px; border-bottom: 1px solid var(--border); }
-.worksite-costs span strong, .worksite-costs span small { display: block; }
-.worksite-costs span strong { color: var(--text); font-size: 11px; }.worksite-costs span small { margin-top: 3px; color: var(--text-muted); font-size: 9px; }
-.worksite-costs b { color: var(--primary); font-size: 11px; white-space: nowrap; }
+.worksite-cost-panel { margin-top: 18px; }
+.worksite-cost-panel .panel-head { margin-bottom: 16px; }
+.worksite-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+.worksite-cost-table { width: 100%; min-width: 620px; border-collapse: collapse; }
+.worksite-cost-table th { padding: 12px 16px; background: var(--surface); color: #778399; text-align: left; font-size: 9px; font-weight: 800; letter-spacing: .7px; text-transform: uppercase; }
+.worksite-cost-table td { padding: 14px 16px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 11px; }
+.worksite-cost-table td:first-child { width: 55%; color: var(--text); }
+.worksite-cost-table td b { color: var(--primary); font-size: 12px; white-space: nowrap; }
+.worksite-cost-table tbody tr:hover { background: var(--surface-hover); }
+.worksite-cost-table .table-state { padding: 24px; color: var(--text-muted); text-align: center; }
 .activity-list { display: grid; }
 .activity-row { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 13px; min-height: 62px; border-top: 1px solid var(--border); }
 .activity-row:first-child { border-top: 0; }

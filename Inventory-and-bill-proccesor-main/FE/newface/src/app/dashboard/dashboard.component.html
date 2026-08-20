@@ -62,15 +62,30 @@
       <div class="panel-head"><div><span class="eyebrow">Cost operațional</span><h2>Cost estimat azi</h2></div><span class="live-pill"><i></i> Actual</span></div>
       <div class="cost-value">{{ loadingReports ? '—' : (totalDayCost | number:'1.2-2') }} <small>lei</small></div>
       <p>Calculat din orele pontate și salariul orar configurat pentru fiecare angajat.</p>
-      <div class="worksite-costs" *ngIf="!loadingReports && worksiteCosts.length">
-        <div *ngFor="let item of worksiteCosts">
-          <span><strong>{{ item.worksite }}</strong><small>{{ item.total_hms }} lucrate</small></span>
-          <b>{{ item.total_cost | number:'1.2-2' }} lei</b>
-        </div>
-      </div>
       <a class="btn ghost wide" routerLink="/pontaj/rapoarte">Analizează costurile</a>
-      <div class="inline-alert compact" *ngIf="reportsError">{{ reportsError }}</div>
     </article>
+  </section>
+
+  <section class="panel worksite-cost-panel" aria-labelledby="worksite-cost-title">
+    <div class="panel-head">
+      <div><span class="eyebrow">Cost operațional</span><h2 id="worksite-cost-title">Costuri pe șantiere</h2></div>
+      <span class="live-pill" *ngIf="!loadingReports && !reportsError"><i></i> Actual</span>
+    </div>
+    <div class="inline-alert compact" *ngIf="reportsError">{{ reportsError }}</div>
+    <div class="worksite-table-wrap" *ngIf="!reportsError">
+      <table class="worksite-cost-table">
+        <thead><tr><th>Șantier</th><th>Ore lucrate</th><th>Cost estimat</th></tr></thead>
+        <tbody>
+          <tr *ngIf="loadingReports"><td colspan="3" class="table-state">Se încarcă situația costurilor…</td></tr>
+          <tr *ngFor="let item of worksiteCosts">
+            <td><strong>{{ item.worksite }}</strong></td>
+            <td>{{ item.total_hms }}</td>
+            <td><b>{{ item.total_cost | number:'1.2-2' }} lei</b></td>
+          </tr>
+          <tr *ngIf="!loadingReports && !worksiteCosts.length"><td colspan="3" class="table-state">Nu există ore pontate pe șantiere astăzi.</td></tr>
+        </tbody>
+      </table>
+    </div>
   </section>
 
   <section class="dashboard-grid lower-grid">
