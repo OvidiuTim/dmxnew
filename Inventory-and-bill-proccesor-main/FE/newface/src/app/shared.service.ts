@@ -235,12 +235,33 @@ getAttendanceRangeForUser(start: string, end: string, userId: number) {
   // era this.http.get(`${this.API}/pontaj/range/`, ...)
   return this.http.get<any>(`${this.API}/pontaj/range/`, { params: { start, end, user_id: userId } });
 }
-  getAttendanceWorksiteReport(start: string, end: string, company?: string | null) {
+  getAttendanceWorksiteReport(start: string, end: string, company?: string | null, worksite?: string | null) {
     const params: any = { start, end };
     if (company) {
       params.company = company;
     }
+    if (worksite) {
+      params.worksite = worksite;
+    }
     return this.http.get<any>(`${this.API}/pontaj/reports/worksites/`, { params });
+  }
+  getAttendanceReportOptions() {
+    return this.http.get<any>(`${this.API}/pontaj/reports/options/`);
+  }
+  getAttendanceCostReport(start: string, end: string, company?: string | null, worksite?: string | null) {
+    return this.http.get<any>(`${this.API}/pontaj/reports/costs/`, {
+      params: this.cleanParams({ start, end, company, worksite }),
+    });
+  }
+  getAttendanceAbsenceReport(start: string, end: string, company?: string | null, worksite?: string | null) {
+    return this.http.get<any>(`${this.API}/pontaj/reports/absences/`, {
+      params: this.cleanParams({ start, end, company, worksite }),
+    });
+  }
+  getAttendanceIncompleteReport(start: string, end: string, company?: string | null, worksite?: string | null) {
+    return this.http.get<any>(`${this.API}/pontaj/reports/incomplete/`, {
+      params: this.cleanParams({ start, end, company, worksite }),
+    });
   }
   getAttendanceDayCostReport(date: string, company?: string | null) {
     const params: any = { date };

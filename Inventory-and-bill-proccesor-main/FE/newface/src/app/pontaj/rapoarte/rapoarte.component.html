@@ -1,335 +1,232 @@
-<div class="wrap">
-  <!-- Header bar (la fel ca în pontaj) -->
-  <div class="bar">
-    <div class="date">
-      <span class="weekday">Rapoarte</span>
+<main class="reports-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">PONTAJ</span>
+      <h1>Rapoarte</h1>
+      <p>Analizează rapid prezența, costurile și excepțiile de pontaj.</p>
     </div>
+  </header>
 
-    <div class="actions">
-      <button class="btn ghost" (click)="backToPontaj()">Înapoi la pontaj</button>
-    </div>
-  </div>
-
-  <!-- Conținut rapoarte -->
-  <div class="sections">
-    <!-- Raport pe zi -->
-    <section class="section-card">
-      <h2>Raport pe zi</h2>
-      <p class="section-sub">
-        Alege o dată și descarcă raportul zilnic (toți angajații).
-      </p>
-
-      <div class="field-row">
-        <label>Data</label>
-        <input type="date" [(ngModel)]="dayDate" [max]="todayISO()" />
+  <section class="company-export-card" aria-labelledby="company-report-title">
+    <div class="company-export-copy">
+      <span class="icon-box"><span class="material-symbols-rounded" aria-hidden="true">table_view</span></span>
+      <div>
+        <span class="eyebrow">EXPORT LUNAR</span>
+        <h2 id="company-report-title">Raport pe firmă</h2>
+        <p>Descarcă pontajul complet al unei firme pentru luna selectată.</p>
       </div>
-
-      <button class="btn primary" (click)="downloadDayReport()">
-        Descarcă raport pe zi
-      </button>
-
-      <div class="hint" *ngIf="dayError">{{ dayError }}</div>
-    </section>
-
-    <!-- Raport pe firmă + lună -->
-    <section class="section-card">
-      <h2>Raport pe firmă</h2>
-      <p class="section-sub">
-        Alege firma, apoi luna pentru care vrei fișierul de pontaj (.xlsx).
-      </p>
-
-      <div class="field-row">
-        <label>Firma</label>
+    </div>
+    <div class="company-export-form">
+      <label>
+        <span>Firmă</span>
         <select [(ngModel)]="selectedCompany">
-          <option [ngValue]="null" disabled>— alege firma —</option>
-          <option *ngFor="let c of companies" [ngValue]="c">{{ c }}</option>
+          <option value="" disabled>Selectează firma</option>
+          <option *ngFor="let company of companies" [value]="company">{{ company }}</option>
         </select>
-      </div>
-
-      <div class="field-row">
-        <label>Luna</label>
-        <input type="month" [(ngModel)]="monthValue" />
-      </div>
-
-
-      <button class="btn primary" [disabled]="!selectedCompany || !monthValue" (click)="downloadCompanyMonthReport()">
-        Descarcă raport firmă
+      </label>
+      <label>
+        <span>Lună</span>
+        <input type="month" [(ngModel)]="monthValue">
+      </label>
+      <button class="button button-primary" type="button" (click)="downloadCompanyMonthReport()" [disabled]="companyExporting">
+        <span class="material-symbols-rounded" aria-hidden="true">download</span>
+        {{ companyExporting ? 'Se generează…' : 'Descarcă Excel' }}
       </button>
-
-      <div class="hint" *ngIf="companyError">{{ companyError }}</div>
-    </section>
-  </div>
-
-  <section class="section-card worksite-report-card">
-    <div class="report-head">
-      <div>
-        <h2>Raport oameni pe șantier</h2>
-        <p class="section-sub">
-          Vezi pe perioadă câți oameni unici au lucrat pe fiecare șantier, câte ore s-au pontat și cine apare în raport.
-        </p>
-      </div>
-
-      <div class="report-actions">
-        <button class="btn ghost" (click)="downloadWorksiteReportCsv()" [disabled]="!worksiteReportRows.length">
-          Descarcă CSV
-        </button>
-        <button class="btn primary" (click)="loadWorksiteReport()" [disabled]="loadingWorksiteReport">
-          Actualizează
-        </button>
-      </div>
     </div>
-
-    <div class="worksite-filters">
-      <div class="field">
-        <label>De la</label>
-        <input type="date" [(ngModel)]="worksiteStartDate" [max]="worksiteEndDate || todayISO()" />
-      </div>
-
-      <div class="field">
-        <label>Până la</label>
-        <input type="date" [(ngModel)]="worksiteEndDate" [min]="worksiteStartDate" [max]="todayISO()" />
-      </div>
-
-      <div class="field company-filter-field">
-        <label>Firmă</label>
-        <button type="button" class="btn ghost company-picker-trigger" (click)="toggleWorksiteCompanyPicker()">
-          {{ currentWorksiteCompanyLabel() }}
-        </button>
-
-        <div class="company-picker-panel" *ngIf="showWorksiteCompanyPicker">
-          <select [(ngModel)]="selectedWorksiteCompany">
-            <option value="">Toate firmele</option>
-            <option *ngFor="let c of companies" [value]="c">{{ c }}</option>
-          </select>
-
-          <button type="button" class="btn primary small" (click)="applyWorksiteCompanyFilter()">
-            Aplică
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="state" *ngIf="loadingWorksiteReport">Se încarcă raportul pe șantiere…</div>
-    <div class="state error" *ngIf="worksiteReportError">{{ worksiteReportError }}</div>
-
-    <ng-container *ngIf="worksiteReportSummary && !loadingWorksiteReport">
-      <div class="summary-grid">
-        <div class="summary-card">
-          <span class="summary-label">Șantiere</span>
-          <strong>{{ worksiteReportSummary.worksites_count }}</strong>
-        </div>
-
-        <div class="summary-card">
-          <span class="summary-label">Oameni unici</span>
-          <strong>{{ worksiteReportSummary.people_count }}</strong>
-        </div>
-
-        <div class="summary-card">
-          <span class="summary-label">Ore totale</span>
-          <strong>{{ worksiteReportSummary.total_hms }}</strong>
-        </div>
-
-        <div class="summary-card">
-          <span class="summary-label">Om-zile</span>
-          <strong>{{ worksiteReportSummary.person_days_count }}</strong>
-        </div>
-      </div>
-    </ng-container>
-
-    <div class="empty-state" *ngIf="!loadingWorksiteReport && !worksiteReportError && !worksiteReportRows.length">
-      Nu există pontaje pe șantiere în perioada selectată.
-    </div>
-
-    <div class="worksite-table-wrap" *ngIf="worksiteReportRows.length && !loadingWorksiteReport">
-      <table class="worksite-table">
-        <thead>
-          <tr>
-            <th>Șantier</th>
-            <th>Oameni</th>
-            <th>Ore totale</th>
-            <th>Sesiuni</th>
-            <th>Zile active</th>
-            <th>Om-zile</th>
-            <th>Ultima activitate</th>
-            <th>Angajați</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let row of worksiteReportRows">
-            <td class="site-name">{{ row.worksite }}</td>
-            <td>{{ row.people_count }}</td>
-            <td>{{ row.total_hms }}</td>
-            <td>{{ row.total_sessions }}</td>
-            <td>{{ row.active_days_count }}</td>
-            <td>{{ row.person_days_count }}</td>
-            <td>{{ formatDateTime(row.last_activity) }}</td>
-            <td>
-              <details class="people-dropdown">
-                <summary>Vezi angajați ({{ row.people_count }})</summary>
-
-                <div class="people-dropdown-panel">
-                  <input
-                    type="text"
-                    placeholder="Caută angajat"
-                    [ngModel]="getWorksitePeopleSearch(row)"
-                    (ngModelChange)="setWorksitePeopleSearch(row, $event)"
-                  />
-
-                  <div class="people-dropdown-list" *ngIf="getFilteredPeople(row).length; else noPeopleFound">
-                    <button type="button" class="person-list-item" *ngFor="let person of getFilteredPeople(row)" (click)="router.navigate(['/user', person.UserId])">
-                      <div class="person-main">
-                        <span>{{ person.UserName }}</span>
-                        <small *ngIf="person.Company">{{ person.Company }}</small>
-                      </div>
-                      <span class="person-time">{{ person.total_hms }}</span>
-                    </button>
-                  </div>
-
-                  <ng-template #noPeopleFound>
-                    <div class="people-empty">Nu am găsit angajați pentru filtrul introdus.</div>
-                  </ng-template>
-                </div>
-              </details>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <p class="inline-error" *ngIf="companyError">{{ companyError }}</p>
   </section>
 
-  <section class="section-card day-cost-card">
-    <div class="report-head">
-      <div>
-        <h2>Cost pe zi</h2>
-        <p class="section-sub">
-          Calculează costul total din ziua aleasă pe baza salariului orar și a orelor muncite de fiecare angajat.
-        </p>
-      </div>
+  <nav class="report-tabs" aria-label="Tip raport">
+    <button
+      *ngFor="let tab of tabs"
+      type="button"
+      [class.active]="activeTab === tab.id"
+      [attr.aria-selected]="activeTab === tab.id"
+      (click)="switchTab(tab.id)">
+      <span class="material-symbols-rounded" aria-hidden="true">{{ tab.icon }}</span>
+      <span>{{ tab.label }}</span>
+    </button>
+  </nav>
 
-      <div class="report-actions">
-        <button class="btn primary" (click)="loadDayCostReport()" [disabled]="loadingDayCostReport">
-          Calculează
-        </button>
+  <section class="report-panel">
+    <div class="report-panel-header">
+      <div>
+        <h2>{{ activeTitle }}</h2>
+        <p>{{ activeDescription }}</p>
       </div>
+      <button class="button button-secondary" type="button" (click)="exportActiveCsv()" [disabled]="loading">
+        <span class="material-symbols-rounded" aria-hidden="true">download</span>
+        Descarcă CSV
+      </button>
     </div>
 
-    <div class="worksite-filters">
-      <div class="field">
-        <label>Data</label>
-        <input type="date" [(ngModel)]="dayCostDate" [max]="todayISO()" />
-      </div>
-
-      <div class="field">
-        <label>Firmă</label>
-        <select [(ngModel)]="selectedDayCostCompany">
+    <div class="filters-bar">
+      <label>
+        <span>De la</span>
+        <input type="date" [(ngModel)]="filters.start">
+      </label>
+      <label>
+        <span>Până la</span>
+        <input type="date" [(ngModel)]="filters.end">
+      </label>
+      <label>
+        <span>Firmă</span>
+        <select [(ngModel)]="filters.company">
           <option value="">Toate firmele</option>
-          <option *ngFor="let c of companies" [value]="c">{{ c }}</option>
+          <option *ngFor="let company of companies" [value]="company">{{ company }}</option>
         </select>
-      </div>
+      </label>
+      <label>
+        <span>Șantier</span>
+        <select [(ngModel)]="filters.worksite">
+          <option value="">Toate șantierele</option>
+          <option *ngFor="let worksite of worksites" [value]="worksite">{{ worksite }}</option>
+        </select>
+      </label>
+      <button class="button button-primary filter-action" type="button" (click)="applyFilters()" [disabled]="loading">
+        <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
+        Actualizează
+      </button>
     </div>
 
-    <div class="state" *ngIf="loadingDayCostReport">Se calculează costul pe zi…</div>
-    <div class="state error" *ngIf="dayCostError">{{ dayCostError }}</div>
+    <div class="message error" *ngIf="reportError">
+      <span class="material-symbols-rounded" aria-hidden="true">error</span>
+      {{ reportError }}
+    </div>
+    <div class="message loading" *ngIf="loading">
+      <span class="spinner" aria-hidden="true"></span>
+      Se încarcă raportul…
+    </div>
 
-    <ng-container *ngIf="dayCostSummary && !loadingDayCostReport">
-      <div class="summary-grid">
-        <div class="summary-card emphasis">
-          <span class="summary-label">Cost total</span>
-          <strong>{{ dayCostSummary.total_cost | number:'1.2-2' }} lei</strong>
+    <ng-container *ngIf="!loading" [ngSwitch]="activeTab">
+      <div *ngSwitchCase="'worksites'">
+        <div class="kpi-grid kpi-grid-four" *ngIf="worksiteSummary">
+          <article class="kpi-card"><span>Șantiere</span><strong>{{ worksiteSummary.worksites_count || 0 }}</strong><small>cu activitate</small></article>
+          <article class="kpi-card"><span>Oameni unici</span><strong>{{ worksiteSummary.people_count || 0 }}</strong><small>în perioada aleasă</small></article>
+          <article class="kpi-card"><span>Ore totale</span><strong>{{ worksiteSummary.total_hms || '00:00:00' }}</strong><small>timp pontat</small></article>
+          <article class="kpi-card"><span>Om-zile</span><strong>{{ worksiteSummary.person_days_count || 0 }}</strong><small>prezențe zilnice</small></article>
         </div>
 
-        <div class="summary-card">
-          <span class="summary-label">Oameni calculați</span>
-          <strong>{{ dayCostSummary.people_count }}</strong>
-        </div>
-
-        <div class="summary-card">
-          <span class="summary-label">Ore totale</span>
-          <strong>{{ dayCostSummary.total_hms }}</strong>
+        <div class="table-card">
+          <div class="table-title"><h3>Activitate pe șantiere</h3><span>{{ worksiteRows.length }} rezultate</span></div>
+          <div class="table-scroll" *ngIf="worksiteRows.length; else noWorksites">
+            <table>
+              <thead><tr><th>Șantier</th><th>Oameni</th><th>Ore totale</th><th>Sesiuni</th><th>Zile active</th><th>Om-zile</th><th>Ultima activitate</th><th>Angajați</th></tr></thead>
+              <tbody>
+                <ng-container *ngFor="let row of worksiteRows">
+                  <tr>
+                    <td><strong>{{ row.worksite }}</strong></td>
+                    <td>{{ row.people_count }}</td>
+                    <td class="numeric-strong">{{ row.total_hms }}</td>
+                    <td>{{ row.total_sessions }}</td>
+                    <td>{{ row.active_days_count }}</td>
+                    <td>{{ row.person_days_count }}</td>
+                    <td>{{ formatDateTime(row.last_activity) }}</td>
+                    <td><button class="text-button" type="button" (click)="toggleWorksitePeople(row)">Vezi angajați ({{ row.people_count }})</button></td>
+                  </tr>
+                  <tr class="detail-row" *ngIf="expandedWorksite === worksiteKey(row)">
+                    <td colspan="8">
+                      <div class="people-drawer">
+                        <div class="search-field">
+                          <span class="material-symbols-rounded" aria-hidden="true">search</span>
+                          <input type="search" placeholder="Caută angajat" [(ngModel)]="worksiteEmployeeSearch[worksiteKey(row)]">
+                        </div>
+                        <div class="people-grid">
+                          <button *ngFor="let person of filteredWorksitePeople(row)" type="button" class="person-link" (click)="openAttendance(person.UserId)">
+                            <span class="avatar">{{ person.UserName.charAt(0) }}</span>
+                            <span><strong>{{ person.UserName }}</strong><small>{{ person.Company || 'Fără firmă' }} · {{ person.total_hms }}</small></span>
+                            <span class="material-symbols-rounded" aria-hidden="true">arrow_forward</span>
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </ng-container>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #noWorksites><div class="empty-state"><span class="material-symbols-rounded">domain_disabled</span><p>Nu există activitate pentru filtrele selectate.</p></div></ng-template>
         </div>
       </div>
 
-      <div class="worksite-table-wrap" *ngIf="dayCostPeople.length">
-        <table class="worksite-table day-cost-table">
-          <thead>
-            <tr>
-              <th>Muncitor</th>
-              <th>Firmă</th>
-              <th>Salariu/oră</th>
-              <th>Ore</th>
-              <th>Total zi</th>
+      <div *ngSwitchCase="'costs'">
+        <div class="kpi-grid kpi-grid-four" *ngIf="costSummary">
+          <article class="kpi-card accent"><span>Cost total</span><strong>{{ asNumber(costSummary.total_cost) | number:'1.2-2' }} lei</strong><small>estimare pentru interval</small></article>
+          <article class="kpi-card"><span>Ore totale</span><strong>{{ costSummary.total_hms || '00:00:00' }}</strong><small>timp pontat</small></article>
+          <article class="kpi-card"><span>Angajați</span><strong>{{ costSummary.people_count || 0 }}</strong><small>oameni unici</small></article>
+          <article class="kpi-card"><span>Medie / angajat</span><strong>{{ asNumber(costSummary.average_cost_per_employee) | number:'1.2-2' }} lei</strong><small>cost mediu</small></article>
+        </div>
+
+        <div class="split-tables">
+          <div class="table-card compact-table">
+            <div class="table-title"><h3>Costuri pe firme</h3></div>
+            <div class="table-scroll"><table><thead><tr><th>Firmă</th><th>Angajați</th><th>Ore</th><th>Cost</th></tr></thead><tbody>
+              <tr *ngFor="let row of costCompanies"><td><strong>{{ row.name }}</strong></td><td>{{ row.people_count }}</td><td>{{ row.total_hms }}</td><td class="numeric-strong">{{ asNumber(row.total_cost) | number:'1.2-2' }} lei</td></tr>
+            </tbody></table></div>
+            <div class="empty-state small" *ngIf="!costCompanies.length"><p>Fără costuri pe firme.</p></div>
+          </div>
+          <div class="table-card compact-table">
+            <div class="table-title"><h3>Costuri pe șantiere</h3></div>
+            <div class="table-scroll"><table><thead><tr><th>Șantier</th><th>Angajați</th><th>Ore</th><th>Cost</th></tr></thead><tbody>
+              <tr *ngFor="let row of costWorksites"><td><strong>{{ row.name }}</strong></td><td>{{ row.people_count }}</td><td>{{ row.total_hms }}</td><td class="numeric-strong">{{ asNumber(row.total_cost) | number:'1.2-2' }} lei</td></tr>
+            </tbody></table></div>
+            <div class="empty-state small" *ngIf="!costWorksites.length"><p>Fără costuri pe șantiere.</p></div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-title"><h3>Detaliere pe angajați</h3><span>{{ costPeople.length }} angajați</span></div>
+          <div class="table-scroll" *ngIf="costPeople.length; else noCosts">
+            <table><thead><tr><th>Angajat</th><th>Firmă</th><th>Șantier</th><th>Tarif orar</th><th>Ore totale</th><th>Cost estimat</th></tr></thead><tbody>
+              <tr *ngFor="let person of costPeople | slice:0:rowLimit" class="clickable-row" (click)="openAttendance(person.UserId)">
+                <td><strong>{{ person.UserName }}</strong><small class="cell-subtitle">{{ person.UserSerie }}</small></td>
+                <td>{{ person.Company || '—' }}</td><td>{{ (person.worksites || []).join(', ') }}</td>
+                <td>{{ asNumber(person.hourly_rate) | number:'1.2-2' }} lei</td><td>{{ person.total_hms }}</td><td class="numeric-strong">{{ asNumber(person.total_cost) | number:'1.2-2' }} lei</td>
+              </tr>
+            </tbody></table>
+          </div>
+          <ng-template #noCosts><div class="empty-state"><span class="material-symbols-rounded">payments</span><p>Nu există costuri pentru filtrele selectate.</p></div></ng-template>
+          <button class="show-more" *ngIf="costPeople.length > rowLimit" type="button" (click)="showMore()">Arată mai multe</button>
+        </div>
+      </div>
+
+      <div *ngSwitchCase="'absences'">
+        <div class="kpi-grid kpi-grid-five" *ngIf="absenceSummary">
+          <article class="kpi-card danger"><span>Fără pontaj</span><strong>{{ absenceSummary.no_attendance || 0 }}</strong><small>zile</small></article>
+          <article class="kpi-card"><span>Concediu de odihnă</span><strong>{{ absenceSummary.paid_leave || 0 }}</strong><small>zile</small></article>
+          <article class="kpi-card"><span>Concediu medical</span><strong>{{ absenceSummary.medical_leave || 0 }}</strong><small>zile</small></article>
+          <article class="kpi-card"><span>Fără plată</span><strong>{{ absenceSummary.unpaid_leave || 0 }}</strong><small>zile</small></article>
+          <article class="kpi-card"><span>Plecat în India</span><strong>{{ absenceSummary.india || 0 }}</strong><small>zile</small></article>
+        </div>
+        <div class="table-card">
+          <div class="table-title"><h3>Detalierea absențelor</h3><span>{{ absenceRows.length }} înregistrări</span></div>
+          <div class="table-scroll" *ngIf="absenceRows.length; else noAbsences"><table><thead><tr><th>Data</th><th>Angajat</th><th>Firmă</th><th>Șantier</th><th>Tip</th></tr></thead><tbody>
+            <tr *ngFor="let row of absenceRows | slice:0:rowLimit" class="clickable-row" (click)="openAttendance(row.UserId)">
+              <td>{{ formatDate(row.date) }}</td><td><strong>{{ row.UserName }}</strong><small class="cell-subtitle">{{ row.UserSerie }}</small></td><td>{{ row.Company || '—' }}</td><td>{{ row.worksite }}</td><td><span class="status-chip" [attr.data-reason]="row.reason">{{ row.reason_label }}</span></td>
             </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let person of dayCostPeople">
-              <td class="site-name">{{ person.display_name }}</td>
-              <td>{{ person.Company || '—' }}</td>
-              <td>{{ person.hourly_rate | number:'1.2-2' }} lei</td>
-              <td>{{ person.total_hms }}</td>
-              <td>{{ person.day_cost | number:'1.2-2' }} lei</td>
+          </tbody></table></div>
+          <ng-template #noAbsences><div class="empty-state"><span class="material-symbols-rounded">task_alt</span><p>Nu există absențe pentru filtrele selectate.</p></div></ng-template>
+          <button class="show-more" *ngIf="absenceRows.length > rowLimit" type="button" (click)="showMore()">Arată mai multe</button>
+        </div>
+      </div>
+
+      <div *ngSwitchCase="'incomplete'">
+        <div class="kpi-grid kpi-grid-three" *ngIf="incompleteSummary">
+          <article class="kpi-card danger"><span>Pontaje incomplete</span><strong>{{ incompleteSummary.sessions_count || 0 }}</strong><small>sesiuni deschise</small></article>
+          <article class="kpi-card"><span>Angajați</span><strong>{{ incompleteSummary.people_count || 0 }}</strong><small>oameni unici</small></article>
+          <article class="kpi-card"><span>Șantiere</span><strong>{{ incompleteSummary.worksites_count || 0 }}</strong><small>cu sesiuni incomplete</small></article>
+        </div>
+        <div class="table-card">
+          <div class="table-title"><h3>Check-in fără check-out</h3><span>{{ incompleteRows.length }} înregistrări</span></div>
+          <div class="table-scroll" *ngIf="incompleteRows.length; else noIncomplete"><table><thead><tr><th>Data</th><th>Angajat</th><th>Firmă</th><th>Șantier</th><th>Check-in</th><th>Timp deschis</th><th>Status</th></tr></thead><tbody>
+            <tr *ngFor="let row of incompleteRows | slice:0:rowLimit" class="clickable-row" (click)="openAttendance(row.UserId)">
+              <td>{{ formatDate(row.date) }}</td><td><strong>{{ row.UserName }}</strong><small class="cell-subtitle">{{ row.UserSerie }}</small></td><td>{{ row.Company || '—' }}</td><td>{{ row.worksite }}</td><td>{{ formatDateTime(row.check_in) }}</td><td>{{ row.elapsed_hms }}</td><td><span class="status-chip incomplete">Lipsește check-out</span></td>
             </tr>
-          </tbody>
-        </table>
+          </tbody></table></div>
+          <ng-template #noIncomplete><div class="empty-state"><span class="material-symbols-rounded">task_alt</span><p>Nu există pontaje incomplete pentru filtrele selectate.</p></div></ng-template>
+          <button class="show-more" *ngIf="incompleteRows.length > rowLimit" type="button" (click)="showMore()">Arată mai multe</button>
+        </div>
       </div>
     </ng-container>
   </section>
-
-
-<br>
-<br>
-
-  <!-- Costuri salariale pe firmă -->
-  <div class="section">
-
-
-    <div class="section-body salary-card">
-          <div class="section-header">
-      <h2>Costuri salariale pe firmă (lunar)</h2>
-      <p>Calculează totalul salariilor pe lună pentru fiecare firmă.</p>
-    </div>
-      <div class="salary-filters">
-        <div class="field">
-          <label>An</label>
-          <select [(ngModel)]="salaryYear">
-            <option *ngFor="let y of years" [ngValue]="y">{{ y }}</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label>Luna</label>
-          <select [(ngModel)]="salaryMonth">
-            <option *ngFor="let m of months" [ngValue]="m.value">{{ m.label }}</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label>Firma</label>
-          <select [(ngModel)]="salaryCompany">
-            <option *ngFor="let c of companies" [ngValue]="c">{{ c }}</option>
-          </select>
-        </div>
-
-        <button class="btn" (click)="loadSalaryCost()"
-          [disabled]="loadingSalary || !salaryYear || !salaryMonth || !salaryCompany">
-          Calculează
-        </button>
-      </div>
-
-      <div class="state" *ngIf="loadingSalary">Se calculează…</div>
-
-      <div class="salary-result" *ngIf="salaryResult && !loadingSalary">
-        <div class="salary-company">
-          {{ salaryResult.company }} – {{ salaryResult.month }}
-        </div>
-        <div class="salary-amount">
-          {{ salaryResult.total | number:'1.2-2' }} lei
-        </div>
-      </div>
-
-      <div class="state error" *ngIf="salaryError">{{ salaryError }}</div>
-    </div>
-
-
-  </div>
-
-</div>
+</main>

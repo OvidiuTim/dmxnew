@@ -33,7 +33,7 @@ from ToolApp.models import (
     Shed, Unfunctional, Materials, Consumables, WorkField,
     CofrajMetalics, CofrajtTipDokas, Popis, SchelaUsoaras, SchelaFatadas,
     SchelaFatadaModularas, Combustibils, HistorieScheles, MijloaceFixes, DailyPay, LeaveDay,
-    PinAttemptLog
+    PinAttemptLog, EmployeeTeam, EmployeeTeamMember
 )
 from ToolApp.serializers import (
     ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, ToolSerializer,
@@ -2888,6 +2888,8 @@ def attendance_worksite_report(request):
     start = _parse_iso_date(request.GET.get("start") or str(localdate()))
     end = _parse_iso_date(request.GET.get("end") or str(localdate()))
     company = (request.GET.get("company") or "").strip()
+    requested_worksite = (request.GET.get("worksite") or "").strip()
+    requested_worksite_key = _canonicalize_worksite_label(requested_worksite)[1] if requested_worksite else ""
     if end < start:
         start, end = end, start
 
@@ -2915,6 +2917,8 @@ def attendance_worksite_report(request):
     for session in qs:
         user = session.user_fk
         worksite_label, worksite_key = _canonicalize_worksite_label(session.worksite)
+        if requested_worksite_key and worksite_key != requested_worksite_key:
+            continue
         duration = _attendance_session_duration_seconds(session, now=now)
 
         bucket = worksites.setdefault(
@@ -2996,6 +3000,7 @@ def attendance_worksite_report(request):
         "start": str(start),
         "end": str(end),
         "company": company or None,
+        "worksite": requested_worksite or None,
         "summary": {
             "worksites_count": len(rows),
             "people_count": len(total_users),
@@ -3004,6 +3009,323 @@ def attendance_worksite_report(request):
             "total_sessions": total_sessions,
             "total_seconds": total_seconds,
             "total_hms": _fmt_hms(total_seconds),
+        },
+        "rows": rows,
+    })
+
+
+def _report_date_range(request):
+    start = _parse_iso_date(request.GET.get("start") or str(localdate()))
+    end = _parse_iso_date(request.GET.get("end") or str(localdate()))
+    if end < start:
+        start, end = end, start
+    return start, end
+
+
+def _report_company_and_worksite(request):
+    company = (request.GET.get("company") or "").strip()
+    worksite = (request.GET.get("worksite") or "").strip()
+    worksite_key = _canonicalize_worksite_label(worksite)[1] if worksite else ""
+    return company, worksite, worksite_key
+
+
+def _report_team_worksites():
+    """Mapează angajații la șantierul echipei pentru zile fără sesiuni de pontaj."""
+    result = {}
+    memberships = (
+        EmployeeTeamMember.objects
+        .filter(active=True, team__active=True)
+        .select_related("team")
+    )
+    for membership in memberships:
+        result[membership.employee_id] = _canonicalize_worksite_label(membership.team.default_worksite)[0]
+
+    for team in EmployeeTeam.objects.filter(active=True).only("leader_id", "supervisor_id", "default_worksite"):
+        label = _canonicalize_worksite_label(team.default_worksite)[0]
+        result.setdefault(team.leader_id, label)
+        if team.supervisor_id:
+            result.setdefault(team.supervisor_id, label)
+    return result
+
+
+@csrf_exempt
+def attendance_report_options(request):
+    """GET /api/pontaj/reports/options/ - firme și șantiere disponibile în filtre."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    companies = sorted({
+        str(value).strip()
+        for value in Users.objects.filter(person_type=Users.PersonType.EMPLOYEE)
+        .exclude(Company__isnull=True).values_list("Company", flat=True)
+        if str(value or "").strip()
+    }, key=lambda value: value.lower())
+
+    worksite_labels = {}
+    raw_worksites = AttendanceSession.objects.exclude(worksite__isnull=True).values_list("worksite", flat=True).distinct()
+    team_worksites = EmployeeTeam.objects.filter(active=True).values_list("default_worksite", flat=True)
+    for raw in list(raw_worksites) + list(team_worksites):
+        label, key = _canonicalize_worksite_label(raw)
+        if key:
+            worksite_labels[key] = label
+
+    return JsonResponse({
+        "companies": companies,
+        "worksites": sorted(worksite_labels.values(), key=lambda value: value.lower()),
+    })
+
+
+@csrf_exempt
+def attendance_cost_report(request):
+    """Costuri de pontaj pe interval, grupate pe firmă, șantier și angajat."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    start, end = _report_date_range(request)
+    company, worksite, worksite_key_filter = _report_company_and_worksite(request)
+    now = timezone.now()
+    qs = (
+        AttendanceSession.objects
+        .filter(work_date__range=(start, end), user_fk__person_type=Users.PersonType.EMPLOYEE)
+        .filter(_session_within_employment_q())
+        .select_related("user_fk")
+        .order_by("user_fk__UserName", "work_date", "in_time")
+    )
+    if company:
+        qs = qs.filter(user_fk__Company__iexact=company)
+
+    people = {}
+    companies = {}
+    worksites = {}
+    total_seconds = 0
+    total_cost = Decimal("0.00")
+
+    for session in qs:
+        worksite_label, worksite_key = _canonicalize_worksite_label(session.worksite)
+        if worksite_key_filter and worksite_key != worksite_key_filter:
+            continue
+        user = session.user_fk
+        duration = _attendance_session_duration_seconds(session, now=now)
+        rate = Decimal(str(user.hourly_rate or 0))
+        cost = Decimal(duration) / Decimal("3600") * rate
+        company_label = str(user.Company or "").strip() or "Fără firmă"
+
+        person = people.setdefault(user.UserId, {
+            "UserId": user.UserId,
+            "UserName": user.UserName,
+            "UserSerie": user.UserSerie,
+            "Company": user.Company,
+            "hourly_rate": rate,
+            "total_seconds": 0,
+            "total_cost": Decimal("0.00"),
+            "worksites": set(),
+        })
+        person["total_seconds"] += duration
+        person["total_cost"] += cost
+        person["worksites"].add(worksite_label)
+
+        company_bucket = companies.setdefault(company_label, {"total_seconds": 0, "total_cost": Decimal("0.00"), "people": set()})
+        company_bucket["total_seconds"] += duration
+        company_bucket["total_cost"] += cost
+        company_bucket["people"].add(user.UserId)
+
+        worksite_bucket = worksites.setdefault(worksite_key, {"name": worksite_label, "total_seconds": 0, "total_cost": Decimal("0.00"), "people": set()})
+        worksite_bucket["total_seconds"] += duration
+        worksite_bucket["total_cost"] += cost
+        worksite_bucket["people"].add(user.UserId)
+        total_seconds += duration
+        total_cost += cost
+
+    def money(value):
+        return str(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+    people_rows = [{
+        "UserId": item["UserId"],
+        "UserName": item["UserName"],
+        "UserSerie": item["UserSerie"],
+        "Company": item["Company"],
+        "hourly_rate": money(item["hourly_rate"]),
+        "total_seconds": item["total_seconds"],
+        "total_hms": _fmt_hms(item["total_seconds"]),
+        "total_cost": money(item["total_cost"]),
+        "worksites": sorted(item["worksites"]),
+    } for item in people.values()]
+    people_rows.sort(key=lambda item: (-Decimal(item["total_cost"]), item["UserName"].lower()))
+
+    company_rows = [{
+        "name": name,
+        "people_count": len(item["people"]),
+        "total_seconds": item["total_seconds"],
+        "total_hms": _fmt_hms(item["total_seconds"]),
+        "total_cost": money(item["total_cost"]),
+    } for name, item in companies.items()]
+    company_rows.sort(key=lambda item: (-Decimal(item["total_cost"]), item["name"].lower()))
+
+    worksite_rows = [{
+        "name": item["name"],
+        "people_count": len(item["people"]),
+        "total_seconds": item["total_seconds"],
+        "total_hms": _fmt_hms(item["total_seconds"]),
+        "total_cost": money(item["total_cost"]),
+    } for item in worksites.values()]
+    worksite_rows.sort(key=lambda item: (-Decimal(item["total_cost"]), item["name"].lower()))
+
+    people_count = len(people_rows)
+    average_cost = total_cost / people_count if people_count else Decimal("0.00")
+    return JsonResponse({
+        "start": str(start), "end": str(end), "company": company or None, "worksite": worksite or None,
+        "summary": {
+            "total_cost": money(total_cost),
+            "total_seconds": total_seconds,
+            "total_hms": _fmt_hms(total_seconds),
+            "people_count": people_count,
+            "average_cost_per_employee": money(average_cost),
+        },
+        "companies": company_rows,
+        "worksites": worksite_rows,
+        "people": people_rows,
+    })
+
+
+@csrf_exempt
+def attendance_absence_report(request):
+    """Absențe pe interval, separate după motivul de concediu."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    start, end = _report_date_range(request)
+    company, worksite, worksite_key_filter = _report_company_and_worksite(request)
+    end = min(end, localdate())
+    users_qs = Users.objects.filter(
+        person_type=Users.PersonType.EMPLOYEE,
+        attendance_exempt=False,
+    ).filter(
+        Q(active=True, employment_status=Users.EmploymentStatus.ACTIVE)
+        | Q(employment_status=Users.EmploymentStatus.DISMISSED, dismissed_at__gte=start)
+    ).order_by("UserName")
+    if company:
+        users_qs = users_qs.filter(Company__iexact=company)
+    users = list(users_qs)
+    user_ids = [user.UserId for user in users]
+    first_attendance = dict(
+        AttendanceSession.objects.filter(user_fk_id__in=user_ids)
+        .values("user_fk_id").annotate(first_day=Min("work_date"))
+        .values_list("user_fk_id", "first_day")
+    )
+    attendance_days = set(
+        AttendanceSession.objects.filter(user_fk_id__in=user_ids, work_date__range=(start, end))
+        .filter(_session_within_employment_q())
+        .values_list("user_fk_id", "work_date")
+    )
+    leave_by_day = {
+        (item.user_fk_id, item.work_date): item
+        for item in LeaveDay.objects.filter(user_fk_id__in=user_ids, work_date__range=(start, end))
+    }
+    team_worksites = _report_team_worksites()
+    reason_meta = {
+        "no_attendance": "Fără pontaj",
+        LeaveDay.Reason.CO: "Concediu de odihnă",
+        LeaveDay.Reason.CM: "Concediu medical",
+        LeaveDay.Reason.UNPAID: "Concediu fără plată",
+        LeaveDay.Reason.INDIA: "Plecat în India",
+    }
+    counts = {key: 0 for key in reason_meta}
+    rows = []
+    current = start
+    while current <= end:
+        if current.weekday() != 6:  # duminica nu este zi lucrătoare
+            for user in users:
+                if user.hire_date and current < user.hire_date:
+                    continue
+                if not user.hire_date and first_attendance.get(user.UserId) and current < first_attendance[user.UserId]:
+                    continue
+                if user.employment_status == Users.EmploymentStatus.DISMISSED and (
+                    not user.dismissed_at or current > user.dismissed_at
+                ):
+                    continue
+                if (user.UserId, current) in attendance_days:
+                    continue
+                site_label = team_worksites.get(user.UserId, "Fără șantier asignat")
+                site_key = _canonicalize_worksite_label(site_label)[1]
+                if worksite_key_filter and site_key != worksite_key_filter:
+                    continue
+                leave = leave_by_day.get((user.UserId, current))
+                reason = leave.reason if leave and leave.reason in reason_meta else "no_attendance"
+                counts[reason] += 1
+                rows.append({
+                    "date": current.isoformat(),
+                    "UserId": user.UserId,
+                    "UserName": user.UserName,
+                    "UserSerie": user.UserSerie,
+                    "Company": user.Company,
+                    "worksite": site_label,
+                    "reason": reason,
+                    "reason_label": reason_meta[reason],
+                })
+        current += timedelta(days=1)
+
+    rows.sort(key=lambda item: (item["date"], item["UserName"].lower()), reverse=True)
+    return JsonResponse({
+        "start": str(start), "end": str(end), "company": company or None, "worksite": worksite or None,
+        "summary": {
+            "total": len(rows),
+            "people_count": len({item["UserId"] for item in rows}),
+            "no_attendance": counts["no_attendance"],
+            "paid_leave": counts[LeaveDay.Reason.CO],
+            "medical_leave": counts[LeaveDay.Reason.CM],
+            "unpaid_leave": counts[LeaveDay.Reason.UNPAID],
+            "india": counts[LeaveDay.Reason.INDIA],
+        },
+        "rows": rows,
+    })
+
+
+@csrf_exempt
+def attendance_incomplete_report(request):
+    """Sesiuni cu check-in și fără check-out, pe interval."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    start, end = _report_date_range(request)
+    company, worksite, worksite_key_filter = _report_company_and_worksite(request)
+    qs = (
+        AttendanceSession.objects
+        .filter(
+            work_date__range=(start, end), out_time__isnull=True,
+            user_fk__person_type=Users.PersonType.EMPLOYEE,
+        )
+        .filter(_session_within_employment_q())
+        .select_related("user_fk")
+        .order_by("-work_date", "-in_time")
+    )
+    if company:
+        qs = qs.filter(user_fk__Company__iexact=company)
+    now = timezone.now()
+    rows = []
+    for session in qs:
+        site_label, site_key = _canonicalize_worksite_label(session.worksite)
+        if worksite_key_filter and site_key != worksite_key_filter:
+            continue
+        elapsed = max(0, int((now - session.in_time).total_seconds())) if session.in_time else 0
+        rows.append({
+            "id": session.id,
+            "date": session.work_date.isoformat(),
+            "UserId": session.user_fk_id,
+            "UserName": session.user_fk.UserName,
+            "UserSerie": session.user_fk.UserSerie,
+            "Company": session.user_fk.Company,
+            "worksite": site_label,
+            "check_in": localtime(session.in_time).isoformat() if session.in_time else None,
+            "elapsed_seconds": elapsed,
+            "elapsed_hms": _fmt_hms(elapsed),
+        })
+
+    return JsonResponse({
+        "start": str(start), "end": str(end), "company": company or None, "worksite": worksite or None,
+        "summary": {
+            "sessions_count": len(rows),
+            "people_count": len({item["UserId"] for item in rows}),
+            "worksites_count": len({item["worksite"] for item in rows}),
         },
         "rows": rows,
     })

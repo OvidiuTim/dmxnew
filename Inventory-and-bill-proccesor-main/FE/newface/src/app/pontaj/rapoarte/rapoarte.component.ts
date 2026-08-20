@@ -2,60 +2,36 @@ import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { SharedService } from '../../shared.service';
-import { forkJoin } from 'rxjs';
 
-type WorksitePersonRow = {
+type ReportTab = 'worksites' | 'costs' | 'absences' | 'incomplete';
+
+interface ReportFilters {
+  start: string;
+  end: string;
+  company: string;
+  worksite: string;
+}
+
+interface WorksitePersonRow {
   UserId: number;
   UserName: string;
   Company?: string | null;
-  total_seconds: number;
   total_hms: string;
   sessions_count: number;
   days_count: number;
-};
+}
 
-type WorksiteReportRow = {
+interface WorksiteRow {
   worksite: string;
   raw_worksite?: string | null;
   people_count: number;
   active_days_count: number;
   person_days_count: number;
   total_sessions: number;
-  total_seconds: number;
   total_hms: string;
   last_activity?: string | null;
   people: WorksitePersonRow[];
-};
-
-type WorksiteReportSummary = {
-  worksites_count: number;
-  people_count: number;
-  active_days_count: number;
-  person_days_count: number;
-  total_sessions: number;
-  total_seconds: number;
-  total_hms: string;
-};
-
-type DayCostPersonRow = {
-  UserId: number;
-  UserName: string;
-  UserSerie?: string | null;
-  display_name: string;
-  Company?: string | null;
-  hourly_rate: number;
-  total_seconds: number;
-  total_hms: string;
-  worked_hours: number;
-  day_cost: number;
-};
-
-type DayCostSummary = {
-  people_count: number;
-  total_seconds: number;
-  total_hms: string;
-  total_cost: number;
-};
+}
 
 @Component({
   selector: 'app-rapoarte',
@@ -63,108 +39,43 @@ type DayCostSummary = {
   styleUrls: ['./rapoarte.component.css']
 })
 export class RapoarteComponent implements OnInit {
-
-  ngOnInit(): void {
-    this.loadCompanies();
-    this.loadWorksiteReport();
-    this.loadDayCostReport();
-  }
-
-  private loadCompanies(): void {
-    this.api.getUsrList().subscribe({
-      next: (users: any[]) => {
-        // extragem numele de firmă din useri
-        const names = users
-          .filter(u => (u.employment_status || 'active') !== 'dismissed')
-          .map(u => (u.Company || '').trim())
-          .filter(c => c.length > 0);
-
-        // unic + sortat
-        const unique = Array.from(new Set(names)).sort((a, b) =>
-          a.localeCompare(b, 'ro')
-        );
-
-        this.companies = unique;
-
-        // dacă nu e nimic selectat, punem prima firmă by default
-        if (!this.selectedCompany && this.companies.length) {
-          this.selectedCompany = this.companies[0];
-        }
-        if (!this.salaryCompany && this.companies.length) {
-          this.salaryCompany = this.companies[0];
-        }
-      },
-      error: (err) => {
-        console.error('Nu pot încărca firmele din lista de useri', err);
-        // nu blocăm pagina, doar nu avem dropdown populat
-      }
-    });
-  }
-
-
-
-  // API de bază – relativ la domeniu (se duce în Nginx la Django)
   private readonly apiBase = '/api';
-
-  // Raport pe zi
-  dayDate = this.todayISO();
-  dayError: string | null = null;
-
-  // Raport șantiere pe perioadă
-  worksiteStartDate = this.currentMonthStartISO();
-  worksiteEndDate = this.todayISO();
-  loadingWorksiteReport = false;
-  worksiteReportError: string | null = null;
-  worksiteReportRows: WorksiteReportRow[] = [];
-  worksiteReportSummary: WorksiteReportSummary | null = null;
-  selectedWorksiteCompany = '';
-  showWorksiteCompanyPicker = false;
-  worksiteEmployeeSearch: Record<string, string> = {};
-
-  // Cost pe zi
-  dayCostDate = this.todayISO();
-  selectedDayCostCompany = '';
-  loadingDayCostReport = false;
-  dayCostError: string | null = null;
-  dayCostSummary: DayCostSummary | null = null;
-  dayCostPeople: DayCostPersonRow[] = [];
-
-  // Raport pe firmă + lună
-  companies: string[] = [];
-  selectedCompany: string | null = null;
-  monthValue = this.currentMonthISO();
-  companyError: string | null = null;
-
-  // ---- Costuri salariale pe firmă (lunar) ----
-  currentYear = new Date().getFullYear();
-  years = [this.currentYear - 1, this.currentYear, this.currentYear + 1];
-
-  months = [
-    { value: 1,  label: 'Ianuarie' },
-    { value: 2,  label: 'Februarie' },
-    { value: 3,  label: 'Martie' },
-    { value: 4,  label: 'Aprilie' },
-    { value: 5,  label: 'Mai' },
-    { value: 6,  label: 'Iunie' },
-    { value: 7,  label: 'Iulie' },
-    { value: 8,  label: 'August' },
-    { value: 9,  label: 'Septembrie' },
-    { value: 10, label: 'Octombrie' },
-    { value: 11, label: 'Noiembrie' },
-    { value: 12, label: 'Decembrie' },
+  readonly tabs: Array<{ id: ReportTab; label: string; icon: string }> = [
+    { id: 'worksites', label: 'Oameni pe șantier', icon: 'domain' },
+    { id: 'costs', label: 'Costuri', icon: 'payments' },
+    { id: 'absences', label: 'Absențe', icon: 'person_off' },
+    { id: 'incomplete', label: 'Pontaje incomplete', icon: 'pending_actions' },
   ];
 
-  salaryYear: number = this.currentYear;
-  salaryMonth: number = new Date().getMonth() + 1;   // 1–12
-  salaryCompany: string | null = null;
+  activeTab: ReportTab = 'worksites';
+  filters: ReportFilters = {
+    start: this.currentMonthStartISO(),
+    end: this.todayISO(),
+    company: '',
+    worksite: '',
+  };
+  companies: string[] = [];
+  worksites: string[] = [];
+  selectedCompany = '';
+  monthValue = this.currentMonthISO();
+  companyError: string | null = null;
+  companyExporting = false;
+  loading = false;
+  reportError: string | null = null;
+  rowLimit = 60;
 
-  loadingSalary = false;
-  salaryError: string | null = null;
-  currentSalaryCompany: string | null = null;
-
-  salaryResult: { company: string; month: string; total: number } | null = null;
-
-
+  worksiteSummary: any = null;
+  worksiteRows: WorksiteRow[] = [];
+  expandedWorksite: string | null = null;
+  worksiteEmployeeSearch: Record<string, string> = {};
+  costSummary: any = null;
+  costCompanies: any[] = [];
+  costWorksites: any[] = [];
+  costPeople: any[] = [];
+  absenceSummary: any = null;
+  absenceRows: any[] = [];
+  incompleteSummary: any = null;
+  incompleteRows: any[] = [];
 
   constructor(
     private http: HttpClient,
@@ -172,387 +83,249 @@ export class RapoarteComponent implements OnInit {
     private api: SharedService,
   ) {}
 
-  /* NAV BAR */
-  backToPontaj(): void {
-    this.router.navigate(['/pontaj']);
+  ngOnInit(): void {
+    this.loadReportOptions();
+    this.loadActiveReport();
   }
 
-  /* Helpers date */
-
   todayISO(): string {
-    const d = new Date();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${d.getFullYear()}-${mm}-${dd}`;
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 
   currentMonthISO(): string {
-    const d = new Date();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    return `${d.getFullYear()}-${mm}`;
+    return this.todayISO().slice(0, 7);
   }
 
   currentMonthStartISO(): string {
-    const d = new Date();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    return `${d.getFullYear()}-${mm}-01`;
+    return `${this.currentMonthISO()}-01`;
+  }
+
+  switchTab(tab: ReportTab): void {
+    if (this.activeTab === tab) return;
+    this.activeTab = tab;
+    this.rowLimit = 60;
+    this.reportError = null;
+    this.loadActiveReport();
+  }
+
+  loadReportOptions(): void {
+    this.api.getAttendanceReportOptions().subscribe({
+      next: (response) => {
+        this.companies = response?.companies ?? [];
+        this.worksites = response?.worksites ?? [];
+        if (!this.selectedCompany && this.companies.length) this.selectedCompany = this.companies[0];
+      },
+      error: () => this.loadCompaniesFallback(),
+    });
+  }
+
+  private loadCompaniesFallback(): void {
+    this.api.getUsrList().subscribe({
+      next: (users: any[]) => {
+        this.companies = Array.from(new Set(
+          users.map(user => String(user.Company || '').trim()).filter(Boolean)
+        )).sort((a, b) => a.localeCompare(b, 'ro'));
+        if (!this.selectedCompany && this.companies.length) this.selectedCompany = this.companies[0];
+      },
+      error: (error) => console.error('Nu pot încărca firmele pentru rapoarte.', error),
+    });
+  }
+
+  applyFilters(): void {
+    this.reportError = null;
+    if (!this.filters.start || !this.filters.end) {
+      this.reportError = 'Selectează perioada raportului.';
+      return;
+    }
+    if (this.filters.start > this.filters.end) {
+      this.reportError = 'Data de început trebuie să fie înainte de data de sfârșit.';
+      return;
+    }
+    this.rowLimit = 60;
+    this.loadActiveReport();
+  }
+
+  loadActiveReport(): void {
+    if (!this.filters.start || !this.filters.end || this.filters.start > this.filters.end) return;
+    this.loading = true;
+    this.reportError = null;
+    const company = this.filters.company || null;
+    const worksite = this.filters.worksite || null;
+
+    if (this.activeTab === 'worksites') {
+      this.api.getAttendanceWorksiteReport(this.filters.start, this.filters.end, company, worksite).subscribe({
+        next: response => {
+          this.worksiteSummary = response?.summary ?? null;
+          this.worksiteRows = response?.rows ?? [];
+          this.expandedWorksite = null;
+          this.finishLoading();
+        },
+        error: error => this.failLoading(error, 'Nu am putut încărca raportul pe șantiere.'),
+      });
+      return;
+    }
+    if (this.activeTab === 'costs') {
+      this.api.getAttendanceCostReport(this.filters.start, this.filters.end, company, worksite).subscribe({
+        next: response => {
+          this.costSummary = response?.summary ?? null;
+          this.costCompanies = response?.companies ?? [];
+          this.costWorksites = response?.worksites ?? [];
+          this.costPeople = response?.people ?? [];
+          this.finishLoading();
+        },
+        error: error => this.failLoading(error, 'Nu am putut calcula raportul de costuri.'),
+      });
+      return;
+    }
+    if (this.activeTab === 'absences') {
+      this.api.getAttendanceAbsenceReport(this.filters.start, this.filters.end, company, worksite).subscribe({
+        next: response => {
+          this.absenceSummary = response?.summary ?? null;
+          this.absenceRows = response?.rows ?? [];
+          this.finishLoading();
+        },
+        error: error => this.failLoading(error, 'Nu am putut încărca raportul de absențe.'),
+      });
+      return;
+    }
+    this.api.getAttendanceIncompleteReport(this.filters.start, this.filters.end, company, worksite).subscribe({
+      next: response => {
+        this.incompleteSummary = response?.summary ?? null;
+        this.incompleteRows = response?.rows ?? [];
+        this.finishLoading();
+      },
+      error: error => this.failLoading(error, 'Nu am putut încărca pontajele incomplete.'),
+    });
+  }
+
+  private finishLoading(): void { this.loading = false; }
+
+  private failLoading(error: unknown, message: string): void {
+    console.error(error);
+    this.loading = false;
+    this.reportError = message;
+  }
+
+  get activeTitle(): string {
+    return this.tabs.find(tab => tab.id === this.activeTab)?.label ?? 'Raport';
+  }
+
+  get activeDescription(): string {
+    const descriptions: Record<ReportTab, string> = {
+      worksites: 'Vezi oamenii unici, orele și activitatea pentru fiecare șantier.',
+      costs: 'Analizează costurile pe firme, șantiere și angajați pentru perioada selectată.',
+      absences: 'Urmărește separat lipsa pontajului și fiecare tip de concediu.',
+      incomplete: 'Identifică sesiunile care au check-in, dar nu au încă check-out.',
+    };
+    return descriptions[this.activeTab];
+  }
+
+  toggleWorksitePeople(row: WorksiteRow): void {
+    const key = this.worksiteKey(row);
+    this.expandedWorksite = this.expandedWorksite === key ? null : key;
+  }
+
+  worksiteKey(row: WorksiteRow): string {
+    return row.raw_worksite || row.worksite || '__no_worksite__';
+  }
+
+  filteredWorksitePeople(row: WorksiteRow): WorksitePersonRow[] {
+    const query = (this.worksiteEmployeeSearch[this.worksiteKey(row)] || '').trim().toLocaleLowerCase('ro');
+    if (!query) return row.people;
+    return row.people.filter(person => `${person.UserName} ${person.Company || ''}`.toLocaleLowerCase('ro').includes(query));
+  }
+
+  openAttendance(userId: number): void { this.router.navigate(['/user', userId]); }
+
+  formatDate(value?: string | null): string {
+    if (!value) return '—';
+    const parsed = new Date(`${value.slice(0, 10)}T12:00:00`);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString('ro-RO');
   }
 
   formatDateTime(value?: string | null): string {
-    if (!value) {
-      return '—';
-    }
-
+    if (!value) return '—';
     const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return value;
-    }
-
-    return parsed.toLocaleString('ro-RO', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString('ro-RO', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
   }
 
-  toggleWorksiteCompanyPicker(): void {
-    this.showWorksiteCompanyPicker = !this.showWorksiteCompanyPicker;
+  asNumber(value: unknown): number {
+    const result = Number(value ?? 0);
+    return Number.isFinite(result) ? result : 0;
   }
 
-  applyWorksiteCompanyFilter(): void {
-    this.showWorksiteCompanyPicker = false;
-    this.loadWorksiteReport();
-  }
-
-  currentWorksiteCompanyLabel(): string {
-    return this.selectedWorksiteCompany || 'Toate firmele';
-  }
-
-  worksiteRowKey(row: WorksiteReportRow): string {
-    return row.raw_worksite || '__fara_santier__';
-  }
-
-  getWorksitePeopleSearch(row: WorksiteReportRow): string {
-    return this.worksiteEmployeeSearch[this.worksiteRowKey(row)] || '';
-  }
-
-  setWorksitePeopleSearch(row: WorksiteReportRow, value: string): void {
-    this.worksiteEmployeeSearch[this.worksiteRowKey(row)] = value;
-  }
-
-  getFilteredPeople(row: WorksiteReportRow): WorksitePersonRow[] {
-    const query = this.getWorksitePeopleSearch(row).trim().toLowerCase();
-    if (!query) {
-      return row.people;
-    }
-
-    return row.people.filter(person => {
-      const haystack = `${person.UserName} ${person.Company || ''}`.toLowerCase();
-      return haystack.includes(query);
-    });
-  }
-
-  loadWorksiteReport(): void {
-    this.worksiteReportError = null;
-
-    if (!this.worksiteStartDate || !this.worksiteEndDate) {
-      this.worksiteReportError = 'Alege intervalul pentru raportul pe șantiere.';
-      return;
-    }
-
-    if (this.worksiteStartDate > this.worksiteEndDate) {
-      this.worksiteReportError = 'Data de început trebuie să fie înainte de data de sfârșit.';
-      return;
-    }
-
-    this.loadingWorksiteReport = true;
-    this.worksiteEmployeeSearch = {};
-
-    this.api.getAttendanceWorksiteReport(
-      this.worksiteStartDate,
-      this.worksiteEndDate,
-      this.selectedWorksiteCompany || null
-    ).subscribe({
-      next: (res) => {
-        this.worksiteReportRows = res?.rows ?? [];
-        this.worksiteReportSummary = res?.summary ?? null;
-        this.loadingWorksiteReport = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.loadingWorksiteReport = false;
-        this.worksiteReportRows = [];
-        this.worksiteReportSummary = null;
-        this.worksiteReportError = 'Nu am putut încărca raportul pe șantiere.';
-      }
-    });
-  }
-
-  loadDayCostReport(): void {
-    this.dayCostError = null;
-
-    if (!this.dayCostDate) {
-      this.dayCostError = 'Alege data pentru costul zilnic.';
-      return;
-    }
-
-    this.loadingDayCostReport = true;
-    this.dayCostPeople = [];
-    this.dayCostSummary = null;
-
-    this.api.getAttendanceDayCostReport(
-      this.dayCostDate,
-      this.selectedDayCostCompany || null
-    ).subscribe({
-      next: (res) => {
-        this.dayCostSummary = res?.summary ? {
-          people_count: Number(res.summary.people_count ?? 0),
-          total_seconds: Number(res.summary.total_seconds ?? 0),
-          total_hms: res.summary.total_hms ?? '00:00:00',
-          total_cost: Number(res.summary.total_cost ?? 0),
-        } : null;
-
-        this.dayCostPeople = (res?.people ?? []).map((person: any) => ({
-          UserId: Number(person.UserId ?? 0),
-          UserName: person.UserName ?? '',
-          UserSerie: person.UserSerie ?? null,
-          display_name: person.display_name ?? person.UserName ?? '',
-          Company: person.Company ?? null,
-          hourly_rate: Number(person.hourly_rate ?? 0),
-          total_seconds: Number(person.total_seconds ?? 0),
-          total_hms: person.total_hms ?? '00:00:00',
-          worked_hours: Number(person.worked_hours ?? 0),
-          day_cost: Number(person.day_cost ?? 0),
-        }));
-
-        this.loadingDayCostReport = false;
-      },
-      error: (err) => {
-        console.error(err);
-        this.loadingDayCostReport = false;
-        this.dayCostPeople = [];
-        this.dayCostSummary = null;
-        this.dayCostError = 'Nu am putut calcula costul pe zi.';
-      }
-    });
-  }
-
-  downloadWorksiteReportCsv(): void {
-    if (!this.worksiteReportRows.length) {
-      this.worksiteReportError = 'Nu există date de exportat pentru perioada selectată.';
-      return;
-    }
-
-    const header = [
-      'Santier',
-      'Oameni unici',
-      'Ore totale',
-      'Sesiuni',
-      'Zile active',
-      'Om-zile',
-      'Ultima activitate',
-      'Oameni'
-    ];
-    const lines = [header.join(',')];
-
-    for (const row of this.worksiteReportRows) {
-      const people = row.people
-        .map(person => `${person.UserName} (${person.total_hms})`)
-        .join('; ');
-
-      const vals = [
-        `"${row.worksite.replace(/"/g, '""')}"`,
-        row.people_count,
-        row.total_hms,
-        row.total_sessions,
-        row.active_days_count,
-        row.person_days_count,
-        `"${this.formatDateTime(row.last_activity).replace(/"/g, '""')}"`,
-        `"${people.replace(/"/g, '""')}"`
-      ];
-      lines.push(vals.join(','));
-    }
-
-    const csv = lines.join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const companySuffix = this.selectedWorksiteCompany
-      ? `_${this.selectedWorksiteCompany.replace(/\s+/g, '_')}`
-      : '_toate_firmele';
-    const fname = `raport_santiere${companySuffix}_${this.worksiteStartDate}_${this.worksiteEndDate}.csv`;
-    this.triggerDownload(blob, fname);
-  }
-
-  /* Raport pe zi – CSV din /api/pontaj/day/ */
-
-  downloadDayReport(): void {
-    this.dayError = null;
-    if (!this.dayDate) {
-      this.dayError = 'Alege o dată.';
-      return;
-    }
-
-    const url = `${this.apiBase}/pontaj/day/`;
-
-    this.http.get<any>(url, { params: { date: this.dayDate } }).subscribe({
-      next: (res) => {
-        const rows = res?.rows ?? [];
-        if (!rows.length) {
-          this.dayError = 'Nu există pontaj pentru data aleasă.';
-          return;
-        }
-
-        const header = ['UserName', 'first_in', 'last_out', 'total_hms', 'status'];
-        const lines = [header.join(',')];
-
-        for (const r of rows) {
-          const vals = [
-            `"${(r.UserName || '').replace(/"/g, '""')}"`,
-            r.first_in || '',
-            r.last_out || '',
-            r.total_hms || '',
-            r.status || ''
-          ];
-          lines.push(vals.join(','));
-        }
-
-        const csv = lines.join('\r\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const fname = `raport_${this.dayDate}.csv`;
-        this.triggerDownload(blob, fname);
-      },
-      error: (err) => {
-        console.error(err);
-        this.dayError = 'Eroare la generarea raportului pe zi.';
-      }
-    });
-  }
-
-  /* Raport pe firmă + lună – .xlsx din /api/pontaj/excel/ */
-
-  selectCompany(c: string): void {
-    this.selectedCompany = c;
-    this.companyError = null;
-  }
+  showMore(): void { this.rowLimit += 60; }
 
   downloadCompanyMonthReport(): void {
     this.companyError = null;
-
-    if (!this.selectedCompany) {
-      this.companyError = 'Alege o firmă.';
+    if (!this.selectedCompany || !this.monthValue) {
+      this.companyError = 'Selectează firma și luna.';
       return;
     }
-    if (!this.monthValue) {
-      this.companyError = 'Alege o lună.';
-      return;
-    }
-
-    // monthValue = "YYYY-MM"
-    const [yearStr, monthStr] = this.monthValue.split('-');
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10);
-
+    const [yearText, monthText] = this.monthValue.split('-');
+    const year = Number(yearText);
+    const month = Number(monthText);
     if (!year || !month) {
       this.companyError = 'Luna selectată nu este validă.';
       return;
     }
-
-    const url = `${this.apiBase}/pontaj/excel/`;
-    const body = {
-      month,
-      year,
-      company: this.selectedCompany
-    };
-
-    this.http.post(url, body, { responseType: 'blob' }).subscribe({
-      next: (blob) => {
-        const fname = `pontaj_${this.selectedCompany!.replace(/\s+/g, '_')}_${yearStr}-${monthStr}.xlsx`;
-        this.triggerDownload(blob, fname);
+    this.companyExporting = true;
+    this.http.post(`${this.apiBase}/pontaj/excel/`, {
+      month, year, company: this.selectedCompany,
+    }, { responseType: 'blob' }).subscribe({
+      next: blob => {
+        this.triggerDownload(blob, `pontaj_${this.filePart(this.selectedCompany)}_${this.monthValue}.xlsx`);
+        this.companyExporting = false;
       },
-      error: (err) => {
-        console.error(err);
-        this.companyError = 'Eroare la generarea raportului pe firmă.';
-      }
+      error: error => {
+        console.error(error);
+        this.companyError = 'Eroare la generarea raportului Excel.';
+        this.companyExporting = false;
+      },
     });
   }
 
-  /* Utilitar pentru download */
+  exportActiveCsv(): void {
+    let header: string[] = [];
+    let rows: Array<Array<unknown>> = [];
+    if (this.activeTab === 'worksites') {
+      header = ['Șantier', 'Oameni unici', 'Ore totale', 'Sesiuni', 'Zile active', 'Om-zile', 'Ultima activitate'];
+      rows = this.worksiteRows.map(row => [row.worksite, row.people_count, row.total_hms, row.total_sessions, row.active_days_count, row.person_days_count, this.formatDateTime(row.last_activity)]);
+    } else if (this.activeTab === 'costs') {
+      header = ['Angajat', 'Serie', 'Firmă', 'Șantiere', 'Tarif orar', 'Ore totale', 'Cost estimat'];
+      rows = this.costPeople.map(person => [person.UserName, person.UserSerie, person.Company, (person.worksites || []).join('; '), person.hourly_rate, person.total_hms, person.total_cost]);
+    } else if (this.activeTab === 'absences') {
+      header = ['Data', 'Angajat', 'Serie', 'Firmă', 'Șantier', 'Tip'];
+      rows = this.absenceRows.map(row => [row.date, row.UserName, row.UserSerie, row.Company, row.worksite, row.reason_label]);
+    } else {
+      header = ['Data', 'Angajat', 'Serie', 'Firmă', 'Șantier', 'Check-in', 'Timp deschis'];
+      rows = this.incompleteRows.map(row => [row.date, row.UserName, row.UserSerie, row.Company, row.worksite, this.formatDateTime(row.check_in), row.elapsed_hms]);
+    }
+    if (!rows.length) {
+      this.reportError = 'Nu există date de exportat pentru filtrele selectate.';
+      return;
+    }
+    const csv = [header, ...rows].map(row => row.map(value => this.csvCell(value)).join(',')).join('\r\n');
+    this.triggerDownload(new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8;' }), `${this.activeTab}_${this.filters.start}_${this.filters.end}.csv`);
+  }
+
+  private csvCell(value: unknown): string {
+    return `"${String(value ?? '').replace(/"/g, '""')}"`;
+  }
+
+  private filePart(value: string): string {
+    return value.trim().replace(/[^a-zA-Z0-9ăâîșțĂÂÎȘȚ_-]+/g, '_');
+  }
 
   private triggerDownload(blob: Blob, filename: string): void {
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
     window.URL.revokeObjectURL(url);
   }
-
-
-  loadSalaryCost(): void {
-    if (!this.salaryYear || !this.salaryMonth || !this.salaryCompany) {
-      this.salaryError = 'Alege anul, luna și firma.';
-      return;
-    }
-
-    this.salaryError = null;
-    this.loadingSalary = true;
-    this.currentSalaryCompany = this.salaryCompany;
-    this.salaryResult = null;
-
-    const monthStr = `${this.salaryYear}-${String(this.salaryMonth).padStart(2, '0')}`; // "YYYY-MM"
-    const company = this.salaryCompany;
-
-    // 1) luăm toți angajații și filtrăm pe firmă
-    this.api.getUsrList().subscribe({
-      next: (users: any[]) => {
-        const companyUsers = users.filter(u =>
-          (u.Company || '').toLowerCase() === company!.toLowerCase()
-        );
-
-        if (!companyUsers.length) {
-          this.loadingSalary = false;
-          this.salaryError = 'Nu există angajați pentru firma ' + company;
-          return;
-        }
-
-        // 2) pentru fiecare angajat din firmă, cerem /pay/month și adunăm
-        const calls = companyUsers.map(u =>
-          this.api.getPayMonth(u.UserId, monthStr)
-        );
-
-        forkJoin(calls).subscribe({
-          next: (results: any[]) => {
-            let total = 0;
-            for (const r of results) {
-              const raw = r?.month_total ?? r?.monthTotal ?? '0';
-              const val = parseFloat(raw);
-              if (!Number.isNaN(val)) {
-                total += val;
-              }
-            }
-
-            this.salaryResult = {
-              company: company!,
-              month: monthStr,
-              total
-            };
-            this.loadingSalary = false;
-          },
-          error: (err) => {
-            console.error(err);
-            this.salaryError = 'Eroare la calculul costurilor salariale.';
-            this.loadingSalary = false;
-          }
-        });
-      },
-      error: (err) => {
-        console.error(err);
-        this.salaryError = 'Nu am putut încărca lista de angajați.';
-        this.loadingSalary = false;
-      }
-    });
-  }
-
-
 }
