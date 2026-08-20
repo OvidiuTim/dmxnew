@@ -228,6 +228,9 @@ getAttendanceDay(date?: string) {
   }
 
   getAttendancePresent()               { return this.http.get(`${this.API}/pontaj/present/`); }
+  getAttendanceWorksites() {
+    return this.http.get<{ worksites: string[] }>(`${this.API}/pontaj/worksites/`);
+  }
   getAttendanceRange(start: string, end: string) {
     return this.http.get(`${this.API}/pontaj/range/`, { params: { start, end } });
   }

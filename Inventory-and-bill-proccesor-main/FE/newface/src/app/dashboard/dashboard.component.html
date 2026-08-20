@@ -68,21 +68,27 @@
 
   <section class="panel worksite-cost-panel" aria-labelledby="worksite-cost-title">
     <div class="panel-head">
-      <div><span class="eyebrow">Cost operațional</span><h2 id="worksite-cost-title">Costuri pe șantiere</h2></div>
-      <span class="live-pill" *ngIf="!loadingReports && !reportsError"><i></i> Actual</span>
+      <div>
+        <span class="eyebrow">Cost operațional · Astăzi</span>
+        <h2 id="worksite-cost-title">Costuri pe șantiere astăzi</h2>
+        <p class="panel-description">Valorile includ exclusiv orele și pontajele înregistrate astăzi.</p>
+      </div>
+      <span class="live-pill" *ngIf="!loadingReports && !reportsError"><i></i> Astăzi</span>
     </div>
     <div class="inline-alert compact" *ngIf="reportsError">{{ reportsError }}</div>
     <div class="worksite-table-wrap" *ngIf="!reportsError">
       <table class="worksite-cost-table">
-        <thead><tr><th>Șantier</th><th>Ore lucrate</th><th>Cost estimat</th></tr></thead>
+        <thead><tr><th>Șantier</th><th>Angajați pontați azi</th><th>Ora medie de începere</th><th>Ore lucrate azi</th><th>Cost estimat azi</th></tr></thead>
         <tbody>
-          <tr *ngIf="loadingReports"><td colspan="3" class="table-state">Se încarcă situația costurilor…</td></tr>
+          <tr *ngIf="loadingReports"><td colspan="5" class="table-state">Se încarcă situația costurilor de astăzi…</td></tr>
           <tr *ngFor="let item of worksiteCosts">
             <td><strong>{{ item.worksite }}</strong></td>
+            <td><span class="people-count"><span class="material-symbols-rounded" aria-hidden="true">groups</span>{{ item.people_count }}</span></td>
+            <td>{{ item.average_start_time || '—' }}</td>
             <td>{{ item.total_hms }}</td>
             <td><b>{{ item.total_cost | number:'1.2-2' }} lei</b></td>
           </tr>
-          <tr *ngIf="!loadingReports && !worksiteCosts.length"><td colspan="3" class="table-state">Nu există ore pontate pe șantiere astăzi.</td></tr>
+          <tr *ngIf="!loadingReports && !worksiteCosts.length"><td colspan="5" class="table-state">Nu există ore pontate pe șantiere astăzi.</td></tr>
         </tbody>
       </table>
     </div>

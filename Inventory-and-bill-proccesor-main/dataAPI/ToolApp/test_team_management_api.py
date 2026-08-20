@@ -46,7 +46,7 @@ class TeamManagementApiTests(TestCase):
             data=json.dumps({
                 "name": name,
                 "leader_id": leader.pk,
-                "default_worksite": "Șantier Nord",
+                "default_worksite": "The Lake Home Bloc A",
                 "active": active,
                 "member_ids": [item.pk for item in members],
             }),
@@ -58,7 +58,7 @@ class TeamManagementApiTests(TestCase):
     def test_create_team_with_leader_and_members(self):
         team = self.create_team("Echipa Alfa", self.leader_a, [self.worker_a, self.worker_b])
         self.assertEqual(team.leader, self.leader_a)
-        self.assertEqual(team.default_worksite, "Șantier Nord")
+        self.assertEqual(team.default_worksite, "The Lake Home Bloc A")
         self.assertSetEqual(
             set(team.memberships.filter(active=True).values_list("employee_id", flat=True)),
             {self.leader_a.pk, self.worker_a.pk, self.worker_b.pk},
@@ -131,7 +131,7 @@ class TeamManagementApiTests(TestCase):
             data=json.dumps({
                 "name": "Echipa Alfa Nouă",
                 "leader_id": self.leader_b.pk,
-                "default_worksite": "Șantier Sud",
+                "default_worksite": "Psihiatrie C16",
                 "active": True,
                 "member_ids": [self.worker_b.pk],
             }),

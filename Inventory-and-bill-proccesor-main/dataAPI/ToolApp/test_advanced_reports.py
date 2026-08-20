@@ -42,7 +42,7 @@ class AdvancedAttendanceReportsTests(TestCase):
         self.assertEqual(payload["summary"]["total_hms"], "04:00:00")
         self.assertEqual(payload["summary"]["total_cost"], "80.00")
         self.assertEqual(payload["companies"][0]["name"], "DMX")
-        self.assertEqual(payload["worksites"][0]["name"], "Bloc A")
+        self.assertEqual(payload["worksites"][0]["name"], "The Lake Home Bloc A")
         self.assertEqual(payload["people"][0]["UserId"], first.pk)
 
     def test_absence_report_separates_leave_and_missing_attendance(self):
@@ -70,7 +70,7 @@ class AdvancedAttendanceReportsTests(TestCase):
         self.assertEqual(payload["summary"]["paid_leave"], 1)
         self.assertEqual(payload["summary"]["no_attendance"], 1)
         self.assertEqual({row["reason"] for row in payload["rows"]}, {"CO", "no_attendance"})
-        self.assertTrue(all(row["worksite"] == "Bloc A" for row in payload["rows"]))
+        self.assertTrue(all(row["worksite"] == "The Lake Home Bloc A" for row in payload["rows"]))
 
     def test_incomplete_report_only_returns_open_sessions(self):
         employee = Users.objects.create(UserName="Pontaj deschis", UserSerie="OPEN-1", Company="DMX")

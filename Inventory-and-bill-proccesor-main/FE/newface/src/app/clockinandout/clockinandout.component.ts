@@ -109,7 +109,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   readonly sharedLakeHomeCenter = { lat: 45.81027575048179, lng: 24.130539205078342 };
   readonly chefWorksite: WorksiteDefinition = {
-    name: 'Chef',
+    name: 'Birou ingineri',
     type: 'circle',
     center: { lat: 45.79680855369633, lng: 24.14230494031001 },
     radiusMeters: 100,
@@ -118,16 +118,16 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   readonly worksites: WorksiteDefinition[] = [
     { name: 'The Lake Home Bloc A', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 90 },
     { name: 'The Lake Home Bloc B2', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
-    { name: 'The Lake Home Blocurile E si F', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
-    { name: 'psihiatrie c8', type: 'circle', center: { lat: 45.80720228440877, lng: 24.15440514734915 }, radiusMeters: 40 },
-    { name: 'psihiatrie c16', type: 'circle', center: { lat: 45.80768553302182, lng: 24.157085884823974 }, radiusMeters: 40 },
-    { name: 'spital victoria', type: 'circle', center: { lat: 45.725861888407216, lng: 24.70584969156609 }, radiusMeters: 40 },
-    { name: 'casa de cultura victoria', type: 'circle', center: { lat: 45.73050790281027, lng: 24.70109770865094 }, radiusMeters: 40 },
-    { name: 'bazin ucea', type: 'circle', center: { lat: 45.70058115535115, lng: 24.689376326811146 }, radiusMeters: 40 },
-    { name: 'bloc agnita', type: 'circle', center: { lat: 45.97724541353617, lng: 24.62272565333796 }, radiusMeters: 40 },
-    { name: 'gradinita agnita', type: 'circle', center: { lat: 45.97789754940184, lng: 24.61674765866955 }, radiusMeters: 40 },
-    { name: 'bloc 14 victoria', type: 'circle', center: { lat: 45.73336901742498, lng: 24.701707107591304 }, radiusMeters: 40 },
-    { name: 'bloc 3 victoria', type: 'circle', center: { lat: 45.73105012404724, lng: 24.696154238062714 }, radiusMeters: 40 }
+    { name: 'The Lake Home Bloc E & F', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
+    { name: 'Psihiatrie C8', type: 'circle', center: { lat: 45.80720228440877, lng: 24.15440514734915 }, radiusMeters: 40 },
+    { name: 'Psihiatrie C16', type: 'circle', center: { lat: 45.80768553302182, lng: 24.157085884823974 }, radiusMeters: 40 },
+    { name: 'Spital Victoria', type: 'circle', center: { lat: 45.725861888407216, lng: 24.70584969156609 }, radiusMeters: 40 },
+    { name: 'Casa de Cultură Victoria', type: 'circle', center: { lat: 45.73050790281027, lng: 24.70109770865094 }, radiusMeters: 40 },
+    { name: 'Bazin Ucea', type: 'circle', center: { lat: 45.70058115535115, lng: 24.689376326811146 }, radiusMeters: 40 },
+    { name: 'Bloc Agnita', type: 'circle', center: { lat: 45.97724541353617, lng: 24.62272565333796 }, radiusMeters: 40 },
+    { name: 'Grădinița Agnita', type: 'circle', center: { lat: 45.97789754940184, lng: 24.61674765866955 }, radiusMeters: 40 },
+    { name: 'Bloc 14 Victoria', type: 'circle', center: { lat: 45.73336901742498, lng: 24.701707107591304 }, radiusMeters: 40 },
+    { name: 'Bloc 3 Victoria', type: 'circle', center: { lat: 45.73105012404724, lng: 24.696154238062714 }, radiusMeters: 40 }
   ];
 
   readonly translations: Record<LanguageCode, TranslationPack> = {

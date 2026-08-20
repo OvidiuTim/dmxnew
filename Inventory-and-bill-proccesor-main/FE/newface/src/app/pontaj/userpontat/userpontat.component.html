@@ -118,7 +118,7 @@
         <div class="session-fields">
           <label><span>Intrare</span><input type="text" placeholder="07:30" [(ngModel)]="session.in"></label>
           <label><span>Ieșire</span><input type="text" placeholder="17:30" [(ngModel)]="session.out"></label>
-          <label><span>Locație</span><input type="text" placeholder="Ex: Bloc F" [(ngModel)]="session.worksite"></label>
+          <label><span>Locație</span><select [(ngModel)]="session.worksite"><option value="" disabled>Selectează șantierul</option><option *ngFor="let worksite of worksiteOptions" [value]="worksite">{{ worksite }}</option></select></label>
         </div>
       </article>
       <button class="btn secondary add-session" type="button" (click)="addSessionRow()"><span class="material-symbols-rounded" aria-hidden="true">add</span>Adaugă sesiune</button>

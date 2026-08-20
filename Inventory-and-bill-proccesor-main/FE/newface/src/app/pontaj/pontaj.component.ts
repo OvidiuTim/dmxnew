@@ -79,9 +79,10 @@ seeFisaAngajat(id: number): void {
     // aducem atât raportul pe zi cât și lista completă de useri (ca să afișăm și absenții)
     forkJoin({
       day: this.api.getAttendanceDay(this.selectedDate),
-      users: this.api.getUsrList()
+      users: this.api.getUsrList(),
+      worksites: this.api.getAttendanceWorksites(),
     }).subscribe({
-      next: ({ day, users }) => {
+      next: ({ day, users, worksites }) => {
         users = (users ?? []).filter((user: any) => {
           if ((user.person_type || 'employee') !== 'employee') return false;
           if ((user.employment_status || 'active') === 'dismissed') return false;
@@ -130,9 +131,7 @@ seeFisaAngajat(id: number): void {
         if (this.selectedCompany !== 'ALL' && !this.companyOptions.includes(this.selectedCompany)) {
           this.selectedCompany = 'ALL';
         }
-        this.worksiteOptions = Array.from(new Set(
-          merged.map(row => (row.day_worksite ?? '').trim()).filter(Boolean)
-        )).sort((a, b) => a.localeCompare(b, 'ro'));
+        this.worksiteOptions = worksites?.worksites ?? [];
         if (this.selectedWorksite !== 'ALL' && !this.worksiteOptions.includes(this.selectedWorksite)) {
           this.selectedWorksite = 'ALL';
         }

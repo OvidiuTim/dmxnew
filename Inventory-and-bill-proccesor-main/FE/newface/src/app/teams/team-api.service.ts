@@ -81,11 +81,16 @@ export interface LeaveNotification {
 @Injectable({ providedIn: 'root' })
 export class TeamApiService {
   private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/teams';
+  private readonly PONTAJ_API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/pontaj';
 
   constructor(private http: HttpClient) {}
 
   getTeams(): Observable<any> {
     return this.http.get(`${this.API}/`);
+  }
+
+  getWorksites(): Observable<{ worksites: string[] }> {
+    return this.http.get<{ worksites: string[] }>(`${this.PONTAJ_API}/worksites/`);
   }
 
   createTeam(payload: any): Observable<any> {

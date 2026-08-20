@@ -10,6 +10,7 @@ from django.db import models
 from django.db import models
 from django.utils import timezone
 from django.utils.timezone import localdate
+from ToolApp.worksites import InvalidWorksite, normalize_worksite
 # Create your models here
 
 
@@ -517,6 +518,14 @@ class PresenceEvent(models.Model):
     # NEW
     worksite = models.CharField(max_length=100, null=True, blank=True, db_index=True)
 
+    def clean(self):
+        super().clean()
+        if self.worksite:
+            try:
+                self.worksite = normalize_worksite(self.worksite)
+            except InvalidWorksite as exc:
+                raise ValidationError({"worksite": str(exc)}) from exc
+
     class Meta:
         ordering = ['-timestamp']
         
@@ -547,6 +556,14 @@ class AttendanceSession(models.Model):
     # Fotografii WebP/JPEG reduse și confirmate explicit pentru fiecare acțiune manuală.
     checkin_photo = models.TextField(blank=True, default="")
     checkout_photo = models.TextField(blank=True, default="")
+
+    def clean(self):
+        super().clean()
+        if self.worksite:
+            try:
+                self.worksite = normalize_worksite(self.worksite)
+            except InvalidWorksite as exc:
+                raise ValidationError({"worksite": str(exc)}) from exc
 
     class Meta:
         ordering = ['-in_time']
@@ -786,6 +803,11 @@ class EmployeeTeam(models.Model):
 
     def clean(self):
         super().clean()
+        if self.default_worksite:
+            try:
+                self.default_worksite = normalize_worksite(self.default_worksite)
+            except InvalidWorksite as exc:
+                raise ValidationError({"default_worksite": str(exc)}) from exc
         if self.active and self.leader_id:
             if not self.leader.active:
                 raise ValidationError({"leader": "Șeful de echipă este inactiv."})

@@ -37,6 +37,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   manageableTeams: EmployeeTeam[] = [];
   canManageAll = false;
   leaderTeamIds: number[] = [];
+  worksiteOptions: string[] = [];
 
   teamDialogOpen = false;
   requestDialogOpen = false;
@@ -52,6 +53,10 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   constructor(private route: ActivatedRoute, private api: TeamApiService) {}
 
   ngOnInit(): void {
+    this.api.getWorksites().subscribe({
+      next: response => this.worksiteOptions = response?.worksites ?? [],
+      error: error => this.handleError(error),
+    });
     this.routeSubscription = this.route.data.subscribe(data => {
       this.mode = (data['teamMode'] || 'permanent') as TeamMode;
       this.searchTerm = '';

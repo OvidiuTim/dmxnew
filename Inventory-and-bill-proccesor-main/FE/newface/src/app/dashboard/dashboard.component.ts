@@ -40,7 +40,13 @@ export class DashboardComponent implements OnInit {
   totalWorkedSeconds = 0;
   worksitesCount = 0;
   totalDayCost = 0;
-  worksiteCosts: Array<{ worksite: string; total_cost: number; total_hms: string }> = [];
+  worksiteCosts: Array<{
+    worksite: string;
+    total_cost: number;
+    total_hms: string;
+    people_count: number;
+    average_start_time: string | null;
+  }> = [];
   loadingAttendance = true;
   loadingHistory = true;
   loadingReports = true;
@@ -98,6 +104,8 @@ export class DashboardComponent implements OnInit {
           worksite: item.worksite || 'Fără șantier asignat',
           total_cost: Number(item.total_cost ?? 0),
           total_hms: item.total_hms || '00:00:00',
+          people_count: Number(item.people_count ?? 0),
+          average_start_time: item.average_start_time || null,
         }));
         this.loadingReports = false;
       },

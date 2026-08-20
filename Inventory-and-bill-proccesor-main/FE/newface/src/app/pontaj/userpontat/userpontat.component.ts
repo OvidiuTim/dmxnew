@@ -114,6 +114,7 @@ export class UserpontatComponent implements OnInit {
 
   // SESIUNI
   sessForm: SessEditRow[] = [{ in: '', out: '', worksite: '' }];
+  worksiteOptions: string[] = [];
 
   // salariu orar luat din Users (backend)
   hourlyRate = 0;
@@ -158,6 +159,10 @@ export class UserpontatComponent implements OnInit {
     this.load();
     this.refreshMonthSalary();
     this.fetchUserInfo();   // ← luăm numele și salariul/oră
+    this.api.getAttendanceWorksites().subscribe({
+      next: response => this.worksiteOptions = response?.worksites ?? [],
+      error: error => console.error('Lista șantierelor nu a putut fi încărcată.', error),
+    });
   }
 
   // ================== HELPERS DATĂ/LUNĂ ==================
@@ -638,6 +643,10 @@ export class UserpontatComponent implements OnInit {
       const mo = this.toMinutes(r.out);
       if (mo <= mi) {
         alert('Ora de ieșire trebuie să fie după ora de intrare.');
+        return;
+      }
+      if (!r.worksite || !this.worksiteOptions.includes(r.worksite)) {
+        alert('Selectează un șantier din lista acceptată pentru fiecare sesiune.');
         return;
       }
     }

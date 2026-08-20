@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 from django.utils import timezone
-from django.utils.timezone import localdate
+from django.utils.timezone import localdate, localtime
 
 from ToolApp.models import AttendanceSession, Users
 from ToolApp.security import make_admin_token
@@ -206,7 +206,7 @@ class ManualAttendanceSecurityTests(TestCase):
 
         session = AttendanceSession.objects.get(user_fk=user)
         self.assertEqual(session.source, "manual-chef")
-        self.assertEqual(session.worksite, "Chef")
+        self.assertEqual(session.worksite, "Birou ingineri")
         self.assertAlmostEqual(session.in_gps_latitude, self.chef_center["lat"])
 
         tool_views._last_seen.clear()
@@ -476,7 +476,7 @@ class ManualAttendanceSecurityTests(TestCase):
                     "pin": f"991{index}",
                     "device_key": f"android-device-{index}",
                     "mode": mode,
-                    "worksite": "Santier Android",
+                    "worksite": "diverse",
                     "timestamp": timezone.now().isoformat(),
                     "gps": {
                         "lat": 45.81,
@@ -566,7 +566,7 @@ class AttendanceReportsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual(payload["summary"]["worksites_count"], 1)
-        self.assertEqual(payload["rows"][0]["worksite"], "Bloc A")
+        self.assertEqual(payload["rows"][0]["worksite"], "The Lake Home Bloc A")
         self.assertEqual(payload["rows"][0]["people_count"], 2)
         self.assertEqual(payload["rows"][0]["total_seconds"], 6 * 3600)
 
@@ -601,9 +601,45 @@ class AttendanceReportsTests(TestCase):
         self.assertEqual(payload["summary"]["total_hms"], "03:30:00")
         self.assertEqual(payload["summary"]["total_cost"], "89.25")
         self.assertEqual(payload["people"][0]["display_name"], "Mihai Popescu (SER-401)")
-        self.assertEqual(payload["worksites"], [{
-            "worksite": "Bloc B2",
-            "total_seconds": (3 * 3600) + (30 * 60),
-            "total_hms": "03:30:00",
-            "total_cost": "89.25",
-        }])
+        self.assertEqual(len(payload["worksites"]), 1)
+        worksite = payload["worksites"][0]
+        self.assertEqual(worksite["worksite"], "The Lake Home Bloc B2")
+        self.assertEqual(worksite["people_count"], 1)
+        self.assertEqual(worksite["average_start_time"], localtime(now - timedelta(hours=3, minutes=30)).strftime("%H:%M"))
+        self.assertEqual(worksite["total_seconds"], (3 * 3600) + (30 * 60))
+        self.assertEqual(worksite["total_hms"], "03:30:00")
+        self.assertEqual(worksite["total_cost"], "89.25")
+
+    def test_day_cost_worksite_counts_unique_people_and_averages_their_first_check_in(self):
+        first = Users.objects.create(UserName="Primul", UserSerie="AVG-1", hourly_rate=Decimal("20.00"))
+        second = Users.objects.create(UserName="Al doilea", UserSerie="AVG-2", hourly_rate=Decimal("20.00"))
+        day = localdate()
+        local_now = localtime(timezone.now())
+
+        def at(hour):
+            return local_now.replace(hour=hour, minute=0, second=0, microsecond=0)
+
+        for user, start_hour, end_hour in (
+            (first, 8, 9),
+            (first, 14, 15),
+            (second, 10, 11),
+        ):
+            AttendanceSession.objects.create(
+                user_fk=user,
+                work_date=day,
+                in_time=at(start_hour),
+                out_time=at(end_hour),
+                duration_seconds=3600,
+                worksite="The Lake Home Bloc A",
+            )
+
+        response = self.client.get(
+            f"/api/pontaj/reports/day-cost/?date={day.isoformat()}",
+            **self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        worksite = response.json()["worksites"][0]
+        self.assertEqual(worksite["worksite"], "The Lake Home Bloc A")
+        self.assertEqual(worksite["people_count"], 2)
+        self.assertEqual(worksite["average_start_time"], "09:00")

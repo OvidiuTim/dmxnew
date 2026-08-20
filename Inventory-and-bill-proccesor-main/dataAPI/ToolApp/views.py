@@ -5,7 +5,6 @@ import csv, io, re
 import json, logging, math
 import hashlib
 import uuid
-import unicodedata
 from threading import Lock
 from queue import Queue, Empty
 from collections import deque
@@ -63,6 +62,13 @@ from ToolApp.security import (
 from ToolApp.module_access import (
     MODULE_DEFINITIONS, MODULE_ORDER, app_user_has_module, default_module_route,
     effective_module_codes, serialize_module_definitions,
+)
+from ToolApp.worksites import (
+    ACCEPTED_WORKSITES,
+    InvalidWorksite,
+    fold_worksite,
+    match_worksite,
+    normalize_worksite,
 )
 
 from datetime import datetime
@@ -322,27 +328,7 @@ def _mark_session_missing_exit(session):
 
 
 def _fold_worksite_text(value) -> str:
-    text = str(value or "").strip()
-    if not text:
-        return ""
-
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(ch for ch in text if not unicodedata.combining(ch))
-    text = text.lower()
-    text = re.sub(r"\s*&\s*", " & ", text)
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
-
-
-_WORKSITE_CANONICAL_LABELS = {
-    "tractorului bloc a": "Bloc A",
-    "the lake home bloc a": "Bloc A",
-    "tractorului bloc b2": "Bloc B2",
-    "the lake home bloc b2": "Bloc B2",
-    "tractorului bloc e & f": "Bloc E & F",
-    "the lake home bloc e & f": "Bloc E & F",
-    "casa de cultura victoria": "Casa de Cultură Victoria",
-}
+    return fold_worksite(value)
 
 
 def _canonicalize_worksite_label(raw_worksite):
@@ -350,12 +336,55 @@ def _canonicalize_worksite_label(raw_worksite):
     if not text:
         return "Fără șantier asignat", ""
 
-    folded = _fold_worksite_text(text)
-    canonical = _WORKSITE_CANONICAL_LABELS.get(folded)
+    folded = fold_worksite(text)
+    canonical = match_worksite(text)
     if canonical:
-        return canonical, _fold_worksite_text(canonical)
+        return canonical, fold_worksite(canonical)
 
     return text, folded or text.lower()
+
+
+def _default_worksite_for_user(user):
+    membership = (
+        EmployeeTeamMember.objects
+        .filter(employee=user, active=True, team__active=True)
+        .select_related("team")
+        .first()
+    )
+    candidates = []
+    if membership:
+        candidates.append(membership.team.default_worksite)
+    led_team = EmployeeTeam.objects.filter(active=True, leader=user).first()
+    if led_team:
+        candidates.append(led_team.default_worksite)
+    supervised_team = EmployeeTeam.objects.filter(active=True, supervisor=user).first()
+    if supervised_team:
+        candidates.append(supervised_team.default_worksite)
+    candidates.extend(
+        AttendanceSession.objects.filter(user_fk=user)
+        .exclude(worksite__isnull=True).exclude(worksite="")
+        .order_by("-work_date", "-in_time").values_list("worksite", flat=True)[:20]
+    )
+    for candidate in candidates:
+        matched = match_worksite(candidate)
+        if matched:
+            return matched
+    return "diverse"
+
+
+def _invalid_worksite_response(exc):
+    return JsonResponse({
+        "error": str(exc),
+        "error_code": "INVALID_WORKSITE",
+        "accepted_worksites": list(ACCEPTED_WORKSITES),
+    }, status=400)
+
+
+@csrf_exempt
+def attendance_worksites(request):
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+    return JsonResponse({"worksites": list(ACCEPTED_WORKSITES)})
 
 
 def _attendance_session_duration_seconds(session, now=None) -> int:
@@ -1690,7 +1719,11 @@ def sensor_event(request):
         tool_serie = (data.get("tool_serie") or "").strip() if data.get("tool_serie") else None
         qty = int(data.get("quantity") or 1)
         note = data.get("note") or "RFID/Senzor"
-        ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip() or None
+        raw_ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip()
+        try:
+            ws = normalize_worksite(raw_ws) if raw_ws else "magazie/depozit"
+        except InvalidWorksite as exc:
+            return _invalid_worksite_response(exc)
 
         if not user_serie:
             return JsonResponse({"error": "user_serie este obligatoriu"}, status=400)
@@ -1803,7 +1836,7 @@ CHEF_ATTENDANCE_PIN = "1165"
 CHEF_ATTENDANCE_LATITUDE = 45.79680855369633
 CHEF_ATTENDANCE_LONGITUDE = 24.14230494031001
 CHEF_ATTENDANCE_RADIUS_METERS = 100
-CHEF_ATTENDANCE_WORKSITE = "Chef"
+CHEF_ATTENDANCE_WORKSITE = "Birou ingineri"
 
 
 #--- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
@@ -2064,7 +2097,8 @@ def nfc_scan(request):
     client_when = _parse_client_ts(data.get("timestamp"))
     when = client_when or timezone.now()
     # Acceptăm mai multe chei: worksite/site/santier
-    ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip() or None
+    raw_ws = (data.get("worksite") or data.get("site") or data.get("santier") or "").strip()
+    ws = raw_ws or None
     attendance_mode = (data.get("mode") or data.get("attendance_mode") or "").strip().lower() or None
     is_manual_scan = _is_manual_attendance_scan(uid, tag_type)
     manual_device_key = _normalize_manual_device_key(data.get("device_key")) if is_manual_scan else None
@@ -2200,6 +2234,12 @@ def nfc_scan(request):
     dismissed_response = _dismissed_attendance_response(user)
     if dismissed_response:
         return dismissed_response
+
+    try:
+        ws = normalize_worksite(ws) if ws else _default_worksite_for_user(user)
+    except InvalidWorksite as exc:
+        _log_pin_attempt(request, success=False, reason="invalid_worksite", device_key=data.get("device_key"), uid=uid, worksite=ws)
+        return _invalid_worksite_response(exc)
 
     _log_pin_attempt(request, success=True, reason="ok", device_key=data.get("device_key"), uid=uid, worksite=ws)
 
@@ -3061,17 +3101,9 @@ def attendance_report_options(request):
         if str(value or "").strip()
     }, key=lambda value: value.lower())
 
-    worksite_labels = {}
-    raw_worksites = AttendanceSession.objects.exclude(worksite__isnull=True).values_list("worksite", flat=True).distinct()
-    team_worksites = EmployeeTeam.objects.filter(active=True).values_list("default_worksite", flat=True)
-    for raw in list(raw_worksites) + list(team_worksites):
-        label, key = _canonicalize_worksite_label(raw)
-        if key:
-            worksite_labels[key] = label
-
     return JsonResponse({
         "companies": companies,
-        "worksites": sorted(worksite_labels.values(), key=lambda value: value.lower()),
+        "worksites": list(ACCEPTED_WORKSITES),
     })
 
 
@@ -3380,11 +3412,20 @@ def attendance_day_cost_report(request):
             "worksite": worksite_label,
             "total_seconds": 0,
             "total_cost": Decimal("0.00"),
+            "people": set(),
+            "first_in_by_user": {},
         })
         site_bucket["total_seconds"] += duration
         site_bucket["total_cost"] += (
             Decimal(duration) / Decimal("3600") * bucket["hourly_rate"]
         )
+        site_bucket["people"].add(user.UserId)
+        if session.in_time:
+            local_in = localtime(session.in_time)
+            start_seconds = local_in.hour * 3600 + local_in.minute * 60 + local_in.second
+            previous_start = site_bucket["first_in_by_user"].get(user.UserId)
+            if previous_start is None or start_seconds < previous_start:
+                site_bucket["first_in_by_user"][user.UserId] = start_seconds
 
     people = []
     for item in per_user.values():
@@ -3406,15 +3447,21 @@ def attendance_day_cost_report(request):
         })
 
     people.sort(key=lambda person: (-person["total_seconds"], person["display_name"].lower()))
-    worksite_costs = [
-        {
+    worksite_costs = []
+    for item in per_worksite.values():
+        start_times = list(item["first_in_by_user"].values())
+        average_start_seconds = round(sum(start_times) / len(start_times)) if start_times else None
+        average_start_time = None
+        if average_start_seconds is not None:
+            average_start_time = f"{average_start_seconds // 3600:02d}:{(average_start_seconds % 3600) // 60:02d}"
+        worksite_costs.append({
             "worksite": item["worksite"],
+            "people_count": len(item["people"]),
+            "average_start_time": average_start_time,
             "total_seconds": item["total_seconds"],
             "total_hms": _fmt_hms(item["total_seconds"]),
             "total_cost": str(item["total_cost"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
-        }
-        for item in per_worksite.values()
-    ]
+        })
     worksite_costs.sort(key=lambda item: (-Decimal(item["total_cost"]), item["worksite"].lower()))
 
     return JsonResponse({
@@ -4715,7 +4762,10 @@ def attendance_edit_day(request):
                 in_dt = apply_enter_grace(in_dt)
                 out_dt = apply_exit_grace(out_dt)
 
-            ws = (s.get("worksite") or "").strip() or None
+            try:
+                ws = normalize_worksite(s.get("worksite"))
+            except InvalidWorksite as exc:
+                return _invalid_worksite_response(exc)
             new_items.append((in_dt, out_dt, ws))
     except Exception as e:
         return HttpResponseBadRequest(f"Invalid HH:MM in sessions ({e})")
@@ -5040,7 +5090,11 @@ def attendance_session_update(request):
 
             s.in_time = in_dt
             s.out_time = out_dt
-            s.worksite = data.get("worksite") or s.worksite
+            if "worksite" in data:
+                try:
+                    s.worksite = normalize_worksite(data.get("worksite"))
+                except InvalidWorksite as exc:
+                    return _invalid_worksite_response(exc)
             s.duration_seconds = max(0, int((out_dt - in_dt).total_seconds())) if out_dt else None
             s.source = (s.source or "") + "|manual_edit"
             s.save()
@@ -5325,35 +5379,12 @@ def generate_excel(request):
             "per_day_leave":   {day: None for day in range(1, days_in_month + 1)},
         }
 
-    # --- funcție de mapare a șantierului la cod (T-A, T-B2 etc.) ---
+    # Păstrăm și în export denumirea canonică folosită în restul aplicației.
     def _site_label(raw_ws):
-        """
-        Transformă denumirea de șantier în cod scurt pentru Excel.
-        Exemple dorite:
-          "Tractorului Bloc A"   -> "T BlA"
-          "Tractorului Bloc B2"  -> "T BlB2"
-          "Bloc A"               -> "T BlA"
-          "Depozit Tractorului"  -> "T Depozit"
-        """
         if not raw_ws:
             return None
-
         text = str(raw_ws).strip()
-        if not text:
-            return None
-
-        # Căutăm cuvântul 'bloc' oriunde în text și luăm primul token după el
-        # ex: "Tractorului Bloc B2" -> group(1) = "B2"
-        m = re.search(r"\bbloc\b\s*([A-Za-z0-9]+)", text, flags=re.IGNORECASE)
-        if m:
-            code = m.group(1).upper()
-            return f"T Bl{code}"
-
-        # fallback: dacă nu găsim 'bloc', folosim primul cuvânt ca identificator scurt
-        first = text.split()[0]
-        if not first:
-            return None
-        return f"T {first}"
+        return match_worksite(text) or text or None
 
     # --- funcție de mapare LeaveDay -> cod (CO, CM, ALT etc.) ---
     def _leave_code_from_lv(lv) -> Optional[str]:

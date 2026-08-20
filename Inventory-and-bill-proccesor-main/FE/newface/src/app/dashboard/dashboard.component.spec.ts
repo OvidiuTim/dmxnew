@@ -63,11 +63,18 @@ describe('DashboardComponent', () => {
   it('afișează costurile pe șantiere într-o secțiune separată de cardul total', () => {
     const component = fixture.componentInstance;
     component.loadingReports = false;
-    component.worksiteCosts = [{ worksite: 'Bloc A', total_cost: 125.5, total_hms: '05:00:00' }];
+    component.worksiteCosts = [{
+      worksite: 'Bloc A', total_cost: 125.5, total_hms: '05:00:00',
+      people_count: 3, average_start_time: '07:42'
+    }];
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('.cost-panel .worksite-cost-table')).toBeNull();
     expect(fixture.nativeElement.querySelector('.worksite-cost-panel')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('.worksite-cost-table tbody tr').textContent).toContain('Bloc A');
+    const rowText = fixture.nativeElement.querySelector('.worksite-cost-table tbody tr').textContent;
+    expect(rowText).toContain('Bloc A');
+    expect(rowText).toContain('3');
+    expect(rowText).toContain('07:42');
+    expect(fixture.nativeElement.querySelector('#worksite-cost-title').textContent).toContain('astăzi');
   });
 });

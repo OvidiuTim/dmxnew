@@ -6,6 +6,7 @@ describe('PontajComponent', () => {
     const api: any = {
       getAttendanceDay: () => of({ rows: [{ UserId: 1, UserName: 'Ion Pop', status: 'IN', sessions: [], total_hms: '01:00:00' }] }),
       getUsrList: () => of([{ UserId: 1, UserName: 'Ion Pop', Company: 'RNX', trade: 'Dulgher' }]),
+      getAttendanceWorksites: () => of({ worksites: ['The Lake Home Bloc A'] }),
     };
     const component = new PontajComponent(api, {} as any);
 
@@ -23,6 +24,7 @@ describe('PontajComponent', () => {
         { UserId: 1, UserName: 'Angajat Activ', employment_status: 'active' },
         { UserId: 2, UserName: 'Fost Angajat', employment_status: 'dismissed', dismissed_at: '2026-08-17' },
       ]),
+      getAttendanceWorksites: () => of({ worksites: ['The Lake Home Bloc A'] }),
     };
     const component = new PontajComponent(api, {} as any);
 
@@ -34,21 +36,22 @@ describe('PontajComponent', () => {
   it('exclude angajații marcați Nu se pontează și filtrează după șantier', () => {
     const api: any = {
       getAttendanceDay: () => of({ rows: [
-        { UserId: 1, UserName: 'Activ', status: 'IN', sessions: [], total_hms: '01:00:00', day_worksite: 'Bloc A' },
+        { UserId: 1, UserName: 'Activ', status: 'IN', sessions: [], total_hms: '01:00:00', day_worksite: 'The Lake Home Bloc A' },
         { UserId: 2, UserName: 'Exceptat', status: 'IN', sessions: [], total_hms: '01:00:00', day_worksite: 'Bloc B' },
       ] }),
       getUsrList: () => of([
         { UserId: 1, UserName: 'Activ' },
         { UserId: 2, UserName: 'Exceptat', attendance_exempt: true },
       ]),
+      getAttendanceWorksites: () => of({ worksites: ['The Lake Home Bloc A', 'The Lake Home Bloc B2'] }),
     };
     const component = new PontajComponent(api, {} as any);
 
     component.loadDay();
-    component.selectedWorksite = 'Bloc A';
+    component.selectedWorksite = 'The Lake Home Bloc A';
 
     expect(component.rows.map(row => row.UserName)).toEqual(['Activ']);
-    expect(component.worksiteOptions).toEqual(['Bloc A']);
+    expect(component.worksiteOptions).toEqual(['The Lake Home Bloc A', 'The Lake Home Bloc B2']);
     expect(component.filteredRows.length).toBe(1);
   });
 });

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from ToolApp.worksites import InvalidWorksite, normalize_worksite
+
 
 class TeamWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=160)
@@ -23,6 +25,12 @@ class TeamWriteSerializer(serializers.Serializer):
 
     def validate_member_ids(self, value):
         return list(dict.fromkeys(value))
+
+    def validate_default_worksite(self, value):
+        try:
+            return normalize_worksite(value, allow_blank=True)
+        except InvalidWorksite as exc:
+            raise serializers.ValidationError(str(exc)) from exc
 
 
 class TeamMembersSerializer(serializers.Serializer):
