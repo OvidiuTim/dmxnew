@@ -30,6 +30,7 @@ PUBLIC_API_PREFIXES = (
 )
 
 API_ROUTE_REQUIREMENTS = (
+    ("/api/organization/", ("/pontaj/organigrama",)),
     ("/api/leave-requests/", ("/pontaj/concedii",)),
     ("/api/leave/", ("/user/:id", "/pontaj")),
     ("/api/accommodations/", ("/pontaj/cazari",)),
@@ -64,6 +65,7 @@ API_ROUTE_REQUIREMENTS = (
 )
 
 API_MODULE_REQUIREMENTS = (
+    ("/api/organization/", ("attendance",)),
     ("/api/leave-requests/", ("teams_schedule",)),
     ("/api/leave/", ("attendance",)),
     ("/api/accommodations/", ("attendance",)),

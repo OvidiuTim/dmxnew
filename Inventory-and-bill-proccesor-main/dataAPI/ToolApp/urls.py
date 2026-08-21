@@ -4,6 +4,7 @@ from ToolApp import mobile_views
 from ToolApp import team_views
 from ToolApp import employee_views
 from ToolApp import leave_views
+from ToolApp import organization_views
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -74,6 +75,8 @@ urlpatterns = [
     path('api/mobile/leave-balance/', mobile_views.leave_balance, name='mobile_leave_balance'),
     path('api/mobile/leave-requests/list/', mobile_views.leave_request_list, name='mobile_leave_request_list'),
     path('api/mobile/leave-requests/<int:request_id>/cancel/', mobile_views.leave_request_cancel, name='mobile_leave_request_cancel'),
+    path('api/organization/', organization_views.organization_chart, name='organization_chart'),
+    path('api/organization/members/<int:member_id>/', organization_views.organization_member_detail, name='organization_member_detail'),
     path('api/pontaj/day/', attendance_day, name='attendance_day'),              # GET day aggregate
     path('api/pontaj/present/', attendance_present, name='attendance_present'),
     path('api/pontaj/range/', attendance_range, name='attendance_range'),
@@ -187,6 +190,7 @@ urlpatterns = [
     path('api/teams/notifications/summary/', team_views.notifications_summary, name='team_notifications_summary'),
     path('api/teams/<int:team_id>/', team_views.team_detail, name='team_detail'),
     path('api/teams/<int:team_id>/members/', team_views.team_members, name='team_members'),
+    path('api/organization/departments/<int:department_id>/team/', organization_views.organization_department_team, name='organization_department_team'),
 
     # Cereri de concediu primite de șefii de echipă și administratori
     path('api/leave-requests/', leave_views.leave_requests_collection, name='leave_requests_collection'),

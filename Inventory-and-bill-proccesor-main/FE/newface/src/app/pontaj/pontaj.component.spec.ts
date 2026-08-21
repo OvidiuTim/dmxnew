@@ -17,6 +17,23 @@ describe('PontajComponent', () => {
     expect(component.filteredRows.length).toBe(1);
   });
 
+  it('păstrează fotografia angajatului și revine la inițială dacă imaginea e invalidă', () => {
+    const photo = 'data:image/jpeg;base64,test';
+    const api: any = {
+      getAttendanceDay: () => of({ rows: [{ UserId: 1, UserName: 'Ion Pop', status: 'IN', sessions: [], total_hms: '01:00:00' }] }),
+      getUsrList: () => of([{ UserId: 1, UserName: 'Ion Pop', photo }]),
+      getAttendanceWorksites: () => of({ worksites: [] }),
+    };
+    const component = new PontajComponent(api, {} as any);
+
+    component.loadDay();
+
+    expect(component.rows[0].photo).toBe(photo);
+    expect(component.employeeInitial('  ion Pop')).toBe('I');
+    component.onPhotoError(1);
+    expect(component.failedPhotos.has(1)).toBeTrue();
+  });
+
   it('exclude angajații demiși din Registrul zilei', () => {
     const api: any = {
       getAttendanceDay: () => of({ rows: [{ UserId: 2, UserName: 'Fost Angajat', status: 'OUT', sessions: [], total_hms: '08:00:00' }] }),

@@ -20,8 +20,8 @@
   <section class="filter-bar">
     <div class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" aria-label="Caută angajat" [value]="searchTerm" (input)="onSearchChange($event)" placeholder="Caută după numele angajatului…" autocomplete="off" /></div>
     <label><span>Firmă</span><select [value]="selectedCompany" (change)="onCompanyChange($event)"><option value="ALL">Toate firmele</option><option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option></select></label>
-    <label><span>Status</span><select [value]="selectedStatus" (change)="onStatusChange($event)"><option value="ALL">Toate statusurile</option><option value="IN">În lucru</option><option value="OUT">Ieșit</option><option value="LEAVE">Concediu</option><option value="ABSENT">Fără pontaj</option></select></label>
     <label><span>Șantier</span><select [value]="selectedWorksite" (change)="onWorksiteChange($event)"><option value="ALL">Toate șantierele</option><option *ngFor="let worksite of worksiteOptions" [value]="worksite">{{ worksite }}</option></select></label>
+    <label><span>Status</span><select [value]="selectedStatus" (change)="onStatusChange($event)"><option value="ALL">Toate statusurile</option><option value="IN">În lucru</option><option value="OUT">Ieșit</option><option value="LEAVE">Concediu</option><option value="ABSENT">Fără pontaj</option></select></label>
     <button class="icon-button" type="button" (click)="refresh()" [disabled]="loading" aria-label="Actualizează pontajul" title="Actualizează"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button>
   </section>
 
@@ -36,7 +36,15 @@
         <thead><tr><th>Angajat</th><th>Profesie</th><th>Firmă</th><th>Șantier</th><th>Prima intrare</th><th>Ultima ieșire</th><th>Sesiuni</th><th>Total</th><th>Status</th><th>Acțiuni</th></tr></thead>
         <tbody>
           <tr *ngFor="let r of filteredRows; trackBy: trackByUser">
-            <td><div class="employee-cell"><span class="avatar">{{ r.UserName.charAt(0) }}</span><strong>{{ r.UserName }}</strong></div></td>
+            <td>
+              <div class="employee-cell">
+                <span class="avatar">
+                  <img *ngIf="r.photo && !failedPhotos.has(r.UserId)" [src]="r.photo" [alt]="'Fotografie ' + r.UserName" (error)="onPhotoError(r.UserId)">
+                  <span *ngIf="!r.photo || failedPhotos.has(r.UserId)" aria-hidden="true">{{ employeeInitial(r.UserName) }}</span>
+                </span>
+                <strong>{{ r.UserName }}</strong>
+              </div>
+            </td>
             <td><span class="company">{{ r.trade || 'Necompletată' }}</span></td>
             <td><span class="company">{{ r.Company || 'Fără firmă' }}</span></td>
             <td><span class="company">{{ r.day_worksite || '—' }}</span></td>

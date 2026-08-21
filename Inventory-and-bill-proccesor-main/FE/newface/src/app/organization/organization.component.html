@@ -1,0 +1,186 @@
+<section class="organization-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">PONTAJ</span>
+      <h1>Organigramă</h1>
+      <p>Structura ierarhică Novarion DMX Construction, cu legături către fișele angajaților.</p>
+    </div>
+    <button type="button" class="primary-button" *ngIf="canManage" (click)="openAdd()" [disabled]="!departments.length">
+      <app-icon name="person_add" [size]="20"></app-icon><span>Adaugă membru</span>
+    </button>
+  </header>
+
+  <div class="toolbar">
+    <label class="search-box">
+      <app-icon name="search" [size]="20"></app-icon>
+      <input type="search" [(ngModel)]="search" placeholder="Caută după nume, funcție sau departament" aria-label="Caută în organigramă">
+    </label>
+    <div class="summary-pills">
+      <span><strong>{{ summary.departments }}</strong> departamente</span>
+      <span><strong>{{ summary.members }}</strong> membri</span>
+      <span class="linked"><strong>{{ summary.associated }}</strong> asociați</span>
+      <span class="unlinked"><strong>{{ summary.unassociated }}</strong> neasociați</span>
+    </div>
+  </div>
+
+  <div class="status-card" *ngIf="loading"><span class="spinner"></span>Se încarcă organigrama…</div>
+  <div class="page-notice" *ngIf="!loading && notice"><app-icon name="task_alt" [size]="19"></app-icon>{{ notice }}</div>
+  <div class="status-card error" *ngIf="!loading && error"><app-icon name="warning" [size]="20"></app-icon>{{ error }}</div>
+  <div class="status-card" *ngIf="!loading && !error && !roots.length">
+    Organigrama nu a fost importată încă. Rulează comanda de import pe server.
+  </div>
+
+  <div class="organization-tree" *ngIf="!loading && roots.length">
+    <ng-container *ngFor="let root of roots; trackBy: trackDepartment">
+      <ng-container *ngTemplateOutlet="departmentTemplate; context: { $implicit: root, level: 0 }"></ng-container>
+    </ng-container>
+  </div>
+
+  <ng-template #departmentTemplate let-department let-level="level">
+    <article class="department-node" *ngIf="departmentVisible(department)" [class.root-node]="level === 0" [style.--department-color]="department.color">
+      <div class="department-card">
+        <button type="button" class="department-heading"
+                [class.collapsed]="isDepartmentCollapsed(department.id)"
+                [attr.aria-expanded]="!isDepartmentCollapsed(department.id)"
+                [attr.aria-controls]="'department-content-' + department.id + ' department-branches-' + department.id"
+                (click)="toggleDepartment(department)">
+          <span class="department-icon"><app-icon name="account_tree" [size]="20"></app-icon></span>
+          <div><h2>{{ department.name }}</h2><p *ngIf="department.subtitle">{{ department.subtitle }}</p></div>
+          <span class="member-count">{{ department.members.length }}</span>
+          <span class="department-toggle" aria-hidden="true">
+            <app-icon [name]="isDepartmentCollapsed(department.id) ? 'expand_more' : 'expand_less'" [size]="22"></app-icon>
+          </span>
+        </button>
+
+        <div class="department-team-row" *ngIf="department.team || canManage">
+          <span class="team-link-chip" *ngIf="department.team">
+            <app-icon name="groups" [size]="17"></app-icon>
+            Echipă permanentă · {{ department.team.name }}
+          </span>
+          <button type="button" class="convert-team-button" *ngIf="canManage && !department.team"
+                  [disabled]="!associatedDepartmentMembers(department).length"
+                  [attr.title]="associatedDepartmentMembers(department).length ? 'Transformă grupa într-o echipă permanentă' : 'Asociază mai întâi cel puțin un angajat'"
+                  (click)="openTeamDialog(department, $event)">
+            <app-icon name="group_add" [size]="17"></app-icon>
+            Transformă în echipă permanentă
+          </button>
+        </div>
+
+        <div class="department-content" [class.collapsed]="isDepartmentCollapsed(department.id)"
+             [attr.id]="'department-content-' + department.id"
+             [attr.aria-hidden]="isDepartmentCollapsed(department.id)"
+             [attr.inert]="isDepartmentCollapsed(department.id) ? '' : null">
+          <div class="department-content-inner">
+            <div class="member-grid" *ngIf="visibleMembers(department).length">
+              <article class="member-card" *ngFor="let member of visibleMembers(department); trackBy: trackMember"
+                       [class.linked-member]="member.associated" [attr.tabindex]="member.associated ? 0 : null"
+                       (click)="openEmployee(member)" (keydown.enter)="openEmployee(member)">
+                <div class="member-avatar">
+                  <img *ngIf="member.photo && !failedPhotos.has(member.id)" [src]="member.photo" [alt]="member.name" (error)="markPhotoFailed(member.id)">
+                  <span *ngIf="!member.photo || failedPhotos.has(member.id)">{{ initials(member.name) }}</span>
+                </div>
+                <div class="member-copy">
+                  <strong>{{ member.name }}</strong>
+                  <span>{{ member.role || 'Funcție necompletată' }}</span>
+                  <small *ngIf="superiorName(member.reports_to_id)">Raportează către {{ superiorName(member.reports_to_id) }}</small>
+                </div>
+                <span class="association-badge" [class.unassociated]="!member.associated">
+                  <app-icon [name]="member.associated ? 'link' : 'link_off'" [size]="15"></app-icon>
+                  {{ member.associated ? 'Fișă angajat' : 'Neasociat' }}
+                </span>
+                <button type="button" class="edit-member" *ngIf="canManage" (click)="openEdit(member, $event)" [attr.aria-label]="'Editează ' + member.name">
+                  <app-icon name="edit" [size]="17"></app-icon>
+                </button>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="department-branches" *ngIf="department.children.length"
+           [class.collapsed]="isDepartmentCollapsed(department.id)"
+           [attr.id]="'department-branches-' + department.id"
+           [attr.aria-hidden]="isDepartmentCollapsed(department.id)"
+           [attr.inert]="isDepartmentCollapsed(department.id) ? '' : null">
+        <div class="department-branches-inner">
+          <div class="department-children">
+            <ng-container *ngFor="let child of department.children; trackBy: trackDepartment">
+              <ng-container *ngTemplateOutlet="departmentTemplate; context: { $implicit: child, level: level + 1 }"></ng-container>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </article>
+  </ng-template>
+</section>
+
+<div class="dialog-backdrop" *ngIf="dialogOpen" (click)="closeDialog()">
+  <section class="member-dialog" role="dialog" aria-modal="true" aria-labelledby="member-dialog-title" (click)="$event.stopPropagation()">
+    <header>
+      <div><span class="eyebrow">ORGANIGRAMĂ</span><h2 id="member-dialog-title">{{ editingMemberId ? 'Editează membrul' : 'Adaugă membru' }}</h2></div>
+      <button type="button" class="close-button" (click)="closeDialog()" aria-label="Închide"><app-icon name="close" [size]="20"></app-icon></button>
+    </header>
+    <form (ngSubmit)="save()">
+      <label><span>Nume</span><input required [(ngModel)]="form.name" name="member-name" autocomplete="off"></label>
+      <label><span>Funcție / poziție</span><input [(ngModel)]="form.role" name="member-role" placeholder="Ex: Manager de proiect"></label>
+      <label><span>Departament</span>
+        <select required [(ngModel)]="form.department_id" name="member-department">
+          <option [ngValue]="null" disabled>Selectează departamentul</option>
+          <option *ngFor="let department of departments" [ngValue]="department.id">{{ departmentLabels.get(department.id) || department.name }}</option>
+        </select>
+      </label>
+      <label><span>Superior direct</span>
+        <select [(ngModel)]="form.reports_to_id" name="member-superior">
+          <option [ngValue]="null">Fără superior direct</option>
+          <option *ngFor="let member of availableSuperiors()" [ngValue]="member.id">{{ member.name }} · {{ member.role || 'Fără funcție' }}</option>
+        </select>
+      </label>
+      <label><span>Asociere cu angajat</span>
+        <select [(ngModel)]="form.employee_id" name="member-employee">
+          <option [ngValue]="null">Membru extern / neasociat</option>
+          <option *ngFor="let employee of availableEmployees()" [ngValue]="employee.id">{{ employee.name }} · {{ employee.serie }}</option>
+        </select>
+        <small>Angajații deja asociați nu apar din nou în listă.</small>
+      </label>
+      <label><span>Ordine în departament</span><input type="number" min="0" [(ngModel)]="form.sort_order" name="member-order" placeholder="Automat"></label>
+      <div class="dialog-actions">
+        <button type="button" class="secondary-button" (click)="closeDialog()">Renunță</button>
+        <button type="submit" class="primary-button" [disabled]="saving || !form.name.trim() || !form.department_id">
+          <app-icon name="save" [size]="19"></app-icon>{{ saving ? 'Se salvează…' : 'Salvează' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="dialog-backdrop" *ngIf="teamDialogOpen" (click)="closeTeamDialog()">
+  <section class="member-dialog team-dialog" role="dialog" aria-modal="true" aria-labelledby="team-conversion-title" (click)="$event.stopPropagation()">
+    <header>
+      <div><span class="eyebrow">SINCRONIZARE</span><h2 id="team-conversion-title">Transformă în echipă permanentă</h2></div>
+      <button type="button" class="close-button" (click)="closeTeamDialog()" aria-label="Închide"><app-icon name="close" [size]="20"></app-icon></button>
+    </header>
+    <form (ngSubmit)="convertToTeam()">
+      <div class="conversion-summary">
+        <app-icon name="account_tree" [size]="22"></app-icon>
+        <span><small>Departament / grupă</small><strong>{{ teamDepartment?.name }}</strong></span>
+      </div>
+      <label><span>Șef de echipă</span>
+        <select required [(ngModel)]="teamForm.leader_id" name="conversion-leader">
+          <option *ngFor="let member of associatedDepartmentMembers(teamDepartment)" [ngValue]="member.employee!.id">{{ member.name }} · {{ member.role || member.employee!.trade }}</option>
+        </select>
+      </label>
+      <label><span>Supervisor</span>
+        <select required [(ngModel)]="teamForm.supervisor_id" name="conversion-supervisor">
+          <option *ngFor="let member of associatedDepartmentMembers(teamDepartment)" [ngValue]="member.employee!.id">{{ member.name }} · {{ member.role || member.employee!.trade }}</option>
+        </select>
+      </label>
+      <p class="conversion-help">Toți angajații asociați acestei grupe vor deveni membrii echipei permanente. Modificările ulterioare vor fi sincronizate între cele două pagini.</p>
+      <div class="dialog-actions">
+        <button type="button" class="secondary-button" (click)="closeTeamDialog()">Renunță</button>
+        <button type="submit" class="primary-button" [disabled]="converting || !teamForm.leader_id || !teamForm.supervisor_id">
+          <app-icon name="sync" [size]="19"></app-icon>{{ converting ? 'Se creează…' : 'Creează și sincronizează' }}
+        </button>
+      </div>
+    </form>
+  </section>
+</div>

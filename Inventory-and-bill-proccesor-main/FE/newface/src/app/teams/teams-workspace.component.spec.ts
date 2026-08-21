@@ -1,4 +1,5 @@
 import { TeamsWorkspaceComponent } from './teams-workspace.component';
+import { of } from 'rxjs';
 
 describe('TeamsWorkspaceComponent', () => {
   function employee(id: number, name: string, trade: string) {
@@ -71,5 +72,19 @@ describe('TeamsWorkspaceComponent', () => {
 
     component.toggleMemberActions(7);
     expect(component.memberActionsOpenFor).toBeNull();
+  });
+
+  it('șterge echipa după confirmare și reîncarcă lista', () => {
+    const api = { deleteTeam: jasmine.createSpy().and.returnValue(of({ deleted: true })) } as any;
+    const component = new TeamsWorkspaceComponent({} as any, api);
+    spyOn(window, 'confirm').and.returnValue(true);
+    spyOn(component, 'load');
+    const team = { id: 7, name: 'Echipa Verde', can_delete: true } as any;
+
+    component.deleteTeam(team);
+
+    expect(api.deleteTeam).toHaveBeenCalledWith(7);
+    expect(component.load).toHaveBeenCalled();
+    expect(component.notice).toContain('a fost ștearsă');
   });
 });

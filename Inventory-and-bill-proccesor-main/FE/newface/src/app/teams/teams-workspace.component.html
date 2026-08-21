@@ -47,7 +47,10 @@
       <article class="team-card" *ngFor="let team of filteredTeams; trackBy: trackById" [class.inactive]="!team.active">
         <div class="team-card-head">
           <div><span class="status-dot" [class.off]="!team.active"></span><small>{{ team.active ? 'Echipă activă' : 'Echipă inactivă' }}</small><h2>{{ team.name }}</h2></div>
-          <button *ngIf="team.can_edit" type="button" class="icon-button" (click)="openEditTeam(team)" [attr.aria-label]="'Editează ' + team.name" title="Editează echipa"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button>
+          <div class="team-card-actions">
+            <button *ngIf="team.can_edit" type="button" class="icon-button" (click)="openEditTeam(team)" [attr.aria-label]="'Editează ' + team.name" title="Editează echipa"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button>
+            <button *ngIf="team.can_delete" type="button" class="icon-button danger" (click)="deleteTeam(team)" [disabled]="deletingTeamIds.has(team.id)" [attr.aria-label]="'Șterge ' + team.name" title="Șterge echipa"><span class="material-symbols-rounded" aria-hidden="true">delete</span></button>
+          </div>
         </div>
         <div class="leader-row">
           <app-employee-avatar [employee]="team.leader"></app-employee-avatar>

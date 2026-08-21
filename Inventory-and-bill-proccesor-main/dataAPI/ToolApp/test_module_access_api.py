@@ -177,7 +177,7 @@ class ModuleAccessApiTests(TestCase):
     def test_module_definitions_expose_complete_standard_route_mapping(self):
         self.assertEqual(
             [route["path"] for route in MODULE_DEFINITIONS["attendance"]["routes"]],
-            ["/dashboard", "/pontaj", "/pontaj/rapoarte", "/pontaj/fisa-angajat", "/pontaj/cazari"],
+            ["/dashboard", "/pontaj", "/pontaj/rapoarte", "/pontaj/fisa-angajat", "/pontaj/organigrama", "/pontaj/cazari"],
         )
         self.assertEqual(
             [route["path"] for route in MODULE_DEFINITIONS["teams_schedule"]["routes"]],

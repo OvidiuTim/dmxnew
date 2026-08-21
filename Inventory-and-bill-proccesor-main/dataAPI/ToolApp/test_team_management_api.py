@@ -13,6 +13,8 @@ from ToolApp.models import (
     EmployeeTeam,
     EmployeeTeamMember,
     LeaveDay,
+    OrganizationDepartment,
+    OrganizationMember,
     TemporaryWorkerRequest,
     Tools,
     Users,
@@ -63,6 +65,57 @@ class TeamManagementApiTests(TestCase):
             set(team.memberships.filter(active=True).values_list("employee_id", flat=True)),
             {self.leader_a.pk, self.worker_a.pk, self.worker_b.pk},
         )
+
+    def test_create_and_edit_team_are_synchronized_to_organization(self):
+        team = self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])
+        department = team.organization_department
+        self.assertEqual(department.name, "Echipa Alfa")
+        self.assertSetEqual(
+            set(department.members.values_list("employee_id", flat=True)),
+            {self.leader_a.pk, self.worker_a.pk},
+        )
+        self.assertEqual(department.members.get(employee=self.leader_a).role, "Șef de echipă · Supervisor")
+
+        response = self.admin.put(
+            reverse("team_detail", args=[team.pk]),
+            data=json.dumps({
+                "name": "Echipa Alfa Nouă",
+                "leader_id": self.leader_b.pk,
+                "supervisor_id": self.worker_b.pk,
+                "active": True,
+                "member_ids": [self.worker_free.pk],
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        department.refresh_from_db()
+        self.assertEqual(department.name, "Echipa Alfa Nouă")
+        self.assertSetEqual(
+            set(department.members.values_list("employee_id", flat=True)),
+            {self.leader_b.pk, self.worker_b.pk, self.worker_free.pk},
+        )
+        self.assertEqual(department.members.get(employee=self.leader_b).role, "Șef de echipă")
+        self.assertEqual(department.members.get(employee=self.worker_b).role, "Supervisor")
+
+    def test_admin_can_delete_team_and_automatic_organization_group(self):
+        original_department = OrganizationDepartment.objects.create(name="Meserie inițială")
+        original_member = OrganizationMember.objects.create(
+            name=self.worker_a.UserName,
+            role=self.worker_a.trade,
+            department=original_department,
+            employee=self.worker_a,
+        )
+        team = self.create_team("Echipa de șters", self.leader_a, [self.worker_a])
+        department_id = team.organization_department_id if hasattr(team, "organization_department_id") else team.organization_department.pk
+
+        response = self.admin.delete(reverse("team_detail", args=[team.pk]))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertFalse(EmployeeTeam.objects.filter(pk=team.pk).exists())
+        self.assertFalse(OrganizationDepartment.objects.filter(pk=department_id).exists())
+        original_member.refresh_from_db()
+        self.assertEqual(original_member.department, original_department)
 
     def test_team_can_have_distinct_supervisor_and_supervisor_can_manage_members(self):
         supervisor = self.employee("Supervisor A", "SUP-A", "Supervisor")

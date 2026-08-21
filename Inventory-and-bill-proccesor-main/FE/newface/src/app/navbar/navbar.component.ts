@@ -25,6 +25,7 @@ export class NavbarComponent implements OnDestroy {
         { label: 'Prezență zilnică', path: '/pontaj', icon: 'schedule', permissionRoute: '/pontaj' },
         { label: 'Rapoarte', path: '/pontaj/rapoarte', icon: 'bar_chart', permissionRoute: '/pontaj/rapoarte' },
         { label: 'Fișe angajați', path: '/pontaj/fisa-angajat', icon: 'badge', permissionRoute: '/pontaj/fisa-angajat' },
+        { label: 'Organigramă', path: '/pontaj/organigrama', icon: 'account_tree', permissionRoute: '/pontaj/organigrama' },
         { label: 'Cazări', path: '/pontaj/cazari', icon: 'apartment', permissionRoute: '/pontaj/cazari' },
       ]
     },

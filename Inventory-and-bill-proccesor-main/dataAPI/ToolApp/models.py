@@ -979,3 +979,101 @@ class TemporaryWorkerRequest(models.Model):
 
     def __str__(self):
         return f"{self.employee} → {self.requester_team} ({self.start_date}–{self.end_date})"
+
+
+class OrganizationDepartment(models.Model):
+    name = models.CharField(max_length=180)
+    subtitle = models.CharField(max_length=255, blank=True, default="")
+    color = models.CharField(max_length=20, blank=True, default="#2dd4a3")
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="children",
+    )
+    team = models.OneToOneField(
+        EmployeeTeam,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="organization_department",
+    )
+    sort_order = models.PositiveIntegerField(default=0, db_index=True)
+    source_key = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("sort_order", "name", "id")
+
+    def clean(self):
+        super().clean()
+        if self.parent_id and self.parent_id == self.pk:
+            raise ValidationError({"parent": "Departamentul nu poate fi propriul părinte."})
+        ancestor = self.parent
+        visited = set()
+        while ancestor:
+            if ancestor.pk == self.pk or ancestor.pk in visited:
+                raise ValidationError({"parent": "Structura departamentelor conține un ciclu."})
+            visited.add(ancestor.pk)
+            ancestor = ancestor.parent
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class OrganizationMember(models.Model):
+    name = models.CharField(max_length=180)
+    role = models.CharField(max_length=255, blank=True, default="")
+    department = models.ForeignKey(
+        OrganizationDepartment,
+        on_delete=models.CASCADE,
+        related_name="members",
+    )
+    reports_to = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="direct_reports",
+    )
+    employee = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="organization_members",
+    )
+    photo = models.TextField(blank=True, default="")
+    metadata = models.JSONField(blank=True, default=dict)
+    sort_order = models.PositiveIntegerField(default=0, db_index=True)
+    source_key = models.CharField(max_length=255, null=True, blank=True, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("sort_order", "name", "id")
+
+    def clean(self):
+        super().clean()
+        if self.reports_to_id and self.reports_to_id == self.pk:
+            raise ValidationError({"reports_to": "Membrul nu poate fi propriul superior."})
+        superior = self.reports_to
+        visited = set()
+        while superior:
+            if superior.pk == self.pk or superior.pk in visited:
+                raise ValidationError({"reports_to": "Relațiile ierarhice conțin un ciclu."})
+            visited.add(superior.pk)
+            superior = superior.reports_to
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} · {self.role}" if self.role else self.name

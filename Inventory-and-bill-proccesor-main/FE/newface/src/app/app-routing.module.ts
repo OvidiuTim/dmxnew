@@ -28,6 +28,7 @@ import { TeamsWorkspaceComponent } from './teams/teams-workspace.component';
 import { AccommodationsComponent } from './pontaj/accommodations/accommodations.component';
 import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.component';
 import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
+import { OrganizationComponent } from './organization/organization.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -53,6 +54,7 @@ export const routes: Routes = [
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte', moduleCode: 'attendance' } },
   { path: 'pontaj/fisa-angajat', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat', moduleCode: 'attendance' } },
   { path: 'pontaj/fisa-angajat/:id', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat', moduleCode: 'attendance' } },
+  { path: 'pontaj/organigrama', component: OrganizationComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/organigrama', moduleCode: 'attendance' } },
   { path: 'pontaj/cazari', component: AccommodationsComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/cazari', moduleCode: 'attendance' } },
   { path: 'pontaj/echipe', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipe', moduleCode: 'teams_schedule', teamMode: 'permanent' } },
   { path: 'pontaj/echipa-mea', component: TeamsWorkspaceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/echipa-mea', moduleCode: 'teams_schedule', teamMode: 'mine' } },

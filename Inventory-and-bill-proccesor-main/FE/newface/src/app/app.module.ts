@@ -49,6 +49,7 @@ import { ToolsNavComponent } from './magazie/unelte/tools-nav.component';
 import { AccommodationsComponent } from './pontaj/accommodations/accommodations.component';
 import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.component';
 import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
+import { OrganizationComponent } from './organization/organization.component';
 
 @NgModule({
   declarations: [
@@ -88,6 +89,7 @@ import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
     AccommodationsComponent,
     LeaveRequestsComponent,
     TermeniIgdprComponent,
+    OrganizationComponent,
   ],
   imports: [
     CommonModule,

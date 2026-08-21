@@ -39,6 +39,7 @@ export interface EmployeeTeam {
   member_ids: number[];
   can_edit: boolean;
   can_manage_settings: boolean;
+  can_delete?: boolean;
   can_update_leader_email?: boolean;
 }
 
@@ -99,6 +100,10 @@ export class TeamApiService {
 
   updateTeam(teamId: number, payload: any): Observable<any> {
     return this.http.put(`${this.API}/${teamId}/`, payload);
+  }
+
+  deleteTeam(teamId: number): Observable<any> {
+    return this.http.delete(`${this.API}/${teamId}/`);
   }
 
   updateMember(teamId: number, employeeId: number, action: 'add' | 'remove'): Observable<any> {

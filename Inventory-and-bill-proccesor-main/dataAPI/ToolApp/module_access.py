@@ -12,6 +12,7 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/pontaj", "label": "Prezență zilnică", "icon": "schedule"},
             {"path": "/pontaj/rapoarte", "label": "Rapoarte", "icon": "bar_chart"},
             {"path": "/pontaj/fisa-angajat", "label": "Fișe angajați", "icon": "badge"},
+            {"path": "/pontaj/organigrama", "label": "Organigramă", "icon": "account_tree"},
             {"path": "/pontaj/cazari", "label": "Cazări", "icon": "apartment"},
         ],
     }),

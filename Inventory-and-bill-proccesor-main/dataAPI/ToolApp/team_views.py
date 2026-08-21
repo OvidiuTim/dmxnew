@@ -23,6 +23,7 @@ from ToolApp.models import (
 from ToolApp.security import get_app_user_from_request, request_has_admin
 from ToolApp.mobile_services import build_leave_summary
 from ToolApp.team_email import send_worker_request_email
+from ToolApp.team_organization_sync import remove_team_from_organization, sync_team_to_organization
 from ToolApp.team_serializers import (
     TeamMembersSerializer,
     TeamWriteSerializer,
@@ -157,6 +158,7 @@ def _team_payload(team, app_user=None, can_manage_all=False, member_statuses=Non
         "member_ids": [item["id"] for item in members],
         "can_edit": can_manage_all or _is_team_manager(app_user, team),
         "can_manage_settings": can_manage_all,
+        "can_delete": can_manage_all,
         "can_update_leader_email": can_manage_all or _is_leader(app_user, team),
     }
 
@@ -388,7 +390,7 @@ def teams_collection(request):
 
 
 @transaction.atomic
-def _save_team(data, team=None, members_only=False):
+def _save_team(data, team=None, members_only=False, organization_department=None):
     if team:
         team = EmployeeTeam.objects.select_for_update().get(pk=team.pk)
     else:
@@ -481,6 +483,7 @@ def _save_team(data, team=None, members_only=False):
         if not membership.active:
             membership.active = True
             membership.save(update_fields=["active"])
+    sync_team_to_organization(team, organization_department)
     return _teams_queryset().get(pk=team.pk)
 
 
@@ -492,6 +495,13 @@ def team_detail(request, team_id):
         return _error("Echipa nu există.", 404)
     if request.method == "GET":
         return JsonResponse({"team": _team_payload(team, app_user, can_manage_all)})
+    if request.method == "DELETE":
+        if not can_manage_all:
+            return _error("Doar administratorii pot șterge echipe.", 403)
+        with transaction.atomic():
+            remove_team_from_organization(team)
+            team.delete()
+        return JsonResponse({"deleted": True, "team_id": team_id})
     if request.method not in ("PUT", "PATCH"):
         return _error("Metodă nepermisă.", 405)
     can_edit_own = _is_team_manager(app_user, team)
@@ -728,6 +738,8 @@ def temporary_request_action(request, request_id):
                 if not target_membership.active:
                     target_membership.active = True
                     target_membership.save(update_fields=("active",))
+                sync_team_to_organization(item.source_team)
+                sync_team_to_organization(item.requester_team)
                 TemporaryWorkerRequest.objects.filter(
                     employee=item.employee,
                     status=item.Status.PENDING,

@@ -28,12 +28,12 @@ describe('NavbarComponent module filtering', () => {
     ]);
   });
 
-  it('utilizatorul doar cu Pontaj vede toate cele cinci pagini', () => {
+  it('utilizatorul doar cu Pontaj vede toate cele șase pagini', () => {
     const component = componentFor(['attendance']);
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual(['Pontaj']);
     expect(component.visibleLinks(groups[0]).map(link => link.path)).toEqual([
-      '/dashboard', '/pontaj', '/pontaj/rapoarte', '/pontaj/fisa-angajat', '/pontaj/cazari'
+      '/dashboard', '/pontaj', '/pontaj/rapoarte', '/pontaj/fisa-angajat', '/pontaj/organigrama', '/pontaj/cazari'
     ]);
   });
 
@@ -55,7 +55,7 @@ describe('NavbarComponent module filtering', () => {
     const component = componentFor(['attendance', 'teams_schedule']);
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual(['Pontaj', 'Echipe și program']);
-    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(11);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(12);
   });
 
   it('nu afișează categorii pentru un utilizator fără module', () => {
@@ -68,7 +68,7 @@ describe('NavbarComponent module filtering', () => {
     expect(groups.map(group => group.label)).toEqual([
       'Pontaj', 'Echipe și program', 'Magazie', 'Unelte'
     ]);
-    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(16);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(17);
   });
 
   it('marchează o singură rută de echipe ca activă', () => {

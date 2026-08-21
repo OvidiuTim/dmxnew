@@ -16,6 +16,7 @@ interface SessionRow {
 interface DayUserRow {
   UserId: number;
   UserName: string;
+  photo?: string | null;
   Company?: string | null;
   trade?: string | null;
   first_in: string | null;    // ISO local time sau null
@@ -49,6 +50,7 @@ export class PontajComponent implements OnInit {
   searchTerm = '';
   companyOptions: string[] = [];
   worksiteOptions: string[] = [];
+  failedPhotos = new Set<number>();
 
   constructor(private api: SharedService, private router: Router) {}
 
@@ -76,6 +78,7 @@ seeFisaAngajat(id: number): void {
   loadDay(): void {
     this.loading = true;
     this.error = null;
+    this.failedPhotos.clear();
     // aducem atât raportul pe zi cât și lista completă de useri (ca să afișăm și absenții)
     forkJoin({
       day: this.api.getAttendanceDay(this.selectedDate),
@@ -97,6 +100,7 @@ seeFisaAngajat(id: number): void {
           if (hit) {
             return {
               ...hit,
+              photo: u.photo ?? null,
               Company: u.Company ?? null,
               trade: u.trade ?? null,
             };
@@ -105,6 +109,7 @@ seeFisaAngajat(id: number): void {
           return {
             UserId: u.UserId,
             UserName: u.UserName,
+            photo: u.photo ?? null,
             Company: u.Company ?? null,
             trade: u.trade ?? null,
             first_in: null,
@@ -167,6 +172,14 @@ seeFisaAngajat(id: number): void {
   }
 
   trackByUser = (_: number, row: DayUserRow) => row.UserId;
+
+  employeeInitial(name: string): string {
+    return (name || '').trim().charAt(0).toLocaleUpperCase('ro-RO') || '?';
+  }
+
+  onPhotoError(userId: number): void {
+    this.failedPhotos.add(userId);
+  }
 
   get filteredRows(): DayUserRow[] {
     const search = this.normalizeText(this.searchTerm);

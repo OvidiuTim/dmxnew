@@ -43,6 +43,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   requestDialogOpen = false;
   memberRequestsDialogOpen = false;
   memberActionsOpenFor: number | null = null;
+  deletingTeamIds = new Set<number>();
   teamForm: any = this.emptyTeamForm();
   requestForm: any = this.emptyRequestForm();
   memberRequestEmployee: TeamEmployee | null = null;
@@ -349,6 +350,23 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     this.api.updateMember(team.id, employee.id, 'remove').subscribe({
       next: () => { this.notice = 'Membrul a fost eliminat.'; this.load(); },
       error: error => this.handleError(error),
+    });
+  }
+
+  deleteTeam(team: EmployeeTeam): void {
+    if (!team.can_delete || this.deletingTeamIds.has(team.id)) return;
+    if (!confirm(`Ștergi definitiv echipa „${team.name}”? Angajații nu vor fi șterși.`)) return;
+    this.deletingTeamIds.add(team.id);
+    this.api.deleteTeam(team.id).subscribe({
+      next: () => {
+        this.deletingTeamIds.delete(team.id);
+        this.notice = `Echipa „${team.name}” a fost ștearsă.`;
+        this.load();
+      },
+      error: error => {
+        this.deletingTeamIds.delete(team.id);
+        this.handleError(error);
+      },
     });
   }
 
