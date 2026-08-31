@@ -15,7 +15,7 @@ interface PortalCopy {
   lei: string; present: string; absent: string; leave: string; phone: string; call: string;
   noPhone: string; noMembers: string; noNotifications: string; checkedAt: string; markRead: string;
   read: string; unread: string; signOut: string; loading: string; retry: string; error: string; roles: string;
-  markAbsent: string; markedAbsent: string; confirmAbsent: string; markingAbsent: string; absentSaved: string;
+  markAbsent: string; markedAbsent: string; notRequired: string; confirmAbsent: string; markingAbsent: string; absentSaved: string;
 }
 
 @Component({
@@ -41,7 +41,7 @@ export class TeamPortalComponent implements OnInit {
       leave: 'În concediu', phone: 'Număr de telefon', call: 'Sună', noPhone: 'Fără număr de telefon', noMembers: 'Nu există membri.',
       noNotifications: 'Nu există notificări de pontaj.', checkedAt: 'Verificat la', markRead: 'Marchează citită', read: 'Citită', unread: 'Necitită',
       signOut: 'Deconectare', loading: 'Se încarcă…', retry: 'Reîncearcă', error: 'Informațiile nu au putut fi încărcate.', roles: 'Șef de echipă / Supervisor',
-      markAbsent: 'Marchează absent', markedAbsent: 'Absent', confirmAbsent: 'Confirmi marcarea ca absent pentru {name} astăzi?', markingAbsent: 'Se salvează…', absentSaved: 'Absența a fost salvată.',
+      markAbsent: 'Marchează absent', markedAbsent: 'Absent', notRequired: 'Nu se pontează', confirmAbsent: 'Confirmi marcarea ca absent pentru {name} astăzi?', markingAbsent: 'Se salvează…', absentSaved: 'Absența a fost salvată.',
     },
     en: {
       dashboard: 'Team dashboard', welcome: 'Welcome', language: 'Language', attendance: 'Attendance', employeeFile: 'Employee file',
@@ -51,7 +51,7 @@ export class TeamPortalComponent implements OnInit {
       leave: 'On leave', phone: 'Phone number', call: 'Call', noPhone: 'No phone number', noMembers: 'No members found.',
       noNotifications: 'No attendance notifications.', checkedAt: 'Checked at', markRead: 'Mark as read', read: 'Read', unread: 'Unread',
       signOut: 'Sign out', loading: 'Loading…', retry: 'Retry', error: 'The information could not be loaded.', roles: 'Team leader / Supervisor',
-      markAbsent: 'Mark absent', markedAbsent: 'Absent', confirmAbsent: 'Mark {name} absent for today?', markingAbsent: 'Saving…', absentSaved: 'The absence was saved.',
+      markAbsent: 'Mark absent', markedAbsent: 'Absent', notRequired: 'Attendance not required', confirmAbsent: 'Mark {name} absent for today?', markingAbsent: 'Saving…', absentSaved: 'The absence was saved.',
     },
     pa: {
       dashboard: 'ਟੀਮ ਡੈਸ਼ਬੋਰਡ', welcome: 'ਜੀ ਆਇਆਂ ਨੂੰ', language: 'ਭਾਸ਼ਾ', attendance: 'ਹਾਜ਼ਰੀ', employeeFile: 'ਕਰਮਚਾਰੀ ਵੇਰਵਾ',
@@ -61,7 +61,7 @@ export class TeamPortalComponent implements OnInit {
       leave: 'ਛੁੱਟੀ ਤੇ', phone: 'ਫੋਨ ਨੰਬਰ', call: 'ਕਾਲ ਕਰੋ', noPhone: 'ਫੋਨ ਨੰਬਰ ਨਹੀਂ', noMembers: 'ਕੋਈ ਮੈਂਬਰ ਨਹੀਂ ਮਿਲਿਆ।',
       noNotifications: 'ਕੋਈ ਹਾਜ਼ਰੀ ਸੂਚਨਾ ਨਹੀਂ।', checkedAt: 'ਜਾਂਚ ਦਾ ਸਮਾਂ', markRead: 'ਪੜ੍ਹਿਆ ਨਿਸ਼ਾਨ ਲਗਾਓ', read: 'ਪੜ੍ਹਿਆ', unread: 'ਨਵੀਂ',
       signOut: 'ਲਾਗ ਆਉਟ', loading: 'ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…', retry: 'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼', error: 'ਜਾਣਕਾਰੀ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ।', roles: 'ਟੀਮ ਲੀਡਰ / ਸੁਪਰਵਾਈਜ਼ਰ',
-      markAbsent: 'ਗੈਰਹਾਜ਼ਰ ਨਿਸ਼ਾਨ ਲਗਾਓ', markedAbsent: 'ਗੈਰਹਾਜ਼ਰ', confirmAbsent: 'ਕੀ {name} ਨੂੰ ਅੱਜ ਗੈਰਹਾਜ਼ਰ ਨਿਸ਼ਾਨ ਲਗਾਉਣਾ ਹੈ?', markingAbsent: 'ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…', absentSaved: 'ਗੈਰਹਾਜ਼ਰੀ ਸੇਵ ਹੋ ਗਈ।',
+      markAbsent: 'ਗੈਰਹਾਜ਼ਰ ਨਿਸ਼ਾਨ ਲਗਾਓ', markedAbsent: 'ਗੈਰਹਾਜ਼ਰ', notRequired: 'ਹਾਜ਼ਰੀ ਲਾਜ਼ਮੀ ਨਹੀਂ', confirmAbsent: 'ਕੀ {name} ਨੂੰ ਅੱਜ ਗੈਰਹਾਜ਼ਰ ਨਿਸ਼ਾਨ ਲਗਾਉਣਾ ਹੈ?', markingAbsent: 'ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…', absentSaved: 'ਗੈਰਹਾਜ਼ਰੀ ਸੇਵ ਹੋ ਗਈ।',
     },
     hi: {
       dashboard: 'टीम डैशबोर्ड', welcome: 'स्वागत है', language: 'भाषा', attendance: 'उपस्थिति', employeeFile: 'कर्मचारी विवरण',
@@ -71,7 +71,7 @@ export class TeamPortalComponent implements OnInit {
       leave: 'छुट्टी पर', phone: 'फोन नंबर', call: 'कॉल करें', noPhone: 'फोन नंबर नहीं', noMembers: 'कोई सदस्य नहीं मिला।',
       noNotifications: 'कोई उपस्थिति सूचना नहीं।', checkedAt: 'जांच का समय', markRead: 'पढ़ा हुआ करें', read: 'पढ़ा हुआ', unread: 'नई',
       signOut: 'लॉग आउट', loading: 'लोड हो रहा है…', retry: 'फिर प्रयास करें', error: 'जानकारी लोड नहीं हो सकी।', roles: 'टीम लीडर / सुपरवाइज़र',
-      markAbsent: 'अनुपस्थित करें', markedAbsent: 'अनुपस्थित', confirmAbsent: 'क्या {name} को आज अनुपस्थित चिह्नित करना है?', markingAbsent: 'सहेजा जा रहा है…', absentSaved: 'अनुपस्थिति सहेजी गई।',
+      markAbsent: 'अनुपस्थित करें', markedAbsent: 'अनुपस्थित', notRequired: 'उपस्थिति आवश्यक नहीं', confirmAbsent: 'क्या {name} को आज अनुपस्थित चिह्नित करना है?', markingAbsent: 'सहेजा जा रहा है…', absentSaved: 'अनुपस्थिति सहेजी गई।',
     },
     ne: {
       dashboard: 'टोली ड्यासबोर्ड', welcome: 'स्वागत छ', language: 'भाषा', attendance: 'हाजिरी', employeeFile: 'कर्मचारी विवरण',
@@ -81,7 +81,7 @@ export class TeamPortalComponent implements OnInit {
       leave: 'बिदामा', phone: 'फोन नम्बर', call: 'फोन गर्नुहोस्', noPhone: 'फोन नम्बर छैन', noMembers: 'कुनै सदस्य भेटिएन।',
       noNotifications: 'कुनै हाजिरी सूचना छैन।', checkedAt: 'जाँच समय', markRead: 'पढिएको चिन्ह लगाउनुहोस्', read: 'पढिएको', unread: 'नयाँ',
       signOut: 'लग आउट', loading: 'लोड हुँदैछ…', retry: 'फेरि प्रयास', error: 'जानकारी लोड हुन सकेन।', roles: 'टोली प्रमुख / सुपरभाइजर',
-      markAbsent: 'अनुपस्थित चिन्ह लगाउनुहोस्', markedAbsent: 'अनुपस्थित', confirmAbsent: 'के {name} लाई आज अनुपस्थित चिन्ह लगाउने?', markingAbsent: 'सुरक्षित हुँदैछ…', absentSaved: 'अनुपस्थिति सुरक्षित भयो।',
+      markAbsent: 'अनुपस्थित चिन्ह लगाउनुहोस्', markedAbsent: 'अनुपस्थित', notRequired: 'हाजिरी आवश्यक छैन', confirmAbsent: 'के {name} लाई आज अनुपस्थित चिन्ह लगाउने?', markingAbsent: 'सुरक्षित हुँदैछ…', absentSaved: 'अनुपस्थिति सुरक्षित भयो।',
     },
   };
 
@@ -197,9 +197,10 @@ export class TeamPortalComponent implements OnInit {
     if (status === 'present') return this.t.present;
     if (status === 'leave') return this.t.leave;
     if (status === 'marked_absent') return this.t.markedAbsent;
+    if (status === 'not_required') return this.t.notRequired;
     return this.t.absent;
   }
-  statusIcon(status: string): string { return status === 'present' ? 'check_circle' : status === 'leave' ? 'beach_access' : 'error'; }
+  statusIcon(status: string): string { return status === 'present' ? 'check_circle' : status === 'leave' ? 'beach_access' : status === 'not_required' ? 'event_busy' : 'error'; }
 
   logout(): void {
     this.auth.logout();

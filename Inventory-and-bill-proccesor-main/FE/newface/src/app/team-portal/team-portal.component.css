@@ -19,6 +19,7 @@ button, select, a { font: inherit; }
 .own-status[data-status="absent"] { color: #ff7474; background: rgba(212,54,67,.17); }
 .own-status[data-status="marked_absent"] { color: #ffb36b; background: rgba(196,102,34,.18); }
 .own-status[data-status="leave"] { color: #ffc85a; background: rgba(220,154,34,.16); }
+.own-status[data-status="not_required"] { color: #9cb0c8; background: rgba(115,137,164,.16); }
 .action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 30px; }
 .action-card { min-height: 142px; width: 100%; border: 1px solid #21324a; border-radius: 19px; background: #0c1829; color: #ecf3fb; display: grid; grid-template-columns: 54px minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 22px; text-align: left; text-decoration: none; cursor: pointer; position: relative; box-shadow: 0 12px 32px rgba(0,0,0,.13); }
 .action-card:hover, .action-card:focus-visible { border-color: #2bd394; transform: translateY(-1px); }
@@ -57,6 +58,7 @@ button, select, a { font: inherit; }
 .member-row[data-status="marked_absent"] .member-status { color: #ffb36b; background: rgba(196,102,34,.18); }
 .member-row[data-status="present"] .member-status { color: #39dfa3; background: rgba(31,151,111,.17); }
 .member-row[data-status="leave"] .member-status { color: #ffc85a; background: rgba(220,154,34,.16); }
+.member-row[data-status="not_required"] .member-status { color: #aebed1; background: rgba(115,137,164,.16); }
 .expand-icon { color: #71839b; }
 .member-detail { padding: 0 16px 16px 71px; display: grid; gap: 7px; color: #a5b3c5; }
 .member-detail strong { color: #fff; }

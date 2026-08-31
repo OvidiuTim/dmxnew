@@ -4158,6 +4158,7 @@ def _expected_password():
 
 APP_PERMISSION_ROUTES = [
     "/pontaj",
+    "/pontaj/alerte",
     "/pontaj/rapoarte",
     "/pontaj/fisa-angajat",
     "/pontaj/cazari",
@@ -4220,6 +4221,11 @@ def _normalize_login_redirect_path(value):
 def _serialize_app_user(app_user):
     permissions = set(_app_user_permissions(app_user))
     modules = effective_module_codes(app_user)
+    manual_modules = {
+        access.module_code
+        for access in app_user.module_accesses.all()
+        if access.can_access
+    }
     inherited_modules = []
     if (
         app_user.employee.led_employee_teams.filter(active=True).exists()
@@ -4248,10 +4254,7 @@ def _serialize_app_user(app_user):
         },
         "modules": modules,
         "module_access": {code: code in modules for code in MODULE_ORDER},
-        "manual_module_access": {
-            code: app_user.module_accesses.filter(module_code=code, can_access=True).exists()
-            for code in MODULE_ORDER
-        },
+        "manual_module_access": {code: code in manual_modules for code in MODULE_ORDER},
         "inherited_modules": inherited_modules,
         "roles": app_user_roles(app_user),
         "effective_permissions": sorted(permissions),

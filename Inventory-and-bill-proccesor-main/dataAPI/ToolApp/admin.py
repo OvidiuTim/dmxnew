@@ -5,6 +5,11 @@ from ToolApp.models import (
     Accommodation,
     AccommodationRoom,
     AttendanceAbsenceMark,
+    AttendanceAlertCase,
+    AttendanceAlertDispatch,
+    AttendanceAlertEscalationConfig,
+    AttendanceAlertEscalationNotification,
+    AttendanceAlertRunLog,
     EmployeeDocument,
     EmployeeDocumentType,
     EmployeeSalaryProfile,
@@ -20,6 +25,13 @@ from ToolApp.models import (
     Tools,
     Users,
 )
+
+
+admin.site.register(AttendanceAlertEscalationConfig)
+admin.site.register(AttendanceAlertCase)
+admin.site.register(AttendanceAlertEscalationNotification)
+admin.site.register(AttendanceAlertDispatch)
+admin.site.register(AttendanceAlertRunLog)
 
 
 @admin.register(AttendanceAbsenceMark)

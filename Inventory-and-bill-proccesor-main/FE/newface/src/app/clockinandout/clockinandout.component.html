@@ -164,7 +164,7 @@
             <p class="camera-error" *ngIf="cameraError">{{ cameraError }}</p>
 
             <div class="selfie-actions">
-              <button *ngIf="!cameraOpen && !capturedSelfie" type="button" class="selfie-btn primary" (click)="openCamera()" [disabled]="(!portalMode && !pin.trim()) || submitting" [title]="(!portalMode && !pin.trim()) ? 'Introdu mai întâi PIN-ul' : 'Deschide camera pentru selfie'">
+              <button *ngIf="!cameraOpen && !capturedSelfie" type="button" class="selfie-btn primary" (click)="openCamera()" [disabled]="(!portalMode && !pin.trim()) || submitting" [title]="(!portalMode && !pin.trim()) ? t.pinFirst : t.openCamera">
                 <span class="material-symbols-rounded" aria-hidden="true">photo_camera</span> {{ t.openCamera }}
               </button>
               <button *ngIf="cameraOpen" type="button" class="selfie-btn primary" (click)="captureSelfie()">

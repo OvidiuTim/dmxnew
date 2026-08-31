@@ -1,5 +1,5 @@
 <div class="employee-directory" *ngIf="!userId">
-  <header class="directory-header"><div><span>Personal</span><h1>Fișe angajați</h1><p>Selectează un angajat pentru profil, date generale și echipamentele alocate.</p></div><button type="button" (click)="goBack()">Înapoi la pontaj</button></header>
+  <header class="directory-header"><div><span>Personal</span><h1>Fișe angajați</h1><p>Selectează un angajat pentru profil, date generale și echipamentele alocate.</p></div><div class="directory-actions"><button class="add-employee-button" type="button" (click)="addEmployee()"><span class="material-symbols-rounded" aria-hidden="true">person_add</span>Adaugă angajat</button><button type="button" (click)="goBack()">Înapoi la pontaj</button></div></header>
   <div class="state error" *ngIf="error">{{ error }}</div>
   <div class="state" *ngIf="loading">Se încarcă angajații…</div>
   <label class="directory-search" *ngIf="!loading && !error">

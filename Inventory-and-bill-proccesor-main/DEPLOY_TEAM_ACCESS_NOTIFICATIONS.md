@@ -34,7 +34,7 @@ Fișierul Firebase este cheia JSON de service account din proiectul Firebase. Nu
 sudo install -o www-data -g www-data -m 600 firebase-service-account.json /etc/dmx/firebase-service-account.json
 ```
 
-## 3. Programarea comenzii la 07:40
+## 3. Programarea alertelor la 07:40, 07:55 și 08:10
 
 Editează crontab-ul utilizatorului care rulează aplicația:
 
@@ -42,13 +42,16 @@ Editează crontab-ul utilizatorului care rulează aplicația:
 crontab -e
 ```
 
-Adaugă o singură intrare (înlocuiește `/var/www/dmxnew` cu calea reală):
+Adaugă cele trei execuții (înlocuiește `/var/www/dmxnew` cu calea reală):
 
 ```cron
-40 7 * * 1-6 cd /var/www/dmxnew/Inventory-and-bill-proccesor-main/dataAPI && /var/www/dmxnew/Inventory-and-bill-proccesor-main/.venv/bin/python manage.py send_team_attendance_alerts >> /var/log/dmx-team-attendance.log 2>&1
+CRON_TZ=Europe/Bucharest
+40 7 * * 1-6 cd /var/www/dmxnew/Inventory-and-bill-proccesor-main/dataAPI && /var/www/dmxnew/Inventory-and-bill-proccesor-main/.venv/bin/python manage.py process_attendance_alert_escalations >> /var/log/dmx-team-attendance.log 2>&1
+55 7 * * 1-6 cd /var/www/dmxnew/Inventory-and-bill-proccesor-main/dataAPI && /var/www/dmxnew/Inventory-and-bill-proccesor-main/.venv/bin/python manage.py process_attendance_alert_escalations >> /var/log/dmx-team-attendance.log 2>&1
+10 8 * * 1-6 cd /var/www/dmxnew/Inventory-and-bill-proccesor-main/dataAPI && /var/www/dmxnew/Inventory-and-bill-proccesor-main/.venv/bin/python manage.py process_attendance_alert_escalations >> /var/log/dmx-team-attendance.log 2>&1
 ```
 
-Comanda ignoră și intern duminica/datele configurate. Constrângerea unică `echipă + dată` împiedică notificările duplicate dacă jobul este lansat de două ori.
+Comanda recalculează situația la fiecare nivel, ignoră intern duminica/datele configurate și folosește fusul `Europe/Bucharest`. Constrângerile unice pentru angajat + nivel + zi și pentru emailul centralizat + nivel + zi împiedică duplicatele dacă jobul este lansat de mai multe ori.
 
 Test manual fără email/push:
 

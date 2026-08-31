@@ -191,12 +191,13 @@
       </div>
 
       <div *ngSwitchCase="'absences'">
-        <div class="kpi-grid kpi-grid-five" *ngIf="absenceSummary">
+        <div class="kpi-grid kpi-grid-six" *ngIf="absenceSummary">
           <article class="kpi-card danger"><span>Fără pontaj</span><strong>{{ absenceSummary.no_attendance || 0 }}</strong><small>zile</small></article>
           <article class="kpi-card"><span>Concediu de odihnă</span><strong>{{ absenceSummary.paid_leave || 0 }}</strong><small>zile</small></article>
           <article class="kpi-card"><span>Concediu medical</span><strong>{{ absenceSummary.medical_leave || 0 }}</strong><small>zile</small></article>
           <article class="kpi-card"><span>Fără plată</span><strong>{{ absenceSummary.unpaid_leave || 0 }}</strong><small>zile</small></article>
           <article class="kpi-card"><span>Plecat în India</span><strong>{{ absenceSummary.india || 0 }}</strong><small>zile</small></article>
+          <article class="kpi-card danger"><span>Absență nemotivată</span><strong>{{ absenceSummary.unexcused_absence || 0 }}</strong><small>zile</small></article>
         </div>
         <div class="table-card">
           <div class="table-title"><h3>Detalierea absențelor</h3><span>{{ absenceRows.length }} înregistrări</span></div>

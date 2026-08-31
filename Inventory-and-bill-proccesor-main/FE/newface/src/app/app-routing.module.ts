@@ -30,6 +30,7 @@ import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.c
 import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
 import { OrganizationComponent } from './organization/organization.component';
 import { TeamPortalComponent } from './team-portal/team-portal.component';
+import { AttendanceAlertsComponent } from './pontaj/attendance-alerts/attendance-alerts.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -59,6 +60,7 @@ export const routes: Routes = [
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte', moduleCode: 'attendance' } },
+  { path: 'pontaj/alerte', component: AttendanceAlertsComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/alerte', requiresGranular: true } },
   { path: 'pontaj/fisa-angajat', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat', moduleCode: 'attendance' } },
   { path: 'pontaj/fisa-angajat/:id', component: FisaAngajatComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/fisa-angajat', moduleCode: 'attendance' } },
   { path: 'pontaj/organigrama', component: OrganizationComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/organigrama', moduleCode: 'attendance' } },

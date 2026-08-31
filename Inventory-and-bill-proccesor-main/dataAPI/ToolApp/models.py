@@ -1033,6 +1033,117 @@ class AttendanceAbsenceMark(models.Model):
         ]
 
 
+class AttendanceAlertEscalationConfig(models.Model):
+    class Level(models.IntegerChoices):
+        LEVEL_1 = 1, "Nivel 1"
+        LEVEL_2 = 2, "Nivel 2"
+
+    level = models.PositiveSmallIntegerField(choices=Level.choices, unique=True)
+    role_name = models.CharField(max_length=120, blank=True, default="")
+    app_user = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendance_escalation_configs",
+    )
+    email = models.EmailField(blank=True, default="")
+    alert_time = models.TimeField()
+    active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("level",)
+
+
+class AttendanceAlertCase(models.Model):
+    class Level(models.IntegerChoices):
+        INITIAL = 0, "Alertă inițială"
+        LEVEL_1 = 1, "Nivel 1"
+        LEVEL_2 = 2, "Nivel 2"
+
+    class ResolutionMethod(models.TextChoices):
+        CHECK_IN = "check_in", "Check-in"
+        MARKED_ABSENT = "marked_absent", "Marcat absent"
+        LEAVE = "leave", "Concediu / absență"
+        NOT_REQUIRED = "not_required", "Nu se pontează"
+        INACTIVE = "inactive", "Angajat inactiv"
+        NO_LONGER_ELIGIBLE = "no_longer_eligible", "Nu mai este eligibil"
+
+    employee = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="attendance_alert_cases")
+    team = models.ForeignKey(EmployeeTeam, on_delete=models.PROTECT, related_name="attendance_alert_cases")
+    work_date = models.DateField(db_index=True)
+    level = models.PositiveSmallIntegerField(choices=Level.choices)
+    worksite = models.CharField(max_length=160, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolution_method = models.CharField(max_length=32, choices=ResolutionMethod.choices, blank=True, default="")
+    resolved_by = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_attendance_alert_cases",
+    )
+
+    class Meta:
+        ordering = ("-work_date", "level", "team__name", "employee__UserName")
+        constraints = [
+            models.UniqueConstraint(fields=("employee", "work_date", "level"), name="unique_attendance_alert_case_level_day"),
+        ]
+        indexes = [
+            models.Index(fields=("work_date", "level", "resolved_at"), name="attendance_case_state_idx"),
+        ]
+
+
+class AttendanceAlertEscalationNotification(models.Model):
+    recipient = models.ForeignKey(AppUser, on_delete=models.CASCADE, related_name="attendance_escalation_notifications")
+    work_date = models.DateField(db_index=True)
+    level = models.PositiveSmallIntegerField(choices=AttendanceAlertCase.Level.choices)
+    case_count = models.PositiveIntegerField(default=0)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("recipient", "work_date", "level"), name="unique_attendance_escalation_notification"),
+        ]
+
+
+class AttendanceAlertDispatch(models.Model):
+    work_date = models.DateField(db_index=True)
+    level = models.PositiveSmallIntegerField(choices=AttendanceAlertCase.Level.choices)
+    recipient = models.ForeignKey(AppUser, on_delete=models.SET_NULL, null=True, blank=True)
+    role_name = models.CharField(max_length=120, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    notification_sent_at = models.DateTimeField(null=True, blank=True)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
+    error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("work_date", "level"), name="unique_attendance_dispatch_level_day"),
+        ]
+
+
+class AttendanceAlertRunLog(models.Model):
+    work_date = models.DateField(db_index=True)
+    level = models.PositiveSmallIntegerField(choices=AttendanceAlertCase.Level.choices)
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=32, default="started")
+    case_count = models.PositiveIntegerField(default=0)
+    recipients = models.JSONField(default=list, blank=True)
+    emails_sent = models.JSONField(default=list, blank=True)
+    errors = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ("-started_at",)
+        indexes = [models.Index(fields=("work_date", "level"), name="attendance_run_level_idx")]
+
+
 class MobileDevice(models.Model):
     employee = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="mobile_devices")
     device_key = models.CharField(max_length=64)

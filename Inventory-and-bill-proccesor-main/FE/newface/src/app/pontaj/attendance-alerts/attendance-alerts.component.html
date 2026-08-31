@@ -1,0 +1,56 @@
+<main class="alerts-page">
+  <header class="page-header">
+    <div><span class="eyebrow">Pontaj</span><h1>Alerte</h1><p>Configurează escaladările și urmărește situațiile de pontaj ale zilei.</p></div>
+    <div class="header-actions">
+      <label class="date-field"><span>Data</span><input type="date" [ngModel]="selectedDate" (ngModelChange)="changeDate($event)"></label>
+      <button class="btn secondary" type="button" (click)="goBack()"><span class="material-symbols-rounded">arrow_back</span>Prezență zilnică</button>
+    </div>
+  </header>
+
+  <div class="message error" *ngIf="error">{{ error }}</div>
+  <div class="message success" *ngIf="notice">{{ notice }}</div>
+  <div class="loading" *ngIf="loading">Se încarcă alertele…</div>
+
+  <ng-container *ngIf="!loading && data">
+    <section class="stats-grid">
+      <article><span class="material-symbols-rounded">notification_important</span><strong>{{ data.counts.initial }}</strong><small>Alerte inițiale · 07:40</small></article>
+      <article><span class="material-symbols-rounded">looks_one</span><strong>{{ data.counts.level_1 }}</strong><small>Escaladări Nivel 1</small></article>
+      <article><span class="material-symbols-rounded">looks_two</span><strong>{{ data.counts.level_2 }}</strong><small>Escaladări Nivel 2</small></article>
+      <article class="resolved"><span class="material-symbols-rounded">task_alt</span><strong>{{ data.counts.resolved }}</strong><small>Rezolvate</small></article>
+      <article class="active"><span class="material-symbols-rounded">warning</span><strong>{{ data.counts.active }}</strong><small>Încă active</small></article>
+    </section>
+
+    <section class="panel configuration">
+      <div class="panel-heading"><div><span>Europe/Bucharest</span><h2>Configurarea escaladărilor</h2></div><button class="btn primary" type="button" (click)="save()" [disabled]="saving"><span class="material-symbols-rounded">save</span>{{ saving ? 'Se salvează…' : 'Salvează configurația' }}</button></div>
+      <div class="config-grid">
+        <article class="config-card" *ngFor="let config of configs">
+          <div class="config-title"><span>Nivel {{ config.level }}</span><label class="switch"><input type="checkbox" [(ngModel)]="config.active"><i></i>{{ config.active ? 'Activ' : 'Inactiv' }}</label></div>
+          <label><span>Denumirea rolului</span><input type="text" [(ngModel)]="config.role_name" placeholder="Ex: Manager operațional"></label>
+          <label><span>Persoana</span><select [(ngModel)]="config.app_user_id" (ngModelChange)="onRecipientChange(config)"><option [ngValue]="null">Selectează utilizatorul</option><option *ngFor="let user of data.app_users" [ngValue]="user.id">{{ user.name }} · {{ user.username }}</option></select></label>
+          <label><span>Email</span><input type="email" [(ngModel)]="config.email" placeholder="email@companie.ro"></label>
+          <label><span>Ora alertei</span><input type="time" [(ngModel)]="config.alert_time"></label>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading"><div><span>Situația zilei</span><h2>Alerte individuale</h2></div></div>
+      <div class="empty" *ngIf="!data.cases.length">Nu există alerte pentru data selectată.</div>
+      <div class="table-scroll" *ngIf="data.cases.length"><table><thead><tr><th>Nivel</th><th>Angajat</th><th>Echipă</th><th>Șantier</th><th>Stare</th><th>Rezolvare</th><th>Rezolvat de</th></tr></thead><tbody>
+        <tr *ngFor="let item of data.cases"><td><span class="level-chip">{{ levelLabel(item.level) }}</span></td><td><strong>{{ item.employee_name }}</strong><small>{{ item.employee_phone || 'Fără telefon' }}</small></td><td>{{ item.team_name }}<small>Șef: {{ item.leader_name }}</small></td><td>{{ item.worksite }}</td><td><span class="status" [class.ok]="item.resolved">{{ item.resolved ? 'Rezolvată' : 'Activă' }}</span></td><td>{{ item.resolution_label || '—' }}<small>{{ item.resolved_at ? (item.resolved_at | date:'dd.MM.yyyy HH:mm') : '—' }}</small></td><td>{{ item.resolved ? item.resolved_by : '—' }}</td></tr>
+      </tbody></table></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-heading"><div><span>În aplicație</span><h2>Notificări de escaladare</h2></div></div>
+      <div class="empty" *ngIf="!data.notifications.length">Nu au fost trimise notificări de escaladare pentru această zi.</div>
+      <div class="run-list" *ngIf="data.notifications.length"><article *ngFor="let notification of data.notifications"><span class="material-symbols-rounded notification-icon" aria-hidden="true">notifications_active</span><div><strong>{{ levelLabel(notification.level) }} · {{ notification.recipient }}</strong><small>{{ notification.case_count }} persoane · {{ notification.created_at | date:'dd.MM.yyyy HH:mm' }}</small><small>{{ notification.read_at ? 'Citită' : 'Necitită' }}</small></div></article></div>
+    </section>
+
+    <section class="panel logs">
+      <div class="panel-heading"><div><span>Audit</span><h2>Jurnal execuții</h2></div></div>
+      <div class="empty" *ngIf="!data.runs.length">Joburile de escaladare nu au rulat pentru această zi.</div>
+      <div class="run-list" *ngIf="data.runs.length"><article *ngFor="let run of data.runs"><span class="level-chip">{{ levelLabel(run.level) }}</span><div><strong>{{ run.status }}</strong><small>{{ run.started_at | date:'dd.MM.yyyy HH:mm:ss' }} · {{ run.case_count }} cazuri</small><small *ngIf="run.recipients.length">Destinatari: {{ run.recipients.join(', ') }}</small><small *ngIf="run.emails_sent.length">Emailuri: {{ run.emails_sent.join(', ') }}</small><small class="error-text" *ngIf="run.errors.length">Erori: {{ run.errors.join(', ') }}</small></div></article></div>
+    </section>
+  </ng-container>
+</main>

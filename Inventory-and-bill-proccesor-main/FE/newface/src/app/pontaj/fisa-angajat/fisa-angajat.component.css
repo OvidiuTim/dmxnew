@@ -593,6 +593,9 @@
 .directory-header h1 { margin: 7px 0 6px; color: var(--text); font-size: clamp(29px, 4vw, 38px); }
 .directory-header p { margin: 0; color: var(--text-muted); font-size: 12px; }
 .directory-header button { min-height: 42px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); cursor: pointer; }
+.directory-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.directory-header .add-employee-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-color: #2dd69b; background: #2dd69b; color: #05251b; font-weight: 800; }
+.directory-header .add-employee-button .material-symbols-rounded { font-size: 19px; line-height: 1; }
 .directory-search { min-height: 52px; margin-bottom: 18px; display: flex; align-items: center; gap: 11px; padding: 0 15px; border: 1px solid var(--border); border-radius: 13px; background: var(--card); color: var(--text-muted); }
 .directory-search .material-symbols-rounded { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; font-size: 21px; line-height: 1; }
 .directory-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; }
@@ -607,6 +610,6 @@
 .dismissed-table-scroll { overflow-x: auto; }.dismissed-table { width: 100%; min-width: 760px; border-collapse: collapse; }.dismissed-table th, .dismissed-table td { padding: 13px 18px; border-top: 1px solid var(--border); text-align: left; }.dismissed-table th { border-top: 0; color: var(--text-muted); font-size: 9px; letter-spacing: .7px; text-transform: uppercase; }.dismissed-table td { color: var(--text); font-size: 11px; }.dismissed-person { display: flex; align-items: center; gap: 11px; }.dismissed-person > span:last-child strong, .dismissed-person > span:last-child small { display: block; }.dismissed-person small { margin-top: 4px; color: var(--text-muted); }.history-button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); cursor: pointer; }.history-button span { font-size: 18px; line-height: 1; }
 .extra-leave-item strong { color: #fca5a5; }
 @media (max-width: 900px) { .directory-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px) { .directory-header { align-items: stretch; flex-direction: column; }.directory-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .directory-header { align-items: stretch; flex-direction: column; }.directory-actions { align-items: stretch; flex-direction: column; }.directory-grid { grid-template-columns: 1fr; } }
 @media (max-width: 1050px) { .document-upload { grid-template-columns: 1fr 1fr; }.document-sections { grid-template-columns: 1fr; } }
 @media (max-width: 680px) { .document-upload { grid-template-columns: 1fr; }.document-row { grid-template-columns: 36px minmax(0, 1fr) auto; }.document-row .expiry { grid-column: 2 / -1; justify-self: start; }.document-row-actions { grid-column: 3; grid-row: 1; } }

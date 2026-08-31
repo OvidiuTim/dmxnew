@@ -30,6 +30,7 @@ PUBLIC_API_PREFIXES = (
 )
 
 API_ROUTE_REQUIREMENTS = (
+    ("/api/attendance-alerts/", ("/pontaj/alerte",)),
     ("/api/organization/", ("/pontaj/organigrama",)),
     ("/api/leave-requests/", ("/pontaj/concedii",)),
     ("/api/leave/", ("/user/:id", "/pontaj")),
@@ -175,7 +176,7 @@ def request_has_admin(request) -> bool:
 def app_user_has_route(app_user, route: str) -> bool:
     if not app_user or not route:
         return False
-    if route.startswith("/team-dashboard") and app_user_has_module(app_user, "team_dashboard"):
+    if (route == "/team-dashboard" or route.startswith("/team-dashboard/")) and app_user_has_module(app_user, "team_dashboard"):
         return True
     if route in TEAM_SCHEDULE_ROUTES and (
         app_user.employee.led_employee_teams.filter(active=True).exists()

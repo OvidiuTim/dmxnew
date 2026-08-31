@@ -51,6 +51,7 @@ import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.c
 import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
 import { OrganizationComponent } from './organization/organization.component';
 import { TeamPortalComponent } from './team-portal/team-portal.component';
+import { AttendanceAlertsComponent } from './pontaj/attendance-alerts/attendance-alerts.component';
 
 @NgModule({
   declarations: [
@@ -92,6 +93,7 @@ import { TeamPortalComponent } from './team-portal/team-portal.component';
     TermeniIgdprComponent,
     OrganizationComponent,
     TeamPortalComponent,
+    AttendanceAlertsComponent,
   ],
   imports: [
     CommonModule,

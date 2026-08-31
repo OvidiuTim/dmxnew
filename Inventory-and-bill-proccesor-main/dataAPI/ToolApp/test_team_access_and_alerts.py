@@ -4,6 +4,7 @@ from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
 from django.test import Client, TestCase, override_settings
+from django.utils import timezone
 
 from ToolApp.app_accounts import sync_employee_app_user
 from ToolApp.models import (
@@ -20,7 +21,7 @@ from ToolApp.models import (
     Users,
 )
 from ToolApp.module_access import app_user_roles, effective_module_codes
-from ToolApp.security import make_app_user_token
+from ToolApp.security import make_admin_token, make_app_user_token
 from ToolApp.push_notifications import send_employee_push
 from ToolApp.team_attendance_notifications import create_team_attendance_alerts, ensure_team_attendance_alerts_due
 
@@ -101,6 +102,18 @@ class EffectiveTeamPermissionTests(TestCase):
         self.assertNotIn("team_dashboard", effective_module_codes(self.account))
         AppModuleAccess.objects.create(app_user=self.account, module_code="teams_schedule", can_access=True)
         self.assertIn("teams_schedule", effective_module_codes(self.account))
+
+    def test_revoking_manual_team_dashboard_access_does_not_block_active_role(self):
+        admin = Client()
+        admin.cookies["ptj"] = make_admin_token()
+        response = admin.post(
+            "/api/app-admin/modules/team_dashboard/access/",
+            data=json.dumps({"app_user_ids": []}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIn("team_dashboard", effective_module_codes(self.account))
+        self.assertFalse(AppModuleAccess.objects.get(app_user=self.account, module_code="team_dashboard").can_access)
 
     def test_manual_module_permission_reaches_team_view_without_403(self):
         other = employee("Utilizator manual", "ROLE-2", "2002")
@@ -200,6 +213,20 @@ class TeamAttendanceAlertTests(TestCase):
         self.assertTrue(result["skipped_non_working_day"])
         self.assertFalse(TeamAttendanceAlert.objects.exists())
 
+    def test_leader_and_distinct_supervisor_are_both_recipients(self):
+        supervisor = self.add_member("Supervisor", "08")
+        self.team.supervisor = supervisor
+        self.team.save(update_fields=("supervisor",))
+        self.add_member("Membru fără pontaj", "09")
+
+        create_team_attendance_alerts(self.day, send_email=False, send_push=False)
+
+        alert = TeamAttendanceAlert.objects.get(team=self.team, work_date=self.day)
+        self.assertEqual(
+            set(alert.recipients.values_list("employee_id", flat=True)),
+            {self.manager.pk, supervisor.pk},
+        )
+
     @patch("ToolApp.team_attendance_notifications._send_email", return_value=False)
     def test_due_time_is_bucharest_0740_and_is_idempotent(self, _email_mock):
         missing = self.add_member("Nepontat la timp", "06")
@@ -216,6 +243,22 @@ class TeamAttendanceAlertTests(TestCase):
         alert = TeamAttendanceAlert.objects.get(team=self.team, work_date=self.day)
         self.assertIn(missing, alert.missing_employees.all())
         self.assertEqual(alert.recipients.filter(employee=self.manager).count(), 1)
+        account = AppUser(employee=self.manager, username="alerts.portal")
+        account.set_pin("3001")
+        account.save()
+        client = Client()
+        client.cookies["appj"] = make_app_user_token(account)
+        response = client.get("/api/team-portal/notifications/")
+        self.assertEqual(response.status_code, 200, response.content)
+        item = next(item for item in response.json()["notifications"] if item["date"] == self.day.isoformat())
+        self.assertIn(missing.pk, [employee["id"] for employee in item["employees"]])
+
+        recipient = TeamAttendanceAlertRecipient.objects.get(alert=alert, employee=self.manager)
+        recipient.read_at = timezone.now()
+        recipient.save(update_fields=("read_at",))
+        response = client.get("/api/team-portal/notifications/")
+        item = next(item for item in response.json()["notifications"] if item["date"] == self.day.isoformat())
+        self.assertTrue(item["is_read"])
 
     def test_mark_absent_records_actor_updates_status_and_stops_alert(self):
         missing = self.add_member("Absent confirmat", "07")

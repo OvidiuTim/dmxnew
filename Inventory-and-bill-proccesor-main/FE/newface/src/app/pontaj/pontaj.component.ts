@@ -67,10 +67,6 @@ seeFisaAngajat(id: number): void {
   this.router.navigate(['/pontaj/fisa-angajat', id]);
 }
 
-  addEmployee(): void {
-    this.router.navigate(['/users/new']);
-  }
-
   editEmployee(id: number): void {
     this.router.navigate(['/users', id, 'edit']);
   }
@@ -262,7 +258,7 @@ seeFisaAngajat(id: number): void {
   }
 
 
-  goToReports(): void {
-    this.router.navigate(['/pontaj/rapoarte']);
+  goToAlerts(): void {
+    this.router.navigate(['/pontaj/alerte']);
   }
 }

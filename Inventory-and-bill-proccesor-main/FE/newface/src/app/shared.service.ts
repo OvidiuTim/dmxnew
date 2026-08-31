@@ -153,10 +153,16 @@ export class SharedService {
   deleteMijloace(id: any)              { return this.http.delete(`${this.API}/mijloacefixe/${id}`); }
 
   // --- Pontaj ---
-getAttendanceDay(date?: string) {
+  getAttendanceDay(date?: string) {
   // era this.http.get(`${this.API}/pontaj/day/`, ...)
   return this.http.get<any>(`${this.API}/pontaj/day/`, { params: date ? { date } : {} });
 }
+  getAttendanceAlerts(date?: string) {
+    return this.http.get<any>(`${this.API}/attendance-alerts/`, { params: date ? { date } : {} });
+  }
+  updateAttendanceAlertConfigs(configs: any[], date?: string) {
+    return this.http.put<any>(`${this.API}/attendance-alerts/`, { configs, date });
+  }
 
   manualAttendanceByPin(pin: string, worksiteOrOptions?: string | ManualAttendanceOptions) {
     const options: ManualAttendanceOptions = typeof worksiteOrOptions === 'string'

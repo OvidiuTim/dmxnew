@@ -4,8 +4,7 @@
     <div class="header-actions">
       <button class="btn ghost date-button" type="button" (click)="togglePicker()"><span class="material-symbols-rounded" aria-hidden="true">calendar_today</span>{{ selectedDate }}</button>
       <input *ngIf="showDatePicker" class="date-input" type="date" [max]="todayISO()" [value]="selectedDate" (change)="onDatePicked($event)" />
-      <button class="btn ghost" type="button" (click)="goToReports()">Rapoarte</button>
-      <button class="btn primary" type="button" (click)="addEmployee()"><span class="material-symbols-rounded" aria-hidden="true">person_add</span>Adaugă angajat</button>
+      <button class="btn ghost" type="button" (click)="goToAlerts()"><span class="material-symbols-rounded" aria-hidden="true">notifications_active</span>Alerte</button>
     </div>
   </header>
 

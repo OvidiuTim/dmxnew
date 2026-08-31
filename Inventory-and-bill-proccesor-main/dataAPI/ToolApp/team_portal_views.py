@@ -42,6 +42,11 @@ def _coordinated_teams(app_user):
 
 def _presence_status(employee_ids, day=None):
     day = day or timezone.localdate()
+    not_required_ids = set(Users.objects.filter(
+        pk__in=employee_ids,
+    ).filter(
+        Q(attendance_exempt=True) | Q(hire_date__gt=day)
+    ).values_list("pk", flat=True))
     leave_rows = dict(LeaveDay.objects.filter(
         work_date=day,
         user_fk_id__in=employee_ids,
@@ -56,6 +61,7 @@ def _presence_status(employee_ids, day=None):
             "marked_absent" if leave_rows.get(employee_id) == LeaveDay.Reason.UNEXCUSED
             else "leave" if employee_id in leave_rows
             else "present" if employee_id in attendance_ids
+            else "not_required" if employee_id in not_required_ids
             else "absent"
         )
         for employee_id in employee_ids
@@ -87,6 +93,10 @@ def portal_dashboard(request):
         read_at__isnull=True,
         alert__missing_employees__active=True,
         alert__missing_employees__employment_status=Users.EmploymentStatus.ACTIVE,
+        alert__missing_employees__attendance_exempt=False,
+    ).filter(
+        Q(alert__missing_employees__hire_date__isnull=True)
+        | Q(alert__missing_employees__hire_date__lte=timezone.localdate())
     ).distinct().count()
     return JsonResponse({
         "employee": {
@@ -174,6 +184,9 @@ def _notification_payload(recipient):
             for employee in alert.missing_employees.filter(
                 active=True,
                 employment_status=Users.EmploymentStatus.ACTIVE,
+                attendance_exempt=False,
+            ).filter(
+                Q(hire_date__isnull=True) | Q(hire_date__lte=alert.work_date)
             ).order_by("UserName")
         ],
     }
@@ -191,6 +204,10 @@ def portal_notifications(request):
         alert__team__in=_coordinated_teams(app_user),
         alert__missing_employees__active=True,
         alert__missing_employees__employment_status=Users.EmploymentStatus.ACTIVE,
+        alert__missing_employees__attendance_exempt=False,
+    ).filter(
+        Q(alert__missing_employees__hire_date__isnull=True)
+        | Q(alert__missing_employees__hire_date__lte=timezone.localdate())
     ).distinct().select_related("alert__team").prefetch_related("alert__missing_employees")
     if request.method == "GET":
         items = [_notification_payload(item) for item in query.order_by("-alert__created_at")]
@@ -231,7 +248,8 @@ def portal_mark_absent(request, employee_id):
         pk=employee_id,
         active=True,
         employment_status=Users.EmploymentStatus.ACTIVE,
-    ).first()
+        attendance_exempt=False,
+    ).filter(Q(hire_date__isnull=True) | Q(hire_date__lte=day)).first()
     if not employee:
         return _error("Angajatul nu există sau este inactiv.", 404)
     if AttendanceSession.objects.filter(user_fk=employee, work_date=day).exists():

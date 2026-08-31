@@ -1,7 +1,7 @@
 from django.urls import path, re_path as url
 from ToolApp import views
 from ToolApp import mobile_views
-from ToolApp import team_views, team_portal_views
+from ToolApp import team_views, team_portal_views, attendance_alert_views
 from ToolApp import employee_views
 from ToolApp import leave_views
 from ToolApp import organization_views
@@ -94,6 +94,7 @@ urlpatterns = [
     path('api/pontaj/reports/incomplete/', attendance_incomplete_report, name='attendance_incomplete_report'),
     path('api/pontaj/today/', attendance_today, name='attendance_today'),
     path('api/pontaj/stream/', pontaj_stream, name='pontaj_stream'),
+    path('api/attendance-alerts/', attendance_alert_views.attendance_alerts, name='attendance_alerts'),
 
     # Pagina monitor
     path('pontaj/monitor/', monitor_pontaj_page, name='monitor_pontaj'),

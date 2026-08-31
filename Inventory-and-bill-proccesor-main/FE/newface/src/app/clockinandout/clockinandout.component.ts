@@ -56,6 +56,11 @@ interface TranslationPack {
   consentRequired: string;
   selfieRequired: string;
   unfinishedTitle: string;
+  pinFirst: string;
+  cameraUnavailable: string;
+  cameraNotReady: string;
+  cameraDenied: string;
+  cameraMissing: string;
   stepLanguage: string;
   stepPin: string;
   stepLocation: string;
@@ -118,7 +123,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   @ViewChild('cameraPreview') cameraPreview?: ElementRef<HTMLVideoElement>;
 
   readonly languages: LanguageOption[] = [
-    { code: 'ro', nativeLabel: 'Romana', secondaryLabel: 'Romanian', locale: 'ro-RO' },
+    { code: 'ro', nativeLabel: 'Română', secondaryLabel: 'Romanian', locale: 'ro-RO' },
     { code: 'en', nativeLabel: 'English', secondaryLabel: 'English', locale: 'en-GB' },
     { code: 'pa', nativeLabel: 'ਪੰਜਾਬੀ', secondaryLabel: 'Punjabi', locale: 'pa-IN' },
     { code: 'hi', nativeLabel: 'हिन्दी', secondaryLabel: 'Hindi', locale: 'hi-IN' },
@@ -157,6 +162,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       selfieConfirmed: 'Fotografie confirmată', openCamera: 'Deschide camera', takePhoto: 'Fă fotografia', retakePhoto: 'Refă fotografia', usePhoto: 'Folosește fotografia', photoUsed: 'Fotografie folosită',
       consentPrefix: 'Sunt de acord cu', consentLink: 'prelucrarea datelor', consentHint: 'Selfie-ul confirmat va fi asociat acestui check-in sau check-out.',
       consentRequired: 'Bifează acordul pentru prelucrarea datelor pentru a activa pontajul.', selfieRequired: 'Realizează și confirmă selfie-ul pentru a activa pontajul.', unfinishedTitle: 'Pontaj nefinalizat',
+      pinFirst: 'Introdu mai întâi PIN-ul.', cameraUnavailable: 'Camera telefonului nu este disponibilă în acest browser.', cameraNotReady: 'Camera nu este pregătită. Încearcă din nou.', cameraDenied: 'Accesul la cameră a fost refuzat. Permite camera din setările browserului.', cameraMissing: 'Nu am găsit o cameră disponibilă pe acest dispozitiv.',
       stepLanguage: 'Alege limba',
       stepPin: 'Introduceti PIN-ul',
       stepLocation: 'Locatie GPS',
@@ -216,6 +222,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       selfieConfirmed: 'Photo confirmed', openCamera: 'Open camera', takePhoto: 'Take photo', retakePhoto: 'Retake photo', usePhoto: 'Use photo', photoUsed: 'Photo selected',
       consentPrefix: 'I agree to', consentLink: 'data processing', consentHint: 'The confirmed selfie will be linked to this clock-in or clock-out.',
       consentRequired: 'Accept data processing to enable attendance.', selfieRequired: 'Take and confirm a selfie to enable attendance.', unfinishedTitle: 'Attendance not completed',
+      pinFirst: 'Enter the PIN first.', cameraUnavailable: 'The phone camera is not available in this browser.', cameraNotReady: 'The camera is not ready. Please try again.', cameraDenied: 'Camera access was denied. Allow camera access in browser settings.', cameraMissing: 'No available camera was found on this device.',
       stepLanguage: 'Choose language',
       stepPin: 'Enter PIN',
       stepLocation: 'GPS location',
@@ -273,6 +280,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       selfieTitle: 'ਸੈਲਫੀ ਸ਼ਾਮਲ ਕਰੋ', selfieDescription: 'ਹਾਜ਼ਰੀ ਜਾਰੀ ਰੱਖਣ ਲਈ ਚਿਹਰਾ ਸਾਫ਼ ਦਿਖਾਈ ਦੇਣ ਵਾਲੀ ਸੈਲਫੀ ਲਵੋ। ਪਛਾਣ ਦੀ ਪੁਸ਼ਟੀ ਲਈ ਫੋਟੋ ਇਸ ਚੈਕ ਇਨ ਜਾਂ ਚੈਕ ਆਉਟ ਨਾਲ ਜੋੜੀ ਜਾਵੇਗੀ।',
       selfieConfirmed: 'ਫੋਟੋ ਦੀ ਪੁਸ਼ਟੀ ਹੋਈ', openCamera: 'ਕੈਮਰਾ ਖੋਲ੍ਹੋ', takePhoto: 'ਫੋਟੋ ਲਵੋ', retakePhoto: 'ਫੋਟੋ ਦੁਬਾਰਾ ਲਵੋ', usePhoto: 'ਫੋਟੋ ਵਰਤੋ', photoUsed: 'ਫੋਟੋ ਚੁਣੀ ਗਈ',
       consentPrefix: 'ਮੈਂ ਸਹਿਮਤ ਹਾਂ', consentLink: 'ਡਾਟਾ ਪ੍ਰੋਸੈਸਿੰਗ', consentHint: 'ਪੁਸ਼ਟੀ ਕੀਤੀ ਸੈਲਫੀ ਇਸ ਚੈਕ ਇਨ ਜਾਂ ਚੈਕ ਆਉਟ ਨਾਲ ਜੋੜੀ ਜਾਵੇਗੀ।', consentRequired: 'ਹਾਜ਼ਰੀ ਲਈ ਡਾਟਾ ਪ੍ਰੋਸੈਸਿੰਗ ਦੀ ਸਹਿਮਤੀ ਦਿਓ।', selfieRequired: 'ਹਾਜ਼ਰੀ ਲਈ ਸੈਲਫੀ ਲੈ ਕੇ ਪੁਸ਼ਟੀ ਕਰੋ।', unfinishedTitle: 'ਹਾਜ਼ਰੀ ਪੂਰੀ ਨਹੀਂ ਹੋਈ',
+      pinFirst: 'ਪਹਿਲਾਂ ਪਿੰਨ ਦਾਖਲ ਕਰੋ।', cameraUnavailable: 'ਇਸ ਬਰਾਊਜ਼ਰ ਵਿੱਚ ਫੋਨ ਕੈਮਰਾ ਉਪਲਬਧ ਨਹੀਂ ਹੈ।', cameraNotReady: 'ਕੈਮਰਾ ਤਿਆਰ ਨਹੀਂ ਹੈ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।', cameraDenied: 'ਕੈਮਰਾ ਐਕਸੈਸ ਰੱਦ ਕੀਤਾ ਗਿਆ। ਬਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਆਗਿਆ ਦਿਓ।', cameraMissing: 'ਇਸ ਡਿਵਾਈਸ ਤੇ ਕੋਈ ਕੈਮਰਾ ਨਹੀਂ ਮਿਲਿਆ।',
       stepLanguage: 'ਭਾਸ਼ਾ ਚੁਣੋ',
       stepPin: 'ਪਿੰਨ ਦਾਖਲ ਕਰੋ',
       stepLocation: 'GPS ਥਾਂ',
@@ -330,6 +338,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       selfieTitle: 'सेल्फी जोड़ें', selfieDescription: 'उपस्थिति जारी रखने के लिए चेहरा साफ़ दिखने वाली सेल्फी लें। पहचान की पुष्टि के लिए फोटो इस चेक-इन या चेक-आउट से जोड़ी जाएगी।',
       selfieConfirmed: 'फोटो की पुष्टि हुई', openCamera: 'कैमरा खोलें', takePhoto: 'फोटो लें', retakePhoto: 'फोटो फिर लें', usePhoto: 'फोटो उपयोग करें', photoUsed: 'फोटो चुनी गई',
       consentPrefix: 'मैं सहमत हूँ', consentLink: 'डेटा प्रोसेसिंग', consentHint: 'पुष्टि की गई सेल्फी इस चेक-इन या चेक-आउट से जोड़ी जाएगी।', consentRequired: 'उपस्थिति के लिए डेटा प्रोसेसिंग की सहमति दें।', selfieRequired: 'उपस्थिति के लिए सेल्फी लेकर पुष्टि करें।', unfinishedTitle: 'उपस्थिति पूरी नहीं हुई',
+      pinFirst: 'पहले पिन दर्ज करें।', cameraUnavailable: 'इस ब्राउज़र में फोन का कैमरा उपलब्ध नहीं है।', cameraNotReady: 'कैमरा तैयार नहीं है। फिर प्रयास करें।', cameraDenied: 'कैमरा एक्सेस अस्वीकार हुआ। ब्राउज़र सेटिंग में अनुमति दें।', cameraMissing: 'इस डिवाइस पर कोई कैमरा उपलब्ध नहीं मिला।',
       stepLanguage: 'भाषा चुनें',
       stepPin: 'पिन दर्ज करें',
       stepLocation: 'GPS स्थान',
@@ -387,6 +396,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       selfieTitle: 'सेल्फी थप्नुहोस्', selfieDescription: 'हाजिरी जारी राख्न अनुहार स्पष्ट देखिने सेल्फी लिनुहोस्। पहिचान पुष्टि गर्न फोटो यस चेक इन वा चेक आउटसँग जोडिनेछ।',
       selfieConfirmed: 'फोटो पुष्टि भयो', openCamera: 'क्यामेरा खोल्नुहोस्', takePhoto: 'फोटो लिनुहोस्', retakePhoto: 'फोटो फेरि लिनुहोस्', usePhoto: 'फोटो प्रयोग गर्नुहोस्', photoUsed: 'फोटो चयन भयो',
       consentPrefix: 'म सहमत छु', consentLink: 'डेटा प्रशोधन', consentHint: 'पुष्टि गरिएको सेल्फी यस चेक इन वा चेक आउटसँग जोडिनेछ।', consentRequired: 'हाजिरीका लागि डेटा प्रशोधन स्वीकार गर्नुहोस्।', selfieRequired: 'हाजिरीका लागि सेल्फी लिएर पुष्टि गर्नुहोस्।', unfinishedTitle: 'हाजिरी पूरा भएन',
+      pinFirst: 'पहिले पिन हाल्नुहोस्।', cameraUnavailable: 'यो ब्राउजरमा फोनको क्यामेरा उपलब्ध छैन।', cameraNotReady: 'क्यामेरा तयार छैन। फेरि प्रयास गर्नुहोस्।', cameraDenied: 'क्यामेरा पहुँच अस्वीकार भयो। ब्राउजर सेटिङमा अनुमति दिनुहोस्।', cameraMissing: 'यस उपकरणमा उपलब्ध क्यामेरा भेटिएन।',
       stepLanguage: 'भाषा छान्नुहोस्',
       stepPin: 'पिन हाल्नुहोस्',
       stepLocation: 'GPS स्थान',
@@ -690,6 +700,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   setLanguage(code: LanguageCode): void {
     this.selectedLanguage = code;
     localStorage.setItem('clockinandout-language', code);
+    if (this.portalMode) localStorage.setItem('team-portal-language', code);
     this.updateZoneTooltip();
   }
 
@@ -875,13 +886,13 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     this.capturedSelfie = null;
     this.confirmedSelfie = null;
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      this.cameraError = 'Camera telefonului nu este disponibila in acest browser.';
+      this.cameraError = this.t.cameraUnavailable;
       return;
     }
 
     const video = this.cameraPreview?.nativeElement;
     if (!video) {
-      this.cameraError = 'Camera nu este pregatita. Reincarca pagina si incearca din nou.';
+      this.cameraError = this.t.cameraNotReady;
       return;
     }
 
@@ -900,15 +911,15 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     } catch (error: any) {
       this.stopCamera();
       this.cameraError = error?.name === 'NotAllowedError'
-        ? 'Accesul la camera a fost refuzat. Permite camera din setarile browserului.'
-        : 'Nu am gasit o camera disponibila pe acest dispozitiv.';
+        ? this.t.cameraDenied
+        : this.t.cameraMissing;
     }
   }
 
   captureSelfie(): void {
     const video = this.cameraPreview?.nativeElement;
     if (!video?.videoWidth || !video.videoHeight) {
-      this.cameraError = 'Camera nu este pregatita. Incearca din nou.';
+      this.cameraError = this.t.cameraNotReady;
       return;
     }
     const side = Math.min(video.videoWidth, video.videoHeight);

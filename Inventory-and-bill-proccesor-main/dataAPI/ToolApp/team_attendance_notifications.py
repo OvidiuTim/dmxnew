@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.utils.html import escape
 
 from ToolApp.models import (
+    AttendanceAbsenceMark,
     AttendanceSession,
     EmployeeTeam,
     LeaveDay,
@@ -64,7 +65,17 @@ def _missing_members(team, work_date):
         start_date__lte=work_date,
         end_date__gte=work_date,
     ).values_list("employee_id", flat=True)
-    return list(employees.exclude(pk__in=present_ids).exclude(pk__in=leave_ids).exclude(pk__in=approved_leave_ids).order_by("UserName"))
+    marked_absent_ids = AttendanceAbsenceMark.objects.filter(
+        work_date=work_date,
+        employee__in=employees,
+    ).values_list("employee_id", flat=True)
+    return list(
+        employees.exclude(pk__in=present_ids)
+        .exclude(pk__in=leave_ids)
+        .exclude(pk__in=approved_leave_ids)
+        .exclude(pk__in=marked_absent_ids)
+        .order_by("UserName")
+    )
 
 
 def _send_email(alert, recipients):
@@ -161,6 +172,10 @@ def create_team_attendance_alerts(work_date=None, send_email=True, send_push=Tru
                 TeamAttendanceAlertRecipient.objects.filter(pk__in=[row.pk for row in recipient_rows]).update(push_sent_at=now)
             summary["push"] += push_result["sent"]
         logger.info("Alertă pontaj creată pentru echipa=%s data=%s lipsă=%s", team.pk, work_date, len(missing))
+    # Păstrează un caz auditabil per angajat pentru pagina centrală „Alerte”.
+    # Importul local evită dependența circulară dintre serviciul inițial și escaladări.
+    from ToolApp.attendance_alert_escalation import sync_initial_alert_cases
+    sync_initial_alert_cases(work_date)
     return summary
 
 

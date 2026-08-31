@@ -82,6 +82,7 @@ export class FisaAngajatComponent implements OnInit {
   employeeDirectory: EmployeeProfile[] = [];
   directorySearch = '';
   private directorySearchTimer: ReturnType<typeof setTimeout> | null = null;
+  private directoryRequestId = 0;
   employee: EmployeeProfile | null = null;
   siteTools: EmployeeTool[] = [];
   ssmTools: EmployeeTool[] = [];
@@ -127,10 +128,12 @@ export class FisaAngajatComponent implements OnInit {
   }
 
   loadEmployeeDirectory(query = this.directorySearch): void {
+    const requestId = ++this.directoryRequestId;
     this.loading = true;
     this.error = null;
     this.api.getUsrList({ q: query, person_type: 'employee' }).subscribe({
       next: users => {
+        if (requestId !== this.directoryRequestId) return;
         this.employeeDirectory = (users ?? [])
           .filter((user: any) => (user.person_type || 'employee') === 'employee')
           .slice().sort((a: EmployeeProfile, b: EmployeeProfile) =>
@@ -139,6 +142,7 @@ export class FisaAngajatComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
+        if (requestId !== this.directoryRequestId) return;
         this.loading = false;
         this.error = 'Nu pot încărca lista angajaților.';
       }
@@ -361,6 +365,10 @@ export class FisaAngajatComponent implements OnInit {
 
   goBack(): void {
     this.router.navigate(['/pontaj']);
+  }
+
+  addEmployee(): void {
+    this.router.navigate(['/users/new']);
   }
 
   goToTools(): void {
