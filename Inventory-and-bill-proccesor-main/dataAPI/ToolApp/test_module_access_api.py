@@ -185,7 +185,15 @@ class ModuleAccessApiTests(TestCase):
         )
         self.assertEqual(
             [route["path"] for route in MODULE_DEFINITIONS["team_dashboard"]["routes"]],
-            ["/team-dashboard", "/team-dashboard/echipa-mea", "/team-dashboard/pontaj", "/team-dashboard/fisa-angajat", "/team-dashboard/notificari"],
+            [
+                "/team-dashboard",
+                "/team-dashboard/echipa-mea",
+                "/team-dashboard/pontaj",
+                "/team-dashboard/fisa-angajat",
+                "/team-dashboard/notificari",
+                "/team-dashboard/vezi-lipsa",
+                "/team-dashboard/lipsa-azi",
+            ],
         )
         self.assertEqual(
             [route["path"] for route in MODULE_DEFINITIONS["warehouse"]["routes"]],

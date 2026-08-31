@@ -102,3 +102,20 @@ button, select, a { font: inherit; }
   .brand-row small { max-width: 95px; font-size: 10px; }
   .language-field select { width: 112px; padding-left: 8px; }
 }
+
+/* Liste globale de lipsă pentru Nivel 1 și Nivel 2 */
+.action-card.wide-card{border-color:#ff9a9a}
+.locked-note{margin:0 0 14px;padding:11px 14px;border-radius:12px;background:rgba(255,154,154,.14);color:#c0392b;font-size:13px;font-weight:600}
+.detail-line{font-size:13px;color:#5d6b7f}
+.call-button.ghost{background:transparent;border:1px solid currentColor}
+.absent-card{border:1px solid #e2e8f2;border-radius:16px;padding:16px;margin-bottom:12px;background:#fff;display:grid;gap:10px}
+.absent-card header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.absent-card header strong{font-size:16px}
+.category-chip{padding:5px 10px;border-radius:999px;background:#eef2f8;color:#41506a;font-size:11px;font-weight:800;letter-spacing:.04em}
+.absent-card[data-category="marked_by_level_1"] .category-chip{background:#fff1e0;color:#a05a12}
+.absent-card[data-category="marked_by_team_leader"] .category-chip{background:#e9f1ff;color:#1f4f96}
+.absent-card[data-category="scheduled_0810"] .category-chip{background:#ffe9e9;color:#a92b2b}
+.absent-grid{display:grid;gap:6px;font-size:13px;color:#4a5769}
+.absent-card footer{display:flex;gap:10px;flex-wrap:wrap}
+.late-flag{display:flex;align-items:center;gap:6px;margin:0;font-size:13px;font-weight:700;color:#1f7a4d}
+.late-flag .material-symbols-rounded{font-size:18px}

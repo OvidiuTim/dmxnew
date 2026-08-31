@@ -56,6 +56,8 @@ export const routes: Routes = [
   { path: 'team-dashboard/attendance', redirectTo: 'team-dashboard/pontaj', pathMatch: 'full' },
   { path: 'team-dashboard/fisa-angajat', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/fisa-angajat', moduleCode: 'team_dashboard', portalView: 'salary' } },
   { path: 'team-dashboard/notificari', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/notificari', moduleCode: 'team_dashboard', portalView: 'notifications' } },
+  { path: 'team-dashboard/vezi-lipsa', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/vezi-lipsa', moduleCode: 'team_dashboard', portalView: 'missing' } },
+  { path: 'team-dashboard/lipsa-azi', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/lipsa-azi', moduleCode: 'team_dashboard', portalView: 'absent' } },
   { path: 'team-dashboard', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard', moduleCode: 'team_dashboard', portalView: 'home' } },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)

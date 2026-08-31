@@ -41,6 +41,8 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/team-dashboard/pontaj", "label": "Attendance", "icon": "schedule"},
             {"path": "/team-dashboard/fisa-angajat", "label": "Fișa angajatului", "icon": "badge"},
             {"path": "/team-dashboard/notificari", "label": "Notificări", "icon": "notifications"},
+            {"path": "/team-dashboard/vezi-lipsa", "label": "Vezi lipsă", "icon": "person_search"},
+            {"path": "/team-dashboard/lipsa-azi", "label": "Lipsă azi", "icon": "person_off"},
         ],
     }),
     ("warehouse", {
@@ -88,6 +90,17 @@ def app_user_roles(app_user):
         roles.append("team_leader")
     if employee.supervised_employee_teams.filter(active=True).exists():
         roles.append("supervisor")
+    from ToolApp.models import AttendanceAlertEscalationConfig
+    escalation_levels = set(
+        AttendanceAlertEscalationConfig.objects.filter(
+            app_user=app_user,
+            active=True,
+        ).values_list("level", flat=True)
+    )
+    if 1 in escalation_levels:
+        roles.append("alert_level_1")
+    if 2 in escalation_levels:
+        roles.append("alert_level_2")
     return roles
 
 
@@ -111,9 +124,12 @@ def effective_module_codes(app_user):
     codes = set(
         app_user.module_accesses.filter(can_access=True).values_list("module_code", flat=True)
     )
+    roles = set(app_user_roles(app_user))
     # Șefii și supervisorii păstrează accesul implicit necesar administrării echipelor lor.
-    if app_user_roles(app_user):
+    if roles.intersection({"team_leader", "supervisor"}):
         codes.add("teams_schedule")
+        codes.add("team_dashboard")
+    if roles.intersection({"alert_level_1", "alert_level_2"}):
         codes.add("team_dashboard")
     return [code for code in MODULE_ORDER if code in codes]
 

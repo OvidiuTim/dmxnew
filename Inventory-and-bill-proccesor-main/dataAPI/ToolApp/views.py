@@ -4232,6 +4232,8 @@ def _serialize_app_user(app_user):
         or app_user.employee.supervised_employee_teams.filter(active=True).exists()
     ):
         inherited_modules.extend(("teams_schedule", "team_dashboard"))
+    elif set(app_user_roles(app_user)).intersection({"alert_level_1", "alert_level_2"}):
+        inherited_modules.append("team_dashboard")
     coordinated_teams = list(
         EmployeeTeam.objects.filter(active=True).filter(
             Q(leader_id=app_user.employee_id) | Q(supervisor_id=app_user.employee_id)

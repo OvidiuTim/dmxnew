@@ -10,7 +10,8 @@ import { SharedService } from '../../shared.service';
 export class AttendanceAlertsComponent implements OnInit {
   data: any = null;
   configs: any[] = [];
-  selectedDate = this.todayISO();
+  // Pagina afișează întotdeauna ziua curentă: supraveghetorii sunt aceiași în fiecare zi.
+  private get selectedDate(): string { return this.todayISO(); }
   loading = false;
   saving = false;
   error = '';
@@ -57,11 +58,6 @@ export class AttendanceAlertsComponent implements OnInit {
   onRecipientChange(config: any): void {
     const selected = (this.data?.app_users || []).find((user: any) => Number(user.id) === Number(config.app_user_id));
     if (selected) config.email = selected.email || '';
-  }
-
-  changeDate(value: string): void {
-    this.selectedDate = value || this.todayISO();
-    this.load();
   }
 
   levelLabel(level: number): string {

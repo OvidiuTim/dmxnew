@@ -2,7 +2,6 @@
   <header class="page-header">
     <div><span class="eyebrow">Pontaj</span><h1>Alerte</h1><p>Configurează escaladările și urmărește situațiile de pontaj ale zilei.</p></div>
     <div class="header-actions">
-      <label class="date-field"><span>Data</span><input type="date" [ngModel]="selectedDate" (ngModelChange)="changeDate($event)"></label>
       <button class="btn secondary" type="button" (click)="goBack()"><span class="material-symbols-rounded">arrow_back</span>Prezență zilnică</button>
     </div>
   </header>
@@ -21,7 +20,7 @@
     </section>
 
     <section class="panel configuration">
-      <div class="panel-heading"><div><span>Europe/Bucharest</span><h2>Configurarea escaladărilor</h2></div><button class="btn primary" type="button" (click)="save()" [disabled]="saving"><span class="material-symbols-rounded">save</span>{{ saving ? 'Se salvează…' : 'Salvează configurația' }}</button></div>
+      <div class="panel-heading"><div><h2>Configurarea escaladărilor</h2></div><button class="btn primary" type="button" (click)="save()" [disabled]="saving"><span class="material-symbols-rounded">save</span>{{ saving ? 'Se salvează…' : 'Salvează configurația' }}</button></div>
       <div class="config-grid">
         <article class="config-card" *ngFor="let config of configs">
           <div class="config-title"><span>Nivel {{ config.level }}</span><label class="switch"><input type="checkbox" [(ngModel)]="config.active"><i></i>{{ config.active ? 'Activ' : 'Inactiv' }}</label></div>

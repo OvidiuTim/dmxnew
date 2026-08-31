@@ -1017,10 +1017,24 @@ class TeamAttendanceAlertRecipient(models.Model):
 
 
 class AttendanceAbsenceMark(models.Model):
+    class Source(models.TextChoices):
+        TEAM_LEADER = "team_leader", "Șef de echipă"
+        LEVEL_1 = "level_1", "Nivel 1"
+        AUTOMATIC_LEVEL_2 = "automatic_level_2", "Automat la Nivel 2"
+
     employee = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="attendance_absence_marks")
     team = models.ForeignKey(EmployeeTeam, on_delete=models.PROTECT, related_name="attendance_absence_marks")
     work_date = models.DateField(db_index=True)
-    marked_by = models.ForeignKey(AppUser, on_delete=models.PROTECT, related_name="attendance_absences_marked")
+    marked_by = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendance_absences_marked",
+    )
+    source = models.CharField(max_length=32, choices=Source.choices, default=Source.TEAM_LEADER)
+    escalation_level = models.PositiveSmallIntegerField(default=2)
+    locked_at = models.DateTimeField(null=True, blank=True)
     marked_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -1070,6 +1084,11 @@ class AttendanceAlertCase(models.Model):
         INACTIVE = "inactive", "Angajat inactiv"
         NO_LONGER_ELIGIBLE = "no_longer_eligible", "Nu mai este eligibil"
 
+    class EscalationSource(models.TextChoices):
+        SCHEDULED_0810 = "scheduled_0810", "Nepontat până la 08:10"
+        MARKED_BY_LEVEL_1 = "marked_by_level_1", "Marcat lipsă de Nivel 1"
+        MARKED_BY_TEAM_LEADER = "marked_by_team_leader", "Marcat lipsă de Șef echipă"
+
     employee = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="attendance_alert_cases")
     team = models.ForeignKey(EmployeeTeam, on_delete=models.PROTECT, related_name="attendance_alert_cases")
     work_date = models.DateField(db_index=True)
@@ -1078,6 +1097,16 @@ class AttendanceAlertCase(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
     resolution_method = models.CharField(max_length=32, choices=ResolutionMethod.choices, blank=True, default="")
+    escalation_source = models.CharField(max_length=40, choices=EscalationSource.choices, blank=True, default="")
+    escalated_at = models.DateTimeField(null=True, blank=True)
+    marked_absent_at = models.DateTimeField(null=True, blank=True)
+    escalated_by = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="escalated_attendance_alert_cases",
+    )
     resolved_by = models.ForeignKey(
         AppUser,
         on_delete=models.SET_NULL,
@@ -1142,6 +1171,17 @@ class AttendanceAlertRunLog(models.Model):
     class Meta:
         ordering = ("-started_at",)
         indexes = [models.Index(fields=("work_date", "level"), name="attendance_run_level_idx")]
+
+
+class AttendanceLateCheckinReport(models.Model):
+    work_date = models.DateField(unique=True)
+    recipient = models.ForeignKey(AppUser, on_delete=models.SET_NULL, null=True, blank=True)
+    email = models.EmailField(blank=True, default="")
+    employee_count = models.PositiveIntegerField(default=0)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class MobileDevice(models.Model):

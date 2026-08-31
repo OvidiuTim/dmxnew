@@ -2,7 +2,7 @@
   <header class="portal-header">
     <div class="brand-row">
       <span class="brand-mark">B</span>
-      <div><strong>bloom-in</strong><small>{{ t.roles }}</small></div>
+      <div><strong>bloom-in</strong><small>{{ roleLabel }}</small></div>
     </div>
     <label class="language-field">
       <span>{{ t.language }}</span>
@@ -47,6 +47,18 @@
           <span><strong>{{ t.employeeFile }}</strong><small>{{ t.salaryHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
+        <button *ngIf="isLevel2" type="button" class="action-card wide-card" (click)="open('absent')">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">person_off</span>
+          <span><strong>{{ t.absentToday }}</strong><small>{{ t.absentTodayHint }}</small></span>
+          <span *ngIf="dashboard.absent_today_count" class="count-badge">{{ dashboard.absent_today_count }}</span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </button>
+        <button *ngIf="isLevel1" type="button" class="action-card" (click)="open('missing')">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">person_search</span>
+          <span><strong>{{ t.seeMissing }}</strong><small>{{ t.seeMissingHint }}</small></span>
+          <span *ngIf="dashboard.missing_today_count" class="count-badge">{{ dashboard.missing_today_count }}</span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </button>
         <button type="button" class="action-card" (click)="open('notifications')">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">notifications</span>
           <span><strong>{{ t.notifications }}</strong><small>{{ t.notificationHint }}</small></span>
@@ -69,6 +81,7 @@
 
     <section *ngIf="view === 'team' && !loading" class="detail-section">
       <h1>{{ t.myTeam }}</h1>
+      <p *ngIf="teamsLocked" class="locked-note">{{ lockedNotice(teamsLockTime) }}</p>
       <article *ngFor="let team of teams" class="team-card">
         <h2>{{ team.name }}</h2>
         <p *ngIf="!team.members.length" class="empty-copy">{{ t.noMembers }}</p>
@@ -83,7 +96,7 @@
             <strong>{{ member.name }}</strong>
             <span>{{ t.phone }}: {{ member.phone || t.noPhone }}</span>
             <a *ngIf="member.phone" class="call-button" [href]="'tel:' + member.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
-            <button *ngIf="member.status === 'absent'" type="button" class="absent-button" (click)="markAbsent(member)" [disabled]="markingAbsentId === member.id">
+            <button *ngIf="member.status === 'absent' && !teamsLocked" type="button" class="absent-button" (click)="markAbsent(member)" [disabled]="markingAbsentId === member.id">
               <span class="material-symbols-rounded" aria-hidden="true">person_off</span>
               {{ markingAbsentId === member.id ? t.markingAbsent : t.markAbsent }}
             </button>
@@ -102,6 +115,59 @@
           <a *ngIf="employee.phone" [href]="'tel:' + employee.phone" class="small-call"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
         </div>
         <footer><time>{{ t.checkedAt }}: {{ notification.checked_at | date:'dd.MM.yyyy, HH:mm' }}</time><button *ngIf="!notification.is_read" type="button" (click)="markRead(notification)">{{ t.markRead }}</button></footer>
+      </article>
+    </section>
+
+    <section *ngIf="view === 'missing' && missing && !loading" class="detail-section">
+      <h1>{{ t.seeMissing }} <span *ngIf="missing.count" class="title-badge">{{ missing.count }}</span></h1>
+      <p class="detail-owner">{{ missing.date | date:'dd.MM.yyyy' }}</p>
+      <p *ngIf="missing.locked" class="locked-note">{{ lockedNotice(missing.lock_time) }}</p>
+      <p *ngIf="!missing.employees.length" class="empty-copy">{{ t.noMissing }}</p>
+      <div *ngFor="let person of missing.employees" class="member-row" [attr.data-status]="person.status">
+        <button type="button" class="member-summary" (click)="toggleMember(person.id)" [attr.aria-expanded]="openMemberId === person.id">
+          <span class="member-avatar"><img *ngIf="person.photo" [src]="person.photo" alt="" /><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span>
+          <span class="member-name">{{ person.name }}</span>
+          <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">error</span>{{ t.absent }}</span>
+          <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === person.id ? 'expand_less' : 'expand_more' }}</span>
+        </button>
+        <div *ngIf="openMemberId === person.id" class="member-detail">
+          <strong>{{ person.name }}</strong>
+          <span>{{ t.phone }}: {{ person.phone || t.noPhone }}</span>
+          <a *ngIf="person.phone" class="call-button" [href]="'tel:' + person.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
+          <button *ngIf="person.can_mark_absent" type="button" class="absent-button" (click)="markAbsent(person)" [disabled]="markingAbsentId === person.id">
+            <span class="material-symbols-rounded" aria-hidden="true">person_off</span>
+            {{ markingAbsentId === person.id ? t.markingAbsent : t.markAbsent }}
+          </button>
+          <span class="detail-line">{{ t.teamLabel }}: {{ person.team.name || t.noTeam }}</span>
+          <span class="detail-line" *ngIf="person.team.leader_name">{{ t.leaderLabel }}: {{ person.team.leader_name }}</span>
+          <span class="detail-line" *ngIf="person.team.leader_phone">{{ t.leaderPhone }}: {{ person.team.leader_phone }}</span>
+          <a *ngIf="person.team.leader_phone" class="call-button ghost" [href]="'tel:' + person.team.leader_phone"><span class="material-symbols-rounded" aria-hidden="true">support_agent</span>{{ t.callLeader }}</a>
+        </div>
+      </div>
+    </section>
+
+    <section *ngIf="view === 'absent' && absentToday && !loading" class="detail-section">
+      <h1>{{ t.absentToday }} <span *ngIf="absentToday.count" class="title-badge">{{ absentToday.count }}</span></h1>
+      <p class="detail-owner">{{ absentToday.date | date:'dd.MM.yyyy' }}</p>
+      <p *ngIf="!absentToday.employees.length" class="empty-copy">{{ t.noAbsent }}</p>
+      <article *ngFor="let person of absentToday.employees" class="absent-card" [attr.data-category]="person.category">
+        <header>
+          <strong>{{ person.name }}</strong>
+          <span class="category-chip">{{ person.category_label }}</span>
+        </header>
+        <div class="absent-grid">
+          <span>{{ t.phone }}: {{ person.phone || t.noPhone }}</span>
+          <span>{{ t.teamLabel }}: {{ person.team.name || t.noTeam }}</span>
+          <span *ngIf="person.team.leader_name">{{ t.leaderLabel }}: {{ person.team.leader_name }}</span>
+          <span *ngIf="person.team.leader_phone">{{ t.leaderPhone }}: {{ person.team.leader_phone }}</span>
+          <span>{{ t.markedBy }}: {{ person.marked_by }}</span>
+          <span *ngIf="person.marked_at">{{ t.markedAt }}: {{ person.marked_at | date:'HH:mm' }}</span>
+        </div>
+        <p *ngIf="person.checked_in_after_mark" class="late-flag"><span class="material-symbols-rounded" aria-hidden="true">schedule</span>{{ t.checkedInLater }}</p>
+        <footer>
+          <a *ngIf="person.phone" class="call-button" [href]="'tel:' + person.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
+          <a *ngIf="person.team.leader_phone" class="call-button ghost" [href]="'tel:' + person.team.leader_phone"><span class="material-symbols-rounded" aria-hidden="true">support_agent</span>{{ t.callLeader }}</a>
+        </footer>
       </article>
     </section>
   </section>

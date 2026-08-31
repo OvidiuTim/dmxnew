@@ -1,5 +1,5 @@
 import json
-from datetime import date, datetime
+from datetime import date, datetime, time
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -11,6 +11,8 @@ from ToolApp.models import (
     AppModuleAccess,
     AppUser,
     AttendanceAbsenceMark,
+    AttendanceAlertCase,
+    AttendanceAlertEscalationConfig,
     AttendanceSession,
     EmployeeTeam,
     EmployeeTeamMember,
@@ -174,6 +176,20 @@ class TeamAttendanceAlertTests(TestCase):
         EmployeeTeamMember.objects.create(team=self.team, employee=item)
         return item
 
+    def unlock_manual_marking(self):
+        """Mută ora Nivelului 2 la finalul zilei, ca marcarea manuală să fie permisă."""
+        AttendanceAlertEscalationConfig.objects.update_or_create(
+            level=2,
+            defaults={"role_name": "Nivel 2", "alert_time": time(23, 59), "active": True},
+        )
+
+    def lock_manual_marking(self):
+        """Ora Nivelului 2 în trecut: sistemul a trecut deja absențele automat."""
+        AttendanceAlertEscalationConfig.objects.update_or_create(
+            level=2,
+            defaults={"role_name": "Nivel 2", "alert_time": time(0, 1), "active": True},
+        )
+
     @patch("ToolApp.team_attendance_notifications.send_employee_push", return_value={"sent": 1, "invalid": 0, "failed": 0})
     @patch("ToolApp.team_attendance_notifications._send_email", return_value=True)
     def test_groups_missing_members_once_and_excludes_ineligible_people(self, email_mock, push_mock):
@@ -261,6 +277,7 @@ class TeamAttendanceAlertTests(TestCase):
         self.assertTrue(item["is_read"])
 
     def test_mark_absent_records_actor_updates_status_and_stops_alert(self):
+        self.unlock_manual_marking()
         missing = self.add_member("Absent confirmat", "07")
         account = AppUser(employee=self.manager, username="manager.portal")
         account.set_pin("3001")
@@ -282,6 +299,31 @@ class TeamAttendanceAlertTests(TestCase):
         self.assertFalse(alert.missing_employees.filter(pk=missing.pk).exists())
         teams = client.get("/api/team-portal/teams/").json()["teams"]
         self.assertEqual(next(item for item in teams[0]["members"] if item["id"] == missing.pk)["status"], "marked_absent")
+        # Marcarea de către șeful de echipă escaladează imediat cazul la Nivel 2.
+        case = AttendanceAlertCase.objects.get(employee=missing, work_date=today, level=AttendanceAlertCase.Level.LEVEL_2)
+        self.assertEqual(case.escalation_source, AttendanceAlertCase.EscalationSource.MARKED_BY_TEAM_LEADER)
+        self.assertIsNotNone(case.escalated_at)
+        self.assertEqual(mark.source, AttendanceAbsenceMark.Source.TEAM_LEADER)
+        self.assertEqual(mark.escalation_level, 2)
+        # Reapelarea nu creează duplicate pentru aceeași zi.
+        client.post(f"/api/team-portal/teams/members/{missing.pk}/absent/", data="{}", content_type="application/json")
+        self.assertEqual(AttendanceAbsenceMark.objects.filter(employee=missing, work_date=today).count(), 1)
+        self.assertEqual(
+            AttendanceAlertCase.objects.filter(employee=missing, work_date=today, level=AttendanceAlertCase.Level.LEVEL_2).count(),
+            1,
+        )
+
+    def test_manual_marking_is_locked_after_level_2_time(self):
+        self.lock_manual_marking()
+        missing = self.add_member("Blocat", "08")
+        account = AppUser(employee=self.manager, username="manager.locked")
+        account.set_pin("3001")
+        account.save()
+        client = Client()
+        client.cookies["appj"] = make_app_user_token(account)
+        response = client.post(f"/api/team-portal/teams/members/{missing.pk}/absent/", data="{}", content_type="application/json")
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(AttendanceAbsenceMark.objects.filter(employee=missing).exists())
 
     def test_cannot_mark_member_of_another_team_absent(self):
         outsider = employee("Altă echipă", "ALERT-X", "3999")
@@ -293,6 +335,7 @@ class TeamAttendanceAlertTests(TestCase):
         account.save()
         client = Client()
         client.cookies["appj"] = make_app_user_token(account)
+        self.unlock_manual_marking()
         response = client.post(f"/api/team-portal/teams/members/{outsider.pk}/absent/", data="{}", content_type="application/json")
         self.assertEqual(response.status_code, 403)
         self.assertFalse(AttendanceAbsenceMark.objects.filter(employee=outsider).exists())
