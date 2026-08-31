@@ -80,6 +80,8 @@ interface EmployeeTool {
 export class FisaAngajatComponent implements OnInit {
   userId: number | null = null;
   employeeDirectory: EmployeeProfile[] = [];
+  directorySearch = '';
+  private directorySearchTimer: ReturnType<typeof setTimeout> | null = null;
   employee: EmployeeProfile | null = null;
   siteTools: EmployeeTool[] = [];
   ssmTools: EmployeeTool[] = [];
@@ -124,10 +126,10 @@ export class FisaAngajatComponent implements OnInit {
     this.loadEmployeeSheet(parsedId);
   }
 
-  loadEmployeeDirectory(): void {
+  loadEmployeeDirectory(query = this.directorySearch): void {
     this.loading = true;
     this.error = null;
-    this.api.getUsrList().subscribe({
+    this.api.getUsrList({ q: query, person_type: 'employee' }).subscribe({
       next: users => {
         this.employeeDirectory = (users ?? [])
           .filter((user: any) => (user.person_type || 'employee') === 'employee')
@@ -141,6 +143,12 @@ export class FisaAngajatComponent implements OnInit {
         this.error = 'Nu pot încărca lista angajaților.';
       }
     });
+  }
+
+  onDirectorySearch(value: string): void {
+    this.directorySearch = value;
+    if (this.directorySearchTimer) clearTimeout(this.directorySearchTimer);
+    this.directorySearchTimer = setTimeout(() => this.loadEmployeeDirectory(value), 180);
   }
 
   openEmployeeSheet(employee: EmployeeProfile): void {

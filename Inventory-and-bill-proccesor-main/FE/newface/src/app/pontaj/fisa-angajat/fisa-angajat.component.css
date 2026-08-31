@@ -593,6 +593,10 @@
 .directory-header h1 { margin: 7px 0 6px; color: var(--text); font-size: clamp(29px, 4vw, 38px); }
 .directory-header p { margin: 0; color: var(--text-muted); font-size: 12px; }
 .directory-header button { min-height: 42px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); cursor: pointer; }
+.directory-search { min-height: 52px; margin-bottom: 18px; display: flex; align-items: center; gap: 11px; padding: 0 15px; border: 1px solid var(--border); border-radius: 13px; background: var(--card); color: var(--text-muted); }
+.directory-search .material-symbols-rounded { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; font-size: 21px; line-height: 1; }
+.directory-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; }
+.directory-search input::placeholder { color: var(--text-muted); }
 .directory-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
 .directory-grid button { min-height: 88px; display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 12px; padding: 15px; text-align: left; border: 1px solid var(--border); border-radius: 14px; background: var(--card); color: var(--text); cursor: pointer; transition: .17s; }
 .directory-grid button:hover { transform: translateY(-2px); border-color: var(--primary); background: var(--surface-hover); }

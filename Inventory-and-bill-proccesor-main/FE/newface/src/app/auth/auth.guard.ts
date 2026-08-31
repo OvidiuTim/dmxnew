@@ -24,7 +24,12 @@ export class AuthGuard implements CanActivate {
             ? this.router.parseUrl(fallback)
             : this.router.createUrlTree(['/no-access'], { queryParams: { reason: 'no-modules' } });
         }
-        if (!hasModule) return this.router.createUrlTree(['/no-access']);
+        if (!hasModule) {
+          const fallback = this.auth.firstAvailableModuleRoute(session);
+          return fallback
+            ? this.router.parseUrl(fallback)
+            : this.router.createUrlTree(['/no-access']);
+        }
         if (!requiresGranular) return true;
         const hasPage = session.can_access ?? !!session.permissions?.includes(permissionRoute);
         return hasPage ? true : this.router.createUrlTree(['/no-access']);

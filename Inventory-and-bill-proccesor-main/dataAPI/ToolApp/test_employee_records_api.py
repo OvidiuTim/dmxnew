@@ -61,6 +61,17 @@ class EmployeeRecordsApiTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["rows"][0]["trade"], "Dulgher")
 
+    def test_employee_directory_can_search_by_pin_without_exposing_it(self):
+        self.employee.set_pin("9417")
+        self.employee.save()
+        Users.objects.create(UserName="Alt Angajat", UserSerie="EMP-OTHER")
+
+        response = self.admin.get("/api/user/", {"q": "9417", "person_type": "employee"})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual([item["UserId"] for item in response.json()], [self.employee.pk])
+        self.assertNotIn("UserPin", response.json()[0])
+
     def test_employee_can_be_created_with_total_salary_in_ron(self):
         response = self.admin.post(
             "/api/user/",

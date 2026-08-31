@@ -2,6 +2,10 @@
   <header class="directory-header"><div><span>Personal</span><h1>Fișe angajați</h1><p>Selectează un angajat pentru profil, date generale și echipamentele alocate.</p></div><button type="button" (click)="goBack()">Înapoi la pontaj</button></header>
   <div class="state error" *ngIf="error">{{ error }}</div>
   <div class="state" *ngIf="loading">Se încarcă angajații…</div>
+  <label class="directory-search" *ngIf="!loading && !error">
+    <span class="material-symbols-rounded" aria-hidden="true">search</span>
+    <input type="search" [ngModel]="directorySearch" (ngModelChange)="onDirectorySearch($event)" placeholder="Caută după nume, prenume, serie, PIN sau firmă" aria-label="Caută angajat">
+  </label>
   <div class="directory-empty" *ngIf="!loading && !error && !activeEmployeeDirectory.length"><strong>Nu există angajați activi</strong><span>Adaugă primul angajat din pagina de pontaj.</span></div>
   <section class="directory-grid" *ngIf="!loading && activeEmployeeDirectory.length">
     <button type="button" *ngFor="let person of activeEmployeeDirectory" (click)="openEmployeeSheet(person)">

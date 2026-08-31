@@ -50,8 +50,12 @@ export const routes: Routes = [
   { path: 'clockinandoutdriver', component: ClockinandoutdriverComponent },
   { path: 'chef', component: ClockinandoutComponent, data: { chefMode: true } },
   { path: 'termeniigdpr', component: TermeniIgdprComponent },
-  { path: 'team-dashboard', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard', moduleCode: 'teams_schedule' } },
-  { path: 'team-dashboard/pontaj', component: ClockinandoutComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard', moduleCode: 'teams_schedule', portalMode: true } },
+  { path: 'team-dashboard/echipa-mea', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/echipa-mea', moduleCode: 'team_dashboard', portalView: 'team' } },
+  { path: 'team-dashboard/pontaj', component: ClockinandoutComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/pontaj', moduleCode: 'team_dashboard', portalMode: true } },
+  { path: 'team-dashboard/attendance', redirectTo: 'team-dashboard/pontaj', pathMatch: 'full' },
+  { path: 'team-dashboard/fisa-angajat', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/fisa-angajat', moduleCode: 'team_dashboard', portalView: 'salary' } },
+  { path: 'team-dashboard/notificari', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/notificari', moduleCode: 'team_dashboard', portalView: 'notifications' } },
+  { path: 'team-dashboard', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard', moduleCode: 'team_dashboard', portalView: 'home' } },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte', moduleCode: 'attendance' } },

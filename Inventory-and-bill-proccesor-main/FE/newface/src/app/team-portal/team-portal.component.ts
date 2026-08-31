@@ -1,11 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { AuthService } from '../auth/auth.service';
 
-type PortalLanguage = 'en' | 'pa' | 'hi' | 'ne';
+type PortalLanguage = 'ro' | 'en' | 'pa' | 'hi' | 'ne';
 type PortalView = 'home' | 'salary' | 'team' | 'notifications';
 interface PortalCopy {
   dashboard: string; welcome: string; language: string; attendance: string; employeeFile: string;
@@ -14,6 +15,7 @@ interface PortalCopy {
   lei: string; present: string; absent: string; leave: string; phone: string; call: string;
   noPhone: string; noMembers: string; noNotifications: string; checkedAt: string; markRead: string;
   read: string; unread: string; signOut: string; loading: string; retry: string; error: string; roles: string;
+  markAbsent: string; markedAbsent: string; confirmAbsent: string; markingAbsent: string; absentSaved: string;
 }
 
 @Component({
@@ -24,12 +26,23 @@ interface PortalCopy {
 export class TeamPortalComponent implements OnInit {
   private readonly api = `${window.location.origin}/api/team-portal`;
   readonly languages: Array<{ code: PortalLanguage; label: string }> = [
+    { code: 'ro', label: 'Română' },
     { code: 'en', label: 'English' },
     { code: 'pa', label: 'ਪੰਜਾਬੀ' },
     { code: 'hi', label: 'हिन्दी' },
     { code: 'ne', label: 'नेपाली' },
   ];
   readonly copy: Record<PortalLanguage, PortalCopy> = {
+    ro: {
+      dashboard: 'Dashboard echipă', welcome: 'Bine ai venit', language: 'Limbă', attendance: 'Pontaj', employeeFile: 'Fișa angajatului',
+      myTeam: 'Echipa mea', notifications: 'Notificări', clockHint: 'Fă check-in sau check-out pentru contul tău', salaryHint: 'Vezi sumarul salariului tău',
+      teamHint: 'Vezi numai echipele pe care le coordonezi', notificationHint: 'Membri fără pontaj până la 07:40', back: 'Înapoi la dashboard',
+      totalSalary: 'Salariu total', advance: 'Avans', settlement: 'Lichidare', lei: 'lei', present: 'Pontat', absent: 'Nepontat',
+      leave: 'În concediu', phone: 'Număr de telefon', call: 'Sună', noPhone: 'Fără număr de telefon', noMembers: 'Nu există membri.',
+      noNotifications: 'Nu există notificări de pontaj.', checkedAt: 'Verificat la', markRead: 'Marchează citită', read: 'Citită', unread: 'Necitită',
+      signOut: 'Deconectare', loading: 'Se încarcă…', retry: 'Reîncearcă', error: 'Informațiile nu au putut fi încărcate.', roles: 'Șef de echipă / Supervisor',
+      markAbsent: 'Marchează absent', markedAbsent: 'Absent', confirmAbsent: 'Confirmi marcarea ca absent pentru {name} astăzi?', markingAbsent: 'Se salvează…', absentSaved: 'Absența a fost salvată.',
+    },
     en: {
       dashboard: 'Team dashboard', welcome: 'Welcome', language: 'Language', attendance: 'Attendance', employeeFile: 'Employee file',
       myTeam: 'My team', notifications: 'Notifications', clockHint: 'Clock in or out for your own account', salaryHint: 'View your salary summary',
@@ -38,6 +51,7 @@ export class TeamPortalComponent implements OnInit {
       leave: 'On leave', phone: 'Phone number', call: 'Call', noPhone: 'No phone number', noMembers: 'No members found.',
       noNotifications: 'No attendance notifications.', checkedAt: 'Checked at', markRead: 'Mark as read', read: 'Read', unread: 'Unread',
       signOut: 'Sign out', loading: 'Loading…', retry: 'Retry', error: 'The information could not be loaded.', roles: 'Team leader / Supervisor',
+      markAbsent: 'Mark absent', markedAbsent: 'Absent', confirmAbsent: 'Mark {name} absent for today?', markingAbsent: 'Saving…', absentSaved: 'The absence was saved.',
     },
     pa: {
       dashboard: 'ਟੀਮ ਡੈਸ਼ਬੋਰਡ', welcome: 'ਜੀ ਆਇਆਂ ਨੂੰ', language: 'ਭਾਸ਼ਾ', attendance: 'ਹਾਜ਼ਰੀ', employeeFile: 'ਕਰਮਚਾਰੀ ਵੇਰਵਾ',
@@ -47,6 +61,7 @@ export class TeamPortalComponent implements OnInit {
       leave: 'ਛੁੱਟੀ ਤੇ', phone: 'ਫੋਨ ਨੰਬਰ', call: 'ਕਾਲ ਕਰੋ', noPhone: 'ਫੋਨ ਨੰਬਰ ਨਹੀਂ', noMembers: 'ਕੋਈ ਮੈਂਬਰ ਨਹੀਂ ਮਿਲਿਆ।',
       noNotifications: 'ਕੋਈ ਹਾਜ਼ਰੀ ਸੂਚਨਾ ਨਹੀਂ।', checkedAt: 'ਜਾਂਚ ਦਾ ਸਮਾਂ', markRead: 'ਪੜ੍ਹਿਆ ਨਿਸ਼ਾਨ ਲਗਾਓ', read: 'ਪੜ੍ਹਿਆ', unread: 'ਨਵੀਂ',
       signOut: 'ਲਾਗ ਆਉਟ', loading: 'ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…', retry: 'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼', error: 'ਜਾਣਕਾਰੀ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ।', roles: 'ਟੀਮ ਲੀਡਰ / ਸੁਪਰਵਾਈਜ਼ਰ',
+      markAbsent: 'ਗੈਰਹਾਜ਼ਰ ਨਿਸ਼ਾਨ ਲਗਾਓ', markedAbsent: 'ਗੈਰਹਾਜ਼ਰ', confirmAbsent: 'ਕੀ {name} ਨੂੰ ਅੱਜ ਗੈਰਹਾਜ਼ਰ ਨਿਸ਼ਾਨ ਲਗਾਉਣਾ ਹੈ?', markingAbsent: 'ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…', absentSaved: 'ਗੈਰਹਾਜ਼ਰੀ ਸੇਵ ਹੋ ਗਈ।',
     },
     hi: {
       dashboard: 'टीम डैशबोर्ड', welcome: 'स्वागत है', language: 'भाषा', attendance: 'उपस्थिति', employeeFile: 'कर्मचारी विवरण',
@@ -56,6 +71,7 @@ export class TeamPortalComponent implements OnInit {
       leave: 'छुट्टी पर', phone: 'फोन नंबर', call: 'कॉल करें', noPhone: 'फोन नंबर नहीं', noMembers: 'कोई सदस्य नहीं मिला।',
       noNotifications: 'कोई उपस्थिति सूचना नहीं।', checkedAt: 'जांच का समय', markRead: 'पढ़ा हुआ करें', read: 'पढ़ा हुआ', unread: 'नई',
       signOut: 'लॉग आउट', loading: 'लोड हो रहा है…', retry: 'फिर प्रयास करें', error: 'जानकारी लोड नहीं हो सकी।', roles: 'टीम लीडर / सुपरवाइज़र',
+      markAbsent: 'अनुपस्थित करें', markedAbsent: 'अनुपस्थित', confirmAbsent: 'क्या {name} को आज अनुपस्थित चिह्नित करना है?', markingAbsent: 'सहेजा जा रहा है…', absentSaved: 'अनुपस्थिति सहेजी गई।',
     },
     ne: {
       dashboard: 'टोली ड्यासबोर्ड', welcome: 'स्वागत छ', language: 'भाषा', attendance: 'हाजिरी', employeeFile: 'कर्मचारी विवरण',
@@ -65,6 +81,7 @@ export class TeamPortalComponent implements OnInit {
       leave: 'बिदामा', phone: 'फोन नम्बर', call: 'फोन गर्नुहोस्', noPhone: 'फोन नम्बर छैन', noMembers: 'कुनै सदस्य भेटिएन।',
       noNotifications: 'कुनै हाजिरी सूचना छैन।', checkedAt: 'जाँच समय', markRead: 'पढिएको चिन्ह लगाउनुहोस्', read: 'पढिएको', unread: 'नयाँ',
       signOut: 'लग आउट', loading: 'लोड हुँदैछ…', retry: 'फेरि प्रयास', error: 'जानकारी लोड हुन सकेन।', roles: 'टोली प्रमुख / सुपरभाइजर',
+      markAbsent: 'अनुपस्थित चिन्ह लगाउनुहोस्', markedAbsent: 'अनुपस्थित', confirmAbsent: 'के {name} लाई आज अनुपस्थित चिन्ह लगाउने?', markingAbsent: 'सुरक्षित हुँदैछ…', absentSaved: 'अनुपस्थिति सुरक्षित भयो।',
     },
   };
 
@@ -77,10 +94,15 @@ export class TeamPortalComponent implements OnInit {
   loading = true;
   error = '';
   openMemberId: number | null = null;
+  markingAbsentId: number | null = null;
+  notice = '';
 
-  constructor(private http: HttpClient, private auth: AuthService, private router: Router) {}
+  constructor(private http: HttpClient, private auth: AuthService, private router: Router, private route: ActivatedRoute) {}
 
-  ngOnInit(): void { this.loadHome(); }
+  ngOnInit(): void {
+    this.view = (this.route.snapshot.data['portalView'] || 'home') as PortalView;
+    this.loadCurrentView();
+  }
   get t(): PortalCopy { return this.copy[this.language]; }
   get unreadCount(): number { return this.notifications.filter(item => !item.is_read).length || Number(this.dashboard?.unread_notifications || 0); }
 
@@ -91,20 +113,29 @@ export class TeamPortalComponent implements OnInit {
   }
 
   open(view: PortalView): void {
-    this.view = view;
+    const paths: Record<PortalView, string> = {
+      home: '/team-dashboard', salary: '/team-dashboard/fisa-angajat', team: '/team-dashboard/echipa-mea', notifications: '/team-dashboard/notificari'
+    };
+    void this.router.navigateByUrl(paths[view]);
+  }
+
+  loadCurrentView(): void {
+    if (this.view === 'home') {
+      this.loadHome();
+      return;
+    }
     this.error = '';
-    if (view === 'home') return;
     this.loading = true;
-    const source = view === 'salary'
+    const source = this.view === 'salary'
       ? this.http.get<any>(`${this.api}/salary/`)
-      : view === 'team'
+      : this.view === 'team'
         ? this.http.get<any>(`${this.api}/teams/`)
         : this.http.get<any>(`${this.api}/notifications/`);
     source.subscribe({
       next: response => {
-        if (view === 'salary') this.salary = response;
-        if (view === 'team') this.teams = response.teams || [];
-        if (view === 'notifications') {
+        if (this.view === 'salary') this.salary = response;
+        if (this.view === 'team') this.teams = response.teams || [];
+        if (this.view === 'notifications') {
           this.notifications = response.notifications || [];
           if (this.dashboard) this.dashboard.unread_notifications = response.unread_count || 0;
         }
@@ -132,6 +163,27 @@ export class TeamPortalComponent implements OnInit {
 
   toggleMember(id: number): void { this.openMemberId = this.openMemberId === id ? null : id; }
 
+  markAbsent(member: any): void {
+    if (!window.confirm(this.t.confirmAbsent.replace('{name}', member.name))) return;
+    this.markingAbsentId = member.id;
+    this.error = '';
+    this.http.post<any>(`${this.api}/teams/members/${member.id}/absent/`, {}).subscribe({
+      next: response => {
+        member.status = response.status;
+        this.markingAbsentId = null;
+        this.notice = this.t.absentSaved;
+        this.notifications = this.notifications
+          .map(item => ({ ...item, employees: item.employees.filter((employee: any) => employee.id !== member.id) }))
+          .filter(item => item.employees.length);
+        if (this.dashboard) this.dashboard.unread_notifications = this.notifications.filter(item => !item.is_read).length;
+      },
+      error: response => {
+        this.markingAbsentId = null;
+        this.error = response?.error?.error || this.t.error;
+      },
+    });
+  }
+
   markRead(notification: any): void {
     this.http.post<any>(`${this.api}/notifications/`, { notification_ids: [notification.id] }).subscribe({
       next: response => {
@@ -144,6 +196,7 @@ export class TeamPortalComponent implements OnInit {
   statusLabel(status: string): string {
     if (status === 'present') return this.t.present;
     if (status === 'leave') return this.t.leave;
+    if (status === 'marked_absent') return this.t.markedAbsent;
     return this.t.absent;
   }
   statusIcon(status: string): string { return status === 'present' ? 'check_circle' : status === 'leave' ? 'beach_access' : 'error'; }
@@ -155,6 +208,6 @@ export class TeamPortalComponent implements OnInit {
 
   private readLanguage(): PortalLanguage {
     const saved = localStorage.getItem('team-portal-language');
-    return saved === 'pa' || saved === 'hi' || saved === 'ne' ? saved : 'en';
+    return saved === 'ro' || saved === 'pa' || saved === 'hi' || saved === 'ne' ? saved : 'en';
   }
 }

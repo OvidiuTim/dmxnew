@@ -7,14 +7,16 @@ from django.views.decorators.csrf import csrf_exempt
 
 from ToolApp.models import (
     AppUser,
+    AttendanceAbsenceMark,
     AttendanceSession,
     EmployeeTeam,
     LeaveDay,
     TeamAttendanceAlertRecipient,
     Users,
 )
-from ToolApp.module_access import app_user_roles
+from ToolApp.module_access import app_user_has_module, app_user_roles
 from ToolApp.security import get_app_user_from_request
+from ToolApp.team_attendance_notifications import ensure_team_attendance_alerts_due
 from ToolApp.views import nfc_scan
 from ToolApp.worksites import ACCEPTED_WORKSITES
 
@@ -27,7 +29,7 @@ def _portal_actor(request):
     app_user = getattr(request, "app_user", None) or get_app_user_from_request(request)
     if not app_user or not app_user.is_active:
         return None
-    if not app_user_roles(app_user):
+    if not app_user_has_module(app_user, "team_dashboard"):
         return None
     return app_user
 
@@ -40,17 +42,19 @@ def _coordinated_teams(app_user):
 
 def _presence_status(employee_ids, day=None):
     day = day or timezone.localdate()
-    leave_ids = set(LeaveDay.objects.filter(
+    leave_rows = dict(LeaveDay.objects.filter(
         work_date=day,
         user_fk_id__in=employee_ids,
-    ).values_list("user_fk_id", flat=True))
+    ).values_list("user_fk_id", "reason"))
     attendance_ids = set(AttendanceSession.objects.filter(
         work_date=day,
         user_fk_id__in=employee_ids,
+        in_time__isnull=False,
     ).values_list("user_fk_id", flat=True))
     return {
         employee_id: (
-            "leave" if employee_id in leave_ids
+            "marked_absent" if leave_rows.get(employee_id) == LeaveDay.Reason.UNEXCUSED
+            else "leave" if employee_id in leave_rows
             else "present" if employee_id in attendance_ids
             else "absent"
         )
@@ -74,13 +78,16 @@ def portal_dashboard(request):
         return _error("Metodă nepermisă.", 405)
     app_user = _portal_actor(request)
     if not app_user:
-        return _error("Doar șefii de echipă și supervisorii pot accesa acest dashboard.", 403)
+        return _error("Nu ai acces la Team Dashboard.", 403)
     teams = list(_coordinated_teams(app_user))
     own_status = _presence_status([app_user.employee_id]).get(app_user.employee_id, "absent")
+    ensure_team_attendance_alerts_due()
     unread = TeamAttendanceAlertRecipient.objects.filter(
         employee_id=app_user.employee_id,
         read_at__isnull=True,
-    ).count()
+        alert__missing_employees__active=True,
+        alert__missing_employees__employment_status=Users.EmploymentStatus.ACTIVE,
+    ).distinct().count()
     return JsonResponse({
         "employee": {
             "id": app_user.employee_id,
@@ -177,10 +184,14 @@ def portal_notifications(request):
     app_user = _portal_actor(request)
     if not app_user:
         return _error("Acces interzis.", 403)
+    if request.method == "GET":
+        ensure_team_attendance_alerts_due()
     query = TeamAttendanceAlertRecipient.objects.filter(
         employee_id=app_user.employee_id,
         alert__team__in=_coordinated_teams(app_user),
-    ).select_related("alert__team").prefetch_related("alert__missing_employees")
+        alert__missing_employees__active=True,
+        alert__missing_employees__employment_status=Users.EmploymentStatus.ACTIVE,
+    ).distinct().select_related("alert__team").prefetch_related("alert__missing_employees")
     if request.method == "GET":
         items = [_notification_payload(item) for item in query.order_by("-alert__created_at")]
         return JsonResponse({
@@ -199,6 +210,62 @@ def portal_notifications(request):
     return JsonResponse({
         "updated": updated,
         "unread_count": query.filter(read_at__isnull=True).count(),
+    })
+
+
+@csrf_exempt
+def portal_mark_absent(request, employee_id):
+    if request.method != "POST":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user:
+        return _error("Acces interzis.", 403)
+    team = _coordinated_teams(app_user).filter(
+        memberships__employee_id=employee_id,
+        memberships__active=True,
+    ).distinct().first()
+    if not team:
+        return _error("Poți marca absent doar un membru al echipei coordonate.", 403)
+    day = timezone.localdate()
+    employee = Users.objects.filter(
+        pk=employee_id,
+        active=True,
+        employment_status=Users.EmploymentStatus.ACTIVE,
+    ).first()
+    if not employee:
+        return _error("Angajatul nu există sau este inactiv.", 404)
+    if AttendanceSession.objects.filter(user_fk=employee, work_date=day).exists():
+        return _error("Angajatul are deja pontaj în ziua curentă.", 409)
+    existing_leave = LeaveDay.objects.filter(user_fk=employee, work_date=day).first()
+    if existing_leave and existing_leave.reason != LeaveDay.Reason.UNEXCUSED:
+        return _error("Angajatul are deja un concediu înregistrat pentru ziua curentă.", 409)
+    leave, _ = LeaveDay.objects.update_or_create(
+        user_fk=employee,
+        work_date=day,
+        defaults={
+            "reason": LeaveDay.Reason.UNEXCUSED,
+            "hours": 8,
+            "multiplier": 0,
+            "hourly_rate_snapshot": employee.hourly_rate or 0,
+            "pay_amount": 0,
+            "note": f"Marcat absent de {app_user.employee.UserName}",
+        },
+    )
+    mark, _ = AttendanceAbsenceMark.objects.get_or_create(
+        employee=employee,
+        work_date=day,
+        defaults={"team": team, "marked_by": app_user},
+    )
+    for alert in team.attendance_alerts.filter(work_date=day):
+        alert.missing_employees.remove(employee)
+    return JsonResponse({
+        "employee_id": employee.pk,
+        "status": "marked_absent",
+        "status_label": "Absent",
+        "work_date": day.isoformat(),
+        "marked_at": mark.marked_at.isoformat(),
+        "marked_by": {"id": app_user.employee_id, "name": app_user.employee.UserName},
+        "leave_day_id": leave.pk,
     })
 
 

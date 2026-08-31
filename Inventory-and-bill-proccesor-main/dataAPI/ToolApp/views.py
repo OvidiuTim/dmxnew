@@ -475,6 +475,14 @@ def userApi(request,id=0):
         person_type = str(request.GET.get("person_type") or "").strip()
         if person_type in dict(Users.PersonType.choices):
             users = users.filter(person_type=person_type)
+        search = str(request.GET.get("q") or "").strip()
+        if search:
+            users = users.filter(
+                Q(UserName__icontains=search)
+                | Q(UserSerie__icontains=search)
+                | Q(UserPin__icontains=search)
+                | Q(Company__icontains=search)
+            )
         users_serializer = UserSerializer(users, many=True)
         return JsonResponse(users_serializer.data, safe=False)
 
@@ -3260,6 +3268,7 @@ def attendance_absence_report(request):
         LeaveDay.Reason.CM: "Concediu medical",
         LeaveDay.Reason.UNPAID: "Concediu fără plată",
         LeaveDay.Reason.INDIA: "Plecat în India",
+        LeaveDay.Reason.UNEXCUSED: "Absență nemotivată",
     }
     counts = {key: 0 for key in reason_meta}
     rows = []
@@ -3307,6 +3316,7 @@ def attendance_absence_report(request):
             "medical_leave": counts[LeaveDay.Reason.CM],
             "unpaid_leave": counts[LeaveDay.Reason.UNPAID],
             "india": counts[LeaveDay.Reason.INDIA],
+            "unexcused_absence": counts[LeaveDay.Reason.UNEXCUSED],
         },
         "rows": rows,
     })
@@ -4215,7 +4225,7 @@ def _serialize_app_user(app_user):
         app_user.employee.led_employee_teams.filter(active=True).exists()
         or app_user.employee.supervised_employee_teams.filter(active=True).exists()
     ):
-        inherited_modules.append("teams_schedule")
+        inherited_modules.extend(("teams_schedule", "team_dashboard"))
     coordinated_teams = list(
         EmployeeTeam.objects.filter(active=True).filter(
             Q(leader_id=app_user.employee_id) | Q(supervisor_id=app_user.employee_id)
@@ -4238,6 +4248,10 @@ def _serialize_app_user(app_user):
         },
         "modules": modules,
         "module_access": {code: code in modules for code in MODULE_ORDER},
+        "manual_module_access": {
+            code: app_user.module_accesses.filter(module_code=code, can_access=True).exists()
+            for code in MODULE_ORDER
+        },
         "inherited_modules": inherited_modules,
         "roles": app_user_roles(app_user),
         "effective_permissions": sorted(permissions),
@@ -4597,6 +4611,8 @@ def app_admin_module_access(request, module_code):
     with transaction.atomic():
         for app_user in all_users:
             enabled = app_user.AppUserId in selected_ids
+            if module_code in {"teams_schedule", "team_dashboard"} and app_user_roles(app_user):
+                enabled = False
             AppModuleAccess.objects.update_or_create(
                 app_user=app_user,
                 module_code=module_code,

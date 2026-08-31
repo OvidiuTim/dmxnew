@@ -3,7 +3,7 @@ from datetime import date
 
 from django.core.management.base import BaseCommand, CommandError
 
-from ToolApp.team_attendance_notifications import create_team_attendance_alerts
+from ToolApp.team_attendance_notifications import create_team_attendance_alerts, ensure_team_attendance_alerts_due
 
 
 class Command(BaseCommand):
@@ -19,9 +19,15 @@ class Command(BaseCommand):
             work_date = date.fromisoformat(options["date"]) if options.get("date") else None
         except ValueError as exc:
             raise CommandError("--date trebuie să fie în format YYYY-MM-DD.") from exc
-        summary = create_team_attendance_alerts(
-            work_date=work_date,
-            send_email=not options["no_email"],
-            send_push=not options["no_push"],
-        )
+        if work_date is None:
+            summary = ensure_team_attendance_alerts_due(
+                send_email=not options["no_email"],
+                send_push=not options["no_push"],
+            )
+        else:
+            summary = create_team_attendance_alerts(
+                work_date=work_date,
+                send_email=not options["no_email"],
+                send_push=not options["no_push"],
+            )
         self.stdout.write(json.dumps(summary, ensure_ascii=False, sort_keys=True))

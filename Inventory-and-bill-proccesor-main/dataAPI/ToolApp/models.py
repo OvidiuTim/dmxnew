@@ -314,6 +314,7 @@ class AppModuleAccess(models.Model):
     class ModuleCode(models.TextChoices):
         ATTENDANCE = "attendance", "Pontaj"
         TEAMS_SCHEDULE = "teams_schedule", "Echipe și program"
+        TEAM_DASHBOARD = "team_dashboard", "Team Dashboard"
         WAREHOUSE = "warehouse", "Magazie"
         TOOLS = "tools", "Unelte"
 
@@ -1012,6 +1013,23 @@ class TeamAttendanceAlertRecipient(models.Model):
         ]
         indexes = [
             models.Index(fields=("employee", "read_at"), name="attendance_alert_unread_idx"),
+        ]
+
+
+class AttendanceAbsenceMark(models.Model):
+    employee = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="attendance_absence_marks")
+    team = models.ForeignKey(EmployeeTeam, on_delete=models.PROTECT, related_name="attendance_absence_marks")
+    work_date = models.DateField(db_index=True)
+    marked_by = models.ForeignKey(AppUser, on_delete=models.PROTECT, related_name="attendance_absences_marked")
+    marked_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-work_date", "employee__UserName")
+        constraints = [
+            models.UniqueConstraint(fields=("employee", "work_date"), name="unique_employee_absence_mark_day"),
+        ]
+        indexes = [
+            models.Index(fields=("team", "work_date"), name="team_absence_mark_day_idx"),
         ]
 
 

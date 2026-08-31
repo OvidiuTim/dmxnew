@@ -4,6 +4,7 @@ from django.utils import timezone
 from ToolApp.models import (
     Accommodation,
     AccommodationRoom,
+    AttendanceAbsenceMark,
     EmployeeDocument,
     EmployeeDocumentType,
     EmployeeSalaryProfile,
@@ -19,6 +20,13 @@ from ToolApp.models import (
     Tools,
     Users,
 )
+
+
+@admin.register(AttendanceAbsenceMark)
+class AttendanceAbsenceMarkAdmin(admin.ModelAdmin):
+    list_display = ("employee", "team", "work_date", "marked_by", "marked_at")
+    list_filter = ("work_date", "team")
+    search_fields = ("employee__UserName", "team__name", "marked_by__username")
 
 
 @admin.register(TeamAttendanceAlert)

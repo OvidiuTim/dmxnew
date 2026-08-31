@@ -1,6 +1,7 @@
 import json
-from datetime import date
+from datetime import date, datetime
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 from django.test import Client, TestCase, override_settings
 
@@ -8,6 +9,7 @@ from ToolApp.app_accounts import sync_employee_app_user
 from ToolApp.models import (
     AppModuleAccess,
     AppUser,
+    AttendanceAbsenceMark,
     AttendanceSession,
     EmployeeTeam,
     EmployeeTeamMember,
@@ -20,7 +22,7 @@ from ToolApp.models import (
 from ToolApp.module_access import app_user_roles, effective_module_codes
 from ToolApp.security import make_app_user_token
 from ToolApp.push_notifications import send_employee_push
-from ToolApp.team_attendance_notifications import create_team_attendance_alerts
+from ToolApp.team_attendance_notifications import create_team_attendance_alerts, ensure_team_attendance_alerts_due
 
 
 def employee(name, serie, pin):
@@ -77,6 +79,7 @@ class EffectiveTeamPermissionTests(TestCase):
     def test_same_person_has_both_roles_and_all_team_pages(self):
         self.assertEqual(app_user_roles(self.account), ["team_leader", "supervisor"])
         self.assertIn("teams_schedule", effective_module_codes(self.account))
+        self.assertIn("team_dashboard", effective_module_codes(self.account))
         client = Client()
         client.cookies["appj"] = make_app_user_token(self.account)
         for route in ("/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/echipe-azi", "/pontaj/personal", "/pontaj/notificari"):
@@ -88,10 +91,14 @@ class EffectiveTeamPermissionTests(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertTrue(response.json()["can_access"])
 
+        portal = client.get("/api/team-portal/dashboard/")
+        self.assertEqual(portal.status_code, 200, portal.content)
+
     def test_role_removal_removes_only_inherited_access(self):
         self.team.active = False
         self.team.save(update_fields=("active",))
         self.assertNotIn("teams_schedule", effective_module_codes(self.account))
+        self.assertNotIn("team_dashboard", effective_module_codes(self.account))
         AppModuleAccess.objects.create(app_user=self.account, module_code="teams_schedule", can_access=True)
         self.assertIn("teams_schedule", effective_module_codes(self.account))
 
@@ -106,6 +113,32 @@ class EffectiveTeamPermissionTests(TestCase):
         response = client.get("/api/teams/")
         self.assertEqual(response.status_code, 200, response.content)
         self.assertTrue(response.json()["permissions"]["can_manage_all"])
+
+    def test_manual_team_dashboard_permission_allows_own_data_without_team_data(self):
+        other = employee("Portal manual", "ROLE-3", "2003")
+        account = AppUser(employee=other, username="portal.manual")
+        account.set_pin("2003")
+        account.save()
+        AppModuleAccess.objects.create(app_user=account, module_code="team_dashboard", can_access=True)
+        client = Client()
+        client.cookies["appj"] = make_app_user_token(account)
+
+        dashboard = client.get("/api/team-portal/dashboard/")
+        salary = client.get("/api/team-portal/salary/")
+        teams = client.get("/api/team-portal/teams/")
+
+        self.assertEqual(dashboard.status_code, 200, dashboard.content)
+        self.assertEqual(salary.status_code, 200, salary.content)
+        self.assertEqual(teams.json()["teams"], [])
+
+    def test_user_without_role_or_manual_access_cannot_open_portal(self):
+        other = employee("Fără acces", "ROLE-4", "2004")
+        account = AppUser(employee=other, username="no.portal")
+        account.set_pin("2004")
+        account.save()
+        client = Client()
+        client.cookies["appj"] = make_app_user_token(account)
+        self.assertEqual(client.get("/api/team-portal/dashboard/").status_code, 403)
 
 
 @override_settings(TEAM_ALERT_NON_WORKING_WEEKDAYS=(7,), TEAM_ALERT_NON_WORKING_DATES=())
@@ -166,6 +199,60 @@ class TeamAttendanceAlertTests(TestCase):
         result = create_team_attendance_alerts(date(2026, 8, 30), send_email=False, send_push=False)
         self.assertTrue(result["skipped_non_working_day"])
         self.assertFalse(TeamAttendanceAlert.objects.exists())
+
+    @patch("ToolApp.team_attendance_notifications._send_email", return_value=False)
+    def test_due_time_is_bucharest_0740_and_is_idempotent(self, _email_mock):
+        missing = self.add_member("Nepontat la timp", "06")
+        tz = ZoneInfo("Europe/Bucharest")
+
+        early = ensure_team_attendance_alerts_due(datetime(2026, 8, 27, 7, 39, tzinfo=tz), send_email=False, send_push=False)
+        self.assertTrue(early["before_alert_time"])
+        self.assertFalse(TeamAttendanceAlert.objects.exists())
+
+        due = ensure_team_attendance_alerts_due(datetime(2026, 8, 27, 7, 40, tzinfo=tz), send_email=False, send_push=False)
+        duplicate = ensure_team_attendance_alerts_due(datetime(2026, 8, 27, 8, 0, tzinfo=tz), send_email=False, send_push=False)
+        self.assertEqual(due["created"], 1)
+        self.assertEqual(duplicate["duplicates"], 1)
+        alert = TeamAttendanceAlert.objects.get(team=self.team, work_date=self.day)
+        self.assertIn(missing, alert.missing_employees.all())
+        self.assertEqual(alert.recipients.filter(employee=self.manager).count(), 1)
+
+    def test_mark_absent_records_actor_updates_status_and_stops_alert(self):
+        missing = self.add_member("Absent confirmat", "07")
+        account = AppUser(employee=self.manager, username="manager.portal")
+        account.set_pin("3001")
+        account.save()
+        today = date.today()
+        alert = TeamAttendanceAlert.objects.create(team=self.team, work_date=today)
+        alert.missing_employees.add(missing)
+        TeamAttendanceAlertRecipient.objects.create(alert=alert, employee=self.manager)
+        client = Client()
+        client.cookies["appj"] = make_app_user_token(account)
+
+        response = client.post(f"/api/team-portal/teams/members/{missing.pk}/absent/", data="{}", content_type="application/json")
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["status"], "marked_absent")
+        self.assertTrue(LeaveDay.objects.filter(user_fk=missing, work_date=today, reason=LeaveDay.Reason.UNEXCUSED).exists())
+        mark = AttendanceAbsenceMark.objects.get(employee=missing, work_date=today)
+        self.assertEqual(mark.marked_by, account)
+        self.assertFalse(alert.missing_employees.filter(pk=missing.pk).exists())
+        teams = client.get("/api/team-portal/teams/").json()["teams"]
+        self.assertEqual(next(item for item in teams[0]["members"] if item["id"] == missing.pk)["status"], "marked_absent")
+
+    def test_cannot_mark_member_of_another_team_absent(self):
+        outsider = employee("Altă echipă", "ALERT-X", "3999")
+        other_leader = employee("Alt lider", "ALERT-L", "3998")
+        other_team = EmployeeTeam.objects.create(name="Altă echipă", leader=other_leader, supervisor=other_leader)
+        EmployeeTeamMember.objects.create(team=other_team, employee=outsider)
+        account = AppUser(employee=self.manager, username="manager.denied")
+        account.set_pin("3001")
+        account.save()
+        client = Client()
+        client.cookies["appj"] = make_app_user_token(account)
+        response = client.post(f"/api/team-portal/teams/members/{outsider.pk}/absent/", data="{}", content_type="application/json")
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(AttendanceAbsenceMark.objects.filter(employee=outsider).exists())
 
 
 class MobileRoleAndNotificationApiTests(TestCase):

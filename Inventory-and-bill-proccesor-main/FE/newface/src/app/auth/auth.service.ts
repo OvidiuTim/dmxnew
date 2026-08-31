@@ -23,6 +23,7 @@ export interface AuthSession {
 export class AuthService {
   readonly moduleRoutes: Record<string, string> = {
     attendance: '/dashboard',
+    team_dashboard: '/team-dashboard',
     teams_schedule: '/pontaj/echipe',
     warehouse: '/magazie',
     tools: '/unelte'

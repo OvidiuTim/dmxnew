@@ -199,6 +199,7 @@ urlpatterns = [
     path('api/team-portal/dashboard/', team_portal_views.portal_dashboard, name='team_portal_dashboard'),
     path('api/team-portal/salary/', team_portal_views.portal_salary, name='team_portal_salary'),
     path('api/team-portal/teams/', team_portal_views.portal_teams, name='team_portal_teams'),
+    path('api/team-portal/teams/members/<int:employee_id>/absent/', team_portal_views.portal_mark_absent, name='team_portal_mark_absent'),
     path('api/team-portal/notifications/', team_portal_views.portal_notifications, name='team_portal_notifications'),
     path('api/team-portal/worksites/', team_portal_views.portal_worksites, name='team_portal_worksites'),
     path('api/team-portal/attendance/', team_portal_views.portal_attendance, name='team_portal_attendance'),

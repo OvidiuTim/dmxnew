@@ -18,7 +18,8 @@
     </button>
 
     <div *ngIf="loading" class="state-card">{{ t.loading }}</div>
-    <div *ngIf="error && !loading" class="state-card error-state">{{ error }} <button type="button" (click)="view === 'home' ? loadHome() : open(view)">{{ t.retry }}</button></div>
+    <div *ngIf="notice && !loading" class="state-card success-state">{{ notice }}</div>
+    <div *ngIf="error && !loading" class="state-card error-state">{{ error }} <button type="button" (click)="loadCurrentView()">{{ t.retry }}</button></div>
 
     <ng-container *ngIf="view === 'home' && dashboard && !loading">
       <div class="welcome-block">
@@ -82,6 +83,10 @@
             <strong>{{ member.name }}</strong>
             <span>{{ t.phone }}: {{ member.phone || t.noPhone }}</span>
             <a *ngIf="member.phone" class="call-button" [href]="'tel:' + member.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
+            <button *ngIf="member.status === 'absent'" type="button" class="absent-button" (click)="markAbsent(member)" [disabled]="markingAbsentId === member.id">
+              <span class="material-symbols-rounded" aria-hidden="true">person_off</span>
+              {{ markingAbsentId === member.id ? t.markingAbsent : t.markAbsent }}
+            </button>
           </div>
         </div>
       </article>

@@ -29,7 +29,9 @@ export class SharedService {
   username!: string;
 
   // --- Angajați ---
-  getUsrList(): Observable<any[]>      { return this.http.get<any[]>(`${this.API}/user/`); }
+  getUsrList(params?: { q?: string; person_type?: string }): Observable<any[]> {
+    return this.http.get<any[]>(`${this.API}/user/`, { params: this.cleanParams(params || {}) });
+  }
   getUser(id: number | string)         { return this.http.get<any>(`${this.API}/user/${id}`); }
   addUser(val: any)                    { return this.http.post(`${this.API}/user/`, val); }
   updateUser(val: any)                 { return this.http.put(`${this.API}/user/`, val); }

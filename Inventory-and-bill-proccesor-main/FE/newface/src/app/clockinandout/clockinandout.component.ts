@@ -42,6 +42,20 @@ interface WorksiteDefinition {
 interface TranslationPack {
   back: string;
   backDashboard: string;
+  selfieTitle: string;
+  selfieDescription: string;
+  selfieConfirmed: string;
+  openCamera: string;
+  takePhoto: string;
+  retakePhoto: string;
+  usePhoto: string;
+  photoUsed: string;
+  consentPrefix: string;
+  consentLink: string;
+  consentHint: string;
+  consentRequired: string;
+  selfieRequired: string;
+  unfinishedTitle: string;
   stepLanguage: string;
   stepPin: string;
   stepLocation: string;
@@ -138,6 +152,11 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     ro: {
       back: 'Înapoi',
       backDashboard: 'Înapoi la dashboard',
+      selfieTitle: 'Adaugă selfie',
+      selfieDescription: 'Pentru a continua pontajul, realizează un selfie clar, cu fața vizibilă. Fotografia va fi asociată acestui check-in sau check-out pentru confirmarea identității.',
+      selfieConfirmed: 'Fotografie confirmată', openCamera: 'Deschide camera', takePhoto: 'Fă fotografia', retakePhoto: 'Refă fotografia', usePhoto: 'Folosește fotografia', photoUsed: 'Fotografie folosită',
+      consentPrefix: 'Sunt de acord cu', consentLink: 'prelucrarea datelor', consentHint: 'Selfie-ul confirmat va fi asociat acestui check-in sau check-out.',
+      consentRequired: 'Bifează acordul pentru prelucrarea datelor pentru a activa pontajul.', selfieRequired: 'Realizează și confirmă selfie-ul pentru a activa pontajul.', unfinishedTitle: 'Pontaj nefinalizat',
       stepLanguage: 'Alege limba',
       stepPin: 'Introduceti PIN-ul',
       stepLocation: 'Locatie GPS',
@@ -192,6 +211,11 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     en: {
       back: 'Back',
       backDashboard: 'Back to dashboard',
+      selfieTitle: 'Add a selfie',
+      selfieDescription: 'To continue attendance, take a clear selfie with your face visible. The photo will be linked to this clock-in or clock-out to confirm your identity.',
+      selfieConfirmed: 'Photo confirmed', openCamera: 'Open camera', takePhoto: 'Take photo', retakePhoto: 'Retake photo', usePhoto: 'Use photo', photoUsed: 'Photo selected',
+      consentPrefix: 'I agree to', consentLink: 'data processing', consentHint: 'The confirmed selfie will be linked to this clock-in or clock-out.',
+      consentRequired: 'Accept data processing to enable attendance.', selfieRequired: 'Take and confirm a selfie to enable attendance.', unfinishedTitle: 'Attendance not completed',
       stepLanguage: 'Choose language',
       stepPin: 'Enter PIN',
       stepLocation: 'GPS location',
@@ -246,6 +270,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     pa: {
       back: 'ਵਾਪਸ',
       backDashboard: 'ਡੈਸ਼ਬੋਰਡ ਤੇ ਵਾਪਸ',
+      selfieTitle: 'ਸੈਲਫੀ ਸ਼ਾਮਲ ਕਰੋ', selfieDescription: 'ਹਾਜ਼ਰੀ ਜਾਰੀ ਰੱਖਣ ਲਈ ਚਿਹਰਾ ਸਾਫ਼ ਦਿਖਾਈ ਦੇਣ ਵਾਲੀ ਸੈਲਫੀ ਲਵੋ। ਪਛਾਣ ਦੀ ਪੁਸ਼ਟੀ ਲਈ ਫੋਟੋ ਇਸ ਚੈਕ ਇਨ ਜਾਂ ਚੈਕ ਆਉਟ ਨਾਲ ਜੋੜੀ ਜਾਵੇਗੀ।',
+      selfieConfirmed: 'ਫੋਟੋ ਦੀ ਪੁਸ਼ਟੀ ਹੋਈ', openCamera: 'ਕੈਮਰਾ ਖੋਲ੍ਹੋ', takePhoto: 'ਫੋਟੋ ਲਵੋ', retakePhoto: 'ਫੋਟੋ ਦੁਬਾਰਾ ਲਵੋ', usePhoto: 'ਫੋਟੋ ਵਰਤੋ', photoUsed: 'ਫੋਟੋ ਚੁਣੀ ਗਈ',
+      consentPrefix: 'ਮੈਂ ਸਹਿਮਤ ਹਾਂ', consentLink: 'ਡਾਟਾ ਪ੍ਰੋਸੈਸਿੰਗ', consentHint: 'ਪੁਸ਼ਟੀ ਕੀਤੀ ਸੈਲਫੀ ਇਸ ਚੈਕ ਇਨ ਜਾਂ ਚੈਕ ਆਉਟ ਨਾਲ ਜੋੜੀ ਜਾਵੇਗੀ।', consentRequired: 'ਹਾਜ਼ਰੀ ਲਈ ਡਾਟਾ ਪ੍ਰੋਸੈਸਿੰਗ ਦੀ ਸਹਿਮਤੀ ਦਿਓ।', selfieRequired: 'ਹਾਜ਼ਰੀ ਲਈ ਸੈਲਫੀ ਲੈ ਕੇ ਪੁਸ਼ਟੀ ਕਰੋ।', unfinishedTitle: 'ਹਾਜ਼ਰੀ ਪੂਰੀ ਨਹੀਂ ਹੋਈ',
       stepLanguage: 'ਭਾਸ਼ਾ ਚੁਣੋ',
       stepPin: 'ਪਿੰਨ ਦਾਖਲ ਕਰੋ',
       stepLocation: 'GPS ਥਾਂ',
@@ -300,6 +327,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     hi: {
       back: 'वापस',
       backDashboard: 'डैशबोर्ड पर वापस',
+      selfieTitle: 'सेल्फी जोड़ें', selfieDescription: 'उपस्थिति जारी रखने के लिए चेहरा साफ़ दिखने वाली सेल्फी लें। पहचान की पुष्टि के लिए फोटो इस चेक-इन या चेक-आउट से जोड़ी जाएगी।',
+      selfieConfirmed: 'फोटो की पुष्टि हुई', openCamera: 'कैमरा खोलें', takePhoto: 'फोटो लें', retakePhoto: 'फोटो फिर लें', usePhoto: 'फोटो उपयोग करें', photoUsed: 'फोटो चुनी गई',
+      consentPrefix: 'मैं सहमत हूँ', consentLink: 'डेटा प्रोसेसिंग', consentHint: 'पुष्टि की गई सेल्फी इस चेक-इन या चेक-आउट से जोड़ी जाएगी।', consentRequired: 'उपस्थिति के लिए डेटा प्रोसेसिंग की सहमति दें।', selfieRequired: 'उपस्थिति के लिए सेल्फी लेकर पुष्टि करें।', unfinishedTitle: 'उपस्थिति पूरी नहीं हुई',
       stepLanguage: 'भाषा चुनें',
       stepPin: 'पिन दर्ज करें',
       stepLocation: 'GPS स्थान',
@@ -354,6 +384,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     ne: {
       back: 'फर्कनुहोस्',
       backDashboard: 'ड्यासबोर्डमा फर्कनुहोस्',
+      selfieTitle: 'सेल्फी थप्नुहोस्', selfieDescription: 'हाजिरी जारी राख्न अनुहार स्पष्ट देखिने सेल्फी लिनुहोस्। पहिचान पुष्टि गर्न फोटो यस चेक इन वा चेक आउटसँग जोडिनेछ।',
+      selfieConfirmed: 'फोटो पुष्टि भयो', openCamera: 'क्यामेरा खोल्नुहोस्', takePhoto: 'फोटो लिनुहोस्', retakePhoto: 'फोटो फेरि लिनुहोस्', usePhoto: 'फोटो प्रयोग गर्नुहोस्', photoUsed: 'फोटो चयन भयो',
+      consentPrefix: 'म सहमत छु', consentLink: 'डेटा प्रशोधन', consentHint: 'पुष्टि गरिएको सेल्फी यस चेक इन वा चेक आउटसँग जोडिनेछ।', consentRequired: 'हाजिरीका लागि डेटा प्रशोधन स्वीकार गर्नुहोस्।', selfieRequired: 'हाजिरीका लागि सेल्फी लिएर पुष्टि गर्नुहोस्।', unfinishedTitle: 'हाजिरी पूरा भएन',
       stepLanguage: 'भाषा छान्नुहोस्',
       stepPin: 'पिन हाल्नुहोस्',
       stepLocation: 'GPS स्थान',
@@ -570,11 +603,11 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     if (!this.dataProcessingConsent) {
-      return 'Bifeaza acordul pentru prelucrarea datelor pentru a activa pontajul.';
+      return this.t.consentRequired;
     }
 
     if (!this.confirmedSelfie) {
-      return 'Realizeaza si confirma selfie-ul pentru a activa pontajul.';
+      return this.t.selfieRequired;
     }
 
     if (state === 'inside') {
@@ -740,12 +773,12 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     if (!this.dataProcessingConsent) {
-      this.showError('Bifeaza acordul pentru prelucrarea datelor inainte de pontaj.');
+      this.showError(this.t.consentRequired);
       return;
     }
 
     if (!this.confirmedSelfie) {
-      this.showError('Realizeaza si confirma selfie-ul inainte de pontaj.');
+      this.showError(this.t.selfieRequired);
       return;
     }
 
@@ -802,7 +835,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   private showError(message: string): void {
     this.feedback = {
       kind: 'error',
-      title: 'Pontaj nefinalizat',
+      title: this.t.unfinishedTitle,
       message,
       stamp: this.t.processedAt(this.formattedTime)
     };

@@ -20,6 +20,8 @@ from ToolApp.push_notifications import send_employee_push
 
 
 logger = logging.getLogger(__name__)
+ALERT_HOUR = 7
+ALERT_MINUTE = 40
 
 
 def _configured_non_working_dates():
@@ -55,7 +57,7 @@ def _missing_members(team, work_date):
     leave_ids = LeaveDay.objects.filter(
         work_date=work_date,
         user_fk__in=employees,
-    ).exclude(reason=LeaveDay.Reason.UNEXCUSED).values_list("user_fk_id", flat=True)
+    ).values_list("user_fk_id", flat=True)
     approved_leave_ids = LeaveRequest.objects.filter(
         employee__in=employees,
         status=LeaveRequest.Status.APPROVED,
@@ -128,15 +130,19 @@ def create_team_attendance_alerts(work_date=None, send_email=True, send_push=Tru
             )
             if not created:
                 summary["duplicates"] += 1
-                continue
-            alert.missing_employees.set(missing)
+                existing_ids = set(alert.missing_employees.values_list("pk", flat=True))
+                alert.missing_employees.add(*[employee for employee in missing if employee.pk not in existing_ids])
+            else:
+                alert.missing_employees.set(missing)
             recipients = {team.leader_id: team.leader}
             supervisor = team.effective_supervisor
             recipients[supervisor.pk] = supervisor
             recipient_rows = [
-                TeamAttendanceAlertRecipient.objects.create(alert=alert, employee=employee)
+                TeamAttendanceAlertRecipient.objects.get_or_create(alert=alert, employee=employee)[0]
                 for employee in recipients.values()
             ]
+        if not created:
+            continue
         summary["created"] += 1
         if send_email and _send_email(alert, list(recipients.values())):
             now = timezone.now()
@@ -156,3 +162,22 @@ def create_team_attendance_alerts(work_date=None, send_email=True, send_push=Tru
             summary["push"] += push_result["sent"]
         logger.info("Alertă pontaj creată pentru echipa=%s data=%s lipsă=%s", team.pk, work_date, len(missing))
     return summary
+
+
+def ensure_team_attendance_alerts_due(now=None, send_email=True, send_push=True):
+    """Creează idempotent alertele numai după 07:40 în fusul orar Django."""
+    local_now = timezone.localtime(now or timezone.now())
+    if (local_now.hour, local_now.minute) < (ALERT_HOUR, ALERT_MINUTE):
+        return {
+            "date": local_now.date().isoformat(),
+            "created": 0,
+            "duplicates": 0,
+            "before_alert_time": True,
+        }
+    result = create_team_attendance_alerts(
+        work_date=local_now.date(),
+        send_email=send_email,
+        send_push=send_push,
+    )
+    result["before_alert_time"] = False
+    return result

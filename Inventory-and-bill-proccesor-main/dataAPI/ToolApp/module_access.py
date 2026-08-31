@@ -30,6 +30,19 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/pontaj/personal", "label": "Personal", "icon": "group_add"},
         ],
     }),
+    ("team_dashboard", {
+        "label": "Team Dashboard",
+        "description": "Portal mobil pentru pontajul propriu, fișa salarială, echipa coordonată și notificări.",
+        "icon": "space_dashboard",
+        "main_route": "/team-dashboard",
+        "routes": [
+            {"path": "/team-dashboard", "label": "Dashboard echipă", "icon": "space_dashboard"},
+            {"path": "/team-dashboard/echipa-mea", "label": "Echipa mea", "icon": "groups"},
+            {"path": "/team-dashboard/pontaj", "label": "Attendance", "icon": "schedule"},
+            {"path": "/team-dashboard/fisa-angajat", "label": "Fișa angajatului", "icon": "badge"},
+            {"path": "/team-dashboard/notificari", "label": "Notificări", "icon": "notifications"},
+        ],
+    }),
     ("warehouse", {
         "label": "Magazie",
         "description": "Privire generală, inventar și istoric magazie.",
@@ -101,6 +114,7 @@ def effective_module_codes(app_user):
     # Șefii și supervisorii păstrează accesul implicit necesar administrării echipelor lor.
     if app_user_roles(app_user):
         codes.add("teams_schedule")
+        codes.add("team_dashboard")
     return [code for code in MODULE_ORDER if code in codes]
 
 

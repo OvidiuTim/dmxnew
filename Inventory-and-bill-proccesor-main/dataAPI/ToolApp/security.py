@@ -175,7 +175,7 @@ def request_has_admin(request) -> bool:
 def app_user_has_route(app_user, route: str) -> bool:
     if not app_user or not route:
         return False
-    if route == "/team-dashboard" and app_user_roles(app_user):
+    if route.startswith("/team-dashboard") and app_user_has_module(app_user, "team_dashboard"):
         return True
     if route in TEAM_SCHEDULE_ROUTES and (
         app_user.employee.led_employee_teams.filter(active=True).exists()
@@ -197,7 +197,7 @@ def app_user_can_access_any(app_user, routes) -> bool:
 def app_user_can_access_api_path(app_user, path: str, method: str = "GET") -> bool:
     normalized = _normalize_public_path(path)
     if normalized.startswith("/api/team-portal/"):
-        return bool(app_user_roles(app_user))
+        return app_user_has_module(app_user, "team_dashboard")
     module_endpoint = False
     for prefix, module_codes in API_MODULE_REQUIREMENTS:
         if normalized.startswith(prefix):

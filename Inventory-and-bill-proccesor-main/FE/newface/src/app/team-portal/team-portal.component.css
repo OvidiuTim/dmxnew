@@ -17,6 +17,7 @@ button, select, a { font: inherit; }
 .own-status .material-symbols-rounded { font-size: 19px; }
 .own-status[data-status="present"] { color: #39dfa3; background: rgba(31,151,111,.17); }
 .own-status[data-status="absent"] { color: #ff7474; background: rgba(212,54,67,.17); }
+.own-status[data-status="marked_absent"] { color: #ffb36b; background: rgba(196,102,34,.18); }
 .own-status[data-status="leave"] { color: #ffc85a; background: rgba(220,154,34,.16); }
 .action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 30px; }
 .action-card { min-height: 142px; width: 100%; border: 1px solid #21324a; border-radius: 19px; background: #0c1829; color: #ecf3fb; display: grid; grid-template-columns: 54px minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 22px; text-align: left; text-decoration: none; cursor: pointer; position: relative; box-shadow: 0 12px 32px rgba(0,0,0,.13); }
@@ -34,6 +35,7 @@ button, select, a { font: inherit; }
 .back-button { margin-bottom: 24px; }
 .state-card { padding: 30px; border: 1px solid #21324a; border-radius: 16px; background: #0c1829; text-align: center; }
 .error-state { color: #ff9797; }
+.success-state { margin-bottom: 16px; border-color: rgba(43,211,148,.45); color: #62e5b4; }
 .error-state button { margin-left: 10px; border: 0; color: #2bd394; background: none; cursor: pointer; }
 .detail-owner { color: #94a6bc; margin-top: -7px; }
 .salary-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; margin-top: 26px; }
@@ -52,6 +54,7 @@ button, select, a { font: inherit; }
 .member-status { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 6px 9px; background: #122135; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .member-status .material-symbols-rounded { font-size: 17px; }
 .member-row[data-status="absent"] .member-status { color: #ff777f; background: rgba(216,47,64,.17); }
+.member-row[data-status="marked_absent"] .member-status { color: #ffb36b; background: rgba(196,102,34,.18); }
 .member-row[data-status="present"] .member-status { color: #39dfa3; background: rgba(31,151,111,.17); }
 .member-row[data-status="leave"] .member-status { color: #ffc85a; background: rgba(220,154,34,.16); }
 .expand-icon { color: #71839b; }
@@ -59,6 +62,8 @@ button, select, a { font: inherit; }
 .member-detail strong { color: #fff; }
 .call-button, .small-call { min-height: 48px; border-radius: 12px; background: #2bd394; color: #04251b; text-decoration: none; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .call-button { margin-top: 7px; width: min(100%, 280px); }
+.absent-button { width: min(100%, 280px); min-height: 48px; border: 1px solid rgba(255,116,116,.55); border-radius: 12px; background: rgba(212,54,67,.15); color: #ff9292; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; }
+.absent-button:disabled { opacity: .6; cursor: wait; }
 .notification-card { padding: 18px; }
 .notification-card.unread { border-color: rgba(229,72,85,.65); box-shadow: inset 4px 0 #e54855; }
 .notification-card header, .notification-card footer, .notification-person { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
