@@ -31,6 +31,11 @@
       </div>
 
       <section class="action-grid" aria-label="Dashboard">
+        <button type="button" class="action-card" (click)="open('team')">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">groups</span>
+          <span><strong>{{ t.myTeam }}</strong><small>{{ t.teamHint }}</small></span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </button>
         <a class="action-card attendance-card" routerLink="/team-dashboard/pontaj">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">schedule</span>
           <span><strong>{{ t.attendance }}</strong><small>{{ t.clockHint }}</small></span>
@@ -39,11 +44,6 @@
         <button type="button" class="action-card" (click)="open('salary')">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">badge</span>
           <span><strong>{{ t.employeeFile }}</strong><small>{{ t.salaryHint }}</small></span>
-          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
-        </button>
-        <button type="button" class="action-card" (click)="open('team')">
-          <span class="card-icon material-symbols-rounded" aria-hidden="true">groups</span>
-          <span><strong>{{ t.myTeam }}</strong><small>{{ t.teamHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
         <button type="button" class="action-card" (click)="open('notifications')">

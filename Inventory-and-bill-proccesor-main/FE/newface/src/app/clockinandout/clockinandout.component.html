@@ -1,5 +1,15 @@
 <div class="manual-page">
   <div class="manual-shell">
+    <nav *ngIf="portalMode" class="portal-return-actions" aria-label="Team dashboard navigation">
+      <button type="button" class="portal-return-btn" (click)="goBack()">
+        <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>
+        <span>{{ t.back }}</span>
+      </button>
+      <button type="button" class="portal-return-btn dashboard" (click)="goToTeamDashboard()">
+        <span class="material-symbols-rounded" aria-hidden="true">dashboard</span>
+        <span>{{ t.backDashboard }}</span>
+      </button>
+    </nav>
     <section class="hero-language-card">
       <header class="hero-card">
         <div class="hero-copy">

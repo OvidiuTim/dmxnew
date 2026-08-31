@@ -1,5 +1,7 @@
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { Location } from '@angular/common';
+import { Router } from '@angular/router';
 import * as L from 'leaflet';
 import { SharedService } from '../shared.service';
 
@@ -38,6 +40,8 @@ interface WorksiteDefinition {
 }
 
 interface TranslationPack {
+  back: string;
+  backDashboard: string;
   stepLanguage: string;
   stepPin: string;
   stepLocation: string;
@@ -132,6 +136,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   readonly translations: Record<LanguageCode, TranslationPack> = {
     ro: {
+      back: 'Înapoi',
+      backDashboard: 'Înapoi la dashboard',
       stepLanguage: 'Alege limba',
       stepPin: 'Introduceti PIN-ul',
       stepLocation: 'Locatie GPS',
@@ -184,6 +190,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       processedAt: (time: string) => `Inregistrat la ${time}`
     },
     en: {
+      back: 'Back',
+      backDashboard: 'Back to dashboard',
       stepLanguage: 'Choose language',
       stepPin: 'Enter PIN',
       stepLocation: 'GPS location',
@@ -236,6 +244,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       processedAt: (time: string) => `Recorded at ${time}`
     },
     pa: {
+      back: 'ਵਾਪਸ',
+      backDashboard: 'ਡੈਸ਼ਬੋਰਡ ਤੇ ਵਾਪਸ',
       stepLanguage: 'ਭਾਸ਼ਾ ਚੁਣੋ',
       stepPin: 'ਪਿੰਨ ਦਾਖਲ ਕਰੋ',
       stepLocation: 'GPS ਥਾਂ',
@@ -288,6 +298,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       processedAt: (time: string) => `${time} ਤੇ ਦਰਜ ਕੀਤਾ ਗਿਆ`
     },
     hi: {
+      back: 'वापस',
+      backDashboard: 'डैशबोर्ड पर वापस',
       stepLanguage: 'भाषा चुनें',
       stepPin: 'पिन दर्ज करें',
       stepLocation: 'GPS स्थान',
@@ -340,6 +352,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       processedAt: (time: string) => `${time} पर दर्ज किया गया`
     },
     ne: {
+      back: 'फर्कनुहोस्',
+      backDashboard: 'ड्यासबोर्डमा फर्कनुहोस्',
       stepLanguage: 'भाषा छान्नुहोस्',
       stepPin: 'पिन हाल्नुहोस्',
       stepLocation: 'GPS स्थान',
@@ -421,7 +435,12 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
   private cameraStream: MediaStream | null = null;
 
-  constructor(private api: SharedService, private route: ActivatedRoute) {}
+  constructor(
+    private api: SharedService,
+    private route: ActivatedRoute,
+    private location: Location,
+    private router: Router,
+  ) {}
 
   ngOnInit(): void {
     this.chefMode = this.route.snapshot.data['chefMode'] === true;
@@ -639,6 +658,19 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     this.selectedLanguage = code;
     localStorage.setItem('clockinandout-language', code);
     this.updateZoneTooltip();
+  }
+
+  goBack(): void {
+    const navigationId = Number(window.history.state?.navigationId || 0);
+    if (window.history.length > 1 && navigationId > 1) {
+      this.location.back();
+      return;
+    }
+    void this.router.navigateByUrl('/team-dashboard');
+  }
+
+  goToTeamDashboard(): void {
+    void this.router.navigateByUrl('/team-dashboard');
   }
 
   get selectedWorksiteName(): string {

@@ -712,3 +712,52 @@
 .chef-site-summary small {
   color: #94a3b8;
 }
+.portal-return-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.portal-return-btn {
+  min-height: 50px;
+  border: 1px solid #2a3c54;
+  border-radius: 13px;
+  padding: 0 18px;
+  background: #0d1a2c;
+  color: #eef4fb;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.portal-return-btn .material-symbols-rounded {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.portal-return-btn.dashboard {
+  border-color: rgba(43, 211, 148, .45);
+  color: #35dda1;
+}
+
+@media (max-width: 560px) {
+  .portal-return-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .portal-return-btn {
+    width: 100%;
+    min-height: 54px;
+  }
+}
