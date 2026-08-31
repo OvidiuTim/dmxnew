@@ -60,7 +60,7 @@ from ToolApp.security import (
     get_token_from_request, make_admin_token, make_app_user_token, request_has_admin,
 )
 from ToolApp.module_access import (
-    MODULE_DEFINITIONS, MODULE_ORDER, app_user_has_module, default_module_route,
+    MODULE_DEFINITIONS, MODULE_ORDER, app_user_has_module, app_user_roles, default_module_route,
     effective_module_codes, serialize_module_definitions,
 )
 from ToolApp.worksites import (
@@ -4216,6 +4216,11 @@ def _serialize_app_user(app_user):
         or app_user.employee.supervised_employee_teams.filter(active=True).exists()
     ):
         inherited_modules.append("teams_schedule")
+    coordinated_teams = list(
+        EmployeeTeam.objects.filter(active=True).filter(
+            Q(leader_id=app_user.employee_id) | Q(supervisor_id=app_user.employee_id)
+        ).values("id", "name", "leader_id", "supervisor_id")
+    )
     return {
         "id": app_user.AppUserId,
         "username": app_user.username,
@@ -4234,6 +4239,9 @@ def _serialize_app_user(app_user):
         "modules": modules,
         "module_access": {code: code in modules for code in MODULE_ORDER},
         "inherited_modules": inherited_modules,
+        "roles": app_user_roles(app_user),
+        "effective_permissions": sorted(permissions),
+        "coordinated_teams": coordinated_teams,
         "default_module_route": default_module_route(app_user),
     }
 
@@ -4244,6 +4252,8 @@ def _app_user_permissions(app_user):
         .filter(app_user=app_user, can_access=True)
         .values_list("route", flat=True)
     )
+    for module_code in effective_module_codes(app_user):
+        permissions.update(route["path"] for route in MODULE_DEFINITIONS[module_code]["routes"])
     if (
         app_user.employee.led_employee_teams.filter(active=True).exists()
         or app_user.employee.supervised_employee_teams.filter(active=True).exists()
@@ -4342,15 +4352,19 @@ def app_auth_login(request):
     if not app_user.check_pin(pin):
         return JsonResponse({"error": "PIN invalid."}, status=401)
 
+    serialized_app_user = _serialize_app_user(app_user)
     resp = JsonResponse({
         "ok": True,
         "role": "app_user",
         "auth_type": "app_user",
-        "app_user": _serialize_app_user(app_user),
+        "app_user": serialized_app_user,
         "permissions": _app_user_permissions(app_user),
         "modules": effective_module_codes(app_user),
         "default_module_route": default_module_route(app_user),
         "login_redirect_path": app_user.login_redirect_path or "/pontaj",
+        "roles": serialized_app_user["roles"],
+        "effective_permissions": serialized_app_user["effective_permissions"],
+        "coordinated_teams": serialized_app_user["coordinated_teams"],
         "expires_in": TOKEN_AGE,
     })
     resp.set_cookie(
@@ -4385,15 +4399,19 @@ def app_auth_verify(request):
         data = {}
     route = str(data.get("route") or "").strip()
     module_code = str(data.get("module_code") or "").strip()
+    serialized_app_user = _serialize_app_user(app_user)
     response = {
         "ok": True,
         "role": "app_user",
         "auth_type": "app_user",
-        "app_user": _serialize_app_user(app_user),
+        "app_user": serialized_app_user,
         "permissions": _app_user_permissions(app_user),
         "modules": effective_module_codes(app_user),
         "default_module_route": default_module_route(app_user),
         "login_redirect_path": app_user.login_redirect_path or "/pontaj",
+        "roles": serialized_app_user["roles"],
+        "effective_permissions": serialized_app_user["effective_permissions"],
+        "coordinated_teams": serialized_app_user["coordinated_teams"],
     }
     if route:
         response["can_access"] = app_user_can_view_route(app_user, route)

@@ -4,3 +4,6 @@ from django.apps import AppConfig
 class ToolappConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'ToolApp'
+
+    def ready(self):
+        from ToolApp import signals  # noqa: F401

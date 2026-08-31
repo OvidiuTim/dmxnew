@@ -2,6 +2,8 @@ import json
 from datetime import date
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.timezone import localdate
@@ -24,7 +26,20 @@ from ToolApp.mobile_services import (
     serialize_leave_request,
 )
 from ToolApp.leave_email import send_leave_request_email
-from ToolApp.models import AttendanceSession, EmployeeSalaryProfile, EmployeeTeam, EmployeeTeamMember, LeaveRequest
+from ToolApp.models import (
+    AppPagePermission,
+    AppUser,
+    AttendanceSession,
+    EmployeeSalaryProfile,
+    EmployeeTeam,
+    EmployeeTeamMember,
+    LeaveRequest,
+    MobileDevice,
+    TeamAttendanceAlertRecipient,
+    TemporaryWorkerRequest,
+    Users,
+)
+from ToolApp.module_access import TEAM_SCHEDULE_ROUTES, app_user_roles, effective_module_codes
 from ToolApp.views import _find_user_by_pin, _log_pin_attempt, _pin_is_blocked
 
 
@@ -71,6 +86,95 @@ def _mobile_post(request):
     return data, employee, error
 
 
+def _coordinated_teams(employee):
+    return EmployeeTeam.objects.filter(active=True).filter(
+        Q(leader=employee) | Q(supervisor=employee)
+    ).select_related("leader", "supervisor").prefetch_related("memberships__employee").distinct()
+
+
+def mobile_access_context(employee):
+    app_user = AppUser.objects.filter(employee=employee, is_active=True).first()
+    roles = []
+    modules = []
+    permissions = set()
+    if app_user:
+        roles = app_user_roles(app_user)
+        modules = effective_module_codes(app_user)
+        permissions.update(AppPagePermission.objects.filter(
+            app_user=app_user,
+            can_access=True,
+        ).values_list("route", flat=True))
+    else:
+        if EmployeeTeam.objects.filter(active=True, leader=employee).exists():
+            roles.append("team_leader")
+        if EmployeeTeam.objects.filter(active=True, supervisor=employee).exists():
+            roles.append("supervisor")
+    if roles:
+        permissions.update(TEAM_SCHEDULE_ROUTES)
+        if "teams_schedule" not in modules:
+            modules.append("teams_schedule")
+    from ToolApp.module_access import MODULE_DEFINITIONS
+    for module_code in modules:
+        permissions.update(route["path"] for route in MODULE_DEFINITIONS[module_code]["routes"])
+    teams = list(_coordinated_teams(employee))
+    coordinated_team_ids = [team.pk for team in teams]
+    unread = TeamAttendanceAlertRecipient.objects.filter(employee=employee, read_at__isnull=True).count()
+    unread += TemporaryWorkerRequest.objects.filter(
+        source_team_id__in=coordinated_team_ids,
+        seen_at__isnull=True,
+    ).count()
+    unread += LeaveRequest.objects.filter(
+        team_id__in=coordinated_team_ids,
+        seen_at__isnull=True,
+    ).filter(
+        Q(team__supervisor=employee) | Q(team__supervisor__isnull=True, team__leader=employee)
+    ).count()
+    return {
+        "roles": roles,
+        "modules": modules,
+        "effective_permissions": sorted(permissions),
+        "coordinated_teams": [
+            {
+                "id": team.pk,
+                "name": team.name,
+                "worksite": team.default_worksite,
+                "is_leader": team.leader_id == employee.pk,
+                "is_supervisor": (team.supervisor_id or team.leader_id) == employee.pk,
+            }
+            for team in teams
+        ],
+        "unread_notifications": unread,
+        "is_team_coordinator": bool(roles),
+    }
+
+
+def _mobile_team_payload(team, current_employee):
+    members = []
+    for membership in team.memberships.filter(
+        active=True,
+        employee__active=True,
+        employee__employment_status=Users.EmploymentStatus.ACTIVE,
+    ).select_related("employee").order_by("employee__UserName"):
+        employee = membership.employee
+        members.append({
+            "employee_id": employee.pk,
+            "display_name": employee.UserName,
+            "trade": employee.trade or "",
+            "photo": employee.photo,
+            "is_team_leader": employee.pk == team.leader_id,
+            "is_supervisor": employee.pk == (team.supervisor_id or team.leader_id),
+            "is_current_user": employee.pk == current_employee.pk,
+        })
+    return {
+        "id": team.pk,
+        "name": team.name,
+        "worksite": team.default_worksite,
+        "leader": {"id": team.leader_id, "name": team.leader.UserName},
+        "supervisor": {"id": team.effective_supervisor.pk, "name": team.effective_supervisor.UserName},
+        "members": members,
+    }
+
+
 @csrf_exempt
 def employee_dashboard(request):
     data, employee, error = _mobile_post(request)
@@ -114,6 +218,7 @@ def employee_dashboard(request):
         "equipment": equipment,
         "tools": tools,
         "team": build_team(employee),
+        "access": mobile_access_context(employee),
     }
     first_date = first_payment_date(effective_hire_date)
     if first_date and today < first_date:
@@ -122,6 +227,161 @@ def employee_dashboard(request):
             "message_code": "first_salary_after_full_month",
         })
     return JsonResponse(payload)
+
+
+@csrf_exempt
+def access_context(request):
+    data, employee, error = _mobile_post(request)
+    if error:
+        return error
+    return JsonResponse({"success": True, "access": mobile_access_context(employee)})
+
+
+@csrf_exempt
+def coordinated_teams(request):
+    data, employee, error = _mobile_post(request)
+    if error:
+        return error
+    access = mobile_access_context(employee)
+    if not access["is_team_coordinator"]:
+        return _error("TEAM_ROLE_REQUIRED", "Doar șefii de echipă și supervisorii pot accesa echipele coordonate.", 403)
+    teams = list(_coordinated_teams(employee))
+    return JsonResponse({
+        "success": True,
+        "teams": [_mobile_team_payload(team, employee) for team in teams],
+        "access": access,
+    })
+
+
+def _attendance_notification_payload(recipient):
+    alert = recipient.alert
+    return {
+        "id": 1000000 + recipient.pk,
+        "type": "missing_attendance",
+        "title": f"Angajați fără pontaj · {alert.team.name}",
+        "message": ", ".join(alert.missing_employees.order_by("UserName").values_list("UserName", flat=True)),
+        "team": {"id": alert.team_id, "name": alert.team.name},
+        "worksite": alert.worksite,
+        "date": alert.work_date.isoformat(),
+        "is_read": recipient.read_at is not None,
+        "created_at": recipient.created_at.isoformat(),
+        "employees": [
+            {"id": item.pk, "name": item.UserName, "trade": item.trade or ""}
+            for item in alert.missing_employees.order_by("UserName")
+        ],
+    }
+
+
+def _transfer_notification_payload(item):
+    return {
+        "id": 2000000 + item.pk,
+        "type": "team_transfer_request",
+        "title": f"Solicitare {item.get_request_type_display().lower()}",
+        "message": f"{item.requester_team.name} solicită pe {item.employee.UserName} din {item.source_team.name}.",
+        "team": {"id": item.source_team_id, "name": item.source_team.name},
+        "worksite": item.source_team.default_worksite,
+        "date": item.created_at.date().isoformat(),
+        "is_read": item.seen_at is not None,
+        "created_at": item.created_at.isoformat(),
+        "employees": [{"id": item.employee_id, "name": item.employee.UserName, "trade": item.employee.trade or ""}],
+    }
+
+
+def _leave_mobile_notification_payload(item):
+    return {
+        "id": 3000000 + item.pk,
+        "type": "leave_request",
+        "title": "Cerere de concediu",
+        "message": f"{item.employee.UserName}: {item.start_date.isoformat()} – {item.end_date.isoformat()} ({item.get_status_display()}).",
+        "team": {"id": item.team_id, "name": item.team.name} if item.team_id else None,
+        "worksite": item.team.default_worksite if item.team_id else "",
+        "date": item.created_at.date().isoformat(),
+        "is_read": item.seen_at is not None,
+        "created_at": item.created_at.isoformat(),
+        "employees": [{"id": item.employee_id, "name": item.employee.UserName, "trade": item.employee.trade or ""}],
+    }
+
+
+@csrf_exempt
+def mobile_notifications(request):
+    data, employee, error = _mobile_post(request)
+    if error:
+        return error
+    recipients = TeamAttendanceAlertRecipient.objects.filter(employee=employee).select_related(
+        "alert__team"
+    ).prefetch_related("alert__missing_employees")
+    team_ids = list(_coordinated_teams(employee).values_list("pk", flat=True))
+    transfers = TemporaryWorkerRequest.objects.filter(source_team_id__in=team_ids).select_related(
+        "source_team", "requester_team", "employee"
+    )
+    leaves = LeaveRequest.objects.filter(team_id__in=team_ids).filter(
+        Q(team__supervisor=employee) | Q(team__supervisor__isnull=True, team__leader=employee)
+    ).select_related("team", "employee")
+    items = (
+        [_attendance_notification_payload(item) for item in recipients]
+        + [_transfer_notification_payload(item) for item in transfers]
+        + [_leave_mobile_notification_payload(item) for item in leaves]
+    )
+    items.sort(key=lambda item: item["created_at"], reverse=True)
+    return JsonResponse({
+        "success": True,
+        "notifications": items,
+        "unread_count": sum(not item["is_read"] for item in items),
+    })
+
+
+@csrf_exempt
+def mobile_notifications_read(request):
+    data, employee, error = _mobile_post(request)
+    if error:
+        return error
+    raw_ids = data.get("notification_ids")
+    try:
+        encoded_ids = [int(value) for value in raw_ids] if isinstance(raw_ids, list) else []
+    except (TypeError, ValueError):
+        return _error("INVALID_NOTIFICATION_IDS", "notification_ids trebuie să conțină doar ID-uri numerice.", 400)
+    now = timezone.now()
+    team_ids = list(_coordinated_teams(employee).values_list("pk", flat=True))
+    attendance_ids = [value - 1000000 for value in encoded_ids if 1000000 <= value < 2000000]
+    transfer_ids = [value - 2000000 for value in encoded_ids if 2000000 <= value < 3000000]
+    leave_ids = [value - 3000000 for value in encoded_ids if value >= 3000000]
+    if not isinstance(raw_ids, list):
+        attendance_ids = list(TeamAttendanceAlertRecipient.objects.filter(employee=employee, read_at__isnull=True).values_list("pk", flat=True))
+        transfer_ids = list(TemporaryWorkerRequest.objects.filter(source_team_id__in=team_ids, seen_at__isnull=True).values_list("pk", flat=True))
+        leave_ids = list(LeaveRequest.objects.filter(team_id__in=team_ids, seen_at__isnull=True).filter(
+            Q(team__supervisor=employee) | Q(team__supervisor__isnull=True, team__leader=employee)
+        ).values_list("pk", flat=True))
+    updated = TeamAttendanceAlertRecipient.objects.filter(employee=employee, pk__in=attendance_ids, read_at__isnull=True).update(read_at=now)
+    updated += TemporaryWorkerRequest.objects.filter(source_team_id__in=team_ids, pk__in=transfer_ids, seen_at__isnull=True).update(seen_at=now)
+    updated += LeaveRequest.objects.filter(team_id__in=team_ids, pk__in=leave_ids, seen_at__isnull=True).filter(
+        Q(team__supervisor=employee) | Q(team__supervisor__isnull=True, team__leader=employee)
+    ).update(seen_at=now)
+    unread = mobile_access_context(employee)["unread_notifications"]
+    return JsonResponse({"success": True, "updated": updated, "unread_count": unread})
+
+
+@csrf_exempt
+@transaction.atomic
+def mobile_device_token(request):
+    data, employee, error = _mobile_post(request)
+    if error:
+        return error
+    token = str(data.get("push_token") or "").strip()
+    if not token or len(token) > 512:
+        return _error("INVALID_PUSH_TOKEN", "push_token este obligatoriu și trebuie să aibă maximum 512 caractere.", 400)
+    device_key = str(data.get("device_key") or "").strip()
+    MobileDevice.objects.filter(employee=employee, device_key=device_key).exclude(push_token=token).delete()
+    device, _ = MobileDevice.objects.update_or_create(
+        push_token=token,
+        defaults={
+            "employee": employee,
+            "device_key": device_key,
+            "platform": str(data.get("platform") or "android")[:20],
+            "active": bool(data.get("active", True)),
+            "invalidated_at": None,
+        },
+    )
+    return JsonResponse({"success": True, "device_id": device.pk, "active": device.active})
 
 
 @csrf_exempt

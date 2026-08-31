@@ -1,7 +1,7 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
-import { EmployeeTeam, LeaveNotification, TeamApiService, TeamEmployee, TeamRequest } from './team-api.service';
+import { AttendanceAlertNotification, EmployeeTeam, LeaveNotification, TeamApiService, TeamEmployee, TeamRequest } from './team-api.service';
 
 type TeamMode = 'permanent' | 'mine' | 'today' | 'available' | 'notifications';
 
@@ -31,6 +31,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   employees: TeamEmployee[] = [];
   requests: TeamRequest[] = [];
   leaveNotifications: LeaveNotification[] = [];
+  attendanceAlerts: AttendanceAlertNotification[] = [];
   dailyTeams: any[] = [];
   dailyAvailable: TeamEmployee[] = [];
   availableEmployees: TeamEmployee[] = [];
@@ -123,7 +124,14 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   }
 
   get notificationCount(): number {
-    return this.filteredRequests.length + this.filteredLeaveNotifications.length;
+    return this.filteredRequests.length + this.filteredLeaveNotifications.length + this.filteredAttendanceAlerts.length;
+  }
+
+  get filteredAttendanceAlerts(): AttendanceAlertNotification[] {
+    const search = this.normalize(this.searchTerm);
+    return this.attendanceAlerts.filter(item => !search || this.normalize(
+      `${item.team.name} ${item.worksite} ${item.employees.map(employee => employee.name).join(' ')}`
+    ).includes(search));
   }
 
   get pendingRequestCount(): number {
@@ -225,6 +233,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
         next: response => {
           this.requests = response.requests || [];
           this.leaveNotifications = response.leave_requests || [];
+          this.attendanceAlerts = response.attendance_alerts || [];
           this.loading = false;
           window.dispatchEvent(new CustomEvent('team-notifications-changed'));
         },

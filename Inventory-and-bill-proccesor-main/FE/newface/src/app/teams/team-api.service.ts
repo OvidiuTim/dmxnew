@@ -79,6 +79,16 @@ export interface LeaveNotification {
   is_unseen: boolean;
 }
 
+export interface AttendanceAlertNotification {
+  id: number;
+  type: 'missing_attendance';
+  team: { id: number; name: string };
+  worksite: string;
+  date: string;
+  is_unseen: boolean;
+  employees: TeamEmployee[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class TeamApiService {
   private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api/teams';
@@ -91,7 +101,7 @@ export class TeamApiService {
   }
 
   getWorksites(): Observable<{ worksites: string[] }> {
-    return this.http.get<{ worksites: string[] }>(`${this.PONTAJ_API}/worksites/`);
+    return this.http.get<{ worksites: string[] }>(`${this.API}/worksites/`);
   }
 
   createTeam(payload: any): Observable<any> {

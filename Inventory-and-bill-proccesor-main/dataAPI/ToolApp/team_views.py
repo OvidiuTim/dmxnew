@@ -17,13 +17,16 @@ from ToolApp.models import (
     LeaveDay,
     LeaveRequest,
     TemporaryWorkerRequest,
+    TeamAttendanceAlertRecipient,
     Tools,
     Users,
 )
+from ToolApp.module_access import app_user_has_manual_module
 from ToolApp.security import get_app_user_from_request, request_has_admin
 from ToolApp.mobile_services import build_leave_summary
 from ToolApp.team_email import send_worker_request_email
 from ToolApp.team_organization_sync import remove_team_from_organization, sync_team_to_organization
+from ToolApp.worksites import ACCEPTED_WORKSITES
 from ToolApp.team_serializers import (
     TeamMembersSerializer,
     TeamWriteSerializer,
@@ -61,11 +64,14 @@ def _actor(request):
     app_user = getattr(request, "app_user", None) or get_app_user_from_request(request)
     if not app_user:
         return None, False
-    is_manager = AppPagePermission.objects.filter(
-        app_user=app_user,
-        route=TEAM_MANAGEMENT_ROUTE,
-        can_access=True,
-    ).exists()
+    is_manager = (
+        app_user_has_manual_module(app_user, "teams_schedule")
+        or AppPagePermission.objects.filter(
+            app_user=app_user,
+            route=TEAM_MANAGEMENT_ROUTE,
+            can_access=True,
+        ).exists()
+    )
     return app_user, is_manager
 
 
@@ -326,7 +332,12 @@ def teams_collection(request):
         return _error("Autentificare necesară.", 401)
 
     if request.method == "GET":
-        teams = list(_teams_queryset().order_by("name"))
+        teams_query = _teams_queryset().order_by("name")
+        if not can_manage_all:
+            teams_query = teams_query.filter(
+                Q(leader_id=app_user.employee_id) | Q(supervisor_id=app_user.employee_id)
+            ).distinct()
+        teams = list(teams_query)
         member_statuses = _team_member_statuses(teams, app_user, can_manage_all)
         membership = _membership_map()
         today = timezone.localdate()
@@ -342,8 +353,23 @@ def teams_collection(request):
             for employee_id in (team.leader_id, team.supervisor_id)
             if employee_id
         }
+        visible_employee_ids = None
+        if not can_manage_all:
+            visible_employee_ids = {
+                employee_id
+                for team in teams
+                for employee_id in (
+                    team.leader_id,
+                    team.supervisor_id,
+                    *team.memberships.filter(active=True).values_list("employee_id", flat=True),
+                )
+                if employee_id
+            }
+        employee_query = Users.objects.filter(person_type=Users.PersonType.EMPLOYEE)
+        if visible_employee_ids is not None:
+            employee_query = employee_query.filter(pk__in=visible_employee_ids)
         employees = []
-        for employee in Users.objects.filter(person_type=Users.PersonType.EMPLOYEE).order_by("UserName"):
+        for employee in employee_query.order_by("UserName"):
             row = _employee_payload(employee, membership.get(employee.pk))
             row["can_request"] = bool(
                 employee.active and row["team"] and employee.pk not in role_holder_ids and employee.pk not in unavailable_ids
@@ -387,6 +413,16 @@ def teams_collection(request):
     except (ValidationError, IntegrityError) as exc:
         return _error("Echipa nu a putut fi salvată.", details=_validation_details(exc))
     return JsonResponse({"team": _team_payload(team, app_user, can_manage_all)}, status=201)
+
+
+@csrf_exempt
+def team_worksites(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user, can_manage_all = _actor(request)
+    if not can_manage_all and not app_user:
+        return _error("Autentificare necesară.", 401)
+    return JsonResponse({"worksites": list(ACCEPTED_WORKSITES)})
 
 
 @transaction.atomic
@@ -494,6 +530,8 @@ def team_detail(request, team_id):
     if not team:
         return _error("Echipa nu există.", 404)
     if request.method == "GET":
+        if not can_manage_all and not _is_team_manager(app_user, team):
+            return _error("Nu poți consulta echipa altui coordonator.", 403)
         return JsonResponse({"team": _team_payload(team, app_user, can_manage_all)})
     if request.method == "DELETE":
         if not can_manage_all:
@@ -803,6 +841,35 @@ def _leave_notification_payload(item):
     }
 
 
+def _incoming_attendance_alert_recipients(app_user, can_manage_all):
+    query = TeamAttendanceAlertRecipient.objects.select_related("alert__team", "employee").prefetch_related(
+        "alert__missing_employees"
+    )
+    if can_manage_all:
+        return query
+    if not app_user:
+        return query.none()
+    return query.filter(employee_id=app_user.employee_id)
+
+
+def _attendance_alert_payload(recipient):
+    alert = recipient.alert
+    return {
+        "id": recipient.pk,
+        "type": "missing_attendance",
+        "team": {"id": alert.team_id, "name": alert.team.name},
+        "worksite": alert.worksite,
+        "date": alert.work_date.isoformat(),
+        "created_at": alert.created_at.isoformat(),
+        "seen_at": recipient.read_at.isoformat() if recipient.read_at else None,
+        "is_unseen": recipient.read_at is None,
+        "employees": [
+            _employee_payload(employee)
+            for employee in alert.missing_employees.order_by("UserName")
+        ],
+    }
+
+
 @csrf_exempt
 def notifications_summary(request):
     if request.method != "GET":
@@ -817,10 +884,14 @@ def notifications_summary(request):
     leave_attention_count = _incoming_leave_requests(app_user, can_manage_all).filter(
         Q(status=LeaveRequest.Status.PENDING) | Q(seen_at__isnull=True)
     ).count()
+    attendance_attention_count = _incoming_attendance_alert_recipients(
+        app_user, can_manage_all
+    ).filter(read_at__isnull=True).count()
     return JsonResponse({
-        "attention_count": transfer_attention_count + leave_attention_count,
+        "attention_count": transfer_attention_count + leave_attention_count + attendance_attention_count,
         "transfer_attention_count": transfer_attention_count,
         "leave_attention_count": leave_attention_count,
+        "attendance_attention_count": attendance_attention_count,
     })
 
 
@@ -833,14 +904,18 @@ def team_notifications(request):
         return _error("Autentificare necesară.", 401)
     query = _incoming_requests(app_user, can_manage_all)
     leave_query = _incoming_leave_requests(app_user, can_manage_all)
+    attendance_query = _incoming_attendance_alert_recipients(app_user, can_manage_all)
     now = timezone.now()
     query.filter(seen_at__isnull=True).update(seen_at=now)
     leave_query.filter(seen_at__isnull=True).update(seen_at=now)
+    attendance_query.filter(read_at__isnull=True).update(read_at=now)
     items = list(query)
     leave_items = list(leave_query)
+    attendance_items = list(attendance_query)
     return JsonResponse({
         "requests": [_request_payload(item, app_user, can_manage_all) for item in items],
         "leave_requests": [_leave_notification_payload(item) for item in leave_items],
+        "attendance_alerts": [_attendance_alert_payload(item) for item in attendance_items],
         "pending_count": (
             sum(item.status == item.Status.PENDING for item in items)
             + sum(item.status == item.Status.PENDING for item in leave_items)

@@ -11,6 +11,9 @@ export interface AuthSession {
   can_access?: boolean;
   can_access_module?: boolean;
   modules?: string[];
+  roles?: Array<'team_leader' | 'supervisor'>;
+  effective_permissions?: string[];
+  coordinated_teams?: Array<{ id: number; name: string; leader_id: number; supervisor_id: number | null }>;
   default_module_route?: string | null;
   login_redirect_path?: string;
   app_user?: any;
@@ -119,6 +122,7 @@ export class AuthService {
   firstAvailableModuleRoute(session = this.session): string | null {
     if (!session) return null;
     if (session.role === 'admin' || session.auth_type === 'legacy') return '/dashboard';
+    if (session.roles?.includes('team_leader') || session.roles?.includes('supervisor')) return '/team-dashboard';
     if (session.default_module_route) return session.default_module_route;
     return Object.keys(this.moduleRoutes)
       .filter(code => session.modules?.includes(code))

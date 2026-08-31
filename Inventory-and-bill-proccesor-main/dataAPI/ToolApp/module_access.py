@@ -61,6 +61,28 @@ STANDARD_ROUTE_MODULES = {
     for code, definition in MODULE_DEFINITIONS.items()
     for route in definition["routes"]
 }
+TEAM_SCHEDULE_ROUTES = tuple(
+    route["path"] for route in MODULE_DEFINITIONS["teams_schedule"]["routes"]
+)
+
+
+def app_user_roles(app_user):
+    if not app_user or not getattr(app_user, "employee_id", None):
+        return []
+    roles = []
+    employee = app_user.employee
+    if employee.led_employee_teams.filter(active=True).exists():
+        roles.append("team_leader")
+    if employee.supervised_employee_teams.filter(active=True).exists():
+        roles.append("supervisor")
+    return roles
+
+
+def app_user_has_manual_module(app_user, module_code):
+    return bool(app_user and app_user.module_accesses.filter(
+        module_code=module_code,
+        can_access=True,
+    ).exists())
 
 
 def serialize_module_definitions():
@@ -77,10 +99,7 @@ def effective_module_codes(app_user):
         app_user.module_accesses.filter(can_access=True).values_list("module_code", flat=True)
     )
     # Șefii și supervisorii păstrează accesul implicit necesar administrării echipelor lor.
-    if (
-        app_user.employee.led_employee_teams.filter(active=True).exists()
-        or app_user.employee.supervised_employee_teams.filter(active=True).exists()
-    ):
+    if app_user_roles(app_user):
         codes.add("teams_schedule")
     return [code for code in MODULE_ORDER if code in codes]
 
@@ -95,5 +114,7 @@ def app_user_has_standard_route(app_user, route):
 
 
 def default_module_route(app_user):
+    if app_user_roles(app_user):
+        return "/team-dashboard"
     codes = effective_module_codes(app_user)
     return MODULE_DEFINITIONS[codes[0]]["main_route"] if codes else None

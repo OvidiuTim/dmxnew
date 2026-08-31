@@ -114,7 +114,7 @@ class ModuleAccessApiTests(TestCase):
         for path in ("/api/teams/", "/api/teams/today/", "/api/teams/available/", "/api/teams/requests/"):
             with self.subTest(path=path):
                 self.assertEqual(self.app_client.get(path).status_code, 200)
-        self.assertFalse(app_user_can_access_api_path(self.app_user, "/api/teams/", "POST"))
+        self.assertTrue(app_user_can_access_api_path(self.app_user, "/api/teams/", "POST"))
 
         self.grant_page("/pontaj/echipe")
         self.assertTrue(app_user_can_access_api_path(self.app_user, "/api/teams/", "POST"))

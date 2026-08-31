@@ -60,6 +60,13 @@ def env_list(name, default=""):
     return [x.strip() for x in os.getenv(name, default).split(",") if x.strip()]
 
 
+FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH", "")
+TEAM_ALERT_NON_WORKING_DATES = env_list("TEAM_ALERT_NON_WORKING_DATES")
+TEAM_ALERT_NON_WORKING_WEEKDAYS = tuple(
+    int(value) for value in env_list("TEAM_ALERT_NON_WORKING_WEEKDAYS", "7")
+)
+
+
 CORS_ALLOWED_ORIGINS = env_list(
     "DJANGO_CORS_ALLOWED_ORIGINS",
     "https://magazie.dmxconstruction.ro,https://www.magazie.dmxconstruction.ro",

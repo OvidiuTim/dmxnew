@@ -108,6 +108,14 @@ Backend-ul folosește modele pentru:
 - `PresenceEvent`, `AttendanceSession`, `DailyPay`, `LeaveDay` - pontaj, sesiuni de lucru, plată și concedii/absențe;
 - `PinAttemptLog` - audit pentru încercări de pontaj/autentificare cu PIN.
 
+### Acces automat la echipe și notificări 07:40
+
+- fiecare angajat activ are un singur `AppUser`, sincronizat prin semnal și prin comanda idempotentă `python manage.py sync_app_users`;
+- șefii de echipă și supervisorii primesc dinamic acces la întregul modul „Echipe și program”, fără a pierde permisiunile acordate manual când rolul este eliminat;
+- comanda `python manage.py send_team_attendance_alerts` creează o alertă grupată pe echipă pentru angajații fără check-in la 07:40, cu email și push Firebase;
+- API-urile mobile expun rolurile, permisiunile efective, echipele coordonate, notificările, starea citit/necitit și înregistrarea tokenului Android;
+- instrucțiunile complete de configurare și deploy sunt în `Inventory-and-bill-proccesor-main/DEPLOY_TEAM_ACCESS_NOTIFICATIONS.md`.
+
 ## Notă pentru viitorii agenți Codex/ALT AGENT
 
 Dacă vezi mesajul acesta și adaugi funcționalități noi în proiect, actualizează acest README în continuare. Scrie clar:

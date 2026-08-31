@@ -200,6 +200,21 @@ getAttendanceDay(date?: string) {
     });
   }
 
+  teamPortalAttendance(options: ManualAttendanceOptions) {
+    return this.http.post<any>(`${this.API}/team-portal/attendance/`, {
+      timestamp: new Date().toISOString(),
+      worksite: options.worksite,
+      gps: options.gps ? {
+        lat: options.gps.lat,
+        lng: options.gps.lng,
+        accuracy: options.gps.accuracy ?? null,
+        captured_at: options.gps.capturedAt ?? null,
+      } : null,
+      data_processing_consent: options.dataProcessingConsent === true,
+      attendance_photo: options.attendancePhoto || null,
+    });
+  }
+
   private getManualAttendanceDeviceKey(): string {
     if (typeof window === 'undefined') {
       return 'server-side-manual-device';

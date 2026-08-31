@@ -595,7 +595,7 @@ class MobileEmployeeApiTests(TestCase):
             {
                 "success", "profile", "total_salary_ron", "salary_advance_ron",
                 "salary_remainder_ron", "meal_vouchers_ron", "attendance", "payroll",
-                "salary_payments", "leave_summary", "equipment", "tools", "team",
+                "salary_payments", "leave_summary", "equipment", "tools", "team", "access",
             },
         )
 

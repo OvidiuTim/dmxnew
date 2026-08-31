@@ -1,0 +1,103 @@
+<main class="portal-page">
+  <header class="portal-header">
+    <div class="brand-row">
+      <span class="brand-mark">B</span>
+      <div><strong>bloom-in</strong><small>{{ t.roles }}</small></div>
+    </div>
+    <label class="language-field">
+      <span>{{ t.language }}</span>
+      <select [ngModel]="language" (ngModelChange)="setLanguage($event)" aria-label="Language">
+        <option *ngFor="let item of languages" [ngValue]="item.code">{{ item.label }}</option>
+      </select>
+    </label>
+  </header>
+
+  <section class="portal-shell">
+    <button *ngIf="view !== 'home'" type="button" class="back-button" (click)="open('home')">
+      <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>{{ t.back }}
+    </button>
+
+    <div *ngIf="loading" class="state-card">{{ t.loading }}</div>
+    <div *ngIf="error && !loading" class="state-card error-state">{{ error }} <button type="button" (click)="view === 'home' ? loadHome() : open(view)">{{ t.retry }}</button></div>
+
+    <ng-container *ngIf="view === 'home' && dashboard && !loading">
+      <div class="welcome-block">
+        <span>{{ t.welcome }}</span>
+        <h1>{{ dashboard.employee.name }}</h1>
+        <div class="own-status" [attr.data-status]="dashboard.status">
+          <span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(dashboard.status) }}</span>
+          {{ statusLabel(dashboard.status) }}
+        </div>
+      </div>
+
+      <section class="action-grid" aria-label="Dashboard">
+        <a class="action-card attendance-card" routerLink="/team-dashboard/pontaj">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">schedule</span>
+          <span><strong>{{ t.attendance }}</strong><small>{{ t.clockHint }}</small></span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </a>
+        <button type="button" class="action-card" (click)="open('salary')">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">badge</span>
+          <span><strong>{{ t.employeeFile }}</strong><small>{{ t.salaryHint }}</small></span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </button>
+        <button type="button" class="action-card" (click)="open('team')">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">groups</span>
+          <span><strong>{{ t.myTeam }}</strong><small>{{ t.teamHint }}</small></span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </button>
+        <button type="button" class="action-card" (click)="open('notifications')">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">notifications</span>
+          <span><strong>{{ t.notifications }}</strong><small>{{ t.notificationHint }}</small></span>
+          <span *ngIf="unreadCount" class="count-badge">{{ unreadCount }}</span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </button>
+      </section>
+      <button type="button" class="logout-button" (click)="logout()"><span class="material-symbols-rounded" aria-hidden="true">logout</span>{{ t.signOut }}</button>
+    </ng-container>
+
+    <section *ngIf="view === 'salary' && salary && !loading" class="detail-section">
+      <h1>{{ t.employeeFile }}</h1>
+      <p class="detail-owner">{{ salary.employee.name }}</p>
+      <div class="salary-grid">
+        <article><span>{{ t.totalSalary }}</span><strong>{{ salary.total_salary_ron }} <small>{{ t.lei }}</small></strong></article>
+        <article><span>{{ t.advance }}</span><strong>{{ salary.salary_advance_ron }} <small>{{ t.lei }}</small></strong></article>
+        <article><span>{{ t.settlement }}</span><strong>{{ salary.salary_remainder_ron }} <small>{{ t.lei }}</small></strong></article>
+      </div>
+    </section>
+
+    <section *ngIf="view === 'team' && !loading" class="detail-section">
+      <h1>{{ t.myTeam }}</h1>
+      <article *ngFor="let team of teams" class="team-card">
+        <h2>{{ team.name }}</h2>
+        <p *ngIf="!team.members.length" class="empty-copy">{{ t.noMembers }}</p>
+        <div *ngFor="let member of team.members" class="member-row" [attr.data-status]="member.status">
+          <button type="button" class="member-summary" (click)="toggleMember(member.id)" [attr.aria-expanded]="openMemberId === member.id">
+            <span class="member-avatar"><img *ngIf="member.photo" [src]="member.photo" alt="" /><span *ngIf="!member.photo">{{ member.name.charAt(0) }}</span></span>
+            <span class="member-name">{{ member.name }}</span>
+            <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(member.status) }}</span>{{ statusLabel(member.status) }}</span>
+            <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === member.id ? 'expand_less' : 'expand_more' }}</span>
+          </button>
+          <div *ngIf="openMemberId === member.id" class="member-detail">
+            <strong>{{ member.name }}</strong>
+            <span>{{ t.phone }}: {{ member.phone || t.noPhone }}</span>
+            <a *ngIf="member.phone" class="call-button" [href]="'tel:' + member.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section *ngIf="view === 'notifications' && !loading" class="detail-section">
+      <h1>{{ t.notifications }} <span *ngIf="unreadCount" class="title-badge">{{ unreadCount }}</span></h1>
+      <p *ngIf="!notifications.length" class="empty-copy">{{ t.noNotifications }}</p>
+      <article *ngFor="let notification of notifications" class="notification-card" [class.unread]="!notification.is_read">
+        <header><strong>{{ notification.team.name }}</strong><span>{{ notification.is_read ? t.read : t.unread }}</span></header>
+        <div *ngFor="let employee of notification.employees" class="notification-person">
+          <div><strong>{{ employee.name }}</strong><span>{{ t.absent }}</span></div>
+          <a *ngIf="employee.phone" [href]="'tel:' + employee.phone" class="small-call"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
+        </div>
+        <footer><time>{{ t.checkedAt }}: {{ notification.checked_at | date:'dd.MM.yyyy, HH:mm' }}</time><button *ngIf="!notification.is_read" type="button" (click)="markRead(notification)">{{ t.markRead }}</button></footer>
+      </article>
+    </section>
+  </section>
+</main>

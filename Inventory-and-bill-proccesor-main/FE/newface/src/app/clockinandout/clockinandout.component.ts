@@ -395,6 +395,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   selectedLanguage: LanguageCode = this.readSavedLanguage();
   chefMode = false;
+  portalMode = false;
   selectedWorksite: WorksiteDefinition | null = null;
   pin = '';
   submitting = false;
@@ -424,6 +425,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   ngOnInit(): void {
     this.chefMode = this.route.snapshot.data['chefMode'] === true;
+    this.portalMode = this.route.snapshot.data['portalMode'] === true;
     if (this.chefMode) {
       this.selectedWorksite = this.chefWorksite;
     }
@@ -484,7 +486,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   get canSubmit(): boolean {
-    return !!this.pin.trim()
+    return (this.portalMode || !!this.pin.trim())
       && (!this.chefMode || this.pin.trim() === '1165')
       && !!this.selectedWorksite
       && this.effectiveLocationState === 'inside'
@@ -732,7 +734,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
           return;
         }
         this.showAttendanceFeedback(response.state, response.user.name);
-        this.clearPin();
+        if (!this.portalMode) this.clearPin();
+        else this.resetSelfie();
         this.dataProcessingConsent = false;
       },
       error: (error) => {
@@ -785,9 +788,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private submitAttendanceRequest(pin: string, attendancePhoto: string) {
-    return this.api.manualAttendanceByPin(pin, {
+    const options = {
       worksite: this.selectedWorksite!.name,
-      mode: this.chefMode ? 'chef' : 'manual',
+      mode: (this.chefMode ? 'chef' : 'manual') as 'chef' | 'manual',
       gps: {
         lat: this.currentPosition!.lat,
         lng: this.currentPosition!.lng,
@@ -796,7 +799,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       },
       dataProcessingConsent: this.dataProcessingConsent,
       attendancePhoto,
-    });
+    };
+    return this.portalMode
+      ? this.api.teamPortalAttendance(options)
+      : this.api.manualAttendanceByPin(pin, options);
   }
 
   async openCamera(): Promise<void> {

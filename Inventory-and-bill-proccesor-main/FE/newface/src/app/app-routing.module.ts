@@ -29,6 +29,7 @@ import { AccommodationsComponent } from './pontaj/accommodations/accommodations.
 import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.component';
 import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
 import { OrganizationComponent } from './organization/organization.component';
+import { TeamPortalComponent } from './team-portal/team-portal.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -49,6 +50,8 @@ export const routes: Routes = [
   { path: 'clockinandoutdriver', component: ClockinandoutdriverComponent },
   { path: 'chef', component: ClockinandoutComponent, data: { chefMode: true } },
   { path: 'termeniigdpr', component: TermeniIgdprComponent },
+  { path: 'team-dashboard', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard', moduleCode: 'teams_schedule' } },
+  { path: 'team-dashboard/pontaj', component: ClockinandoutComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard', moduleCode: 'teams_schedule', portalMode: true } },
 
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj/rapoarte', component: RapoarteComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj/rapoarte', moduleCode: 'attendance' } },

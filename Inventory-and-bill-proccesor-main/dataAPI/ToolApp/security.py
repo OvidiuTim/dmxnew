@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core import signing
 from django.http import JsonResponse
 
-from ToolApp.module_access import app_user_has_module, app_user_has_standard_route
+from ToolApp.module_access import TEAM_SCHEDULE_ROUTES, app_user_has_module, app_user_has_standard_route, app_user_roles
 
 
 TOKEN_SALT = "pontaj-auth"
@@ -175,8 +175,9 @@ def request_has_admin(request) -> bool:
 def app_user_has_route(app_user, route: str) -> bool:
     if not app_user or not route:
         return False
-    team_routes = {"/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/echipe-azi", "/pontaj/personal", "/pontaj/notificari"}
-    if route in team_routes and (
+    if route == "/team-dashboard" and app_user_roles(app_user):
+        return True
+    if route in TEAM_SCHEDULE_ROUTES and (
         app_user.employee.led_employee_teams.filter(active=True).exists()
         or app_user.employee.supervised_employee_teams.filter(active=True).exists()
     ):
@@ -195,6 +196,8 @@ def app_user_can_access_any(app_user, routes) -> bool:
 
 def app_user_can_access_api_path(app_user, path: str, method: str = "GET") -> bool:
     normalized = _normalize_public_path(path)
+    if normalized.startswith("/api/team-portal/"):
+        return bool(app_user_roles(app_user))
     module_endpoint = False
     for prefix, module_codes in API_MODULE_REQUIREMENTS:
         if normalized.startswith(prefix):
@@ -202,7 +205,14 @@ def app_user_can_access_api_path(app_user, path: str, method: str = "GET") -> bo
             if not any(app_user_has_module(app_user, code) for code in module_codes):
                 return False
             break
-    if module_endpoint and str(method or "GET").upper() in ("GET", "HEAD"):
+    # Echipele au reguli de business suplimentare în view-uri (administrator
+    # versus propria echipă), deci modulul trebuie să lase acele view-uri să
+    # decidă inclusiv la scriere. Celelalte module păstrează permisiunile
+    # granulare existente pentru mutații.
+    if module_endpoint and (
+        str(method or "GET").upper() in ("GET", "HEAD")
+        or "teams_schedule" in module_codes
+    ):
         return True
     if normalized.startswith("/api/tool/") and str(method or "GET").upper() == "POST":
         return app_user_has_route(app_user, "/unelte/adauga-unealta")

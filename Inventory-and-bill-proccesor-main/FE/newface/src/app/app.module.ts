@@ -50,6 +50,7 @@ import { AccommodationsComponent } from './pontaj/accommodations/accommodations.
 import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.component';
 import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
 import { OrganizationComponent } from './organization/organization.component';
+import { TeamPortalComponent } from './team-portal/team-portal.component';
 
 @NgModule({
   declarations: [
@@ -90,6 +91,7 @@ import { OrganizationComponent } from './organization/organization.component';
     LeaveRequestsComponent,
     TermeniIgdprComponent,
     OrganizationComponent,
+    TeamPortalComponent,
   ],
   imports: [
     CommonModule,

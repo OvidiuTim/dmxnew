@@ -1,7 +1,7 @@
 from django.urls import path, re_path as url
 from ToolApp import views
 from ToolApp import mobile_views
-from ToolApp import team_views
+from ToolApp import team_views, team_portal_views
 from ToolApp import employee_views
 from ToolApp import leave_views
 from ToolApp import organization_views
@@ -71,6 +71,11 @@ urlpatterns = [
     path('api/pontaj/login/', views.pontaj_login, name='pontaj_login'),
     path('api/pontaj/clock/', pontaj_clock, name='pontaj_clock'),
     path('api/mobile/employee-dashboard/', mobile_views.employee_dashboard, name='mobile_employee_dashboard'),
+    path('api/mobile/access-context/', mobile_views.access_context, name='mobile_access_context'),
+    path('api/mobile/teams/', mobile_views.coordinated_teams, name='mobile_coordinated_teams'),
+    path('api/mobile/notifications/', mobile_views.mobile_notifications, name='mobile_notifications'),
+    path('api/mobile/notifications/read/', mobile_views.mobile_notifications_read, name='mobile_notifications_read'),
+    path('api/mobile/device-token/', mobile_views.mobile_device_token, name='mobile_device_token'),
     path('api/mobile/leave-requests/', mobile_views.leave_request_create, name='mobile_leave_request_create'),
     path('api/mobile/leave-balance/', mobile_views.leave_balance, name='mobile_leave_balance'),
     path('api/mobile/leave-requests/list/', mobile_views.leave_request_list, name='mobile_leave_request_list'),
@@ -188,8 +193,15 @@ urlpatterns = [
     path('api/teams/requests/<int:request_id>/action/', team_views.temporary_request_action, name='temporary_worker_request_action'),
     path('api/teams/notifications/', team_views.team_notifications, name='team_notifications'),
     path('api/teams/notifications/summary/', team_views.notifications_summary, name='team_notifications_summary'),
+    path('api/teams/worksites/', team_views.team_worksites, name='team_worksites'),
     path('api/teams/<int:team_id>/', team_views.team_detail, name='team_detail'),
     path('api/teams/<int:team_id>/members/', team_views.team_members, name='team_members'),
+    path('api/team-portal/dashboard/', team_portal_views.portal_dashboard, name='team_portal_dashboard'),
+    path('api/team-portal/salary/', team_portal_views.portal_salary, name='team_portal_salary'),
+    path('api/team-portal/teams/', team_portal_views.portal_teams, name='team_portal_teams'),
+    path('api/team-portal/notifications/', team_portal_views.portal_notifications, name='team_portal_notifications'),
+    path('api/team-portal/worksites/', team_portal_views.portal_worksites, name='team_portal_worksites'),
+    path('api/team-portal/attendance/', team_portal_views.portal_attendance, name='team_portal_attendance'),
     path('api/organization/departments/<int:department_id>/team/', organization_views.organization_department_team, name='organization_department_team'),
 
     # Cereri de concediu primite de șefii de echipă și administratori

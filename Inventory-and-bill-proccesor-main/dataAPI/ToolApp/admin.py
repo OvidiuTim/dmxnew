@@ -13,9 +13,34 @@ from ToolApp.models import (
     LeaveDay,
     LeaveRequest,
     TemporaryWorkerRequest,
+    TeamAttendanceAlert,
+    TeamAttendanceAlertRecipient,
+    MobileDevice,
     Tools,
     Users,
 )
+
+
+@admin.register(TeamAttendanceAlert)
+class TeamAttendanceAlertAdmin(admin.ModelAdmin):
+    list_display = ("team", "work_date", "worksite", "created_at")
+    list_filter = ("work_date", "team")
+    search_fields = ("team__name", "worksite", "missing_employees__UserName")
+    filter_horizontal = ("missing_employees",)
+
+
+@admin.register(TeamAttendanceAlertRecipient)
+class TeamAttendanceAlertRecipientAdmin(admin.ModelAdmin):
+    list_display = ("alert", "employee", "read_at", "email_sent_at", "push_sent_at")
+    list_filter = ("read_at", "email_sent_at", "push_sent_at")
+    search_fields = ("employee__UserName", "alert__team__name")
+
+
+@admin.register(MobileDevice)
+class MobileDeviceAdmin(admin.ModelAdmin):
+    list_display = ("employee", "platform", "active", "last_seen_at", "invalidated_at")
+    list_filter = ("platform", "active")
+    search_fields = ("employee__UserName", "employee__UserSerie", "device_key", "push_token")
 
 
 @admin.register(Accommodation)

@@ -981,6 +981,62 @@ class TemporaryWorkerRequest(models.Model):
         return f"{self.employee} → {self.requester_team} ({self.start_date}–{self.end_date})"
 
 
+class TeamAttendanceAlert(models.Model):
+    team = models.ForeignKey(EmployeeTeam, on_delete=models.CASCADE, related_name="attendance_alerts")
+    work_date = models.DateField(db_index=True)
+    worksite = models.CharField(max_length=160, blank=True, default="")
+    missing_employees = models.ManyToManyField(Users, related_name="missing_attendance_alerts")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-work_date", "team__name")
+        constraints = [
+            models.UniqueConstraint(fields=("team", "work_date"), name="unique_team_attendance_alert_day"),
+        ]
+
+    def __str__(self):
+        return f"{self.team} · {self.work_date}"
+
+
+class TeamAttendanceAlertRecipient(models.Model):
+    alert = models.ForeignKey(TeamAttendanceAlert, on_delete=models.CASCADE, related_name="recipients")
+    employee = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="received_attendance_alerts")
+    read_at = models.DateTimeField(null=True, blank=True)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
+    push_sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("alert", "employee"), name="unique_attendance_alert_recipient"),
+        ]
+        indexes = [
+            models.Index(fields=("employee", "read_at"), name="attendance_alert_unread_idx"),
+        ]
+
+
+class MobileDevice(models.Model):
+    employee = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="mobile_devices")
+    device_key = models.CharField(max_length=64)
+    push_token = models.CharField(max_length=512, unique=True)
+    platform = models.CharField(max_length=20, default="android")
+    active = models.BooleanField(default=True, db_index=True)
+    invalidated_at = models.DateTimeField(null=True, blank=True)
+    last_seen_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("employee", "device_key"), name="unique_employee_mobile_device"),
+        ]
+        indexes = [
+            models.Index(fields=("employee", "active"), name="mobile_device_employee_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.employee} · {self.platform}"
+
+
 class OrganizationDepartment(models.Model):
     name = models.CharField(max_length=180)
     subtitle = models.CharField(max_length=255, blank=True, default="")
