@@ -194,6 +194,8 @@ class ModuleAccessApiTests(TestCase):
                 "/team-dashboard/notificari",
                 "/team-dashboard/echipele-mele",
                 "/team-dashboard/cereri",
+                "/team-dashboard/cereri-concediu",
+                "/team-dashboard/cereri-transfer",
                 "/team-dashboard/personal",
                 "/team-dashboard/vezi-lipsa",
                 "/team-dashboard/lipsa-azi",

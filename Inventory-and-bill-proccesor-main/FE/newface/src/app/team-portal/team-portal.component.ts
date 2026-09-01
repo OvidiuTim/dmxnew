@@ -206,17 +206,23 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   get isLevel1(): boolean { return !!this.dashboard?.alert_level_1; }
   get isLevel2(): boolean { return !!this.dashboard?.alert_level_2; }
 
-  /** Rolurile afișate în header: „Șef de echipă” apare doar dacă chiar are rolul. */
-  get roleLabel(): string {
-    if (!this.dashboard) return '';
+  /** Numai rolurile pe care utilizatorul le are efectiv, în ordinea ierarhiei. */
+  get roleLabels(): string[] {
+    if (!this.dashboard) return [];
     const labels: string[] = [];
     if (this.dashboard.is_team_leader) labels.push(this.t.teamLeaderRole);
+    if (this.dashboard.is_supervisor) labels.push(this.t.supervisorRole);
     const configured = this.dashboard.role_labels || {};
     if (this.dashboard.alert_level_1) labels.push(configured['1'] || 'Nivel 1');
     if (this.dashboard.alert_level_2) labels.push(configured['2'] || 'Nivel 2');
-    if (this.dashboard.is_supervisor) labels.push(this.t.supervisorRole);
-    return labels.length ? labels.join(' / ') : this.t.dashboard;
+    return labels;
   }
+
+  /** Un singur rol rămâne simplu; mai multe se scriu compact, separate prin punct. */
+  get roleLabel(): string { return this.roleLabels.join(' · '); }
+
+  /** Numele angajatului este elementul principal din header. */
+  get headerName(): string { return this.dashboard?.employee?.name || this.t.dashboard; }
   get unreadCount(): number { return this.notifications.filter(item => !item.is_read).length || Number(this.dashboard?.unread_notifications || 0); }
 
   setLanguage(value: PortalLanguage): void {

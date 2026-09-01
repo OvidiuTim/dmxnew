@@ -2,7 +2,10 @@
   <header class="portal-header">
     <div class="brand-row">
       <span class="brand-mark">B</span>
-      <div><strong>bloom-in</strong><small>{{ roleLabel }}</small></div>
+      <div class="identity">
+        <strong class="identity-name">{{ headerName }}</strong>
+        <small class="identity-roles" *ngIf="roleLabel" [title]="roleLabel">{{ roleLabel }}</small>
+      </div>
     </div>
     <div class="header-actions">
       <label *ngIf="view === 'home'" class="language-field">
