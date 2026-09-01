@@ -1,7 +1,7 @@
 <div class="manual-page">
   <div class="manual-shell">
     <nav *ngIf="portalMode" class="portal-mini-header" aria-label="Team dashboard navigation">
-      <span class="portal-mini-brand"><span class="portal-mini-mark">B</span><strong>bloom-in</strong></span>
+      <span class="portal-mini-brand"><span class="portal-mini-mark">B</span></span>
       <button type="button" class="portal-bell-button" (click)="openPortalNotifications()" aria-label="Notifications">
         <span class="material-symbols-rounded" aria-hidden="true">notifications</span>
         <span *ngIf="portalUnreadNotifications" class="portal-bell-badge">{{ portalUnreadNotifications > 99 ? '99+' : portalUnreadNotifications }}</span>

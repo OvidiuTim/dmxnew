@@ -2,9 +2,6 @@
   <header class="portal-header">
     <div class="brand-row">
       <span class="brand-mark">B</span>
-      <div class="identity">
-        <span class="identity-roles" [title]="roleLabel || t.dashboard">{{ roleLabel || t.dashboard }}</span>
-      </div>
     </div>
     <div class="header-actions">
       <label *ngIf="view === 'home'" class="language-field">
@@ -29,6 +26,7 @@
       <div class="welcome-block">
         <span>{{ t.welcome }}</span>
         <h1>{{ dashboard.employee.name }}</h1>
+        <p class="welcome-roles" *ngIf="roleLabel">{{ roleLabel }}</p>
       </div>
 
       <section class="action-grid" aria-label="Dashboard">
