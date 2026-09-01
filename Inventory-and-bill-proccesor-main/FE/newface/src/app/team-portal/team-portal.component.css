@@ -67,6 +67,9 @@ button, select, input, textarea, a { font: inherit; }
 .absent-button:disabled { opacity: .6; cursor: wait; }
 .notification-card { padding: 18px; }
 .notification-card.unread { border-color: rgba(229,72,85,.65); box-shadow: inset 4px 0 #e54855; }
+/* Cerere nesoluționată: rămâne roșie până primește răspuns. */
+.notification-card.urgent { border-color: #e54855; background: linear-gradient(180deg, rgba(229,72,85,.09), #0c1829 62%); box-shadow: inset 5px 0 #e54855; }
+.notification-card.urgent header span { color: #ff8a92; }
 .notification-card header, .notification-card footer, .notification-person { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .notification-card header { padding-bottom: 13px; border-bottom: 1px solid #1d2c40; }
 .notification-card header strong, .request-card header strong { min-width: 0; overflow-wrap: anywhere; }

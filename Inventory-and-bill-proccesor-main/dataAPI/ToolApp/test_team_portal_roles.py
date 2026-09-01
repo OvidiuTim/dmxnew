@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from unittest.mock import patch
 
 from django.http import JsonResponse
@@ -312,6 +313,47 @@ class TeamPortalRoleSecurityTests(TestCase):
             [row for row in after_decision["notifications"] if row["kind"] == "leave_approval"],
             [],
         )
+
+    def test_pending_request_without_stored_notification_is_still_flagged(self):
+        """O cerere creată pe alt drum (mobil, administrare) trebuie să apară totuși.
+
+        Reproduce cazul real: cererea era în așteptare la supervisor, dar nu
+        exista niciun rând TeamPortalNotification, deci nu se vedea nimic.
+        """
+        item = LeaveRequest.objects.create(
+            employee=self.member,
+            team=self.destination,
+            leave_type=LeaveRequest.LeaveType.PAID_LEAVE,
+            start_date=date(2026, 11, 2),
+            end_date=date(2026, 11, 6),
+        )
+        # Cererile vechi, dinainte de introducerea notificărilor, nu au rând salvat.
+        TeamPortalNotification.objects.filter(leave_request=item).delete()
+        self.assertFalse(TeamPortalNotification.objects.filter(leave_request=item).exists())
+
+        listing = client_for(self.supervisor_account).get("/api/team-portal/notifications/").json()
+        payload = next(row for row in listing["notifications"] if row.get("request_id") == item.pk)
+        self.assertTrue(payload["urgent"])
+        self.assertFalse(payload["is_read"])
+        self.assertEqual(payload["target_path"], f"/team-dashboard/cereri-concediu?request={item.pk}")
+        self.assertEqual(listing["unread_count"], 1)
+
+        # Rămâne roșie și la reîncărcare, fiindcă nu a primit încă un răspuns.
+        again = client_for(self.supervisor_account).get("/api/team-portal/notifications/").json()
+        self.assertIn(item.pk, [row.get("request_id") for row in again["notifications"]])
+
+        # Supervisorul nu vede cererile altor echipe.
+        other = client_for(self.other_supervisor_account).get("/api/team-portal/notifications/").json()
+        self.assertNotIn(item.pk, [row.get("request_id") for row in other["notifications"]])
+
+        decided = client_for(self.supervisor_account).post(
+            f"/api/team-portal/leave-requests/{item.pk}/decision/",
+            data=json.dumps({"action": "approve"}),
+            content_type="application/json",
+        )
+        self.assertEqual(decided.status_code, 200, decided.content)
+        after = client_for(self.supervisor_account).get("/api/team-portal/notifications/").json()
+        self.assertNotIn(item.pk, [row.get("request_id") for row in after["notifications"]])
 
     def test_transfer_notifies_only_the_current_approval_stage(self):
         created = client_for(self.leader_account).post(

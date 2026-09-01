@@ -1299,6 +1299,79 @@ def _personal_notification_payloads(app_user):
     ]
 
 
+def _pending_approval_payloads(app_user):
+    """Cererile la care utilizatorul curent nu a răspuns încă.
+
+    Se construiesc direct din cereri, nu din notificările salvate: o cerere
+    creată pe alt drum (aplicația mobilă, zona de administrare) sau înainte de
+    introducerea notificărilor trebuie să apară totuși aici. Rămân marcate
+    urgent până sunt soluționate.
+    """
+    supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
+    if not supervised_ids:
+        return []
+    payloads = []
+    leaves = LeaveRequest.objects.select_related("employee", "team").filter(
+        team_id__in=supervised_ids,
+        status=LeaveRequest.Status.PENDING,
+    ).exclude(employee_id=app_user.employee_id).order_by("-created_at")
+    for item in leaves:
+        payloads.append({
+            "id": item.pk,
+            "kind": TeamPortalNotification.Kind.LEAVE_APPROVAL,
+            "request_kind": "leave",
+            "request_id": item.pk,
+            "urgent": True,
+            "team": {"id": item.team_id, "name": item.team.name if item.team_id else ""},
+            "status": item.status,
+            "status_label": item.get_status_display(),
+            "leave_type": item.leave_type,
+            "leave_type_label": item.get_leave_type_display(),
+            "start_date": item.start_date.isoformat(),
+            "end_date": item.end_date.isoformat(),
+            "date": item.created_at.date().isoformat(),
+            "checked_at": item.created_at.isoformat(),
+            "is_read": False,
+            "target_path": f"/team-dashboard/cereri-concediu?request={item.pk}",
+            "employees": [{
+                "id": item.employee_id,
+                "name": item.employee.UserName,
+                "phone": item.employee.phone_number or "",
+            }],
+        })
+    transfers = PortalTeamTransferRequest.objects.select_related(
+        "employee", "source_team__leader", "source_team__supervisor",
+        "destination_team__leader", "destination_team__supervisor", "requested_by__employee",
+    ).filter(status=PortalTeamTransferRequest.Status.PENDING).filter(
+        Q(source_team_id__in=supervised_ids) | Q(destination_team_id__in=supervised_ids)
+    ).distinct().order_by("-created_at")
+    for item in transfers:
+        # Aceeași regulă ca pe pagina „Cereri de transfer”: contează doar
+        # etapa de aprobare care îi revine acum utilizatorului.
+        if not _transfer_payload(item, app_user).get("can_approve"):
+            continue
+        payloads.append({
+            "id": item.pk,
+            "kind": TeamPortalNotification.Kind.TRANSFER_APPROVAL,
+            "request_kind": "transfer",
+            "request_id": item.pk,
+            "urgent": True,
+            "team": {"id": item.destination_team_id, "name": item.destination_team.name},
+            "status": item.status,
+            "status_label": item.get_status_display(),
+            "date": item.created_at.date().isoformat(),
+            "checked_at": item.created_at.isoformat(),
+            "is_read": False,
+            "target_path": f"/team-dashboard/cereri-transfer?request={item.pk}",
+            "employees": [{
+                "id": item.employee_id,
+                "name": item.employee.UserName,
+                "phone": item.employee.phone_number or "",
+            }],
+        })
+    return payloads
+
+
 def _request_notification_payloads(app_user):
     items = TeamPortalNotification.objects.select_related(
         "leave_request__employee", "leave_request__team",
@@ -1312,9 +1385,10 @@ def _request_notification_payloads(app_user):
             is_result = item.kind == TeamPortalNotification.Kind.LEAVE_RESULT
             # O cerere de aprobat rămâne vizibilă până este soluționată, chiar
             # dacă a fost deschisă; un rezultat dispare după ce a fost văzut.
-            if is_result and item.read_at:
+            # Aprobările sunt construite din cereri în _pending_approval_payloads.
+            if not is_result:
                 continue
-            if not is_result and request_item.status != LeaveRequest.Status.PENDING:
+            if item.read_at:
                 continue
             target_path = (
                 "/team-dashboard/cerere-concediu"
@@ -1346,9 +1420,9 @@ def _request_notification_payloads(app_user):
             continue
         request_item = item.transfer_request
         is_approval = item.kind == TeamPortalNotification.Kind.TRANSFER_APPROVAL
-        if not is_approval and item.read_at:
+        if is_approval:
             continue
-        if is_approval and request_item.status != PortalTeamTransferRequest.Status.PENDING:
+        if item.read_at:
             continue
         target_path = (
             f"/team-dashboard/cereri-transfer?request={request_item.pk}"
@@ -1425,8 +1499,16 @@ def _current_portal_unread_count(app_user):
     if _escalation_levels(app_user):
         items += _global_notification_payloads(app_user)
     attendance = sum(not item["is_read"] for item in items)
-    requests = _open_request_notifications(app_user).filter(read_at__isnull=True).count()
-    return personal + attendance + requests
+    pending_approvals = len(_pending_approval_payloads(app_user))
+    results = TeamPortalNotification.objects.filter(
+        recipient=app_user,
+        read_at__isnull=True,
+        kind__in=(
+            TeamPortalNotification.Kind.LEAVE_RESULT,
+            TeamPortalNotification.Kind.TRANSFER_RESULT,
+        ),
+    ).count()
+    return personal + attendance + pending_approvals + results
 
 
 @csrf_exempt
@@ -1453,7 +1535,7 @@ def portal_notifications(request):
         # Absențele deja văzute nu se mai afișează.
         attendance_items = [item for item in attendance_items if not item["is_read"]]
         personal_items = [item for item in _personal_notification_payloads(app_user) if not item["is_read"]]
-        request_items = _request_notification_payloads(app_user)
+        request_items = _pending_approval_payloads(app_user) + _request_notification_payloads(app_user)
         result_ids = [
             item["id"]
             for item in request_items

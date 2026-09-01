@@ -15,7 +15,7 @@ interface PortalCopy {
   notificationHint: string; back: string; totalSalary: string; advance: string; settlement: string;
   lei: string; present: string; absent: string; leave: string; phone: string; call: string;
   noPhone: string; noMembers: string; noNotifications: string; checkedAt: string; markRead: string;
-  read: string; unread: string; signOut: string; loading: string; retry: string; error: string; roles: string;
+  read: string; unread: string; pendingAction: string; signOut: string; loading: string; retry: string; error: string; roles: string;
   markAbsent: string; markedAbsent: string; notRequired: string; confirmAbsent: string; markingAbsent: string; absentSaved: string;
   seeMissing: string; seeMissingHint: string; absentToday: string; absentTodayHint: string; teamLabel: string;
   leaderLabel: string; leaderPhone: string; noMissing: string; noAbsent: string; lockedInfo: string;
@@ -54,7 +54,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
       teamHint: 'Vezi numai echipele pe care le coordonezi', notificationHint: 'Alertele disponibile pentru rolul tău', back: 'Înapoi',
       totalSalary: 'Salariu total', advance: 'Avans', settlement: 'Lichidare', lei: 'lei', present: 'Pontat', absent: 'Nepontat',
       leave: 'În concediu', phone: 'Număr de telefon', call: 'Sună', noPhone: 'Fără număr de telefon', noMembers: 'Nu există membri.',
-      noNotifications: 'Nu există notificări de pontaj.', checkedAt: 'Verificat la', markRead: 'Marchează citită', read: 'Citită', unread: 'Necitită',
+      noNotifications: 'Nu există notificări de pontaj.', checkedAt: 'Verificat la', markRead: 'Marchează citită', read: 'Citită', unread: 'Necitită', pendingAction: 'Necesită răspuns',
       signOut: 'Deconectare', loading: 'Se încarcă…', retry: 'Reîncearcă', error: 'Informațiile nu au putut fi încărcate.', roles: 'Șef de echipă / Supervisor',
       markAbsent: 'Marchează absent', markedAbsent: 'Marcat absent', notRequired: 'Nu se pontează', confirmAbsent: 'Confirmi marcarea ca absent pentru {name} astăzi?', markingAbsent: 'Se salvează…', absentSaved: 'Absența a fost salvată.',
       seeMissing: 'Vezi nepontați', seeMissingHint: 'Toți angajații companiei care nu s-au pontat astăzi', absentToday: 'Lipsă azi', absentTodayHint: 'Absenții zilei, la nivel de companie', teamLabel: 'Echipă',
@@ -73,7 +73,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
       teamHint: 'See only the teams you coordinate', notificationHint: 'Alerts available for your role', back: 'Back',
       totalSalary: 'Total salary', advance: 'Advance', settlement: 'Settlement', lei: 'lei', present: 'Clocked in', absent: 'Not clocked in',
       leave: 'On leave', phone: 'Phone number', call: 'Call', noPhone: 'No phone number', noMembers: 'No members found.',
-      noNotifications: 'No attendance notifications.', checkedAt: 'Checked at', markRead: 'Mark as read', read: 'Read', unread: 'Unread',
+      noNotifications: 'No attendance notifications.', checkedAt: 'Checked at', markRead: 'Mark as read', read: 'Read', unread: 'Unread', pendingAction: 'Needs your answer',
       signOut: 'Sign out', loading: 'Loading…', retry: 'Retry', error: 'The information could not be loaded.', roles: 'Team leader / Supervisor',
       markAbsent: 'Mark absent', markedAbsent: 'Marked absent', notRequired: 'Attendance not required', confirmAbsent: 'Mark {name} absent for today?', markingAbsent: 'Saving…', absentSaved: 'The absence was saved.',
       seeMissing: 'See not clocked in', seeMissingHint: 'Every company employee without attendance today', absentToday: 'Absent today', absentTodayHint: "Today's absences, company-wide", teamLabel: 'Team',
@@ -92,7 +92,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
       teamHint: 'ਸਿਰਫ਼ ਆਪਣੀਆਂ ਟੀਮਾਂ ਵੇਖੋ', notificationHint: 'ਤੁਹਾਡੀ ਭੂਮਿਕਾ ਲਈ ਉਪਲਬਧ ਸੂਚਨਾਵਾਂ', back: 'ਵਾਪਸ',
       totalSalary: 'ਕੁੱਲ ਤਨਖਾਹ', advance: 'ਅਡਵਾਂਸ', settlement: 'ਬਾਕੀ ਭੁਗਤਾਨ', lei: 'ਲੇਈ', present: 'ਹਾਜ਼ਰ', absent: 'ਹਾਜ਼ਰੀ ਨਹੀਂ',
       leave: 'ਛੁੱਟੀ ਤੇ', phone: 'ਫੋਨ ਨੰਬਰ', call: 'ਕਾਲ ਕਰੋ', noPhone: 'ਫੋਨ ਨੰਬਰ ਨਹੀਂ', noMembers: 'ਕੋਈ ਮੈਂਬਰ ਨਹੀਂ ਮਿਲਿਆ।',
-      noNotifications: 'ਕੋਈ ਹਾਜ਼ਰੀ ਸੂਚਨਾ ਨਹੀਂ।', checkedAt: 'ਜਾਂਚ ਦਾ ਸਮਾਂ', markRead: 'ਪੜ੍ਹਿਆ ਨਿਸ਼ਾਨ ਲਗਾਓ', read: 'ਪੜ੍ਹਿਆ', unread: 'ਨਵੀਂ',
+      noNotifications: 'ਕੋਈ ਹਾਜ਼ਰੀ ਸੂਚਨਾ ਨਹੀਂ।', checkedAt: 'ਜਾਂਚ ਦਾ ਸਮਾਂ', markRead: 'ਪੜ੍ਹਿਆ ਨਿਸ਼ਾਨ ਲਗਾਓ', read: 'ਪੜ੍ਹਿਆ', unread: 'ਨਵੀਂ', pendingAction: 'ਜਵਾਬ ਦੀ ਲੋੜ ਹੈ',
       signOut: 'ਲਾਗ ਆਉਟ', loading: 'ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…', retry: 'ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼', error: 'ਜਾਣਕਾਰੀ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕੀ।', roles: 'ਟੀਮ ਲੀਡਰ / ਸੁਪਰਵਾਈਜ਼ਰ',
       markAbsent: 'ਗੈਰਹਾਜ਼ਰ ਨਿਸ਼ਾਨ ਲਗਾਓ', markedAbsent: 'ਗੈਰਹਾਜ਼ਰ', notRequired: 'ਹਾਜ਼ਰੀ ਲਾਜ਼ਮੀ ਨਹੀਂ', confirmAbsent: 'ਕੀ {name} ਨੂੰ ਅੱਜ ਗੈਰਹਾਜ਼ਰ ਨਿਸ਼ਾਨ ਲਗਾਉਣਾ ਹੈ?', markingAbsent: 'ਸੇਵ ਹੋ ਰਿਹਾ ਹੈ…', absentSaved: 'ਗੈਰਹਾਜ਼ਰੀ ਸੇਵ ਹੋ ਗਈ।',
       seeMissing: 'ਹਾਜ਼ਰੀ ਨਾ ਲਗਾਉਣ ਵਾਲੇ ਵੇਖੋ', seeMissingHint: 'ਕੰਪਨੀ ਦੇ ਸਾਰੇ ਕਰਮਚਾਰੀ ਜਿਨ੍ਹਾਂ ਨੇ ਅੱਜ ਹਾਜ਼ਰੀ ਨਹੀਂ ਲਗਾਈ', absentToday: 'ਅੱਜ ਦੀ ਗੈਰਹਾਜ਼ਰੀ', absentTodayHint: 'ਪੂਰੀ ਕੰਪਨੀ ਦੀ ਅੱਜ ਦੀ ਗੈਰਹਾਜ਼ਰੀ', teamLabel: 'ਟੀਮ',
@@ -111,7 +111,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
       teamHint: 'केवल अपनी टीम देखें', notificationHint: 'आपकी भूमिका के लिए उपलब्ध सूचनाएं', back: 'वापस',
       totalSalary: 'कुल वेतन', advance: 'अग्रिम', settlement: 'शेष भुगतान', lei: 'लेई', present: 'उपस्थित', absent: 'उपस्थित नहीं',
       leave: 'छुट्टी पर', phone: 'फोन नंबर', call: 'कॉल करें', noPhone: 'फोन नंबर नहीं', noMembers: 'कोई सदस्य नहीं मिला।',
-      noNotifications: 'कोई उपस्थिति सूचना नहीं।', checkedAt: 'जांच का समय', markRead: 'पढ़ा हुआ करें', read: 'पढ़ा हुआ', unread: 'नई',
+      noNotifications: 'कोई उपस्थिति सूचना नहीं।', checkedAt: 'जांच का समय', markRead: 'पढ़ा हुआ करें', read: 'पढ़ा हुआ', unread: 'नई', pendingAction: 'उत्तर आवश्यक है',
       signOut: 'लॉग आउट', loading: 'लोड हो रहा है…', retry: 'फिर प्रयास करें', error: 'जानकारी लोड नहीं हो सकी।', roles: 'टीम लीडर / सुपरवाइज़र',
       markAbsent: 'अनुपस्थित करें', markedAbsent: 'अनुपस्थित', notRequired: 'उपस्थिति आवश्यक नहीं', confirmAbsent: 'क्या {name} को आज अनुपस्थित चिह्नित करना है?', markingAbsent: 'सहेजा जा रहा है…', absentSaved: 'अनुपस्थिति सहेजी गई।',
       seeMissing: 'उपस्थित न हुए देखें', seeMissingHint: 'कंपनी के सभी कर्मचारी जिन्होंने आज उपस्थिति नहीं लगाई', absentToday: 'आज की अनुपस्थिति', absentTodayHint: 'पूरी कंपनी की आज की अनुपस्थिति', teamLabel: 'टीम',
@@ -130,7 +130,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
       teamHint: 'आफूले समन्वय गर्ने टोली मात्र हेर्नुहोस्', notificationHint: 'तपाईंको भूमिकाका लागि उपलब्ध सूचनाहरू', back: 'पछाडि',
       totalSalary: 'कुल तलब', advance: 'अग्रिम', settlement: 'बाँकी भुक्तानी', lei: 'लेई', present: 'हाजिर', absent: 'हाजिर छैन',
       leave: 'बिदामा', phone: 'फोन नम्बर', call: 'फोन गर्नुहोस्', noPhone: 'फोन नम्बर छैन', noMembers: 'कुनै सदस्य भेटिएन।',
-      noNotifications: 'कुनै हाजिरी सूचना छैन।', checkedAt: 'जाँच समय', markRead: 'पढिएको चिन्ह लगाउनुहोस्', read: 'पढिएको', unread: 'नयाँ',
+      noNotifications: 'कुनै हाजिरी सूचना छैन।', checkedAt: 'जाँच समय', markRead: 'पढिएको चिन्ह लगाउनुहोस्', read: 'पढिएको', unread: 'नयाँ', pendingAction: 'जवाफ आवश्यक छ',
       signOut: 'लग आउट', loading: 'लोड हुँदैछ…', retry: 'फेरि प्रयास', error: 'जानकारी लोड हुन सकेन।', roles: 'टोली प्रमुख / सुपरभाइजर',
       markAbsent: 'अनुपस्थित चिन्ह लगाउनुहोस्', markedAbsent: 'अनुपस्थित', notRequired: 'हाजिरी आवश्यक छैन', confirmAbsent: 'के {name} लाई आज अनुपस्थित चिन्ह लगाउने?', markingAbsent: 'सुरक्षित हुँदैछ…', absentSaved: 'अनुपस्थिति सुरक्षित भयो।',
       seeMissing: 'हाजिर नभएका हेर्नुहोस्', seeMissingHint: 'आज हाजिर नभएका कम्पनीका सबै कर्मचारी', absentToday: 'आजको अनुपस्थिति', absentTodayHint: 'पूरै कम्पनीको आजको अनुपस्थिति', teamLabel: 'टोली',
@@ -483,7 +483,8 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
         });
       }
     };
-    if (notification.is_read) {
+    // Cererile nesoluționate nu au notificare salvată: nu e nimic de marcat citit.
+    if (notification.is_read || notification.urgent) {
       navigate();
       return;
     }
