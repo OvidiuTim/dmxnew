@@ -42,6 +42,7 @@ class AutomaticAppUserTests(TestCase):
         self.assertTrue(created)
         self.assertTrue(account.check_pin("1234"))
         self.assertNotEqual(account.pin_hash, "1234")
+        self.assertEqual(account.login_redirect_path, "/team-dashboard")
 
         again, created_again = sync_employee_app_user(person)
         self.assertFalse(created_again)
@@ -63,6 +64,16 @@ class AutomaticAppUserTests(TestCase):
         account.refresh_from_db()
         self.assertTrue(account.is_active)
         self.assertTrue(account.check_pin("4321"))
+        self.assertEqual(account.login_redirect_path, "/team-dashboard")
+
+    def test_active_employee_without_series_still_receives_an_account(self):
+        person = Users(UserName="Fără Serie", UserSerie="", person_type=Users.PersonType.EMPLOYEE)
+        person.set_pin("7654")
+        person.save()
+        account, _ = sync_employee_app_user(person)
+        self.assertIsNotNone(account)
+        self.assertTrue(account.is_active)
+        self.assertEqual(account.login_redirect_path, "/team-dashboard")
 
 
 class EffectiveTeamPermissionTests(TestCase):
@@ -101,7 +112,7 @@ class EffectiveTeamPermissionTests(TestCase):
         self.team.active = False
         self.team.save(update_fields=("active",))
         self.assertNotIn("teams_schedule", effective_module_codes(self.account))
-        self.assertNotIn("team_dashboard", effective_module_codes(self.account))
+        self.assertIn("team_dashboard", effective_module_codes(self.account))
         AppModuleAccess.objects.create(app_user=self.account, module_code="teams_schedule", can_access=True)
         self.assertIn("teams_schedule", effective_module_codes(self.account))
 
@@ -144,16 +155,16 @@ class EffectiveTeamPermissionTests(TestCase):
 
         self.assertEqual(dashboard.status_code, 200, dashboard.content)
         self.assertEqual(salary.status_code, 200, salary.content)
-        self.assertEqual(teams.json()["teams"], [])
+        self.assertEqual(teams.status_code, 403)
 
-    def test_user_without_role_or_manual_access_cannot_open_portal(self):
+    def test_active_employee_without_extra_role_can_open_own_portal(self):
         other = employee("Fără acces", "ROLE-4", "2004")
         account = AppUser(employee=other, username="no.portal")
         account.set_pin("2004")
         account.save()
         client = Client()
         client.cookies["appj"] = make_app_user_token(account)
-        self.assertEqual(client.get("/api/team-portal/dashboard/").status_code, 403)
+        self.assertEqual(client.get("/api/team-portal/dashboard/").status_code, 200)
 
 
 @override_settings(TEAM_ALERT_NON_WORKING_WEEKDAYS=(7,), TEAM_ALERT_NON_WORKING_DATES=())

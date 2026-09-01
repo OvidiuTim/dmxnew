@@ -705,6 +705,7 @@ class LeaveRequest(models.Model):
     approved_at = models.DateTimeField(null=True, blank=True)
     reviewed_at = models.DateTimeField(null=True, blank=True)
     seen_at = models.DateTimeField(null=True, blank=True)
+    employee_seen_at = models.DateTimeField(null=True, blank=True)
     reviewed_by_app_user = models.ForeignKey(
         AppUser,
         on_delete=models.SET_NULL,
@@ -982,6 +983,155 @@ class TemporaryWorkerRequest(models.Model):
         return f"{self.employee} → {self.requester_team} ({self.start_date}–{self.end_date})"
 
 
+class PortalTeamTransferRequest(models.Model):
+    """Transfer permanent inițiat din mini-aplicația angajaților.
+
+    Aprobările sursă și destinație sunt păstrate separat pentru ca un șef de
+    echipă să nu poată ocoli niciunul dintre supervisorii implicați.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "În așteptare"
+        APPROVED = "approved", "Aprobată"
+        REJECTED = "rejected", "Respinsă"
+        CANCELLED = "cancelled", "Anulată"
+
+    class ApprovalStatus(models.TextChoices):
+        NOT_REQUIRED = "not_required", "Nu este necesară"
+        PENDING = "pending", "În așteptare"
+        APPROVED = "approved", "Aprobată"
+        REJECTED = "rejected", "Respinsă"
+
+    class RequesterRole(models.TextChoices):
+        TEAM_LEADER = "team_leader", "Șef de echipă"
+        SUPERVISOR = "supervisor", "Supervisor"
+
+    employee = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="portal_transfer_requests")
+    source_team = models.ForeignKey(
+        EmployeeTeam,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="portal_transfer_requests_out",
+    )
+    destination_team = models.ForeignKey(
+        EmployeeTeam,
+        on_delete=models.PROTECT,
+        related_name="portal_transfer_requests_in",
+    )
+    requested_by = models.ForeignKey(AppUser, on_delete=models.PROTECT, related_name="portal_transfer_requests_created")
+    requester_role = models.CharField(max_length=20, choices=RequesterRole.choices)
+    reason = models.CharField(max_length=500, blank=True, default="")
+    source_approval = models.CharField(
+        max_length=20,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.NOT_REQUIRED,
+    )
+    destination_approval = models.CharField(
+        max_length=20,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.PENDING,
+    )
+    source_decided_by = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="portal_transfer_source_decisions",
+    )
+    destination_decided_by = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="portal_transfer_destination_decisions",
+    )
+    source_decided_at = models.DateTimeField(null=True, blank=True)
+    destination_decided_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("employee",),
+                condition=models.Q(status="pending"),
+                name="unique_pending_portal_transfer_employee",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("status", "created_at"), name="portal_transfer_status_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        errors = {}
+        if self.source_team_id and self.source_team_id == self.destination_team_id:
+            errors["destination_team"] = "Echipa destinație trebuie să fie diferită de echipa sursă."
+        if self.employee_id and (
+            not self.employee.active
+            or self.employee.employment_status != Users.EmploymentStatus.ACTIVE
+            or self.employee.person_type != Users.PersonType.EMPLOYEE
+        ):
+            errors["employee"] = "Angajatul este inactiv sau nu poate aparține unei echipe."
+        if self.destination_team_id and not self.destination_team.active:
+            errors["destination_team"] = "Echipa destinație este inactivă."
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+
+class TeamPortalNotification(models.Model):
+    """Notificare persistentă din mini-aplicația Team Dashboard.
+
+    ``dedupe_key`` face emiterea idempotentă: aceeași etapă a aceleiași cereri
+    nu poate genera de două ori o notificare pentru același destinatar.
+    """
+
+    class Kind(models.TextChoices):
+        LEAVE_APPROVAL = "leave_approval", "Cerere nouă de concediu"
+        TRANSFER_APPROVAL = "transfer_approval", "Cerere nouă de transfer"
+        LEAVE_RESULT = "leave_result", "Rezultat cerere de concediu"
+        TRANSFER_RESULT = "transfer_result", "Rezultat cerere de transfer"
+
+    recipient = models.ForeignKey(AppUser, on_delete=models.CASCADE, related_name="team_portal_notifications")
+    kind = models.CharField(max_length=32, choices=Kind.choices, db_index=True)
+    leave_request = models.ForeignKey(
+        LeaveRequest,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="portal_notifications",
+    )
+    transfer_request = models.ForeignKey(
+        PortalTeamTransferRequest,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="portal_notifications",
+    )
+    dedupe_key = models.CharField(max_length=180, unique=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("recipient", "read_at", "created_at"), name="portal_notice_unread_idx"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if bool(self.leave_request_id) == bool(self.transfer_request_id):
+            raise ValidationError("Notificarea trebuie asociată unei singure cereri.")
+
+
 class TeamAttendanceAlert(models.Model):
     team = models.ForeignKey(EmployeeTeam, on_delete=models.CASCADE, related_name="attendance_alerts")
     work_date = models.DateField(db_index=True)
@@ -1020,10 +1170,17 @@ class AttendanceAbsenceMark(models.Model):
     class Source(models.TextChoices):
         TEAM_LEADER = "team_leader", "Șef de echipă"
         LEVEL_1 = "level_1", "Nivel 1"
+        SUPERVISOR = "supervisor", "Supervisor"
         AUTOMATIC_LEVEL_2 = "automatic_level_2", "Automat la Nivel 2"
 
     employee = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="attendance_absence_marks")
-    team = models.ForeignKey(EmployeeTeam, on_delete=models.PROTECT, related_name="attendance_absence_marks")
+    team = models.ForeignKey(
+        EmployeeTeam,
+        on_delete=models.PROTECT,
+        related_name="attendance_absence_marks",
+        null=True,
+        blank=True,
+    )
     work_date = models.DateField(db_index=True)
     marked_by = models.ForeignKey(
         AppUser,
@@ -1088,9 +1245,16 @@ class AttendanceAlertCase(models.Model):
         SCHEDULED_0810 = "scheduled_0810", "Nepontat până la 08:10"
         MARKED_BY_LEVEL_1 = "marked_by_level_1", "Marcat lipsă de Nivel 1"
         MARKED_BY_TEAM_LEADER = "marked_by_team_leader", "Marcat lipsă de Șef echipă"
+        MARKED_BY_SUPERVISOR = "marked_by_supervisor", "Marcat lipsă de Supervisor"
 
     employee = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="attendance_alert_cases")
-    team = models.ForeignKey(EmployeeTeam, on_delete=models.PROTECT, related_name="attendance_alert_cases")
+    team = models.ForeignKey(
+        EmployeeTeam,
+        on_delete=models.PROTECT,
+        related_name="attendance_alert_cases",
+        null=True,
+        blank=True,
+    )
     work_date = models.DateField(db_index=True)
     level = models.PositiveSmallIntegerField(choices=Level.choices)
     worksite = models.CharField(max_length=160, blank=True, default="")

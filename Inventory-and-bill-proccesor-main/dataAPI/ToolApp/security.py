@@ -164,6 +164,9 @@ def get_app_user_from_request(request):
         return AppUser.objects.select_related("employee").get(
             AppUserId=data.get("app_user_id"),
             is_active=True,
+            employee__active=True,
+            employee__person_type="employee",
+            employee__employment_status="active",
         )
     except Exception:
         return None

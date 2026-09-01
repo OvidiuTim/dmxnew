@@ -464,7 +464,30 @@ class ManualAttendanceSecurityTests(TestCase):
         self.assertEqual(session.checkin_photo, enter_photo)
         self.assertEqual(session.checkout_photo, exit_photo)
         user.refresh_from_db()
-        self.assertEqual(user.photo, exit_photo)
+        self.assertEqual(user.photo, enter_photo)
+
+    def test_manual_selfies_never_overwrite_an_existing_profile_photo(self):
+        existing_photo = "data:image/webp;base64,UFJPRklMRQ=="
+        user = Users(UserName="Profil existent", UserSerie="SER-PROFILE", photo=existing_photo)
+        user.set_pin("1299")
+        user.save()
+        payload = {
+            "pin": "1299",
+            "mode": "manual",
+            "data_processing_consent": True,
+            "attendance_photo": "data:image/webp;base64,U0VMRklF",
+        }
+
+        response = self.client.post(
+            "/api/pontaj/clock/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user.refresh_from_db()
+        self.assertEqual(user.photo, existing_photo)
+        self.assertEqual(AttendanceSession.objects.get(user_fk=user).checkin_photo, payload["attendance_photo"])
 
     def test_legacy_android_payload_allows_checkin_and_checkout(self):
         for index, mode in enumerate(("manual", "driver"), start=1):

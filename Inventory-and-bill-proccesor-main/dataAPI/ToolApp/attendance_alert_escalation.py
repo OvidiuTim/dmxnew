@@ -144,7 +144,13 @@ def ensure_level2_auto_marks(work_date=None, now=None):
         return 0
     if work_date == local_now.date() and not absence_marking_locked(local_now):
         return 0
-    missing = _current_missing_by_employee(work_date)
+    # Nivelul 2 este o verificare la nivelul întregii companii, inclusiv pentru
+    # angajații fără echipă. Dicționarul păstrează aceeași formă folosită de
+    # `sync_cases`, dar echipa poate fi None.
+    missing = {
+        employee.pk: (employee, team)
+        for employee, team in company_missing_employees(work_date)
+    }
     sync_cases(work_date, AttendanceAlertCase.Level.LEVEL_2, missing)
     cases = list(
         AttendanceAlertCase.objects.filter(
@@ -200,6 +206,8 @@ def mark_employee_absent(employee, team, actor, source, work_date=None):
     escalation_source = (
         AttendanceAlertCase.EscalationSource.MARKED_BY_LEVEL_1
         if source == AttendanceAbsenceMark.Source.LEVEL_1
+        else AttendanceAlertCase.EscalationSource.MARKED_BY_SUPERVISOR
+        if source == AttendanceAbsenceMark.Source.SUPERVISOR
         else AttendanceAlertCase.EscalationSource.MARKED_BY_TEAM_LEADER
     )
     case = escalate_employee_to_level2(employee, team, actor, escalation_source, work_date)
@@ -258,7 +266,7 @@ def escalate_employee_to_level2(employee, team, actor, source, work_date=None):
         level=AttendanceAlertCase.Level.LEVEL_2,
         defaults={
             "team": team,
-            "worksite": team.default_worksite or "",
+            "worksite": (team.default_worksite or "") if team else "",
             "escalation_source": source,
             "escalated_at": now,
             "marked_absent_at": now,
@@ -268,7 +276,7 @@ def escalate_employee_to_level2(employee, team, actor, source, work_date=None):
     changed = []
     for field, value in (
         ("team", team),
-        ("worksite", team.default_worksite or ""),
+        ("worksite", (team.default_worksite or "") if team else ""),
         ("escalation_source", source),
         ("escalated_by", actor),
     ):
@@ -372,7 +380,7 @@ def sync_cases(work_date, level, missing=None):
             employee=employee,
             work_date=work_date,
             level=level,
-            defaults={"team": team, "worksite": team.default_worksite or ""},
+            defaults={"team": team, "worksite": (team.default_worksite or "") if team else ""},
         )
         if was_created:
             created.append(case)
@@ -380,7 +388,10 @@ def sync_cases(work_date, level, missing=None):
 
 
 def refresh_resolutions(work_date):
-    missing = _current_missing_by_employee(work_date)
+    missing = {
+        employee.pk: (employee, team)
+        for employee, team in company_missing_employees(work_date)
+    }
     active_ids = set(missing)
     now = timezone.now()
     updated = 0
@@ -406,7 +417,7 @@ def _grouped_payload(cases):
     grouped = defaultdict(lambda: defaultdict(list))
     for case in cases:
         site = case.worksite or "Fără șantier asignat"
-        grouped[case.team.name][site].append(case)
+        grouped[case.team.name if case.team_id else "Fără echipă"][site].append(case)
     return grouped
 
 
@@ -425,7 +436,7 @@ def _send_central_email(level, work_date, email, cases):
             items = []
             for case in rows:
                 employee = case.employee
-                leader = case.team.leader.UserName
+                leader = case.team.leader.UserName if case.team_id and case.team.leader_id else "—"
                 phone = employee.phone_number or "—"
                 text_lines.append(f"    - {employee.UserName} | Șef: {leader} | Telefon: {phone}")
                 items.append(
@@ -474,7 +485,8 @@ def process_escalation_level(level, work_date=None, now=None, send_email=True):
             run.status = "before_alert_time"
             return {"status": run.status, "level": level, "count": 0}
 
-        missing = _current_missing_by_employee(work_date)
+        missing_rows = company_missing_employees(work_date)
+        missing = {employee.pk: (employee, team) for employee, team in missing_rows}
         sync_cases(work_date, level, missing)
         cases = list(
             AttendanceAlertCase.objects.filter(work_date=work_date, level=level, resolved_at__isnull=True)

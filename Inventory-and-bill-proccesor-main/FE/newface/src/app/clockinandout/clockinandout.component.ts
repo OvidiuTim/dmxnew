@@ -453,6 +453,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   selectedLanguage: LanguageCode = this.readSavedLanguage();
   chefMode = false;
   portalMode = false;
+  portalUnreadNotifications = 0;
   selectedWorksite: WorksiteDefinition | null = null;
   pin = '';
   submitting = false;
@@ -476,6 +477,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   private watchId: number | null = null;
   private clockTimer: ReturnType<typeof setInterval> | null = null;
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
+  private portalRedirectTimer: ReturnType<typeof setTimeout> | null = null;
+  private portalNotificationTimer: ReturnType<typeof setInterval> | null = null;
   private cameraStream: MediaStream | null = null;
 
   constructor(
@@ -488,6 +491,11 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   ngOnInit(): void {
     this.chefMode = this.route.snapshot.data['chefMode'] === true;
     this.portalMode = this.route.snapshot.data['portalMode'] === true;
+    if (this.portalMode) {
+      this.selectedLanguage = this.readPortalLanguage();
+      this.loadPortalNotificationCount();
+      this.portalNotificationTimer = setInterval(() => this.loadPortalNotificationCount(), 15000);
+    }
     if (this.chefMode) {
       this.selectedWorksite = this.chefWorksite;
     }
@@ -511,6 +519,12 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     if (this.resetTimer) {
       clearTimeout(this.resetTimer);
     }
+    if (this.portalRedirectTimer) {
+      clearTimeout(this.portalRedirectTimer);
+    }
+    if (this.portalNotificationTimer) {
+      clearInterval(this.portalNotificationTimer);
+    }
 
     this.stopGeolocation();
     this.stopCamera();
@@ -519,6 +533,16 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   get t(): TranslationPack {
     return this.translations[this.selectedLanguage];
+  }
+
+  get portalIdentityTitle(): string {
+    return {
+      ro: 'Confirmă identitatea',
+      en: 'Confirm identity',
+      pa: 'ਪਛਾਣ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ',
+      hi: 'पहचान की पुष्टि करें',
+      ne: 'पहिचान पुष्टि गर्नुहोस्',
+    }[this.selectedLanguage];
   }
 
   get formattedDate(): string {
@@ -705,8 +729,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   goBack(): void {
-    const navigationId = Number(window.history.state?.navigationId || 0);
-    if (window.history.length > 1 && navigationId > 1) {
+    const origin = window.history.state?.teamDashboardOrigin;
+    if (typeof origin === 'string' && origin.startsWith('/team-dashboard') && origin !== this.router.url) {
       this.location.back();
       return;
     }
@@ -715,6 +739,18 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   goToTeamDashboard(): void {
     void this.router.navigateByUrl('/team-dashboard');
+  }
+
+  openPortalNotifications(): void {
+    void this.router.navigateByUrl('/team-dashboard/notificari', {
+      state: { teamDashboardOrigin: this.router.url },
+    });
+  }
+
+  private loadPortalNotificationCount(): void {
+    this.api.getTeamPortalNotificationSummary().subscribe({
+      next: data => this.portalUnreadNotifications = Number(data.unread_count || 0),
+    });
   }
 
   get selectedWorksiteName(): string {
@@ -811,7 +847,12 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
         }
         this.showAttendanceFeedback(response.state, response.user.name);
         if (!this.portalMode) this.clearPin();
-        else this.resetSelfie();
+        else {
+          this.resetSelfie();
+          this.portalRedirectTimer = setTimeout(() => {
+            void this.router.navigateByUrl('/team-dashboard');
+          }, 1300);
+        }
         this.dataProcessingConsent = false;
       },
       error: (error) => {
@@ -1409,5 +1450,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     return 'ro';
+  }
+
+  private readPortalLanguage(): LanguageCode {
+    const saved = localStorage.getItem('team-portal-language') as LanguageCode | null;
+    return saved && this.languages.some(language => language.code === saved) ? saved : 'ro';
   }
 }

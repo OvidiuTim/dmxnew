@@ -40,7 +40,13 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/team-dashboard/echipa-mea", "label": "Echipa mea", "icon": "groups"},
             {"path": "/team-dashboard/pontaj", "label": "Attendance", "icon": "schedule"},
             {"path": "/team-dashboard/fisa-angajat", "label": "Fișa angajatului", "icon": "badge"},
+            {"path": "/team-dashboard/cerere-concediu", "label": "Cerere concediu", "icon": "calendar_month"},
             {"path": "/team-dashboard/notificari", "label": "Notificări", "icon": "notifications"},
+            {"path": "/team-dashboard/echipele-mele", "label": "Echipele mele", "icon": "groups_2"},
+            {"path": "/team-dashboard/cereri", "label": "Cereri", "icon": "approval"},
+            {"path": "/team-dashboard/cereri-concediu", "label": "Cereri de concediu", "icon": "calendar_month"},
+            {"path": "/team-dashboard/cereri-transfer", "label": "Cereri de transfer", "icon": "swap_horiz"},
+            {"path": "/team-dashboard/personal", "label": "Personal", "icon": "group_search"},
             {"path": "/team-dashboard/vezi-lipsa", "label": "Vezi nepontați", "icon": "person_search"},
             {"path": "/team-dashboard/lipsa-azi", "label": "Lipsă azi", "icon": "person_off"},
         ],
@@ -125,6 +131,14 @@ def effective_module_codes(app_user):
         app_user.module_accesses.filter(can_access=True).values_list("module_code", flat=True)
     )
     roles = set(app_user_roles(app_user))
+    employee = getattr(app_user, "employee", None)
+    if (
+        employee
+        and employee.active
+        and employee.person_type == "employee"
+        and employee.employment_status == "active"
+    ):
+        codes.add("team_dashboard")
     # Șefii și supervisorii păstrează accesul implicit necesar administrării echipelor lor.
     if roles.intersection({"team_leader", "supervisor"}):
         codes.add("teams_schedule")
@@ -144,7 +158,8 @@ def app_user_has_standard_route(app_user, route):
 
 
 def default_module_route(app_user):
-    if app_user_roles(app_user):
+    employee = getattr(app_user, "employee", None)
+    if employee and employee.active and employee.person_type == "employee" and employee.employment_status == "active":
         return "/team-dashboard"
     codes = effective_module_codes(app_user)
     return MODULE_DEFINITIONS[codes[0]]["main_route"] if codes else None

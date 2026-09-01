@@ -223,6 +223,10 @@ export class SharedService {
     });
   }
 
+  getTeamPortalNotificationSummary() {
+    return this.http.get<{ unread_count: number }>(`${this.API}/team-portal/notifications/summary/`);
+  }
+
   private getManualAttendanceDeviceKey(): string {
     if (typeof window === 'undefined') {
       return 'server-side-manual-device';

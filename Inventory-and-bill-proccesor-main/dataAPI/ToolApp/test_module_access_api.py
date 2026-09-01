@@ -39,20 +39,20 @@ class ModuleAccessApiTests(TestCase):
         response = self.app_client.get("/api/app-auth/modules/")
 
         self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual(response.json()["granted_modules"], ["teams_schedule", "tools"])
-        self.assertEqual(response.json()["default_module_route"], "/pontaj/echipe")
-        self.assertEqual(default_module_route(self.app_user), "/pontaj/echipe")
+        self.assertEqual(response.json()["granted_modules"], ["teams_schedule", "team_dashboard", "tools"])
+        self.assertEqual(response.json()["default_module_route"], "/team-dashboard")
+        self.assertEqual(default_module_route(self.app_user), "/team-dashboard")
 
-    def test_account_without_modules_has_explicit_empty_state(self):
+    def test_active_employee_automatically_has_team_dashboard(self):
         response = self.app_client.get("/api/app-auth/modules/")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["granted_modules"], [])
-        self.assertIsNone(response.json()["default_module_route"])
+        self.assertEqual(response.json()["granted_modules"], ["team_dashboard"])
+        self.assertEqual(response.json()["default_module_route"], "/team-dashboard")
 
-    def test_attendance_uses_dashboard_as_default_route(self):
+    def test_employee_portal_remains_the_default_when_other_modules_are_granted(self):
         AppModuleAccess.objects.create(app_user=self.app_user, module_code="attendance")
-        self.assertEqual(default_module_route(self.app_user), "/dashboard")
+        self.assertEqual(default_module_route(self.app_user), "/team-dashboard")
 
     def test_admin_can_grant_multiple_users_and_revoke_access(self):
         second_employee = Users.objects.create(UserName="Al Doilea", UserSerie="MOD-002")
@@ -190,7 +190,11 @@ class ModuleAccessApiTests(TestCase):
                 "/team-dashboard/echipa-mea",
                 "/team-dashboard/pontaj",
                 "/team-dashboard/fisa-angajat",
+                "/team-dashboard/cerere-concediu",
                 "/team-dashboard/notificari",
+                "/team-dashboard/echipele-mele",
+                "/team-dashboard/cereri",
+                "/team-dashboard/personal",
                 "/team-dashboard/vezi-lipsa",
                 "/team-dashboard/lipsa-azi",
             ],

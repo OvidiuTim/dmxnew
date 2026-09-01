@@ -6,6 +6,7 @@ from django.utils.html import escape
 
 logger = logging.getLogger(__name__)
 LEAVE_REQUEST_OFFICE_EMAIL = "office@dmxconstruction.ro"
+SUPERVISOR_PERSONAL_LEAVE_EMAIL = "dan@dmxconstruction.ro"
 
 
 def leave_request_recipients(item):
@@ -13,6 +14,9 @@ def leave_request_recipients(item):
     leader_email = str(getattr(item.assigned_leader, "email", "") or "").strip().lower()
     if leader_email and leader_email not in recipients:
         recipients.insert(0, leader_email)
+    if item.employee.supervised_employee_teams.filter(active=True).exists():
+        if SUPERVISOR_PERSONAL_LEAVE_EMAIL not in recipients:
+            recipients.append(SUPERVISOR_PERSONAL_LEAVE_EMAIL)
     return recipients
 
 

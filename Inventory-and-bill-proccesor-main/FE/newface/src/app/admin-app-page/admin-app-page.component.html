@@ -13,7 +13,10 @@
   <section class="content" *ngIf="authenticated">
     <header class="page-header">
       <div><p class="eyebrow">bloom-in · Control acces</p><h1>Modulele aplicației</h1><p>Alocă unul sau mai multe module fiecărui cont. Permisiunile pe pagini rămân disponibile în zona avansată.</p></div>
-      <button type="button" class="secondary" (click)="loadData()" [disabled]="loading"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Reîncarcă</button>
+      <div class="header-actions">
+        <a class="secondary" routerLink="/pontaj/alerte"><span class="material-symbols-rounded" aria-hidden="true">notifications_active</span>Configurează Nivel 1 și Nivel 2</a>
+        <button type="button" class="secondary" (click)="loadData()" [disabled]="loading"><span class="material-symbols-rounded" aria-hidden="true">refresh</span>Reîncarcă</button>
+      </div>
     </header>
 
     <div class="notice error" *ngIf="error"><span class="material-symbols-rounded" aria-hidden="true">warning</span>{{ error }}</div>
@@ -45,8 +48,9 @@
         <div class="user-options">
           <label *ngFor="let user of filteredUsers(module); trackBy: trackById" [class.inactive]="!user.is_active">
             <input type="checkbox" [checked]="isSelected(module.code, user.id)" (change)="toggleModuleUser(module.code, user, $any($event.target).checked)" [disabled]="isInherited(module.code, user)">
-            <span><strong>{{ user.employee?.name || user.username }}</strong><small>{{ user.username }} · {{ user.employee?.serie || 'fără serie' }}<ng-container *ngIf="!user.is_active"> · inactiv</ng-container></small></span>
-            <span *ngIf="isInherited(module.code, user)" class="inherited" title="Acces inclus prin rolul de șef de echipă">Inclus</span>
+            <span><strong>{{ user.employee?.name || user.username }}</strong><small>{{ user.username }} · {{ user.employee?.serie || 'fără serie' }}<ng-container *ngIf="user.roles?.length"> · {{ roleSummary(user) }}</ng-container><ng-container *ngIf="!user.is_active"> · inactiv</ng-container></small></span>
+            <span *ngIf="isInherited(module.code, user)" class="inherited" title="Acces automat prin statutul de angajat activ sau prin rol">Automat</span>
+            <span *ngIf="!isInherited(module.code, user) && isManual(module.code, user)" class="inherited manual" title="Acces acordat manual">Manual</span>
           </label>
         </div>
         <button type="button" class="primary save" (click)="saveModule(module)" [disabled]="savingModule === module.code">

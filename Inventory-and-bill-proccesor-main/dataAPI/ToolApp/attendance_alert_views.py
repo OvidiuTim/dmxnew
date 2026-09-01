@@ -6,9 +6,15 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from ToolApp.attendance_alert_escalation import ensure_default_configs, refresh_resolutions
+from ToolApp.attendance_alert_escalation import (
+    absence_marking_locked,
+    ensure_default_configs,
+    ensure_level2_auto_marks,
+    refresh_resolutions,
+)
 from ToolApp.models import (
     AppUser,
+    AttendanceAbsenceMark,
     AttendanceAlertCase,
     AttendanceAlertDispatch,
     AttendanceAlertEscalationConfig,
@@ -44,14 +50,61 @@ def _serialize_config(config):
     }
 
 
+def _absence_reason(case, mark):
+    if not mark or mark.source == AttendanceAbsenceMark.Source.AUTOMATIC_LEVEL_2:
+        return "Nepontat la ora 08:10 – nemarcat manual"
+    actor = mark.marked_by.employee.UserName if mark.marked_by_id else "Utilizator necunoscut"
+    role = {
+        AttendanceAbsenceMark.Source.LEVEL_1: "Nivel 1",
+        AttendanceAbsenceMark.Source.SUPERVISOR: "Supervisor",
+        AttendanceAbsenceMark.Source.TEAM_LEADER: "Șef de echipă",
+    }.get(mark.source, mark.get_source_display())
+    return f"Marcat absent de {actor} – {role}"
+
+
+def _serialize_absence_case(row, mark):
+    team = row.team
+    leader = team.leader if team else None
+    return {
+        "id": row.pk,
+        "level": row.level,
+        "level_label": row.get_level_display(),
+        "employee_id": row.employee_id,
+        "employee_name": row.employee.UserName,
+        "employee_phone": row.employee.phone_number or "",
+        "team_id": row.team_id,
+        "team_name": team.name if team else "Fără echipă",
+        "worksite": row.worksite or "Fără șantier asignat",
+        "leader_name": leader.UserName if leader else "—",
+        "created_at": row.created_at.isoformat(),
+        "status": "Absent/Nepontat astăzi",
+        "reason": _absence_reason(row, mark),
+        "marked_at": mark.marked_at.isoformat() if mark else None,
+        "resolved": bool(row.resolved_at),
+        "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
+        "resolution_method": row.resolution_method,
+        "resolution_label": row.get_resolution_method_display() if row.resolution_method else "",
+        "resolved_by": row.resolved_by.employee.UserName if row.resolved_by_id else "Sistem",
+    }
+
+
 def _payload(work_date):
+    if work_date == timezone.localdate() and absence_marking_locked():
+        ensure_level2_auto_marks(work_date)
     refresh_resolutions(work_date)
     configs = ensure_default_configs()
-    cases = list(
+    all_cases = list(
         AttendanceAlertCase.objects.filter(work_date=work_date)
         .select_related("employee", "team", "team__leader", "resolved_by", "resolved_by__employee")
         .order_by("level", "team__name", "employee__UserName")
     )
+    cases = [row for row in all_cases if row.level == AttendanceAlertCase.Level.LEVEL_2]
+    marks = {
+        row.employee_id: row
+        for row in AttendanceAbsenceMark.objects.filter(work_date=work_date).select_related(
+            "marked_by", "marked_by__employee"
+        )
+    }
     app_users = AppUser.objects.filter(is_active=True).select_related("employee").order_by("employee__UserName")
     notifications = AttendanceAlertEscalationNotification.objects.filter(work_date=work_date).select_related(
         "recipient", "recipient__employee"
@@ -59,11 +112,11 @@ def _payload(work_date):
     dispatches = AttendanceAlertDispatch.objects.filter(work_date=work_date).select_related("recipient")
     runs = AttendanceAlertRunLog.objects.filter(work_date=work_date)[:100]
     counts = {
-        "initial": sum(1 for row in cases if row.level == 0),
-        "level_1": sum(1 for row in cases if row.level == 1),
-        "level_2": sum(1 for row in cases if row.level == 2),
-        "resolved": sum(1 for row in cases if row.resolved_at),
-        "active": sum(1 for row in cases if not row.resolved_at),
+        "initial": sum(1 for row in all_cases if row.level == 0),
+        "level_1": sum(1 for row in all_cases if row.level == 1),
+        "level_2": sum(1 for row in all_cases if row.level == 2),
+        "resolved": sum(1 for row in all_cases if row.resolved_at),
+        "active": sum(1 for row in all_cases if not row.resolved_at),
     }
     return {
         "date": work_date.isoformat(),
@@ -79,27 +132,7 @@ def _payload(work_date):
             }
             for row in app_users
         ],
-        "cases": [
-            {
-                "id": row.pk,
-                "level": row.level,
-                "level_label": row.get_level_display(),
-                "employee_id": row.employee_id,
-                "employee_name": row.employee.UserName,
-                "employee_phone": row.employee.phone_number or "",
-                "team_id": row.team_id,
-                "team_name": row.team.name,
-                "worksite": row.worksite or "Fără șantier asignat",
-                "leader_name": row.team.leader.UserName,
-                "created_at": row.created_at.isoformat(),
-                "resolved": bool(row.resolved_at),
-                "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None,
-                "resolution_method": row.resolution_method,
-                "resolution_label": row.get_resolution_method_display() if row.resolution_method else "",
-                "resolved_by": row.resolved_by.employee.UserName if row.resolved_by_id else "Sistem",
-            }
-            for row in cases
-        ],
+        "cases": [_serialize_absence_case(row, marks.get(row.employee_id)) for row in cases],
         "notifications": [
             {
                 "id": row.pk,

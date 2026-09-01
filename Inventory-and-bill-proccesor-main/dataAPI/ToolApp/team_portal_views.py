@@ -1,5 +1,8 @@
 import json
+from datetime import date, time
 
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
@@ -23,20 +26,35 @@ from ToolApp.models import (
     AttendanceAlertEscalationNotification,
     AttendanceSession,
     EmployeeTeam,
+    EmployeeTeamMember,
     LeaveDay,
+    LeaveRequest,
+    PortalTeamTransferRequest,
+    TeamPortalNotification,
     TeamAttendanceAlert,
     TeamAttendanceAlertRecipient,
     Users,
 )
 from ToolApp.module_access import app_user_has_module, app_user_roles
+from ToolApp.leave_email import send_leave_approval_email, send_leave_request_email
+from ToolApp.mobile_services import build_inventory, build_leave_summary, serialize_leave_request
 from ToolApp.security import get_app_user_from_request
-from ToolApp.team_attendance_notifications import ensure_team_attendance_alerts_due
+from ToolApp.team_attendance_notifications import (
+    ALERT_HOUR,
+    ALERT_MINUTE,
+    _missing_members,
+    ensure_team_attendance_alerts_due,
+)
+from ToolApp.team_organization_sync import sync_team_to_organization
 from ToolApp.views import nfc_scan
 from ToolApp.worksites import ACCEPTED_WORKSITES
 
 
-def _error(message, status=400):
-    return JsonResponse({"error": message}, status=status)
+def _error(message, status=400, details=None):
+    payload = {"error": message}
+    if details:
+        payload["details"] = details
+    return JsonResponse(payload, status=status)
 
 
 def _portal_actor(request):
@@ -71,6 +89,110 @@ def _coordinated_teams(app_user):
     return EmployeeTeam.objects.filter(active=True).filter(
         Q(leader_id=app_user.employee_id) | Q(supervisor_id=app_user.employee_id)
     ).select_related("leader", "supervisor").prefetch_related("memberships__employee").distinct()
+
+
+def _led_teams(app_user):
+    return EmployeeTeam.objects.filter(active=True, leader_id=app_user.employee_id).select_related(
+        "leader", "supervisor"
+    ).prefetch_related("memberships__employee")
+
+
+def _supervised_teams(app_user):
+    return EmployeeTeam.objects.filter(active=True, supervisor_id=app_user.employee_id).select_related(
+        "leader", "supervisor"
+    ).prefetch_related("memberships__employee")
+
+
+def _is_supervisor(app_user):
+    return _supervised_teams(app_user).exists()
+
+
+def _account_for_employee(employee_id):
+    return AppUser.objects.select_related("employee").filter(employee_id=employee_id, is_active=True).first()
+
+
+def _create_request_notification(*, recipient, kind, request_id, leave=None, transfer=None, stage=""):
+    if not recipient or not recipient.is_active:
+        return None
+    requester_id = leave.employee_id if leave else transfer.requested_by_id
+    if leave:
+        requester = _account_for_employee(requester_id)
+        if requester and requester.pk == recipient.pk and kind == TeamPortalNotification.Kind.LEAVE_APPROVAL:
+            return None
+    elif transfer and requester_id == recipient.pk and kind == TeamPortalNotification.Kind.TRANSFER_APPROVAL:
+        return None
+    key = f"{kind}:{request_id}:{recipient.pk}:{stage or 'event'}"
+    notification, _ = TeamPortalNotification.objects.get_or_create(
+        dedupe_key=key,
+        defaults={
+            "recipient": recipient,
+            "kind": kind,
+            "leave_request": leave,
+            "transfer_request": transfer,
+        },
+    )
+    return notification
+
+
+def _notify_leave_approver(item):
+    supervisor = item.team.effective_supervisor if item.team_id else item.assigned_leader
+    recipient = _account_for_employee(supervisor.pk) if supervisor else None
+    return _create_request_notification(
+        recipient=recipient,
+        kind=TeamPortalNotification.Kind.LEAVE_APPROVAL,
+        request_id=item.pk,
+        leave=item,
+        stage="approval",
+    )
+
+
+def _transfer_current_stage(item):
+    if item.source_team_id and item.source_approval == item.ApprovalStatus.PENDING:
+        return "source", item.source_team.effective_supervisor
+    if (
+        item.source_approval in {item.ApprovalStatus.APPROVED, item.ApprovalStatus.NOT_REQUIRED}
+        and item.destination_approval == item.ApprovalStatus.PENDING
+    ):
+        return "destination", item.destination_team.effective_supervisor
+    return "", None
+
+
+def _notify_transfer_current_approver(item):
+    stage, supervisor = _transfer_current_stage(item)
+    recipient = _account_for_employee(supervisor.pk) if supervisor else None
+    if not stage:
+        return None
+    return _create_request_notification(
+        recipient=recipient,
+        kind=TeamPortalNotification.Kind.TRANSFER_APPROVAL,
+        request_id=item.pk,
+        transfer=item,
+        stage=stage,
+    )
+
+
+def _notify_request_result(item, kind):
+    if isinstance(item, LeaveRequest):
+        recipient = _account_for_employee(item.employee_id)
+        return _create_request_notification(
+            recipient=recipient,
+            kind=kind,
+            request_id=item.pk,
+            leave=item,
+            stage=item.status,
+        )
+    return _create_request_notification(
+        recipient=item.requested_by,
+        kind=kind,
+        request_id=item.pk,
+        transfer=item,
+        stage=item.status,
+    )
+
+
+def _initial_alert_available(now=None):
+    local_now = timezone.localtime(now or timezone.now())
+    return local_now.time().replace(tzinfo=None) >= time(ALERT_HOUR, ALERT_MINUTE)
 
 
 def _presence_status(employee_ids, day=None):
@@ -108,6 +230,9 @@ def _employee_summary(employee, status):
         "phone": employee.phone_number or "",
         "photo": employee.photo or None,
         "status": status,
+        "serie": employee.UserSerie,
+        "company": employee.Company or "",
+        "trade": employee.trade or "",
     }
 
 
@@ -123,12 +248,11 @@ def portal_dashboard(request):
     levels = _escalation_levels(app_user)
     day = timezone.localdate()
     ensure_level2_auto_marks(day)
-    if levels:
-        notification_items = _global_notification_payloads(app_user, day)
-        unread = sum(not item["is_read"] for item in notification_items)
-    else:
-        ensure_team_attendance_alerts_due()
-        unread = _notification_query(app_user).filter(read_at__isnull=True).count()
+    ensure_team_attendance_alerts_due()
+    own_reviewed = LeaveRequest.objects.filter(employee_id=app_user.employee_id).exclude(
+        status=LeaveRequest.Status.PENDING
+    ).filter(employee_seen_at__isnull=True).count()
+    unread = _current_portal_unread_count(app_user)
     roles = app_user_roles(app_user)
     labels = _role_labels(app_user)
     payload = {
@@ -148,7 +272,25 @@ def portal_dashboard(request):
         "unread_notifications": unread,
         "absence_marking_locked": absence_marking_locked(),
         "lock_time": level_alert_time(AttendanceAlertCase.Level.LEVEL_2).strftime("%H:%M"),
+        "initial_alert_time": f"{ALERT_HOUR:02d}:{ALERT_MINUTE:02d}",
+        "initial_alert_available": _initial_alert_available(),
+        "pending_requests_count": 0,
     }
+    if "supervisor" in roles:
+        supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
+        pending_transfers = PortalTeamTransferRequest.objects.select_related(
+            "source_team__leader", "source_team__supervisor",
+            "destination_team__leader", "destination_team__supervisor",
+        ).filter(status=PortalTeamTransferRequest.Status.PENDING).filter(
+            Q(source_team_id__in=supervised_ids) | Q(destination_team_id__in=supervised_ids)
+        ).distinct()
+        payload["pending_requests_count"] = (
+            LeaveRequest.objects.filter(team_id__in=supervised_ids, status=LeaveRequest.Status.PENDING)
+            .exclude(employee_id=app_user.employee_id)
+            .count()
+            + sum(bool(_transfer_payload(item, app_user)["can_approve"]) for item in pending_transfers)
+        )
+    payload["personal_notifications_count"] = own_reviewed
     if 1 in levels:
         available = _level_1_list_available()
         payload["missing_today_count"] = len(company_missing_employees(day)) if available else 0
@@ -167,11 +309,16 @@ def portal_salary(request):
     if not app_user:
         return _error("Acces interzis.", 403)
     employee = app_user.employee
+    equipment, tools = build_inventory(employee)
     return JsonResponse({
         "employee": {"id": employee.pk, "name": employee.UserName},
         "total_salary_ron": str(employee.total_salary_ron or "0.00"),
         "salary_advance_ron": str(employee.salary_advance_ron or "0.00"),
         "salary_remainder_ron": str(employee.salary_remainder_ron or "0.00"),
+        "meal_vouchers_ron": str(employee.meal_vouchers_ron or "0.00"),
+        "leave_balance": build_leave_summary(employee, timezone.localdate()),
+        "tools": tools,
+        "equipment": equipment,
     })
 
 
@@ -184,7 +331,9 @@ def portal_teams(request):
         return _error("Acces interzis.", 403)
     day = timezone.localdate()
     ensure_level2_auto_marks(day)
-    teams = list(_coordinated_teams(app_user))
+    teams = list(_led_teams(app_user))
+    if not teams:
+        return _error("Această pagină este disponibilă numai șefilor de echipă.", 403)
     member_ids = {
         membership.employee_id
         for team in teams
@@ -217,7 +366,610 @@ def portal_teams(request):
         "teams": payload,
         "locked": absence_marking_locked(),
         "lock_time": level_alert_time(AttendanceAlertCase.Level.LEVEL_2).strftime("%H:%M"),
+        "can_mark_absent": _initial_alert_available() and not absence_marking_locked(),
+        "mark_available_from": f"{ALERT_HOUR:02d}:{ALERT_MINUTE:02d}",
     })
+
+
+def _portal_team_payload(team, statuses):
+    members = []
+    seen = set()
+    for membership in team.memberships.filter(
+        active=True,
+        employee__active=True,
+        employee__employment_status=Users.EmploymentStatus.ACTIVE,
+    ).select_related("employee"):
+        if membership.employee_id in seen:
+            continue
+        seen.add(membership.employee_id)
+        members.append(_employee_summary(
+            membership.employee,
+            statuses.get(membership.employee_id, "absent"),
+        ))
+    members.sort(key=lambda item: (item["status"] != "absent", item["name"].casefold()))
+    return {
+        "id": team.pk,
+        "name": team.name,
+        "worksite": team.default_worksite or "",
+        "leader": _employee_summary(team.leader, statuses.get(team.leader_id, "absent")),
+        "members": members,
+    }
+
+
+@csrf_exempt
+def portal_supervised_teams(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user or not _is_supervisor(app_user):
+        return _error("Această pagină este disponibilă numai supervisorilor.", 403)
+    teams = list(_supervised_teams(app_user))
+    employee_ids = {
+        membership.employee_id
+        for team in teams
+        for membership in team.memberships.filter(active=True, employee__active=True)
+    }
+    employee_ids.update(team.leader_id for team in teams)
+    statuses = _presence_status(employee_ids)
+    return JsonResponse({
+        "teams": [_portal_team_payload(team, statuses) for team in teams],
+        "can_mark_absent": _initial_alert_available() and not absence_marking_locked(),
+        "mark_available_from": f"{ALERT_HOUR:02d}:{ALERT_MINUTE:02d}",
+        "locked": absence_marking_locked(),
+        "lock_time": level_alert_time(AttendanceAlertCase.Level.LEVEL_2).strftime("%H:%M"),
+    })
+
+
+def _active_membership(employee_id):
+    return EmployeeTeamMember.objects.select_related(
+        "team", "team__leader", "team__supervisor"
+    ).filter(
+        employee_id=employee_id,
+        active=True,
+        team__active=True,
+    ).first()
+
+
+def _transfer_payload(item, app_user=None):
+    source_supervisor_id = item.source_team.effective_supervisor.pk if item.source_team_id else None
+    destination_supervisor_id = item.destination_team.effective_supervisor.pk
+    can_decide_source = bool(
+        app_user and source_supervisor_id == app_user.employee_id
+        and item.source_approval == item.ApprovalStatus.PENDING
+    )
+    can_decide_destination = bool(
+        app_user and destination_supervisor_id == app_user.employee_id
+        and item.source_approval in {item.ApprovalStatus.APPROVED, item.ApprovalStatus.NOT_REQUIRED}
+        and item.destination_approval == item.ApprovalStatus.PENDING
+    )
+    approvals_received = []
+    approvals_missing = []
+    if item.source_team_id:
+        source_label = f"{item.source_team.name} · Supervisor"
+        (approvals_received if item.source_approval == item.ApprovalStatus.APPROVED else approvals_missing).append(source_label)
+    destination_label = f"{item.destination_team.name} · Supervisor"
+    (approvals_received if item.destination_approval == item.ApprovalStatus.APPROVED else approvals_missing).append(destination_label)
+    return {
+        "id": item.pk,
+        "employee": _employee_summary(item.employee, "absent"),
+        "source_team": ({"id": item.source_team_id, "name": item.source_team.name} if item.source_team_id else None),
+        "destination_team": {"id": item.destination_team_id, "name": item.destination_team.name},
+        "requested_by": {
+            "id": item.requested_by_id,
+            "name": item.requested_by.employee.UserName,
+        },
+        "requester_role": item.requester_role,
+        "reason": item.reason,
+        "source_approval": item.source_approval,
+        "destination_approval": item.destination_approval,
+        "status": item.status,
+        "status_label": item.get_status_display(),
+        "created_at": item.created_at.isoformat(),
+        "approvals_received": approvals_received,
+        "approvals_missing": approvals_missing,
+        "can_approve": item.status == item.Status.PENDING and (can_decide_source or can_decide_destination),
+        "can_reject": item.status == item.Status.PENDING and (can_decide_source or can_decide_destination),
+    }
+
+
+def _execute_portal_transfer(item):
+    if (
+        item.source_approval != item.ApprovalStatus.APPROVED
+        or item.destination_approval != item.ApprovalStatus.APPROVED
+    ):
+        return False
+    memberships = list(
+        EmployeeTeamMember.objects.select_for_update().filter(employee=item.employee)
+    )
+    for membership in memberships:
+        if membership.active and membership.team_id != item.destination_team_id:
+            membership.active = False
+            membership.save(update_fields=("active",))
+    target, _ = EmployeeTeamMember.objects.get_or_create(
+        employee=item.employee,
+        team=item.destination_team,
+    )
+    if not target.active:
+        target.active = True
+        target.save(update_fields=("active",))
+    now = timezone.now()
+    item.status = item.Status.APPROVED
+    item.completed_at = now
+    item.save(update_fields=("status", "completed_at", "updated_at"))
+    PortalTeamTransferRequest.objects.filter(
+        employee=item.employee,
+        status=PortalTeamTransferRequest.Status.PENDING,
+    ).exclude(pk=item.pk).update(status=PortalTeamTransferRequest.Status.CANCELLED, updated_at=now)
+    if item.source_team_id:
+        sync_team_to_organization(item.source_team)
+    sync_team_to_organization(item.destination_team)
+    return True
+
+
+@csrf_exempt
+def portal_personnel(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user or not _is_supervisor(app_user):
+        return _error("Această pagină este disponibilă numai supervisorilor.", 403)
+    memberships = {
+        row.employee_id: row.team
+        for row in EmployeeTeamMember.objects.select_related("team").filter(active=True, team__active=True)
+    }
+    employees = Users.objects.filter(
+        active=True,
+        employment_status=Users.EmploymentStatus.ACTIVE,
+        person_type=Users.PersonType.EMPLOYEE,
+    ).order_by("UserName")
+    statuses = _presence_status(list(employees.values_list("pk", flat=True)))
+    rows = []
+    for employee in employees:
+        team = memberships.get(employee.pk)
+        row = _employee_summary(employee, statuses.get(employee.pk, "absent"))
+        row["team"] = ({"id": team.pk, "name": team.name} if team else None)
+        rows.append(row)
+    return JsonResponse({
+        "employees": rows,
+        "teams": [{"id": team.pk, "name": team.name} for team in _supervised_teams(app_user)],
+    })
+
+
+@csrf_exempt
+def portal_member_candidates(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user:
+        return _error("Acces interzis.", 403)
+    try:
+        team_id = int(request.GET.get("team_id") or 0)
+    except ValueError:
+        return _error("Echipa este invalidă.")
+    team = EmployeeTeam.objects.filter(pk=team_id, active=True).first()
+    if not team or app_user.employee_id not in {team.leader_id, team.supervisor_id}:
+        return _error("Poți adăuga membri numai în echipele coordonate.", 403)
+    memberships = {
+        row.employee_id: row.team
+        for row in EmployeeTeamMember.objects.select_related("team").filter(active=True, team__active=True)
+    }
+    role_holder_ids = {
+        employee_id
+        for active_team in EmployeeTeam.objects.filter(active=True)
+        for employee_id in (active_team.leader_id, active_team.supervisor_id)
+        if employee_id
+    }
+    employees = Users.objects.filter(
+        active=True,
+        employment_status=Users.EmploymentStatus.ACTIVE,
+        person_type=Users.PersonType.EMPLOYEE,
+    ).exclude(pk__in=role_holder_ids).order_by("UserName")
+    existing_ids = set(team.memberships.filter(active=True).values_list("employee_id", flat=True))
+    return JsonResponse({
+        "team": {"id": team.pk, "name": team.name},
+        "employees": [
+            {
+                **_employee_summary(employee, "absent"),
+                "team": ({"id": memberships[employee.pk].pk, "name": memberships[employee.pk].name} if employee.pk in memberships else None),
+            }
+            for employee in employees
+            if employee.pk not in existing_ids
+        ],
+    })
+
+
+@csrf_exempt
+@transaction.atomic
+def portal_transfer_requests(request):
+    app_user = _portal_actor(request)
+    if not app_user:
+        return _error("Acces interzis.", 403)
+    if request.method == "GET":
+        if not _is_supervisor(app_user):
+            return _error("Această pagină este disponibilă numai supervisorilor.", 403)
+        supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
+        rows = PortalTeamTransferRequest.objects.select_related(
+            "employee", "source_team__leader", "source_team__supervisor",
+            "destination_team__leader", "destination_team__supervisor", "requested_by__employee",
+        ).filter(
+            Q(source_team_id__in=supervised_ids) | Q(destination_team_id__in=supervised_ids)
+        ).distinct()
+        return JsonResponse({"requests": [_transfer_payload(item, app_user) for item in rows]})
+    if request.method != "POST":
+        return _error("Metodă nepermisă.", 405)
+    try:
+        data = json.loads(request.body or "{}")
+        employee_id = int(data.get("employee_id"))
+        destination_team_id = int(data.get("destination_team_id"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return _error("Angajatul și echipa destinație sunt obligatorii.")
+    destination = EmployeeTeam.objects.select_related("leader", "supervisor").filter(
+        pk=destination_team_id, active=True
+    ).first()
+    employee = Users.objects.select_for_update().filter(
+        pk=employee_id,
+        active=True,
+        employment_status=Users.EmploymentStatus.ACTIVE,
+        person_type=Users.PersonType.EMPLOYEE,
+    ).first()
+    if not destination or not employee:
+        return _error("Angajatul sau echipa nu există ori este inactivă.", 404)
+    is_destination_leader = destination.leader_id == app_user.employee_id
+    is_destination_supervisor = destination.supervisor_id == app_user.employee_id
+    if not is_destination_leader and not is_destination_supervisor:
+        return _error("Poți solicita membri numai pentru o echipă pe care o coordonezi.", 403)
+    if employee.pk in {
+        value
+        for team in EmployeeTeam.objects.filter(active=True)
+        for value in (team.leader_id, team.supervisor_id)
+        if value
+    }:
+        return _error("Un șef de echipă sau supervisor nu poate fi mutat ca membru.", 409)
+    source_membership = _active_membership(employee.pk)
+    source = source_membership.team if source_membership else None
+    if source and source.pk == destination.pk:
+        return _error("Angajatul face deja parte din această echipă.", 409)
+    if not destination.supervisor_id:
+        return _error(
+            "Echipa destinație nu are un supervisor configurat pentru aprobare.",
+            409,
+        )
+    if source and not source.supervisor_id:
+        return _error(
+            "Echipa sursă nu are un supervisor configurat pentru aprobare.",
+            409,
+        )
+    if PortalTeamTransferRequest.objects.filter(
+        employee=employee,
+        status=PortalTeamTransferRequest.Status.PENDING,
+    ).exists():
+        return _error("Există deja un transfer activ pentru acest angajat.", 409)
+
+    # Supervisorul poate aloca direct o persoană fără echipă.
+    if not source and is_destination_supervisor:
+        target, _ = EmployeeTeamMember.objects.get_or_create(team=destination, employee=employee)
+        if not target.active:
+            target.active = True
+            target.save(update_fields=("active",))
+        sync_team_to_organization(destination)
+        return JsonResponse({"assigned": True, "employee_id": employee.pk, "team_id": destination.pk}, status=201)
+
+    source_approval = PortalTeamTransferRequest.ApprovalStatus.NOT_REQUIRED
+    if source:
+        source_approval = (
+            PortalTeamTransferRequest.ApprovalStatus.APPROVED
+            if source.effective_supervisor.pk == app_user.employee_id
+            else PortalTeamTransferRequest.ApprovalStatus.PENDING
+        )
+    destination_approval = (
+        PortalTeamTransferRequest.ApprovalStatus.APPROVED
+        if is_destination_supervisor
+        else PortalTeamTransferRequest.ApprovalStatus.PENDING
+    )
+    if not source:
+        source_approval = PortalTeamTransferRequest.ApprovalStatus.APPROVED
+    try:
+        item = PortalTeamTransferRequest.objects.create(
+            employee=employee,
+            source_team=source,
+            destination_team=destination,
+            requested_by=app_user,
+            requester_role=(
+                PortalTeamTransferRequest.RequesterRole.SUPERVISOR
+                if is_destination_supervisor
+                else PortalTeamTransferRequest.RequesterRole.TEAM_LEADER
+            ),
+            reason=str(data.get("reason") or "").strip()[:500],
+            source_approval=source_approval,
+            destination_approval=destination_approval,
+            source_decided_by=(app_user if source_approval == PortalTeamTransferRequest.ApprovalStatus.APPROVED else None),
+            destination_decided_by=(app_user if destination_approval == PortalTeamTransferRequest.ApprovalStatus.APPROVED else None),
+            source_decided_at=(timezone.now() if source_approval == PortalTeamTransferRequest.ApprovalStatus.APPROVED else None),
+            destination_decided_at=(timezone.now() if destination_approval == PortalTeamTransferRequest.ApprovalStatus.APPROVED else None),
+        )
+        transferred = _execute_portal_transfer(item)
+        if not transferred:
+            _notify_transfer_current_approver(item)
+    except (ValidationError, IntegrityError) as exc:
+        details = exc.message_dict if hasattr(exc, "message_dict") else {"non_field_errors": getattr(exc, "messages", [str(exc)])}
+        return _error("Solicitarea nu a putut fi creată.", 409, details)
+    return JsonResponse({"request": _transfer_payload(item, app_user), "transferred": transferred}, status=201)
+
+
+@csrf_exempt
+@transaction.atomic
+def portal_transfer_decision(request, request_id):
+    if request.method != "POST":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user or not _is_supervisor(app_user):
+        return _error("Numai un supervisor poate soluționa transferul.", 403)
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return _error("JSON invalid.")
+    action = str(data.get("action") or "").strip().lower()
+    if action not in {"approve", "reject"}:
+        return _error("Acțiunea trebuie să fie approve sau reject.")
+    item = PortalTeamTransferRequest.objects.select_for_update().select_related(
+        "employee", "source_team__leader", "source_team__supervisor",
+        "destination_team__leader", "destination_team__supervisor", "requested_by__employee",
+    ).filter(pk=request_id).first()
+    if not item:
+        return _error("Solicitarea nu există.", 404)
+    if item.status != item.Status.PENDING:
+        return _error("Solicitarea a fost deja soluționată.", 409)
+    now = timezone.now()
+    controls_source = bool(item.source_team_id and item.source_team.effective_supervisor.pk == app_user.employee_id)
+    controls_destination = item.destination_team.effective_supervisor.pk == app_user.employee_id
+    pending_source = controls_source and item.source_approval == item.ApprovalStatus.PENDING
+    pending_destination = (
+        controls_destination
+        and item.source_approval in {item.ApprovalStatus.APPROVED, item.ApprovalStatus.NOT_REQUIRED}
+        and item.destination_approval == item.ApprovalStatus.PENDING
+    )
+    if not pending_source and not pending_destination:
+        return _error("Nu poți soluționa această solicitare.", 403)
+    decision = item.ApprovalStatus.APPROVED if action == "approve" else item.ApprovalStatus.REJECTED
+    update_fields = []
+    if pending_source:
+        item.source_approval = decision
+        item.source_decided_by = app_user
+        item.source_decided_at = now
+        update_fields.extend(("source_approval", "source_decided_by", "source_decided_at"))
+    if pending_destination:
+        item.destination_approval = decision
+        item.destination_decided_by = app_user
+        item.destination_decided_at = now
+        update_fields.extend(("destination_approval", "destination_decided_by", "destination_decided_at"))
+    if action == "reject":
+        item.status = item.Status.REJECTED
+        item.completed_at = now
+        update_fields.extend(("status", "completed_at"))
+    item.save(update_fields=tuple(dict.fromkeys(update_fields + ["updated_at"])))
+    transferred = _execute_portal_transfer(item) if action == "approve" else False
+    if action == "approve" and not transferred:
+        _notify_transfer_current_approver(item)
+    if item.status in {item.Status.APPROVED, item.Status.REJECTED}:
+        _notify_request_result(item, TeamPortalNotification.Kind.TRANSFER_RESULT)
+    TeamPortalNotification.objects.filter(
+        recipient=app_user,
+        transfer_request=item,
+        kind=TeamPortalNotification.Kind.TRANSFER_APPROVAL,
+        read_at__isnull=True,
+    ).update(read_at=timezone.now())
+    return JsonResponse({"request": _transfer_payload(item, app_user), "transferred": transferred})
+
+
+def _own_leave_team(employee):
+    membership = _active_membership(employee.pk)
+    if membership:
+        return membership.team
+    return EmployeeTeam.objects.select_related("leader", "supervisor").filter(
+        active=True,
+    ).filter(Q(leader=employee) | Q(supervisor=employee)).first()
+
+
+@csrf_exempt
+@transaction.atomic
+def portal_own_leave_requests(request):
+    app_user = _portal_actor(request)
+    if not app_user:
+        return _error("Acces interzis.", 403)
+    employee = app_user.employee
+    if request.method == "GET":
+        items = list(LeaveRequest.objects.filter(employee=employee).select_related("team"))
+        LeaveRequest.objects.filter(
+            employee=employee,
+            employee_seen_at__isnull=True,
+        ).exclude(status=LeaveRequest.Status.PENDING).update(employee_seen_at=timezone.now())
+        return JsonResponse({
+            "leave_requests": [serialize_leave_request(item) for item in items],
+            "leave_balance": build_leave_summary(employee, timezone.localdate()),
+        })
+    if request.method != "POST":
+        return _error("Metodă nepermisă.", 405)
+    try:
+        data = json.loads(request.body or "{}")
+        start_date = date.fromisoformat(str(data.get("start_date") or ""))
+        end_date = date.fromisoformat(str(data.get("end_date") or ""))
+    except (ValueError, json.JSONDecodeError):
+        return _error("Datele trebuie completate în format YYYY-MM-DD.")
+    leave_type = str(data.get("leave_type") or LeaveRequest.LeaveType.PAID_LEAVE).strip()
+    if leave_type not in LeaveRequest.LeaveType.values:
+        return _error("Tipul concediului nu este valid.")
+    team = _own_leave_team(employee)
+    if not team:
+        return _error("Cererea nu poate fi trimisă deoarece nu ești asociat unei echipe active.", 409)
+    item = LeaveRequest(
+        employee=employee,
+        team=team,
+        assigned_leader=team.effective_supervisor,
+        leave_type=leave_type,
+        start_date=start_date,
+        end_date=end_date,
+        reason=str(data.get("reason") or "").strip()[:2000],
+    )
+    try:
+        item.save()
+    except ValidationError as exc:
+        details = exc.message_dict if hasattr(exc, "message_dict") else {"non_field_errors": exc.messages}
+        return _error("Cererea nu a putut fi trimisă.", 400, details)
+    _notify_leave_approver(item)
+    send_leave_request_email(item)
+    return JsonResponse({
+        "leave_request": serialize_leave_request(item),
+        "leave_balance": build_leave_summary(employee, timezone.localdate()),
+    }, status=201)
+
+
+def _supervisor_leave_payload(item, app_user):
+    return {
+        "id": item.pk,
+        "kind": "leave",
+        "employee": _employee_summary(item.employee, "leave"),
+        "source_team": None,
+        "destination_team": ({"id": item.team_id, "name": item.team.name} if item.team_id else None),
+        "requested_by": {"id": item.employee_id, "name": item.employee.UserName},
+        "leave_type": item.leave_type,
+        "leave_type_label": item.get_leave_type_display(),
+        "start_date": item.start_date.isoformat(),
+        "end_date": item.end_date.isoformat(),
+        "reason": item.reason,
+        "status": item.status,
+        "status_label": item.get_status_display(),
+        "created_at": item.created_at.isoformat(),
+        "days": (item.end_date - item.start_date).days + 1,
+        "can_approve": item.status == item.Status.PENDING and item.employee_id != app_user.employee_id,
+        "can_reject": item.status == item.Status.PENDING and item.employee_id != app_user.employee_id,
+    }
+
+
+@csrf_exempt
+def portal_supervisor_requests(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user or not _is_supervisor(app_user):
+        return _error("Această pagină este disponibilă numai supervisorilor.", 403)
+    supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
+    leaves = LeaveRequest.objects.select_related("employee", "team").filter(team_id__in=supervised_ids)
+    transfers = PortalTeamTransferRequest.objects.select_related(
+        "employee", "source_team__leader", "source_team__supervisor",
+        "destination_team__leader", "destination_team__supervisor", "requested_by__employee",
+    ).filter(Q(source_team_id__in=supervised_ids) | Q(destination_team_id__in=supervised_ids)).distinct()
+    rows = (
+        [_supervisor_leave_payload(item, app_user) for item in leaves]
+        + [{"kind": "transfer", **_transfer_payload(item, app_user)} for item in transfers]
+    )
+    rows.sort(key=lambda item: item["created_at"], reverse=True)
+    return JsonResponse({"requests": rows})
+
+
+@csrf_exempt
+def portal_supervisor_request_summary(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user or not _is_supervisor(app_user):
+        return _error("Această pagină este disponibilă numai supervisorilor.", 403)
+    supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
+    leave_count = LeaveRequest.objects.filter(
+        team_id__in=supervised_ids,
+        status=LeaveRequest.Status.PENDING,
+    ).exclude(employee_id=app_user.employee_id).count()
+    transfer_items = PortalTeamTransferRequest.objects.select_related(
+        "source_team__leader", "source_team__supervisor",
+        "destination_team__leader", "destination_team__supervisor",
+    ).filter(
+        status=PortalTeamTransferRequest.Status.PENDING,
+    ).filter(Q(source_team_id__in=supervised_ids) | Q(destination_team_id__in=supervised_ids)).distinct()
+    transfer_count = sum(bool(_transfer_payload(item, app_user)["can_approve"]) for item in transfer_items)
+    return JsonResponse({
+        "leave_pending_count": leave_count,
+        "transfer_pending_count": transfer_count,
+        "pending_count": leave_count + transfer_count,
+    })
+
+
+@csrf_exempt
+def portal_supervisor_leave_requests(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user or not _is_supervisor(app_user):
+        return _error("Această pagină este disponibilă numai supervisorilor.", 403)
+    supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
+    items = LeaveRequest.objects.select_related("employee", "team").filter(
+        team_id__in=supervised_ids,
+    ).order_by("-created_at")
+    return JsonResponse({"requests": [_supervisor_leave_payload(item, app_user) for item in items]})
+
+
+@csrf_exempt
+def portal_supervisor_transfer_requests(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user or not _is_supervisor(app_user):
+        return _error("Această pagină este disponibilă numai supervisorilor.", 403)
+    supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
+    items = PortalTeamTransferRequest.objects.select_related(
+        "employee", "source_team__leader", "source_team__supervisor",
+        "destination_team__leader", "destination_team__supervisor", "requested_by__employee",
+    ).filter(
+        Q(source_team_id__in=supervised_ids) | Q(destination_team_id__in=supervised_ids)
+    ).distinct().order_by("-created_at")
+    return JsonResponse({"requests": [_transfer_payload(item, app_user) for item in items]})
+
+
+@csrf_exempt
+@transaction.atomic
+def portal_leave_decision(request, request_id):
+    if request.method != "POST":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user or not _is_supervisor(app_user):
+        return _error("Numai un supervisor poate soluționa concediul.", 403)
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return _error("JSON invalid.")
+    action = str(data.get("action") or "").strip().lower()
+    if action not in {"approve", "reject"}:
+        return _error("Acțiunea trebuie să fie approve sau reject.")
+    supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
+    item = LeaveRequest.objects.select_for_update().select_related("employee", "team").filter(
+        pk=request_id,
+        team_id__in=supervised_ids,
+    ).first()
+    if not item:
+        return _error("Cererea nu există sau nu aparține echipelor supervizate.", 404)
+    if item.employee_id == app_user.employee_id:
+        return _error("Nu îți poți aproba sau respinge propria cerere.", 403)
+    if item.status != item.Status.PENDING:
+        return _error("Cererea a fost deja soluționată.", 409)
+    now = timezone.now()
+    item.status = item.Status.APPROVED if action == "approve" else item.Status.REJECTED
+    item.reviewed_at = now
+    item.approved_at = now if action == "approve" else None
+    item.reviewed_by_app_user = app_user
+    item.employee_seen_at = None
+    try:
+        item.save()
+    except ValidationError as exc:
+        details = exc.message_dict if hasattr(exc, "message_dict") else {"non_field_errors": exc.messages}
+        return _error("Cererea nu a putut fi soluționată.", 400, details)
+    if action == "approve":
+        send_leave_approval_email(item, app_user.employee.UserName)
+    _notify_request_result(item, TeamPortalNotification.Kind.LEAVE_RESULT)
+    TeamPortalNotification.objects.filter(
+        recipient=app_user,
+        leave_request=item,
+        kind=TeamPortalNotification.Kind.LEAVE_APPROVAL,
+        read_at__isnull=True,
+    ).update(read_at=timezone.now())
+    return JsonResponse({"request": _supervisor_leave_payload(item, app_user)})
 
 
 def _sync_global_alert_recipients(app_user, day=None):
@@ -231,16 +983,12 @@ def _sync_global_alert_recipients(app_user, day=None):
 
 
 def _notification_query(app_user):
-    query = TeamAttendanceAlertRecipient.objects.filter(employee_id=app_user.employee_id)
-    if not _has_global_absence_access(app_user):
-        query = query.filter(alert__team__in=_coordinated_teams(app_user))
-    return query.filter(
-        alert__missing_employees__active=True,
-        alert__missing_employees__employment_status=Users.EmploymentStatus.ACTIVE,
-        alert__missing_employees__attendance_exempt=False,
-    ).filter(
-        Q(alert__missing_employees__hire_date__isnull=True)
-        | Q(alert__missing_employees__hire_date__lte=timezone.localdate())
+    # Notificările inițiale de la 07:40 rămân strict în echipele coordonate.
+    # Rolurile Nivel 1/Nivel 2 sunt adăugate separat, la pragurile lor, astfel
+    # încât un utilizator cu roluri combinate să nu își piardă drepturile de bază.
+    return TeamAttendanceAlertRecipient.objects.filter(
+        employee_id=app_user.employee_id,
+        alert__team__in=_coordinated_teams(app_user),
     ).distinct()
 
 
@@ -277,7 +1025,7 @@ def _missing_row(employee, team, can_mark):
         "photo": employee.photo or None,
         "status": "absent",
         "team": _team_summary(team),
-        "can_mark_absent": bool(can_mark and team),
+        "can_mark_absent": bool(can_mark),
     }
 
 
@@ -298,6 +1046,8 @@ def _absent_today_rows(day=None):
         case = cases.get(mark.employee_id)
         if mark.source == AttendanceAbsenceMark.Source.LEVEL_1:
             category = AttendanceAlertCase.EscalationSource.MARKED_BY_LEVEL_1
+        elif mark.source == AttendanceAbsenceMark.Source.SUPERVISOR:
+            category = AttendanceAlertCase.EscalationSource.MARKED_BY_SUPERVISOR
         elif mark.source == AttendanceAbsenceMark.Source.TEAM_LEADER:
             category = AttendanceAlertCase.EscalationSource.MARKED_BY_TEAM_LEADER
         else:
@@ -431,7 +1181,27 @@ def portal_missing_today(request):
     ensure_team_attendance_alerts_due()
     refresh_resolutions(day)
     locked = absence_marking_locked()
-    rows = [_missing_row(employee, team, not locked) for employee, team in company_missing_employees(day)]
+    rows_by_employee = {
+        employee.pk: _missing_row(employee, team, not locked)
+        for employee, team in company_missing_employees(day)
+    }
+    # Păstrăm marcările Nivelului 1 în listă după refresh, astfel încât acțiunea
+    # să rămână vizibilă și auditabilă fără să repoziționăm utilizatorul.
+    marks = AttendanceAbsenceMark.objects.filter(
+        work_date=day,
+    ).filter(
+        Q(source=AttendanceAbsenceMark.Source.LEVEL_1) | Q(marked_by=app_user)
+    ).select_related("employee", "team", "team__leader", "marked_by", "marked_by__employee")
+    for mark in marks:
+        actor_name = mark.marked_by.employee.UserName if mark.marked_by_id else "Nivel 1"
+        rows_by_employee[mark.employee_id] = {
+            **_missing_row(mark.employee, mark.team, False),
+            "status": "marked_absent",
+            "marked_by": actor_name,
+            "marked_at": timezone.localtime(mark.marked_at).isoformat(),
+            "source": mark.source,
+        }
+    rows = sorted(rows_by_employee.values(), key=lambda item: item["name"].casefold())
     return JsonResponse({
         "date": day.isoformat(),
         "locked": locked,
@@ -468,8 +1238,10 @@ def portal_absent_today(request):
 
 def _notification_payload(recipient):
     alert = recipient.alert
+    current_missing = _missing_members(alert.team, alert.work_date)
     return {
         "id": recipient.pk,
+        "kind": "team",
         "team": {"id": alert.team_id, "name": alert.team.name},
         "status": "absent",
         "date": alert.work_date.isoformat(),
@@ -481,15 +1253,142 @@ def _notification_payload(recipient):
                 "name": employee.UserName,
                 "phone": employee.phone_number or "",
             }
-            for employee in alert.missing_employees.filter(
-                active=True,
-                employment_status=Users.EmploymentStatus.ACTIVE,
-                attendance_exempt=False,
-            ).filter(
-                Q(hire_date__isnull=True) | Q(hire_date__lte=alert.work_date)
-            ).order_by("UserName")
+            for employee in current_missing
         ],
     }
+
+
+def _team_notification_payloads(app_user):
+    if not _coordinated_teams(app_user).exists():
+        return []
+    query = _notification_query(app_user).select_related("alert__team")
+    return [
+        payload
+        for item in query.order_by("-alert__created_at")
+        if (payload := _notification_payload(item))["employees"]
+    ]
+
+
+def _personal_notification_payloads(app_user):
+    return [
+        {
+            "id": item.pk,
+            "kind": "personal_leave",
+            "team": {"id": item.team_id, "name": "Cerere concediu"},
+            "status": item.status,
+            "status_label": item.get_status_display(),
+            "leave_type": item.leave_type,
+            "start_date": item.start_date.isoformat(),
+            "end_date": item.end_date.isoformat(),
+            "date": item.created_at.date().isoformat(),
+            "checked_at": (item.reviewed_at or item.created_at).isoformat(),
+            "is_read": item.employee_seen_at is not None,
+            "employees": [{
+                "id": app_user.employee_id,
+                "name": app_user.employee.UserName,
+                "phone": "",
+            }],
+        }
+        for item in LeaveRequest.objects.filter(employee_id=app_user.employee_id)
+        .exclude(
+            portal_notifications__recipient=app_user,
+            portal_notifications__kind=TeamPortalNotification.Kind.LEAVE_RESULT,
+        )
+        .exclude(status=LeaveRequest.Status.PENDING)
+        .order_by("-reviewed_at", "-created_at")
+    ]
+
+
+def _request_notification_payloads(app_user):
+    items = TeamPortalNotification.objects.select_related(
+        "leave_request__employee", "leave_request__team",
+        "transfer_request__employee", "transfer_request__source_team",
+        "transfer_request__destination_team", "transfer_request__requested_by__employee",
+    ).filter(recipient=app_user)
+    payloads = []
+    for item in items:
+        if item.leave_request_id:
+            request_item = item.leave_request
+            is_result = item.kind == TeamPortalNotification.Kind.LEAVE_RESULT
+            target_path = (
+                "/team-dashboard/cerere-concediu"
+                if is_result
+                else f"/team-dashboard/cereri-concediu?request={request_item.pk}"
+            )
+            payloads.append({
+                "id": item.pk,
+                "kind": item.kind,
+                "request_kind": "leave",
+                "request_id": request_item.pk,
+                "team": {"id": request_item.team_id, "name": request_item.team.name if request_item.team_id else ""},
+                "status": request_item.status,
+                "status_label": request_item.get_status_display(),
+                "leave_type": request_item.leave_type,
+                "leave_type_label": request_item.get_leave_type_display(),
+                "start_date": request_item.start_date.isoformat(),
+                "end_date": request_item.end_date.isoformat(),
+                "date": item.created_at.date().isoformat(),
+                "checked_at": item.created_at.isoformat(),
+                "is_read": item.read_at is not None,
+                "target_path": target_path,
+                "employees": [{
+                    "id": request_item.employee_id,
+                    "name": request_item.employee.UserName,
+                    "phone": request_item.employee.phone_number or "",
+                }],
+            })
+            continue
+        request_item = item.transfer_request
+        target_path = (
+            f"/team-dashboard/cereri-transfer?request={request_item.pk}"
+            if item.kind == TeamPortalNotification.Kind.TRANSFER_APPROVAL
+            else "/team-dashboard/cereri"
+        )
+        payloads.append({
+            "id": item.pk,
+            "kind": item.kind,
+            "request_kind": "transfer",
+            "request_id": request_item.pk,
+            "team": {"id": request_item.destination_team_id, "name": request_item.destination_team.name},
+            "status": request_item.status,
+            "status_label": request_item.get_status_display(),
+            "date": item.created_at.date().isoformat(),
+            "checked_at": item.created_at.isoformat(),
+            "is_read": item.read_at is not None,
+            "target_path": target_path,
+            "employees": [{
+                "id": request_item.employee_id,
+                "name": request_item.employee.UserName,
+                "phone": request_item.employee.phone_number or "",
+            }],
+        })
+    return payloads
+
+
+def _current_portal_unread_count(app_user):
+    personal = LeaveRequest.objects.filter(
+        employee_id=app_user.employee_id,
+        employee_seen_at__isnull=True,
+    ).exclude(
+        portal_notifications__recipient=app_user,
+        portal_notifications__kind=TeamPortalNotification.Kind.LEAVE_RESULT,
+    ).exclude(status=LeaveRequest.Status.PENDING).count()
+    items = _team_notification_payloads(app_user)
+    if _escalation_levels(app_user):
+        items += _global_notification_payloads(app_user)
+    attendance = sum(not item["is_read"] for item in items)
+    requests = TeamPortalNotification.objects.filter(recipient=app_user, read_at__isnull=True).count()
+    return personal + attendance + requests
+
+
+@csrf_exempt
+def portal_notification_summary(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user:
+        return _error("Acces interzis.", 403)
+    return JsonResponse({"unread_count": _current_portal_unread_count(app_user)})
 
 
 @csrf_exempt
@@ -499,15 +1398,13 @@ def portal_notifications(request):
         return _error("Acces interzis.", 403)
     levels = _escalation_levels(app_user)
     if request.method == "GET":
-        if levels:
-            items = _global_notification_payloads(app_user)
-            return JsonResponse({
-                "notifications": items,
-                "unread_count": sum(not item["is_read"] for item in items),
-            })
         ensure_team_attendance_alerts_due()
-        query = _notification_query(app_user).select_related("alert__team").prefetch_related("alert__missing_employees")
-        items = [_notification_payload(item) for item in query.order_by("-alert__created_at")]
+        items = _team_notification_payloads(app_user)
+        if levels:
+            items += _global_notification_payloads(app_user)
+        items.extend(_personal_notification_payloads(app_user))
+        items.extend(_request_notification_payloads(app_user))
+        items.sort(key=lambda item: item["checked_at"], reverse=True)
         return JsonResponse({
             "notifications": items,
             "unread_count": sum(not item["is_read"] for item in items),
@@ -520,19 +1417,37 @@ def portal_notifications(request):
         notification_ids = [int(value) for value in raw_ids]
     except (TypeError, ValueError, json.JSONDecodeError):
         return _error("Lista notificărilor este invalidă.")
-    if levels or data.get("notification_kind") == "escalation":
+    notification_kind = data.get("notification_kind")
+    if notification_kind in set(TeamPortalNotification.Kind.values) | {"request"}:
+        query = TeamPortalNotification.objects.filter(
+            recipient=app_user,
+            pk__in=notification_ids,
+            read_at__isnull=True,
+        )
+        if notification_kind != "request":
+            query = query.filter(kind=notification_kind)
+        updated = query.update(read_at=timezone.now())
+        return JsonResponse({"updated": updated, "unread_count": _current_portal_unread_count(app_user)})
+    if notification_kind == "personal_leave":
+        updated = LeaveRequest.objects.filter(
+            employee_id=app_user.employee_id,
+            pk__in=notification_ids,
+            employee_seen_at__isnull=True,
+        ).exclude(status=LeaveRequest.Status.PENDING).update(employee_seen_at=timezone.now())
+        return JsonResponse({"updated": updated, "unread_count": _current_portal_unread_count(app_user)})
+    if notification_kind == "escalation":
         updated = AttendanceAlertEscalationNotification.objects.filter(
             recipient=app_user,
             pk__in=notification_ids,
             read_at__isnull=True,
         ).update(read_at=timezone.now())
-        unread_count = sum(not item["is_read"] for item in _global_notification_payloads(app_user))
+        unread_count = _current_portal_unread_count(app_user)
         return JsonResponse({"updated": updated, "unread_count": unread_count})
     query = _notification_query(app_user)
     updated = query.filter(pk__in=notification_ids, read_at__isnull=True).update(read_at=timezone.now())
     return JsonResponse({
         "updated": updated,
-        "unread_count": query.filter(read_at__isnull=True).count(),
+        "unread_count": _current_portal_unread_count(app_user),
     })
 
 
@@ -546,22 +1461,38 @@ def portal_mark_absent(request, employee_id):
     day = timezone.localdate()
     levels = _escalation_levels(app_user)
     is_level_1 = 1 in levels
+    try:
+        request_data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        request_data = {}
+    requested_context = str(request_data.get("actor_context") or "").strip().lower()
     team = _coordinated_teams(app_user).filter(
         memberships__employee_id=employee_id,
         memberships__active=True,
     ).distinct().first()
     if not team and not is_level_1:
         return _error("Poți marca absent doar un membru al echipei coordonate.", 403)
-    source = (
-        AttendanceAbsenceMark.Source.LEVEL_1
-        if is_level_1
-        else AttendanceAbsenceMark.Source.TEAM_LEADER
-    )
+    if team and not _initial_alert_available():
+        return _error(
+            f"Marcarea ca absent devine disponibilă după ora {ALERT_HOUR:02d}:{ALERT_MINUTE:02d}.",
+            409,
+        )
+    if not team and is_level_1 and not _level_1_list_available():
+        return _error(
+            "Marcarea ca absent nu este disponibilă înainte de ora Nivelului 1.",
+            409,
+        )
+    if is_level_1 and requested_context == "level_1":
+        source = AttendanceAbsenceMark.Source.LEVEL_1
+    elif team and team.leader_id == app_user.employee_id:
+        source = AttendanceAbsenceMark.Source.TEAM_LEADER
+    elif team and team.supervisor_id == app_user.employee_id:
+        source = AttendanceAbsenceMark.Source.SUPERVISOR
+    else:
+        source = AttendanceAbsenceMark.Source.LEVEL_1
     if not team:
         # Nivel 1 marchează pe toată compania: echipa se ia de la angajat.
         team = team_by_employee([employee_id]).get(int(employee_id))
-        if not team:
-            return _error("Angajatul nu are o echipă activă și nu poate fi marcat lipsă.", 409)
     if absence_marking_locked():
         return _error(
             "După ora {} absențele sunt trecute automat de sistem și nu mai pot fi modificate.".format(

@@ -52,6 +52,7 @@ class AttendanceEscalationTests(TestCase):
         EmployeeTeamMember.objects.create(team=self.team, employee=self.leader)
         EmployeeTeamMember.objects.create(team=self.team, employee=self.target)
         AttendanceSession.objects.create(user_fk=self.leader, work_date=self.day, worksite="diverse")
+        AttendanceSession.objects.create(user_fk=self.recipient_employee, work_date=self.day, worksite="diverse")
         for level in (1, 2):
             config = AttendanceAlertEscalationConfig.objects.get(level=level)
             config.app_user = self.recipient
@@ -138,3 +139,39 @@ class AttendanceAlertsPermissionApiTests(TestCase):
         admin = Client()
         admin.cookies["ptj"] = make_admin_token()
         self.assertEqual(admin.get("/api/attendance-alerts/").status_code, 200)
+
+    def test_admin_missing_list_contains_only_final_level_with_exact_reason(self):
+        work_date = date(2026, 8, 27)
+        AppPagePermission.objects.create(app_user=self.account, route="/pontaj/alerte", can_access=True)
+        mark = AttendanceAbsenceMark.objects.create(
+            employee=self.account.employee,
+            team=None,
+            work_date=work_date,
+            marked_by=self.account,
+            source=AttendanceAbsenceMark.Source.SUPERVISOR,
+        )
+        AttendanceAlertCase.objects.create(
+            employee=self.account.employee,
+            team=None,
+            work_date=work_date,
+            level=AttendanceAlertCase.Level.LEVEL_2,
+            escalation_source=AttendanceAlertCase.EscalationSource.MARKED_BY_SUPERVISOR,
+            marked_absent_at=mark.marked_at,
+        )
+        other = create_employee("Alertă intermediară", "ESC-INTERMEDIATE", "8299")
+        AttendanceAlertCase.objects.create(
+            employee=other,
+            team=None,
+            work_date=work_date,
+            level=AttendanceAlertCase.Level.LEVEL_1,
+        )
+
+        payload = self.client.get(f"/api/attendance-alerts/?date={work_date.isoformat()}").json()
+
+        self.assertEqual(len(payload["cases"]), 1)
+        self.assertEqual(payload["cases"][0]["team_name"], "Fără echipă")
+        self.assertEqual(
+            payload["cases"][0]["reason"],
+            f"Marcat absent de {self.account.employee.UserName} – Supervisor",
+        )
+        self.assertEqual(payload["cases"][0]["status"], "Absent/Nepontat astăzi")

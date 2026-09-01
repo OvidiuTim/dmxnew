@@ -93,6 +93,24 @@ export class AdminAppPageComponent implements OnInit {
     return !!user.inherited_modules?.includes(moduleCode);
   }
 
+  isManual(moduleCode: string, user: any): boolean {
+    return !!user.manual_module_access?.[moduleCode];
+  }
+
+  roleLabel(role: string): string {
+    const labels: Record<string, string> = {
+      team_leader: 'Șef de echipă',
+      supervisor: 'Supervisor',
+      alert_level_1: 'Nivel 1',
+      alert_level_2: 'Nivel 2',
+    };
+    return labels[role] || role;
+  }
+
+  roleSummary(user: any): string {
+    return (user?.roles || []).map((role: string) => this.roleLabel(role)).join(', ');
+  }
+
   toggleModuleUser(moduleCode: string, user: any, checked: boolean): void {
     if (this.isInherited(moduleCode, user) && !checked) return;
     const selection = this.moduleSelections[moduleCode] || new Set<number>();

@@ -2303,7 +2303,7 @@ def nfc_scan(request):
                     data_processing_consent_at=timezone.now() if is_manual_scan and data_processing_consent else None,
                     checkin_photo=attendance_photo if is_manual_scan else "",
                 )
-                if is_manual_scan and attendance_photo:
+                if is_manual_scan and attendance_photo and not str(user.photo or "").strip():
                     Users.objects.filter(pk=user.pk).update(photo=attendance_photo)
                     user.photo = attendance_photo
                 _publish("enter", user, when, {"worksite": ws})
@@ -2344,8 +2344,6 @@ def nfc_scan(request):
             open_sess.out_time = apply_exit_grace(when)
             if is_manual_scan:
                 open_sess.checkout_photo = attendance_photo
-                Users.objects.filter(pk=user.pk).update(photo=attendance_photo)
-                user.photo = attendance_photo
             if gps_payload:
                 open_sess.out_gps_latitude = gps_payload["lat"]
                 open_sess.out_gps_longitude = gps_payload["lng"]
@@ -2402,7 +2400,7 @@ def nfc_scan(request):
             data_processing_consent_at=timezone.now() if is_manual_scan and data_processing_consent else None,
             checkin_photo=attendance_photo if is_manual_scan else "",
         )
-        if is_manual_scan and attendance_photo:
+        if is_manual_scan and attendance_photo and not str(user.photo or "").strip():
             Users.objects.filter(pk=user.pk).update(photo=attendance_photo)
             user.photo = attendance_photo
         PresenceEvent.objects.create(
@@ -4227,11 +4225,18 @@ def _serialize_app_user(app_user):
         if access.can_access
     }
     inherited_modules = []
+    employee_eligible_for_portal = (
+        app_user.employee.active
+        and app_user.employee.person_type == Users.PersonType.EMPLOYEE
+        and app_user.employee.employment_status == Users.EmploymentStatus.ACTIVE
+    )
+    if employee_eligible_for_portal:
+        inherited_modules.append("team_dashboard")
     if (
         app_user.employee.led_employee_teams.filter(active=True).exists()
         or app_user.employee.supervised_employee_teams.filter(active=True).exists()
     ):
-        inherited_modules.extend(("teams_schedule", "team_dashboard"))
+        inherited_modules.append("teams_schedule")
     elif set(app_user_roles(app_user)).intersection({"alert_level_1", "alert_level_2"}):
         inherited_modules.append("team_dashboard")
     coordinated_teams = list(
@@ -4364,6 +4369,9 @@ def app_auth_login(request):
         app_user = AppUser.objects.select_related("employee").prefetch_related("page_permissions").get(
             username__iexact=username,
             is_active=True,
+            employee__active=True,
+            employee__person_type=Users.PersonType.EMPLOYEE,
+            employee__employment_status=Users.EmploymentStatus.ACTIVE,
         )
     except AppUser.DoesNotExist:
         return JsonResponse({"error": "Cont invalid sau inactiv."}, status=401)
@@ -4616,7 +4624,15 @@ def app_admin_module_access(request, module_code):
     with transaction.atomic():
         for app_user in all_users:
             enabled = app_user.AppUserId in selected_ids
-            if module_code in {"teams_schedule", "team_dashboard"} and app_user_roles(app_user):
+            employee_eligible_for_portal = (
+                app_user.employee.active
+                and app_user.employee.person_type == Users.PersonType.EMPLOYEE
+                and app_user.employee.employment_status == Users.EmploymentStatus.ACTIVE
+            )
+            if (
+                (module_code == "teams_schedule" and app_user_roles(app_user))
+                or (module_code == "team_dashboard" and employee_eligible_for_portal)
+            ):
                 enabled = False
             AppModuleAccess.objects.update_or_create(
                 app_user=app_user,

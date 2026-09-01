@@ -31,7 +31,6 @@ def employee_can_have_app_account(employee):
         and employee.person_type == Users.PersonType.EMPLOYEE
         and employee.active
         and employee.employment_status == Users.EmploymentStatus.ACTIVE
-        and str(employee.UserSerie or "").strip()
     )
 
 
@@ -54,12 +53,15 @@ def sync_employee_app_user(employee):
     app_user = existing or AppUser(
         employee=employee,
         username=_unique_username(employee),
-        login_redirect_path="/pontaj",
+        login_redirect_path="/team-dashboard",
     )
     changed_fields = []
     if not app_user.is_active:
         app_user.is_active = True
         changed_fields.append("is_active")
+    if app_user.login_redirect_path != "/team-dashboard":
+        app_user.login_redirect_path = "/team-dashboard"
+        changed_fields.append("login_redirect_path")
     raw_pin = str(employee.UserPin or "").strip()
     if raw_pin and not app_user.check_pin(raw_pin):
         app_user.set_pin(employee.UserPin)
