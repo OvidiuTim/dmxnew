@@ -59,7 +59,8 @@ class GlobalAbsencePortalTests(TestCase):
         self.level2_employee = create_employee("Director Nivel 2", "GLB-N2", "7011")
         self.level1 = create_account(self.level1_employee, "nivel.unu")
         self.level2 = create_account(self.level2_employee, "nivel.doi")
-        self.configure(1, self.level1, time(23, 59))
+        # Ora Nivelului 1 în trecut: lista „Vezi nepontați” este deja disponibilă.
+        self.configure(1, self.level1, time(0, 1))
         self.configure(2, self.level2, time(23, 59))
 
     def configure(self, level, account, alert_time):
@@ -93,6 +94,26 @@ class GlobalAbsencePortalTests(TestCase):
         self.assertEqual(row["team"]["leader_name"], "Șef A")
         self.assertEqual(row["team"]["leader_phone"], "0700000001")
         self.assertTrue(row["can_mark_absent"])
+
+    def test_missing_list_is_empty_before_the_level_1_hour(self):
+        # Înainte de ora configurată pentru Nivel 1 angajații încă se pot ponta.
+        self.configure(1, self.level1, time(23, 58))
+        payload = self.client_for(self.level1).get("/api/team-portal/missing-today/").json()
+        self.assertTrue(payload["before_alert_time"])
+        self.assertEqual(payload["employees"], [])
+        self.assertEqual(payload["count"], 0)
+        self.assertEqual(payload["available_from"], "23:58")
+
+        dashboard = self.client_for(self.level1).get("/api/team-portal/dashboard/").json()
+        self.assertEqual(dashboard["missing_today_count"], 0)
+        self.assertTrue(dashboard["missing_before_alert_time"])
+        self.assertEqual(dashboard["missing_available_from"], "23:58")
+
+    def test_missing_list_uses_the_configured_level_1_hour(self):
+        payload = self.client_for(self.level1).get("/api/team-portal/missing-today/").json()
+        self.assertFalse(payload["before_alert_time"])
+        self.assertEqual(payload["available_from"], "00:01")
+        self.assertIn(self.member_a.pk, {row["id"] for row in payload["employees"]})
 
     def test_dashboard_separates_roles_and_exposes_cards(self):
         payload = self.client_for(self.level1).get("/api/team-portal/dashboard/").json()
@@ -150,8 +171,44 @@ class GlobalAbsencePortalTests(TestCase):
 
         create_team_attendance_alerts(self.day, send_email=False, send_push=False)
         payload = self.client_for(self.level1).get("/api/team-portal/notifications/").json()
-        team_names = {item["team"]["name"] for item in payload["notifications"]}
-        self.assertEqual(team_names, {"Echipa A", "Echipa B"})
+        ids = {
+            employee["id"]
+            for item in payload["notifications"]
+            for employee in item["employees"]
+        }
+        self.assertIn(self.member_a.pk, ids)
+        self.assertIn(self.member_b.pk, ids)
+        self.assertNotIn(self.present.pk, ids)
+
+    def test_level_1_notifications_are_hidden_before_its_alert_time(self):
+        self.configure(1, self.level1, time(23, 58))
+        notifications = self.client_for(self.level1).get("/api/team-portal/notifications/").json()
+        self.assertEqual(notifications["notifications"], [])
+        self.assertEqual(notifications["unread_count"], 0)
+        dashboard = self.client_for(self.level1).get("/api/team-portal/dashboard/").json()
+        self.assertEqual(dashboard["unread_notifications"], 0)
+
+    def test_level_2_notifications_before_its_hour_only_show_manual_escalations(self):
+        before_mark = self.client_for(self.level2).get("/api/team-portal/notifications/").json()
+        self.assertEqual(before_mark["notifications"], [])
+        dashboard_before_mark = self.client_for(self.level2).get("/api/team-portal/dashboard/").json()
+        self.assertEqual(dashboard_before_mark["unread_notifications"], 0)
+
+        response = self.client_for(self.level1).post(
+            f"/api/team-portal/teams/members/{self.member_b.pk}/absent/",
+            data="{}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        after_mark = self.client_for(self.level2).get("/api/team-portal/notifications/").json()
+        ids = {
+            employee["id"]
+            for item in after_mark["notifications"]
+            for employee in item["employees"]
+        }
+        self.assertEqual(ids, {self.member_b.pk})
+        dashboard_after_mark = self.client_for(self.level2).get("/api/team-portal/dashboard/").json()
+        self.assertEqual(dashboard_after_mark["unread_notifications"], 1)
 
     def test_level_2_list_is_not_available_to_a_plain_team_leader(self):
         leader_account = create_account(self.leader_a, "sef.a.denied")

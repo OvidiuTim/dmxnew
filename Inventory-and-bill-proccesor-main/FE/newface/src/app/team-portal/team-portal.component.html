@@ -119,56 +119,84 @@
     </section>
 
     <section *ngIf="view === 'missing' && missing && !loading" class="detail-section">
-      <h1>{{ t.seeMissing }} <span *ngIf="missing.count" class="title-badge">{{ missing.count }}</span></h1>
-      <p class="detail-owner">{{ missing.date | date:'dd.MM.yyyy' }}</p>
+      <h1>{{ t.seeMissing }}</h1>
+      <div class="list-meta">
+        <span class="meta-pill"><span class="material-symbols-rounded" aria-hidden="true">event</span>{{ missing.date | date:'dd.MM.yyyy' }}</span>
+        <span *ngIf="missing.count" class="meta-pill alert"><span class="material-symbols-rounded" aria-hidden="true">person_off</span>{{ missing.count }} {{ t.peopleLabel }}</span>
+      </div>
+      <p *ngIf="missing.before_alert_time" class="info-note">{{ availableNotice(missing.available_from) }}</p>
       <p *ngIf="missing.locked" class="locked-note">{{ lockedNotice(missing.lock_time) }}</p>
-      <p *ngIf="!missing.employees.length" class="empty-copy">{{ t.noMissing }}</p>
-      <div *ngFor="let person of missing.employees" class="member-row" [attr.data-status]="person.status">
-        <button type="button" class="member-summary" (click)="toggleMember(person.id)" [attr.aria-expanded]="openMemberId === person.id">
-          <span class="member-avatar"><img *ngIf="person.photo" [src]="person.photo" alt="" /><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span>
-          <span class="member-name">{{ person.name }}</span>
-          <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">error</span>{{ t.absent }}</span>
-          <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === person.id ? 'expand_less' : 'expand_more' }}</span>
-        </button>
-        <div *ngIf="openMemberId === person.id" class="member-detail">
-          <strong>{{ person.name }}</strong>
-          <span>{{ t.phone }}: {{ person.phone || t.noPhone }}</span>
-          <a *ngIf="person.phone" class="call-button" [href]="'tel:' + person.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
-          <button *ngIf="person.can_mark_absent" type="button" class="absent-button" (click)="markAbsent(person)" [disabled]="markingAbsentId === person.id">
-            <span class="material-symbols-rounded" aria-hidden="true">person_off</span>
-            {{ markingAbsentId === person.id ? t.markingAbsent : t.markAbsent }}
+      <p *ngIf="!missing.employees.length && !missing.before_alert_time" class="empty-copy">{{ t.noMissing }}</p>
+
+      <div *ngIf="missing.employees.length" class="team-card list-card">
+        <div *ngFor="let person of missing.employees" class="member-row" data-status="absent">
+          <button type="button" class="member-summary" (click)="toggleMember(person.id)" [attr.aria-expanded]="openMemberId === person.id">
+            <span class="member-avatar"><img *ngIf="person.photo" [src]="person.photo" alt="" /><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span>
+            <span class="member-name">{{ person.name }}</span>
+            <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">error</span>{{ t.absent }}</span>
+            <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === person.id ? 'expand_less' : 'expand_more' }}</span>
           </button>
-          <span class="detail-line">{{ t.teamLabel }}: {{ person.team.name || t.noTeam }}</span>
-          <span class="detail-line" *ngIf="person.team.leader_name">{{ t.leaderLabel }}: {{ person.team.leader_name }}</span>
-          <span class="detail-line" *ngIf="person.team.leader_phone">{{ t.leaderPhone }}: {{ person.team.leader_phone }}</span>
-          <a *ngIf="person.team.leader_phone" class="call-button ghost" [href]="'tel:' + person.team.leader_phone"><span class="material-symbols-rounded" aria-hidden="true">support_agent</span>{{ t.callLeader }}</a>
+          <div *ngIf="openMemberId === person.id" class="member-detail">
+            <span class="detail-line"><span class="detail-key">{{ t.phone }}</span>{{ person.phone || t.noPhone }}</span>
+            <a *ngIf="person.phone" class="call-button" [href]="'tel:' + person.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
+            <button *ngIf="person.can_mark_absent" type="button" class="absent-button" (click)="markAbsent(person)" [disabled]="markingAbsentId === person.id">
+              <span class="material-symbols-rounded" aria-hidden="true">person_off</span>
+              {{ markingAbsentId === person.id ? t.markingAbsent : t.markAbsent }}
+            </button>
+            <span class="detail-line"><span class="detail-key">{{ t.teamLabel }}</span>{{ person.team.name || t.noTeam }}</span>
+            <div *ngIf="person.team.leader_name" class="leader-block">
+              <span class="leader-icon material-symbols-rounded" aria-hidden="true">supervisor_account</span>
+              <span class="leader-copy">
+                <small>{{ t.leaderLabel }}</small>
+                <strong>{{ person.team.leader_name }}</strong>
+                <small *ngIf="person.team.leader_phone">{{ person.team.leader_phone }}</small>
+              </span>
+              <a *ngIf="canCallLeader(person)" class="leader-call" [href]="'tel:' + person.team.leader_phone">
+                <span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.callLeader }}
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
     <section *ngIf="view === 'absent' && absentToday && !loading" class="detail-section">
-      <h1>{{ t.absentToday }} <span *ngIf="absentToday.count" class="title-badge">{{ absentToday.count }}</span></h1>
-      <p class="detail-owner">{{ absentToday.date | date:'dd.MM.yyyy' }}</p>
+      <h1>{{ t.absentToday }}</h1>
+      <div class="list-meta">
+        <span class="meta-pill"><span class="material-symbols-rounded" aria-hidden="true">event</span>{{ absentToday.date | date:'dd.MM.yyyy' }}</span>
+        <span *ngIf="absentToday.count" class="meta-pill alert"><span class="material-symbols-rounded" aria-hidden="true">person_off</span>{{ absentToday.count }} {{ t.peopleLabel }}</span>
+      </div>
       <p *ngIf="!absentToday.employees.length" class="empty-copy">{{ t.noAbsent }}</p>
-      <article *ngFor="let person of absentToday.employees" class="absent-card" [attr.data-category]="person.category">
-        <header>
-          <strong>{{ person.name }}</strong>
-          <span class="category-chip">{{ person.category_label }}</span>
-        </header>
-        <div class="absent-grid">
-          <span>{{ t.phone }}: {{ person.phone || t.noPhone }}</span>
-          <span>{{ t.teamLabel }}: {{ person.team.name || t.noTeam }}</span>
-          <span *ngIf="person.team.leader_name">{{ t.leaderLabel }}: {{ person.team.leader_name }}</span>
-          <span *ngIf="person.team.leader_phone">{{ t.leaderPhone }}: {{ person.team.leader_phone }}</span>
-          <span>{{ t.markedBy }}: {{ person.marked_by }}</span>
-          <span *ngIf="person.marked_at">{{ t.markedAt }}: {{ person.marked_at | date:'HH:mm' }}</span>
+
+      <div *ngIf="absentToday.employees.length" class="team-card list-card">
+        <div *ngFor="let person of absentToday.employees" class="member-row" data-status="marked_absent" [attr.data-category]="person.category">
+          <button type="button" class="member-summary" (click)="toggleMember(person.id)" [attr.aria-expanded]="openMemberId === person.id">
+            <span class="member-avatar"><img *ngIf="person.photo" [src]="person.photo" alt="" /><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span>
+            <span class="member-name">{{ person.name }}</span>
+            <span class="member-status category-status">{{ person.category_label }}</span>
+            <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === person.id ? 'expand_less' : 'expand_more' }}</span>
+          </button>
+          <div *ngIf="openMemberId === person.id" class="member-detail">
+            <span *ngIf="person.checked_in_after_mark" class="late-flag"><span class="material-symbols-rounded" aria-hidden="true">schedule</span>{{ t.checkedInLater }}</span>
+            <span class="detail-line"><span class="detail-key">{{ t.phone }}</span>{{ person.phone || t.noPhone }}</span>
+            <a *ngIf="person.phone" class="call-button" [href]="'tel:' + person.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
+            <span class="detail-line"><span class="detail-key">{{ t.teamLabel }}</span>{{ person.team.name || t.noTeam }}</span>
+            <span class="detail-line"><span class="detail-key">{{ t.markedBy }}</span>{{ person.marked_by }}</span>
+            <span class="detail-line" *ngIf="person.marked_at"><span class="detail-key">{{ t.markedAt }}</span>{{ person.marked_at | date:'HH:mm' }}</span>
+            <div *ngIf="person.team.leader_name" class="leader-block">
+              <span class="leader-icon material-symbols-rounded" aria-hidden="true">supervisor_account</span>
+              <span class="leader-copy">
+                <small>{{ t.leaderLabel }}</small>
+                <strong>{{ person.team.leader_name }}</strong>
+                <small *ngIf="person.team.leader_phone">{{ person.team.leader_phone }}</small>
+              </span>
+              <a *ngIf="canCallLeader(person)" class="leader-call" [href]="'tel:' + person.team.leader_phone">
+                <span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.callLeader }}
+              </a>
+            </div>
+          </div>
         </div>
-        <p *ngIf="person.checked_in_after_mark" class="late-flag"><span class="material-symbols-rounded" aria-hidden="true">schedule</span>{{ t.checkedInLater }}</p>
-        <footer>
-          <a *ngIf="person.phone" class="call-button" [href]="'tel:' + person.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
-          <a *ngIf="person.team.leader_phone" class="call-button ghost" [href]="'tel:' + person.team.leader_phone"><span class="material-symbols-rounded" aria-hidden="true">support_agent</span>{{ t.callLeader }}</a>
-        </footer>
-      </article>
+      </div>
     </section>
   </section>
 </main>

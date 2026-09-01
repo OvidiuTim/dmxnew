@@ -20,6 +20,7 @@ from ToolApp.models import (
     AppUser,
     AttendanceAbsenceMark,
     AttendanceAlertCase,
+    AttendanceAlertEscalationNotification,
     AttendanceSession,
     EmployeeTeam,
     LeaveDay,
@@ -119,13 +120,15 @@ def portal_dashboard(request):
         return _error("Nu ai acces la Team Dashboard.", 403)
     teams = list(_coordinated_teams(app_user))
     own_status = _presence_status([app_user.employee_id]).get(app_user.employee_id, "absent")
-    ensure_team_attendance_alerts_due()
     levels = _escalation_levels(app_user)
     day = timezone.localdate()
     ensure_level2_auto_marks(day)
     if levels:
-        _sync_global_alert_recipients(app_user, day)
-    unread = _notification_query(app_user).filter(read_at__isnull=True).count()
+        notification_items = _global_notification_payloads(app_user, day)
+        unread = sum(not item["is_read"] for item in notification_items)
+    else:
+        ensure_team_attendance_alerts_due()
+        unread = _notification_query(app_user).filter(read_at__isnull=True).count()
     roles = app_user_roles(app_user)
     labels = _role_labels(app_user)
     payload = {
@@ -147,7 +150,10 @@ def portal_dashboard(request):
         "lock_time": level_alert_time(AttendanceAlertCase.Level.LEVEL_2).strftime("%H:%M"),
     }
     if 1 in levels:
-        payload["missing_today_count"] = len(company_missing_employees(day))
+        available = _level_1_list_available()
+        payload["missing_today_count"] = len(company_missing_employees(day)) if available else 0
+        payload["missing_available_from"] = level_alert_time(AttendanceAlertCase.Level.LEVEL_1).strftime("%H:%M")
+        payload["missing_before_alert_time"] = not available
     if 2 in levels:
         payload["absent_today_count"] = len(_absent_today_rows(day))
     return JsonResponse(payload)
@@ -238,6 +244,12 @@ def _notification_query(app_user):
     ).distinct()
 
 
+def _level_1_list_available(now=None):
+    """Lista „Vezi nepontați” devine vizibilă abia la ora configurată pentru Nivel 1."""
+    local_now = timezone.localtime(now or timezone.now())
+    return local_now.time().replace(tzinfo=None) >= level_alert_time(AttendanceAlertCase.Level.LEVEL_1)
+
+
 def _team_summary(team):
     if not team:
         return {
@@ -321,9 +333,79 @@ def _absent_today_rows(day=None):
     return sorted(rows.values(), key=lambda item: item["name"].casefold())
 
 
+def _global_notification_payloads(app_user, day=None):
+    """Notificările globale respectă ora fiecărui nivel, nu ora alertei inițiale.
+
+    Nivelul 1 vede nepontații numai după ora sa configurată (implicit 07:55).
+    Nivelul 2 vede înainte de ora sa doar cazurile escaladate printr-o marcare
+    manuală; nepontații obișnuiți apar abia după ora Nivelului 2 (implicit 08:10).
+    """
+    day = day or timezone.localdate()
+    levels = _escalation_levels(app_user)
+    items = []
+
+    def build_item(level, rows):
+        if not rows:
+            return None
+        notification, _ = AttendanceAlertEscalationNotification.objects.get_or_create(
+            recipient=app_user,
+            work_date=day,
+            level=level,
+            defaults={"case_count": len(rows)},
+        )
+        previous_count = notification.case_count
+        if previous_count != len(rows):
+            notification.case_count = len(rows)
+            update_fields = ["case_count"]
+            if len(rows) > previous_count and notification.read_at is not None:
+                notification.read_at = None
+                update_fields.append("read_at")
+            notification.save(update_fields=update_fields)
+        return {
+            "id": notification.pk,
+            "kind": "escalation",
+            "level": level,
+            "team": {"id": None, "name": f"Nivel {level} · Toată compania"},
+            "status": "absent",
+            "date": day.isoformat(),
+            "checked_at": notification.created_at.isoformat(),
+            "is_read": notification.read_at is not None,
+            "employees": [
+                {
+                    "id": row["id"],
+                    "name": row["name"],
+                    "phone": row.get("phone", ""),
+                }
+                for row in rows
+            ],
+        }
+
+    if AttendanceAlertCase.Level.LEVEL_1 in levels and _level_1_list_available():
+        level_1_rows = [
+            _missing_row(employee, team, False)
+            for employee, team in company_missing_employees(day)
+        ]
+        item = build_item(AttendanceAlertCase.Level.LEVEL_1, level_1_rows)
+        if item:
+            items.append(item)
+
+    if AttendanceAlertCase.Level.LEVEL_2 in levels:
+        # _absent_today_rows păstrează intenționat logica paginii „Lipsă azi”:
+        # înainte de 08:10 conține numai marcările manuale, iar după prag toate
+        # cazurile Nivelului 2.
+        if absence_marking_locked():
+            ensure_level2_auto_marks(day)
+        level_2_rows = _absent_today_rows(day)
+        item = build_item(AttendanceAlertCase.Level.LEVEL_2, level_2_rows)
+        if item:
+            items.append(item)
+
+    return items
+
+
 @csrf_exempt
 def portal_missing_today(request):
-    """Vezi lipsă · Nivel 1: toți angajații companiei fără check-in astăzi."""
+    """Vezi nepontați · Nivel 1: toți angajații companiei fără check-in astăzi."""
     if request.method != "GET":
         return _error("Metodă nepermisă.", 405)
     app_user = _portal_actor(request)
@@ -333,6 +415,19 @@ def portal_missing_today(request):
     if not levels.intersection({1, 2}):
         return _error("Această listă este disponibilă doar pentru Nivel 1 și Nivel 2.", 403)
     day = timezone.localdate()
+    available_from = level_alert_time(AttendanceAlertCase.Level.LEVEL_1).strftime("%H:%M")
+    if not _level_1_list_available():
+        # Înainte de ora Nivelului 1 nimeni nu este considerat lipsă: angajații
+        # au încă timp să se ponteze, deci lista rămâne goală.
+        return JsonResponse({
+            "date": day.isoformat(),
+            "locked": False,
+            "lock_time": level_alert_time(AttendanceAlertCase.Level.LEVEL_2).strftime("%H:%M"),
+            "available_from": available_from,
+            "before_alert_time": True,
+            "employees": [],
+            "count": 0,
+        })
     ensure_team_attendance_alerts_due()
     refresh_resolutions(day)
     locked = absence_marking_locked()
@@ -341,6 +436,8 @@ def portal_missing_today(request):
         "date": day.isoformat(),
         "locked": locked,
         "lock_time": level_alert_time(AttendanceAlertCase.Level.LEVEL_2).strftime("%H:%M"),
+        "available_from": available_from,
+        "before_alert_time": False,
         "employees": rows,
         "count": len(rows),
     })
@@ -400,12 +497,16 @@ def portal_notifications(request):
     app_user = _portal_actor(request)
     if not app_user:
         return _error("Acces interzis.", 403)
+    levels = _escalation_levels(app_user)
     if request.method == "GET":
+        if levels:
+            items = _global_notification_payloads(app_user)
+            return JsonResponse({
+                "notifications": items,
+                "unread_count": sum(not item["is_read"] for item in items),
+            })
         ensure_team_attendance_alerts_due()
-        if _has_global_absence_access(app_user):
-            _sync_global_alert_recipients(app_user)
-    query = _notification_query(app_user).select_related("alert__team").prefetch_related("alert__missing_employees")
-    if request.method == "GET":
+        query = _notification_query(app_user).select_related("alert__team").prefetch_related("alert__missing_employees")
         items = [_notification_payload(item) for item in query.order_by("-alert__created_at")]
         return JsonResponse({
             "notifications": items,
@@ -419,6 +520,15 @@ def portal_notifications(request):
         notification_ids = [int(value) for value in raw_ids]
     except (TypeError, ValueError, json.JSONDecodeError):
         return _error("Lista notificărilor este invalidă.")
+    if levels or data.get("notification_kind") == "escalation":
+        updated = AttendanceAlertEscalationNotification.objects.filter(
+            recipient=app_user,
+            pk__in=notification_ids,
+            read_at__isnull=True,
+        ).update(read_at=timezone.now())
+        unread_count = sum(not item["is_read"] for item in _global_notification_payloads(app_user))
+        return JsonResponse({"updated": updated, "unread_count": unread_count})
+    query = _notification_query(app_user)
     updated = query.filter(pk__in=notification_ids, read_at__isnull=True).update(read_at=timezone.now())
     return JsonResponse({
         "updated": updated,
@@ -443,9 +553,9 @@ def portal_mark_absent(request, employee_id):
     if not team and not is_level_1:
         return _error("Poți marca absent doar un membru al echipei coordonate.", 403)
     source = (
-        AttendanceAbsenceMark.Source.TEAM_LEADER
-        if team
-        else AttendanceAbsenceMark.Source.LEVEL_1
+        AttendanceAbsenceMark.Source.LEVEL_1
+        if is_level_1
+        else AttendanceAbsenceMark.Source.TEAM_LEADER
     )
     if not team:
         # Nivel 1 marchează pe toată compania: echipa se ia de la angajat.

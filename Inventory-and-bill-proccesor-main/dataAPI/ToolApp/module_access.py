@@ -41,7 +41,7 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/team-dashboard/pontaj", "label": "Attendance", "icon": "schedule"},
             {"path": "/team-dashboard/fisa-angajat", "label": "Fișa angajatului", "icon": "badge"},
             {"path": "/team-dashboard/notificari", "label": "Notificări", "icon": "notifications"},
-            {"path": "/team-dashboard/vezi-lipsa", "label": "Vezi lipsă", "icon": "person_search"},
+            {"path": "/team-dashboard/vezi-lipsa", "label": "Vezi nepontați", "icon": "person_search"},
             {"path": "/team-dashboard/lipsa-azi", "label": "Lipsă azi", "icon": "person_off"},
         ],
     }),

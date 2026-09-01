@@ -34,7 +34,7 @@
 
     <section class="panel">
       <div class="panel-heading"><div><span>Situația zilei</span><h2>Alerte individuale</h2></div></div>
-      <div class="empty" *ngIf="!data.cases.length">Nu există alerte pentru data selectată.</div>
+      <div class="empty" *ngIf="!data.cases.length">Nu există alerte pentru ziua curentă.</div>
       <div class="table-scroll" *ngIf="data.cases.length"><table><thead><tr><th>Nivel</th><th>Angajat</th><th>Echipă</th><th>Șantier</th><th>Stare</th><th>Rezolvare</th><th>Rezolvat de</th></tr></thead><tbody>
         <tr *ngFor="let item of data.cases"><td><span class="level-chip">{{ levelLabel(item.level) }}</span></td><td><strong>{{ item.employee_name }}</strong><small>{{ item.employee_phone || 'Fără telefon' }}</small></td><td>{{ item.team_name }}<small>Șef: {{ item.leader_name }}</small></td><td>{{ item.worksite }}</td><td><span class="status" [class.ok]="item.resolved">{{ item.resolved ? 'Rezolvată' : 'Activă' }}</span></td><td>{{ item.resolution_label || '—' }}<small>{{ item.resolved_at ? (item.resolved_at | date:'dd.MM.yyyy HH:mm') : '—' }}</small></td><td>{{ item.resolved ? item.resolved_by : '—' }}</td></tr>
       </tbody></table></div>
