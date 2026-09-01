@@ -3,8 +3,7 @@
     <div class="brand-row">
       <span class="brand-mark">B</span>
       <div class="identity">
-        <strong class="identity-name">{{ headerName }}</strong>
-        <small class="identity-roles" *ngIf="roleLabel" [title]="roleLabel">{{ roleLabel }}</small>
+        <span class="identity-roles" [title]="roleLabel || t.dashboard">{{ roleLabel || t.dashboard }}</span>
       </div>
     </div>
     <div class="header-actions">
@@ -132,12 +131,12 @@
       <h1>{{ t.notifications }} <span *ngIf="unreadCount" class="title-badge">{{ unreadCount }}</span></h1>
       <p *ngIf="!notifications.length" class="empty-copy">{{ t.noNotifications }}</p>
       <article *ngFor="let notification of notifications" class="notification-card" [class.unread]="!notification.is_read" [class.clickable]="notification.target_path" [attr.role]="notification.target_path ? 'button' : null" [attr.tabindex]="notification.target_path ? 0 : null" (click)="notification.target_path && openNotification(notification)" (keydown.enter)="notification.target_path && openNotification(notification)">
-        <header><strong>{{ notificationTitle(notification) }}</strong><span>{{ notification.is_read ? t.read : t.unread }}</span></header>
+        <header><strong>{{ notificationTitle(notification) }}</strong><span *ngIf="!notification.is_read">{{ t.unread }}</span></header>
         <div *ngFor="let employee of notification.employees" class="notification-person">
           <div><strong>{{ notificationEmployeeLabel(notification, employee) }}</strong><small *ngIf="notification.kind === 'personal_leave'">{{ notification.start_date | date:'dd.MM.yyyy' }} – {{ notification.end_date | date:'dd.MM.yyyy' }}</small><span>{{ notification.kind === 'personal_leave' ? requestStatusLabel(notification.status) : statusLabel(notification.status) }}</span></div>
           <a *ngIf="employee.phone" [href]="'tel:' + employee.phone" class="small-call" (click)="$event.stopPropagation()"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
         </div>
-        <footer><time>{{ t.checkedAt }}: {{ notification.checked_at | date:'dd.MM.yyyy, HH:mm' }}</time><div class="notification-actions"><button *ngIf="notification.target_path" type="button" (click)="$event.stopPropagation(); openNotification(notification)">{{ t.openRequest }}</button><button *ngIf="!notification.is_read" type="button" (click)="$event.stopPropagation(); markRead(notification)">{{ t.markRead }}</button></div></footer>
+        <footer><time>{{ t.checkedAt }}: {{ notification.checked_at | date:'dd.MM.yyyy, HH:mm' }}</time><div class="notification-actions"><button *ngIf="notification.target_path" type="button" (click)="$event.stopPropagation(); openNotification(notification)">{{ t.openRequest }}</button></div></footer>
       </article>
     </section>
 

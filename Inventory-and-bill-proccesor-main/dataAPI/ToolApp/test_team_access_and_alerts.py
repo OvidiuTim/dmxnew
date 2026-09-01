@@ -280,12 +280,13 @@ class TeamAttendanceAlertTests(TestCase):
         item = next(item for item in response.json()["notifications"] if item["date"] == self.day.isoformat())
         self.assertIn(missing.pk, [employee["id"] for employee in item["employees"]])
 
+        # Alerta de absență se stinge singură după ce a fost afișată o dată.
         recipient = TeamAttendanceAlertRecipient.objects.get(alert=alert, employee=self.manager)
-        recipient.read_at = timezone.now()
-        recipient.save(update_fields=("read_at",))
+        recipient.refresh_from_db()
+        self.assertIsNotNone(recipient.read_at)
         response = client.get("/api/team-portal/notifications/")
-        item = next(item for item in response.json()["notifications"] if item["date"] == self.day.isoformat())
-        self.assertTrue(item["is_read"])
+        remaining = [item for item in response.json()["notifications"] if item["date"] == self.day.isoformat()]
+        self.assertEqual(remaining, [])
 
     def test_mark_absent_records_actor_updates_status_and_stops_alert(self):
         self.unlock_manual_marking()

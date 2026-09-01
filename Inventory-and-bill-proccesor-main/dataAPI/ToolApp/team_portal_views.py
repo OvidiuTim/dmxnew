@@ -1310,6 +1310,12 @@ def _request_notification_payloads(app_user):
         if item.leave_request_id:
             request_item = item.leave_request
             is_result = item.kind == TeamPortalNotification.Kind.LEAVE_RESULT
+            # O cerere de aprobat rămâne vizibilă până este soluționată, chiar
+            # dacă a fost deschisă; un rezultat dispare după ce a fost văzut.
+            if is_result and item.read_at:
+                continue
+            if not is_result and request_item.status != LeaveRequest.Status.PENDING:
+                continue
             target_path = (
                 "/team-dashboard/cerere-concediu"
                 if is_result
@@ -1339,9 +1345,14 @@ def _request_notification_payloads(app_user):
             })
             continue
         request_item = item.transfer_request
+        is_approval = item.kind == TeamPortalNotification.Kind.TRANSFER_APPROVAL
+        if not is_approval and item.read_at:
+            continue
+        if is_approval and request_item.status != PortalTeamTransferRequest.Status.PENDING:
+            continue
         target_path = (
             f"/team-dashboard/cereri-transfer?request={request_item.pk}"
-            if item.kind == TeamPortalNotification.Kind.TRANSFER_APPROVAL
+            if is_approval
             else "/team-dashboard/cereri"
         )
         payloads.append({
@@ -1365,6 +1376,43 @@ def _request_notification_payloads(app_user):
     return payloads
 
 
+def _open_request_notifications(app_user):
+    """Notificările de cereri care mai au sens: aprobări încă în așteptare și rezultate."""
+    return TeamPortalNotification.objects.filter(recipient=app_user).exclude(
+        Q(kind=TeamPortalNotification.Kind.LEAVE_APPROVAL)
+        & ~Q(leave_request__status=LeaveRequest.Status.PENDING)
+    ).exclude(
+        Q(kind=TeamPortalNotification.Kind.TRANSFER_APPROVAL)
+        & ~Q(transfer_request__status=PortalTeamTransferRequest.Status.PENDING)
+    )
+
+
+def _mark_notifications_seen(app_user, attendance_items, personal_items, result_ids):
+    """Stinge notificările pur informative imediat ce au fost afișate o dată.
+
+    Alertele de absență și rezultatele cererilor dispar după ce au fost văzute;
+    cererile de aprobat rămân, fiindcă ele dispar abia când sunt soluționate.
+    """
+    now = timezone.now()
+    team_ids = [item["id"] for item in attendance_items if item["kind"] == "team"]
+    if team_ids:
+        _notification_query(app_user).filter(pk__in=team_ids, read_at__isnull=True).update(read_at=now)
+    escalation_ids = [item["id"] for item in attendance_items if item["kind"] == "escalation"]
+    if escalation_ids:
+        AttendanceAlertEscalationNotification.objects.filter(
+            recipient=app_user, pk__in=escalation_ids, read_at__isnull=True
+        ).update(read_at=now)
+    personal_ids = [item["id"] for item in personal_items]
+    if personal_ids:
+        LeaveRequest.objects.filter(
+            employee_id=app_user.employee_id, pk__in=personal_ids, employee_seen_at__isnull=True
+        ).update(employee_seen_at=now)
+    if result_ids:
+        TeamPortalNotification.objects.filter(
+            recipient=app_user, pk__in=result_ids, read_at__isnull=True
+        ).update(read_at=now)
+
+
 def _current_portal_unread_count(app_user):
     personal = LeaveRequest.objects.filter(
         employee_id=app_user.employee_id,
@@ -1377,7 +1425,7 @@ def _current_portal_unread_count(app_user):
     if _escalation_levels(app_user):
         items += _global_notification_payloads(app_user)
     attendance = sum(not item["is_read"] for item in items)
-    requests = TeamPortalNotification.objects.filter(recipient=app_user, read_at__isnull=True).count()
+    requests = _open_request_notifications(app_user).filter(read_at__isnull=True).count()
     return personal + attendance + requests
 
 
@@ -1399,15 +1447,27 @@ def portal_notifications(request):
     levels = _escalation_levels(app_user)
     if request.method == "GET":
         ensure_team_attendance_alerts_due()
-        items = _team_notification_payloads(app_user)
+        attendance_items = _team_notification_payloads(app_user)
         if levels:
-            items += _global_notification_payloads(app_user)
-        items.extend(_personal_notification_payloads(app_user))
-        items.extend(_request_notification_payloads(app_user))
+            attendance_items += _global_notification_payloads(app_user)
+        # Absențele deja văzute nu se mai afișează.
+        attendance_items = [item for item in attendance_items if not item["is_read"]]
+        personal_items = [item for item in _personal_notification_payloads(app_user) if not item["is_read"]]
+        request_items = _request_notification_payloads(app_user)
+        result_ids = [
+            item["id"]
+            for item in request_items
+            if item["kind"] in (
+                TeamPortalNotification.Kind.LEAVE_RESULT,
+                TeamPortalNotification.Kind.TRANSFER_RESULT,
+            )
+        ]
+        items = attendance_items + personal_items + request_items
         items.sort(key=lambda item: item["checked_at"], reverse=True)
+        _mark_notifications_seen(app_user, attendance_items, personal_items, result_ids)
         return JsonResponse({
             "notifications": items,
-            "unread_count": sum(not item["is_read"] for item in items),
+            "unread_count": _current_portal_unread_count(app_user),
         })
     if request.method != "POST":
         return _error("Metodă nepermisă.", 405)

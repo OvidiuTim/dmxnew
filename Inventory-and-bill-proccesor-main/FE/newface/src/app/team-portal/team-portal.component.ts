@@ -221,9 +221,8 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   /** Un singur rol rămâne simplu; mai multe se scriu compact, separate prin punct. */
   get roleLabel(): string { return this.roleLabels.join(' · '); }
 
-  /** Numele angajatului este elementul principal din header. */
-  get headerName(): string { return this.dashboard?.employee?.name || this.t.dashboard; }
-  get unreadCount(): number { return this.notifications.filter(item => !item.is_read).length || Number(this.dashboard?.unread_notifications || 0); }
+  /** Backendul decide ce mai contează ca necitit; clientul doar afișează. */
+  get unreadCount(): number { return Number(this.dashboard?.unread_notifications || 0); }
 
   setLanguage(value: PortalLanguage): void {
     this.language = value;
@@ -313,11 +312,12 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     this.error = '';
     forkJoin({
       dashboard: this.http.get<any>(`${this.api}/dashboard/`),
-      notifications: this.http.get<any>(`${this.api}/notifications/`),
+      summary: this.http.get<any>(`${this.api}/notifications/summary/`),
     }).subscribe({
       next: result => {
         this.dashboard = result.dashboard;
-        this.notifications = result.notifications.notifications || [];
+        this.dashboard.unread_notifications = Number(result.summary?.unread_count || 0);
+        this.notifications = [];
         this.loading = false;
       },
       error: () => { this.error = this.t.error; this.loading = false; },
@@ -474,14 +474,6 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     return !!(person?.team?.leader_name && person?.team?.leader_phone);
   }
 
-  markRead(notification: any): void {
-    this.http.post<any>(`${this.api}/notifications/`, { notification_ids: [notification.id], notification_kind: notification.kind || 'team' }).subscribe({
-      next: response => {
-        notification.is_read = true;
-        if (this.dashboard) this.dashboard.unread_notifications = response.unread_count || 0;
-      },
-    });
-  }
 
   openNotification(notification: any): void {
     const navigate = () => {

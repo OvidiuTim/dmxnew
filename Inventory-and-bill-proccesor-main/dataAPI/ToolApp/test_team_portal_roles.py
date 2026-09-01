@@ -294,6 +294,25 @@ class TeamPortalRoleSecurityTests(TestCase):
         notice.refresh_from_db()
         self.assertIsNotNone(notice.read_at)
 
+        # Cererea de aprobat rămâne în listă cât timp este în așteptare,
+        # chiar dacă notificarea a fost deja deschisă.
+        still_listed = client_for(self.supervisor_account).get("/api/team-portal/notifications/").json()
+        self.assertIn(item_id, [
+            row.get("request_id") for row in still_listed["notifications"] if row["kind"] == "leave_approval"
+        ])
+
+        decided = client_for(self.supervisor_account).post(
+            f"/api/team-portal/leave-requests/{item_id}/decision/",
+            data=json.dumps({"action": "approve"}),
+            content_type="application/json",
+        )
+        self.assertEqual(decided.status_code, 200, decided.content)
+        after_decision = client_for(self.supervisor_account).get("/api/team-portal/notifications/").json()
+        self.assertEqual(
+            [row for row in after_decision["notifications"] if row["kind"] == "leave_approval"],
+            [],
+        )
+
     def test_transfer_notifies_only_the_current_approval_stage(self):
         created = client_for(self.leader_account).post(
             "/api/team-portal/transfer-requests/",

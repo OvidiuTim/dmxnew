@@ -257,6 +257,8 @@ class GlobalAbsencePortalTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200, response.content)
+        dashboard_after_mark = self.client_for(self.level2).get("/api/team-portal/dashboard/").json()
+        self.assertEqual(dashboard_after_mark["unread_notifications"], 1)
         after_mark = self.client_for(self.level2).get("/api/team-portal/notifications/").json()
         ids = {
             employee["id"]
@@ -264,8 +266,12 @@ class GlobalAbsencePortalTests(TestCase):
             for employee in item["employees"]
         }
         self.assertEqual(ids, {self.member_b.pk})
-        dashboard_after_mark = self.client_for(self.level2).get("/api/team-portal/dashboard/").json()
-        self.assertEqual(dashboard_after_mark["unread_notifications"], 1)
+
+        # După ce a fost văzută, alerta de absență dispare din listă și din badge.
+        seen = self.client_for(self.level2).get("/api/team-portal/notifications/").json()
+        self.assertEqual(seen["notifications"], [])
+        dashboard_after_seen = self.client_for(self.level2).get("/api/team-portal/dashboard/").json()
+        self.assertEqual(dashboard_after_seen["unread_notifications"], 0)
 
     def test_level_2_list_is_not_available_to_a_plain_team_leader(self):
         leader_account = create_account(self.leader_a, "sef.a.denied")

@@ -6,8 +6,7 @@ button, select, input, textarea, a { font: inherit; }
 .brand-row { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto; }
 .brand-row > div { display: grid; gap: 2px; min-width: 0; }
 .identity { min-width: 0; }
-.identity-name { font-size: 17px; font-weight: 800; letter-spacing: normal; color: #f2f7fd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.identity-roles { font-size: 12px; font-weight: 700; color: #7f90a7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.identity-roles { display: block; font-size: 13px; font-weight: 700; color: #9db0c7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand-mark { width: 42px; height: 42px; border-radius: 13px; background: #2bd394; color: #04251b; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; flex: 0 0 auto; }
 .language-field { display: grid; gap: 6px; color: #b6c5d8; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .language-field select { width: 190px; min-height: 50px; border: 1px solid #36506d; border-radius: 12px; background: #0d1a2c; color: #fff; font-size: 16px; font-weight: 750; padding: 0 42px 0 14px; cursor: pointer; }
@@ -105,8 +104,8 @@ button, select, input, textarea, a { font: inherit; }
 .primary-action { min-height: 50px; border: 0; border-radius: 12px; background: #2bd394; color: #04251b; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 900; cursor: pointer; }
 .primary-action:disabled { opacity: .55; cursor: not-allowed; }
 .request-card { margin-top: 12px; padding: 17px; border: 1px solid #21324a; border-radius: 16px; background: #0c1829; }
-.request-card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.request-card header span { padding: 6px 9px; border-radius: 999px; background: #15263a; color: #a8b8cb; font-size: 12px; font-weight: 800; }
+.request-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.request-card header span { flex: 0 0 auto; padding: 4px 10px; border-radius: 999px; background: #15263a; color: #9db0c7; font-size: 11px; font-weight: 800; letter-spacing: .02em; white-space: nowrap; line-height: 1.6; }
 .request-card header span[data-status="pending"] { color: #ffc85a; background: rgba(220,154,34,.16); }
 .request-card header span[data-status="approved"] { color: #39dfa3; background: rgba(31,151,111,.17); }
 .request-card header span[data-status="rejected"] { color: #ff777f; background: rgba(216,47,64,.17); }
@@ -155,8 +154,7 @@ button, select, input, textarea, a { font: inherit; }
 @media (max-width: 640px) {
   .portal-header { min-height: 68px; padding: 10px 12px; align-items: center; gap: 10px; }
   .brand-row { min-width: 0; }
-  .identity-name { font-size: 16px; }
-  .identity-roles { font-size: 11px; }
+  .identity-roles { font-size: 12px; }
   .header-actions { min-width: 0; gap: 7px; }
   .language-field { width: min(37vw, 142px); gap: 3px; }
   .language-field > span { font-size: 9px; }
@@ -190,8 +188,7 @@ button, select, input, textarea, a { font: inherit; }
 @media (max-width: 380px) {
   .portal-header { gap: 12px; }
   .brand-mark { width: 38px; height: 38px; }
-  .identity-name { font-size: 15px; }
-  .identity-roles { font-size: 10px; }
+  .identity-roles { font-size: 11px; }
 }
 
 /* Liste globale de lipsă pentru Nivel 1 și Nivel 2 — același limbaj vizual ca restul portalului */
