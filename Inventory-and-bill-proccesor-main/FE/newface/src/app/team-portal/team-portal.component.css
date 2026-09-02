@@ -46,6 +46,16 @@ button, select, input, textarea, a { font: inherit; }
 .masked-financials { opacity: .48; filter: saturate(.35); user-select: none; pointer-events: none; }
 .masked-financials article { border-style: dashed; background: #0a1422; }
 .masked-financials article > small { color: #91a2b8; font-size: 11px; }
+.portal-ticket-benefit { margin-top: 18px; padding: 20px; border: 1px solid rgba(43,211,148,.3); border-radius: 18px; background: linear-gradient(135deg, rgba(18,61,44,.58), #0c1829 70%); }
+.portal-ticket-benefit header { display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 11px; }
+.portal-ticket-benefit header > .material-symbols-rounded { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; color: #2bd394; background: rgba(43,211,148,.14); }
+.portal-ticket-benefit h2 { margin: 0; font-size: 20px; }
+.portal-ticket-benefit header > strong { padding: 7px 10px; border-radius: 999px; color: #ffc366; background: rgba(196,123,25,.17); font-size: 12px; }
+.portal-ticket-benefit header > strong.eligible { color: #39dfa3; background: rgba(31,151,111,.18); }
+.portal-ticket-benefit > div { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin-top: 16px; }
+.portal-ticket-benefit > div > span { padding: 11px; border: 1px solid #21324a; border-radius: 11px; color: #91a2b8; font-size: 11px; }
+.portal-ticket-benefit b { display: block; margin-top: 6px; color: #fff; font-size: 14px; }
+.portal-ticket-benefit p { margin: 15px 0 0; color: #adbbcc; line-height: 1.55; }
 .tools-card .card-icon { background: rgba(43,211,148,.14); color: #2bd394; }
 .team-card, .notification-card { border: 1px solid #21324a; border-radius: 18px; background: #0c1829; overflow: hidden; margin-top: 16px; }
 .team-card h2 { margin: 0; padding: 18px 20px; border-bottom: 1px solid #1c2d43; font-size: 19px; }
@@ -168,6 +178,9 @@ button, select, input, textarea, a { font: inherit; }
   .header-notification-button { width: 48px; height: 48px; flex-basis: 48px; }
   .portal-shell { width: min(100% - 24px, 980px); padding-top: 24px; padding-bottom: 118px; }
   .action-grid, .salary-grid, .tool-grid, .portal-form { grid-template-columns: 1fr; }
+  .portal-ticket-benefit header { grid-template-columns: 42px minmax(0,1fr); }
+  .portal-ticket-benefit header > strong { grid-column: 1 / -1; justify-self: start; }
+  .portal-ticket-benefit > div { grid-template-columns: 1fr; }
   .portal-form .full { grid-column: auto; }
   .action-card { min-height: 112px; padding: 17px; grid-template-columns: 48px minmax(0,1fr) 20px; gap: 12px; }
   .card-icon { width: 48px; height: 48px; font-size: 25px; }

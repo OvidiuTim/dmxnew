@@ -54,6 +54,16 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     hi: { role: 'स्टोरकीपर', tools: 'औज़ार', hint: 'औज़ार और वितरण रजिस्टर खोलें', hidden: 'फ़िलहाल उपलब्ध नहीं' },
     ne: { role: 'भण्डारपाल', tools: 'औजार', hint: 'औजार र वितरण रजिस्टर खोल्नुहोस्', hidden: 'हाल उपलब्ध छैन' },
   };
+  private readonly ticketBenefitCopy: Record<PortalLanguage, {
+    title: string; eligible: string; notEligible: string; maxAmount: string; eligibleFrom: string;
+    lastTrip: string; neverUsed: string; daysRemaining: string; explanation: string;
+  }> = {
+    ro: { title: 'Ajutor bilet acasă', eligible: 'Eligibil', notEligible: 'Încă neeligibil', maxAmount: 'Suma maximă', eligibleFrom: 'Eligibil de la', lastTrip: 'Ultima plecare acasă', neverUsed: 'Nu a beneficiat încă', daysRemaining: 'Zile rămase', explanation: 'După împlinirea perioadei de eligibilitate, poți beneficia de un ajutor de maximum 660 EUR pentru achiziționarea biletului de călătorie acasă. Această sumă nu se plătește în numerar și poate fi folosită doar pentru cumpărarea biletului.' },
+    en: { title: 'Home travel ticket benefit', eligible: 'Eligible', notEligible: 'Not eligible yet', maxAmount: 'Maximum amount', eligibleFrom: 'Eligible from', lastTrip: 'Last trip home', neverUsed: 'Not used yet', daysRemaining: 'Days remaining', explanation: 'After completing the eligibility period, you may receive support of up to EUR 660 to purchase your travel ticket home. This amount is not paid in cash and may only be used to buy the ticket.' },
+    pa: { title: 'ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਸਹਾਇਤਾ', eligible: 'ਯੋਗ', notEligible: 'ਹਾਲੇ ਯੋਗ ਨਹੀਂ', maxAmount: 'ਵੱਧ ਤੋਂ ਵੱਧ ਰਕਮ', eligibleFrom: 'ਇਸ ਮਿਤੀ ਤੋਂ ਯੋਗ', lastTrip: 'ਆਖਰੀ ਘਰ ਯਾਤਰਾ', neverUsed: 'ਹਾਲੇ ਲਾਭ ਨਹੀਂ ਲਿਆ', daysRemaining: 'ਬਾਕੀ ਦਿਨ', explanation: 'ਯੋਗਤਾ ਦੀ ਮਿਆਦ ਪੂਰੀ ਹੋਣ ਤੋਂ ਬਾਅਦ, ਤੁਸੀਂ ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਖਰੀਦਣ ਲਈ ਵੱਧ ਤੋਂ ਵੱਧ 660 ਯੂਰੋ ਦੀ ਸਹਾਇਤਾ ਲੈ ਸਕਦੇ ਹੋ। ਇਹ ਰਕਮ ਨਕਦ ਨਹੀਂ ਦਿੱਤੀ ਜਾਂਦੀ ਅਤੇ ਸਿਰਫ਼ ਟਿਕਟ ਖਰੀਦਣ ਲਈ ਵਰਤੀ ਜਾ ਸਕਦੀ ਹੈ।' },
+    hi: { title: 'घर जाने के टिकट की सहायता', eligible: 'पात्र', notEligible: 'अभी पात्र नहीं', maxAmount: 'अधिकतम राशि', eligibleFrom: 'इस तारीख से पात्र', lastTrip: 'पिछली घर यात्रा', neverUsed: 'अभी लाभ नहीं लिया', daysRemaining: 'शेष दिन', explanation: 'पात्रता अवधि पूरी होने के बाद, आप घर जाने का यात्रा टिकट खरीदने के लिए अधिकतम 660 यूरो की सहायता प्राप्त कर सकते हैं। यह राशि नकद नहीं दी जाती और केवल टिकट खरीदने के लिए उपयोग की जा सकती है।' },
+    ne: { title: 'घर जाने टिकट सहायता', eligible: 'योग्य', notEligible: 'अझै योग्य छैन', maxAmount: 'अधिकतम रकम', eligibleFrom: 'यस मितिदेखि योग्य', lastTrip: 'पछिल्लो घर यात्रा', neverUsed: 'अझै लाभ लिएको छैन', daysRemaining: 'बाँकी दिन', explanation: 'योग्यता अवधि पूरा भएपछि, घर जाने यात्रा टिकट किन्न अधिकतम 660 युरोसम्म सहायता पाउन सक्नुहुन्छ। यो रकम नगदमा दिइँदैन र टिकट किन्न मात्र प्रयोग गर्न सकिन्छ।' },
+  };
   readonly copy: Record<PortalLanguage, PortalCopy> = {
     ro: {
       dashboard: 'Dashboard echipă', welcome: 'Bine ai venit', language: 'Limbă', attendance: 'Pontaj', employeeFile: 'Fișa angajatului',
@@ -215,6 +225,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   get toolsModuleLabel(): string { return this.storekeeperCopy[this.language].tools; }
   get toolsModuleHint(): string { return this.storekeeperCopy[this.language].hint; }
   get hiddenValueLabel(): string { return this.storekeeperCopy[this.language].hidden; }
+  get ticketText() { return this.ticketBenefitCopy[this.language]; }
 
   /** Numai rolurile pe care utilizatorul le are efectiv, în ordinea ierarhiei. */
   get roleLabels(): string[] {

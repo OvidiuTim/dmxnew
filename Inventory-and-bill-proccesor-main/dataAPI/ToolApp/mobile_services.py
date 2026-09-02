@@ -16,6 +16,7 @@ ANNUAL_LEAVE_DAYS = LEAVE_ACCRUAL_PER_MONTH * Decimal("12")
 SALARY_ADVANCE = "salary_advance"
 SALARY_REMAINDER = "salary_remainder"
 FOOD_MONEY = "food_money"
+TICKET_BENEFIT_AMOUNT_EUR = Decimal("660.00")
 
 TRADE_CODE_MAP = {
     "instalator": "installer",
@@ -341,6 +342,40 @@ def employee_effective_hire_date(employee, as_of_date=None):
         return first_attendance
     reference = as_of_date or date.today()
     return date(reference.year, 1, 1)
+
+
+def _one_year_after(value):
+    """Return the calendar anniversary, including a deterministic leap-day fallback."""
+    try:
+        return value.replace(year=value.year + 1)
+    except ValueError:
+        return value.replace(year=value.year + 1, month=2, day=28)
+
+
+def build_ticket_benefit(employee, as_of_date=None):
+    """Single source of truth for the annual home-ticket benefit."""
+    today = as_of_date or date.today()
+    enabled = bool(employee.ticket_benefit_enabled)
+    last_trip = employee.last_home_trip_date
+    payload = {
+        "ticket_benefit_enabled": enabled,
+        "last_home_trip_date": last_trip.isoformat() if last_trip else None,
+        "ticket_benefit_amount_eur": f"{TICKET_BENEFIT_AMOUNT_EUR:.2f}",
+        "next_eligibility_date": None,
+        "is_currently_eligible": None,
+        "days_until_eligible": None,
+    }
+    if not enabled:
+        return payload
+
+    eligibility_base = last_trip or employee_effective_hire_date(employee, today)
+    next_eligibility = _one_year_after(eligibility_base)
+    payload.update({
+        "next_eligibility_date": next_eligibility.isoformat(),
+        "is_currently_eligible": today >= next_eligibility,
+        "days_until_eligible": max(0, (next_eligibility - today).days),
+    })
+    return payload
 
 
 def approved_paid_leave_dates(employee, year=None, exclude_request_id=None):

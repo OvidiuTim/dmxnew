@@ -293,6 +293,20 @@
   word-break: break-word;
 }
 
+.ticket-benefit-card { margin-top: 16px; padding: 18px; border: 1px solid rgba(43, 211, 148, .28); border-radius: 12px; background: linear-gradient(135deg, rgba(19, 60, 38, .38), #09111f 68%); }
+.ticket-benefit-card header { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.ticket-benefit-icon { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; background: #133c26; color: #31d68f; line-height: 1; }
+.ticket-benefit-card header span { color: #8ea0b9; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+.ticket-benefit-card h3 { margin: 3px 0 0; color: #fff; font-size: 19px; }
+.ticket-benefit-card header > strong { padding: 7px 10px; border-radius: 999px; background: #3a2810; color: #ffc366; font-size: 12px; }
+.ticket-benefit-card header > strong.eligible { background: #133c26; color: #31d68f; }
+.ticket-benefit-details { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.ticket-benefit-details > div { padding: 12px; border: 1px solid #1f2a3a; border-radius: 9px; background: rgba(9, 17, 31, .76); }
+.ticket-benefit-details span, .ticket-benefit-details b { display: block; }
+.ticket-benefit-details span { color: #8ea0b9; font-size: 11px; text-transform: uppercase; }
+.ticket-benefit-details b { margin-top: 6px; color: #fff; }
+.ticket-benefit-card > p { margin: 16px 0 0; color: #a9b6c8; line-height: 1.6; }
+
 .documents-panel { margin-bottom: 20px; }
 .documents-panel .panel-title { justify-content: space-between; }.documents-panel .panel-title p { margin: 7px 0 0; color: #8ea0b9; }
 .document-message { margin-top: 14px; padding: 12px; border: 1px solid #26364d; border-radius: 8px; background: #09111f; }.document-message.success { color: #31d68f; }.document-message.error { color: #ff9aa5; }
@@ -610,6 +624,8 @@
 .dismissed-table-scroll { overflow-x: auto; }.dismissed-table { width: 100%; min-width: 760px; border-collapse: collapse; }.dismissed-table th, .dismissed-table td { padding: 13px 18px; border-top: 1px solid var(--border); text-align: left; }.dismissed-table th { border-top: 0; color: var(--text-muted); font-size: 9px; letter-spacing: .7px; text-transform: uppercase; }.dismissed-table td { color: var(--text); font-size: 11px; }.dismissed-person { display: flex; align-items: center; gap: 11px; }.dismissed-person > span:last-child strong, .dismissed-person > span:last-child small { display: block; }.dismissed-person small { margin-top: 4px; color: var(--text-muted); }.history-button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 11px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); cursor: pointer; }.history-button span { font-size: 18px; line-height: 1; }
 .extra-leave-item strong { color: #fca5a5; }
 @media (max-width: 900px) { .directory-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 900px) { .ticket-benefit-details { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .directory-header { align-items: stretch; flex-direction: column; }.directory-actions { align-items: stretch; flex-direction: column; }.directory-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .ticket-benefit-card header { grid-template-columns: 44px minmax(0, 1fr); }.ticket-benefit-card header > strong { grid-column: 1 / -1; justify-self: start; }.ticket-benefit-details { grid-template-columns: 1fr; } }
 @media (max-width: 1050px) { .document-upload { grid-template-columns: 1fr 1fr; }.document-sections { grid-template-columns: 1fr; } }
 @media (max-width: 680px) { .document-upload { grid-template-columns: 1fr; }.document-row { grid-template-columns: 36px minmax(0, 1fr) auto; }.document-row .expiry { grid-column: 2 / -1; justify-self: start; }.document-row-actions { grid-column: 3; grid-row: 1; } }

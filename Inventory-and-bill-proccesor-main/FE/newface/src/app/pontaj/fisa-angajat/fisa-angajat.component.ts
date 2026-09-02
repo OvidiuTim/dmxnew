@@ -24,6 +24,12 @@ interface EmployeeProfile {
   effective_hire_date?: string | null;
   hire_date_source?: string | null;
   seniority_months?: number | null;
+  ticket_benefit_enabled?: boolean;
+  last_home_trip_date?: string | null;
+  ticket_benefit_amount_eur?: string | number | null;
+  next_eligibility_date?: string | null;
+  is_currently_eligible?: boolean | null;
+  days_until_eligible?: number | null;
   prior_paid_leave_days?: number;
   leave_balance?: {
     total_accrued_days: string;

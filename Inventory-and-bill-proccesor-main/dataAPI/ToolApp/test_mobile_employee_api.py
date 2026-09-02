@@ -596,6 +596,9 @@ class MobileEmployeeApiTests(TestCase):
                 "success", "profile", "total_salary_ron", "salary_advance_ron",
                 "salary_remainder_ron", "meal_vouchers_ron", "attendance", "payroll",
                 "salary_payments", "leave_summary", "equipment", "tools", "team", "access",
+                "ticket_benefit", "ticket_benefit_enabled", "last_home_trip_date",
+                "ticket_benefit_amount_eur", "next_eligibility_date",
+                "is_currently_eligible", "days_until_eligible",
             },
         )
 

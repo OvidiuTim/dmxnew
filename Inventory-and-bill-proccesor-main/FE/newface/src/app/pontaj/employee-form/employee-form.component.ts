@@ -54,6 +54,9 @@ export class EmployeeFormComponent implements OnInit {
     photo: [null as string | null],
     trade: ['', [Validators.maxLength(100)]],
     hire_date: [null as string | null],
+    ticket_benefit_enabled: [false],
+    ticket_benefit_never_used: [true],
+    last_home_trip_date: [null as string | null],
     leave_remaining_days: ['0.00', [Validators.required, Validators.min(0)]],
     accommodation_id: [null as number | null],
     accommodation_room_id: [null as number | null],
@@ -111,6 +114,19 @@ export class EmployeeFormComponent implements OnInit {
 
   onAccommodationChange(): void {
     this.form.patchValue({ accommodation_room_id: null });
+  }
+
+  onTicketBenefitChange(enabled: boolean): void {
+    this.form.patchValue({ ticket_benefit_enabled: enabled });
+    this.updateTicketBenefitValidation();
+  }
+
+  onTicketBenefitNeverUsedChange(neverUsed: boolean): void {
+    this.form.patchValue({ ticket_benefit_never_used: neverUsed });
+    if (neverUsed) {
+      this.form.patchValue({ last_home_trip_date: null });
+    }
+    this.updateTicketBenefitValidation();
   }
 
   onPersonTypeChange(value: string): void {
@@ -335,11 +351,15 @@ export class EmployeeFormComponent implements OnInit {
           photo: user?.photo ?? null,
           trade: user?.trade ?? '',
           hire_date: user?.hire_date ?? null,
+          ticket_benefit_enabled: !!user?.ticket_benefit_enabled,
+          ticket_benefit_never_used: !user?.last_home_trip_date,
+          last_home_trip_date: user?.last_home_trip_date ?? null,
           leave_remaining_days: String(user?.leave_balance?.remaining_days ?? '0.00'),
           accommodation_id: user?.accommodation_id ?? null,
           accommodation_room_id: user?.accommodation_room_id ?? null,
         });
         this.configureLoadedPersonType(user?.person_type ?? 'employee');
+        this.updateTicketBenefitValidation();
         this.effectiveHireDate = user?.effective_hire_date ?? null;
         this.hireDateSource = user?.hire_date_source ?? null;
         this.initialLeaveRemaining = this.normalizeRate(String(user?.leave_balance?.remaining_days ?? '0.00'));
@@ -379,6 +399,8 @@ export class EmployeeFormComponent implements OnInit {
       photo: value.photo || null,
       trade: this.normalizeOptionalString(value.trade),
       hire_date: value.hire_date || null,
+      ticket_benefit_enabled: !!value.ticket_benefit_enabled,
+      last_home_trip_date: value.last_home_trip_date || null,
       accommodation_id: value.accommodation_id ? Number(value.accommodation_id) : null,
       accommodation_room_id: value.accommodation_room_id ? Number(value.accommodation_room_id) : null,
     };
@@ -413,6 +435,13 @@ export class EmployeeFormComponent implements OnInit {
     this.form.controls.UserSerie.updateValueAndValidity();
     this.form.controls.Company.updateValueAndValidity();
     this.form.controls.phone_number.updateValueAndValidity();
+  }
+
+  private updateTicketBenefitValidation(): void {
+    const dateControl = this.form.controls.last_home_trip_date;
+    const dateRequired = !!this.form.value.ticket_benefit_enabled && !this.form.value.ticket_benefit_never_used;
+    dateControl.setValidators(dateRequired ? [Validators.required] : []);
+    dateControl.updateValueAndValidity({ emitEvent: false });
   }
 
   private normalizeOptionalString(value: string | null | undefined): string | null {

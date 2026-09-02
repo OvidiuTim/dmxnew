@@ -109,6 +109,30 @@
 
         <section class="form-section">
           <header class="section-heading">
+            <span class="section-icon material-symbols-rounded" aria-hidden="true">flight_takeoff</span>
+            <div><h2>Ajutor bilet acasă</h2><p>Configurează participarea angajatului la beneficiul anual.</p></div>
+          </header>
+          <div class="benefit-controls">
+            <label class="choice-card">
+              <input type="checkbox" formControlName="ticket_benefit_enabled" (change)="onTicketBenefitChange($any($event.target).checked)">
+              <span><strong>Eligibil pentru ajutor bilet acasă</strong><small>Checkboxul activează participarea la beneficiu; acordarea nu se face automat.</small></span>
+            </label>
+            <ng-container *ngIf="form.value.ticket_benefit_enabled">
+              <label class="choice-card secondary-choice">
+                <input type="checkbox" formControlName="ticket_benefit_never_used" (change)="onTicketBenefitNeverUsedChange($any($event.target).checked)">
+                <span><strong>Nu a beneficiat încă</strong><small>Eligibilitatea va fi calculată de la data efectivă a angajării.</small></span>
+              </label>
+              <div class="field" *ngIf="!form.value.ticket_benefit_never_used">
+                <label for="last-home-trip-date">Data ultimei plecări acasă</label>
+                <input id="last-home-trip-date" type="date" formControlName="last_home_trip_date" required>
+                <small *ngIf="form.controls.last_home_trip_date.invalid && form.controls.last_home_trip_date.touched">Data ultimei plecări este obligatorie sau selectează „Nu a beneficiat încă”.</small>
+              </div>
+            </ng-container>
+          </div>
+        </section>
+
+        <section class="form-section">
+          <header class="section-heading">
             <span class="section-icon material-symbols-rounded" aria-hidden="true">payments</span>
             <div><h2>Financiar și contact</h2><p>Salariul, tariful și datele de contact.</p></div>
           </header>

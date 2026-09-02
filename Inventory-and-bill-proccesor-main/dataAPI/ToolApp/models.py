@@ -155,6 +155,8 @@ class Users(models.Model):
     photo = models.TextField(null=True, blank=True)
     trade = models.CharField(max_length=100, null=True, blank=True)
     hire_date = models.DateField(null=True, blank=True)
+    ticket_benefit_enabled = models.BooleanField(default=False, db_index=True)
+    last_home_trip_date = models.DateField(null=True, blank=True)
     prior_paid_leave_days = models.PositiveIntegerField(default=0)
     prior_paid_leave_year = models.PositiveSmallIntegerField(null=True, blank=True)
     leave_remaining_override_days = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)

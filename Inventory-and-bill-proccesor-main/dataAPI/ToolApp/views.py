@@ -412,7 +412,12 @@ def _user_name_with_serie(user) -> str:
 # Create your views here.
 #api angajati
 def _employee_api_payload(user):
-    from ToolApp.mobile_services import build_leave_summary, employee_effective_hire_date, seniority_months
+    from ToolApp.mobile_services import (
+        build_leave_summary,
+        build_ticket_benefit,
+        employee_effective_hire_date,
+        seniority_months,
+    )
 
     today = localdate()
     payload = dict(UserSerializer(user).data)
@@ -425,6 +430,9 @@ def _employee_api_payload(user):
         "seniority_months": seniority_months(effective_hire_date, today),
         "leave_balance": build_leave_summary(user, today),
     })
+    ticket_benefit = build_ticket_benefit(user, today)
+    payload.update(ticket_benefit)
+    payload["ticket_benefit"] = ticket_benefit
     return payload
 
 

@@ -159,6 +159,21 @@
           <strong>{{ employee.leave_balance?.extra_days_taken || '0.00' }} zile</strong>
         </div>
       </div>
+
+      <article class="ticket-benefit-card" *ngIf="employee.ticket_benefit_enabled">
+        <header>
+          <span class="ticket-benefit-icon material-symbols-rounded" aria-hidden="true">flight_takeoff</span>
+          <div><span>Beneficiu anual</span><h3>Ajutor bilet acasă</h3></div>
+          <strong [class.eligible]="employee.is_currently_eligible">{{ employee.is_currently_eligible ? 'Eligibil' : 'Încă neeligibil' }}</strong>
+        </header>
+        <div class="ticket-benefit-details">
+          <div><span>Suma maximă</span><b>{{ employee.ticket_benefit_amount_eur || '660.00' }} EUR</b></div>
+          <div><span>Eligibil de la</span><b>{{ employee.next_eligibility_date | date:'dd.MM.yyyy' }}</b></div>
+          <div><span>Ultima plecare acasă</span><b>{{ employee.last_home_trip_date ? (employee.last_home_trip_date | date:'dd.MM.yyyy') : 'Nu a beneficiat încă' }}</b></div>
+          <div *ngIf="!employee.is_currently_eligible"><span>Zile rămase</span><b>{{ employee.days_until_eligible || 0 }} zile</b></div>
+        </div>
+        <p>După împlinirea perioadei de eligibilitate, poți beneficia de un ajutor de maximum 660 EUR pentru achiziționarea biletului de călătorie acasă. Această sumă nu se plătește în numerar și poate fi folosită doar pentru cumpărarea biletului.</p>
+      </article>
     </section>
 
     <section class="documents-panel panel" *ngIf="activeTab === 'documents'">
