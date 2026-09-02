@@ -46,6 +46,9 @@ button, select, input, textarea, a { font: inherit; }
 .masked-financials { opacity: .48; filter: saturate(.35); user-select: none; pointer-events: none; }
 .masked-financials article { border-style: dashed; background: #0a1422; }
 .masked-financials article > small { color: #91a2b8; font-size: 11px; }
+.leave-balance-card { margin-top: 18px; padding: 18px; border: 1px solid #21324a; border-radius: 16px; }
+.leave-balance-card strong { display: block; margin-top: 7px; color: #39dfa3; font-size: 24px; }
+.leave-balance-card.negative strong { color: #ff777f; }
 .portal-ticket-benefit { margin-top: 18px; padding: 20px; border: 1px solid rgba(43,211,148,.3); border-radius: 18px; background: linear-gradient(135deg, rgba(18,61,44,.58), #0c1829 70%); }
 .portal-ticket-benefit header { display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 11px; }
 .portal-ticket-benefit header > .material-symbols-rounded { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; color: #2bd394; background: rgba(43,211,148,.14); }

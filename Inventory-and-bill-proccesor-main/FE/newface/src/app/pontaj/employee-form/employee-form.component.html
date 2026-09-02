@@ -100,9 +100,10 @@
               <label for="user-hire-date">Data angajării</label><input id="user-hire-date" type="date" formControlName="hire_date">
               <small *ngIf="!form.value.hire_date && effectiveHireDate">Dacă rămâne necompletată, se folosește automat {{ effectiveHireDate | date:'dd.MM.yyyy' }}{{ hireDateSource === 'first_attendance' ? ' (prima zi pontată)' : '' }}.</small>
             </div>
-            <div class="field" *ngIf="isEditMode">
-              <label for="user-leave-remaining">Zile de concediu rămase</label><input id="user-leave-remaining" type="number" min="0" step="0.01" formControlName="leave_remaining_days">
-              <small>Valoarea poate fi modificată manual și va fi folosită peste tot.</small>
+            <div class="field">
+              <label for="user-leave-remaining">Zile de concediu rămase</label><input id="user-leave-remaining" type="text" inputmode="decimal" formControlName="leave_remaining_days" placeholder="Ex: 10, 0 sau -5,5">
+              <small *ngIf="form.controls.leave_remaining_days.invalid && form.controls.leave_remaining_days.touched">Introdu un număr valid, inclusiv negativ, cu maximum două zecimale.</small>
+              <small *ngIf="form.controls.leave_remaining_days.valid">Valoarea poate fi modificată manual și va fi folosită peste tot.</small>
             </div>
           </div>
         </section>

@@ -17,7 +17,45 @@ ATTENDANCE_WORKSITES = (
     {"name": "Bloc 14 Victoria", "latitude": 45.73336901742498, "longitude": 24.701707107591304, "radius_meters": 40},
     {"name": "Bloc 3 Victoria", "latitude": 45.73105012404724, "longitude": 24.696154238062714, "radius_meters": 40},
 )
-ATTENDANCE_WORKSITE_BY_NAME = {row["name"]: row for row in ATTENDANCE_WORKSITES}
+
+# COMPATIBILITATE CRITICA ANDROID v1-v4:
+# ATTENDANCE_WORKSITES ramane contractul curent trimis catre v6/browser. Harta de
+# validare a serverului accepta suplimentar razele maxime si santierele publicate
+# in APK-urile vechi. Nu elimina aceasta toleranta fara update fortat + rollout;
+# clientii vechi valideaza local cu aceste valori si apoi trimit acelasi pontaj.
+ATTENDANCE_WORKSITE_BY_NAME = {row["name"]: dict(row) for row in ATTENDANCE_WORKSITES}
+for _legacy_name in (
+    "The Lake Home Bloc A",
+    "The Lake Home Bloc B2",
+    "The Lake Home Bloc E & F",
+):
+    ATTENDANCE_WORKSITE_BY_NAME[_legacy_name]["radius_meters"] = 100
+for _legacy_name in (
+    "Psihiatrie C8",
+    "Psihiatrie C16",
+    "Spital Victoria",
+    "Casa de Cultură Victoria",
+    "Bazin Ucea",
+    "Bloc Agnita",
+    "Grădinița Agnita",
+    "Bloc 14 Victoria",
+    "Bloc 3 Victoria",
+):
+    ATTENDANCE_WORKSITE_BY_NAME[_legacy_name]["radius_meters"] = 50
+ATTENDANCE_WORKSITE_BY_NAME.update({
+    "Cisnadie": {
+        "name": "Cisnadie", "latitude": 45.7164550916678,
+        "longitude": 24.16268772028023, "radius_meters": 50,
+    },
+    "Sibiel - the river chalet": {
+        "name": "Sibiel - the river chalet", "latitude": 45.76833769170176,
+        "longitude": 23.916782631565773, "radius_meters": 50,
+    },
+    "diverse": {
+        "name": "diverse", "latitude": 45.81014245534635,
+        "longitude": 24.130572226199238, "radius_meters": 50,
+    },
+})
 
 
 ACCEPTED_WORKSITES = (

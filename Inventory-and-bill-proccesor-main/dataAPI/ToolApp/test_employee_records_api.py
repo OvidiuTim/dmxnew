@@ -127,6 +127,24 @@ class EmployeeRecordsApiTests(TestCase):
         self.assertEqual(loaded.json()["salary_remainder_ron"], "4125.75")
         self.assertEqual(loaded.json()["meal_vouchers_ron"], "700.00")
 
+    def test_employee_can_be_created_with_a_negative_leave_balance(self):
+        response = self.admin.post(
+            "/api/user/",
+            data=json.dumps({
+                "UserName": "Angajat Sold Negativ",
+                "UserSerie": "EMP-NEGATIVE-LEAVE",
+                "UserPin": "7731",
+                "hourly_rate": "23.00",
+                "leave_remaining_override_days": "-5.50",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json()["leave_balance"]["remaining_days"], "-5.50")
+        employee = Users.objects.get(UserSerie="EMP-NEGATIVE-LEAVE")
+        self.assertEqual(employee.leave_remaining_override_days, Decimal("-5.50"))
+
     def test_attendance_day_exposes_leave_without_marking_employee_absent(self):
         LeaveDay.objects.create(
             user_fk=self.employee,

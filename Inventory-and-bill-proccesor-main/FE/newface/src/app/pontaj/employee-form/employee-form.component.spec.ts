@@ -63,6 +63,26 @@ describe('EmployeeFormComponent numeric fields', () => {
     expect(component.form.value.meal_vouchers_ron).toBe('650.00');
   });
 
+  it('acceptă și normalizează soldul negativ introdus cu virgulă', () => {
+    const component = new EmployeeFormComponent(
+      new FormBuilder(),
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    component.isEditMode = true;
+    component.userId = 8;
+    component.initialLeaveRemaining = '2.00';
+    component.form.patchValue({
+      UserName: 'Angajat Sold Negativ',
+      UserSerie: 'TEST-008',
+      leave_remaining_days: '-5,5',
+    });
+
+    expect(component.form.controls.leave_remaining_days.valid).toBeTrue();
+    expect((component as any).buildPayload().leave_remaining_override_days).toBe('-5.50');
+  });
+
   it('construiește colaboratorul fără serie introdusă manual', () => {
     const component = new EmployeeFormComponent(
       new FormBuilder(),

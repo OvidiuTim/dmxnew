@@ -37,7 +37,7 @@ from ToolApp.models import (
 )
 from ToolApp.module_access import app_user_has_module, app_user_roles
 from ToolApp.leave_email import send_leave_approval_email, send_leave_request_email
-from ToolApp.mobile_services import build_inventory, build_ticket_benefit, serialize_leave_request
+from ToolApp.mobile_services import build_inventory, build_leave_summary, build_ticket_benefit, serialize_leave_request
 from ToolApp.push_notifications import send_employee_push
 from ToolApp.security import get_app_user_from_request
 from ToolApp.team_attendance_notifications import (
@@ -369,7 +369,7 @@ def portal_salary(request):
         "leave_balance": {
             "accrued_days": None,
             "used_days": None,
-            "remaining_days": None,
+            "remaining_days": build_leave_summary(employee, timezone.localdate())["remaining_days"],
         },
         "tools": tools,
         "equipment": equipment,
@@ -854,8 +854,8 @@ def portal_own_leave_requests(request):
         ).exclude(status=LeaveRequest.Status.PENDING).update(employee_seen_at=timezone.now())
         return JsonResponse({
             "leave_requests": [serialize_leave_request(item) for item in items],
-            "leave_balance": {"remaining_days": None},
-            "leave_balance_hidden": True,
+            "leave_balance": build_leave_summary(employee, timezone.localdate()),
+            "leave_balance_hidden": False,
         })
     if request.method != "POST":
         return _error("Metodă nepermisă.", 405)
@@ -889,8 +889,8 @@ def portal_own_leave_requests(request):
     send_leave_request_email(item)
     return JsonResponse({
         "leave_request": serialize_leave_request(item),
-        "leave_balance": {"remaining_days": None},
-        "leave_balance_hidden": True,
+        "leave_balance": build_leave_summary(employee, timezone.localdate()),
+        "leave_balance_hidden": False,
     }, status=201)
 
 

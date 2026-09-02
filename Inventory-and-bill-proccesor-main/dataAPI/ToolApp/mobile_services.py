@@ -434,12 +434,11 @@ def raw_remaining_paid_leave_days(employee, as_of_date, exclude_request_id=None)
 
 
 def remaining_paid_leave_days(employee, as_of_date, exclude_request_id=None):
-    raw_remaining = raw_remaining_paid_leave_days(
+    return raw_remaining_paid_leave_days(
         employee,
         as_of_date,
         exclude_request_id=exclude_request_id,
-    )
-    return max(Decimal("0.00"), raw_remaining).quantize(MONEY_PLACES)
+    ).quantize(MONEY_PLACES)
 
 
 def extra_paid_leave_days(employee, as_of_date, exclude_request_id=None):

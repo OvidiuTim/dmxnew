@@ -543,6 +543,138 @@ class ManualAttendanceSecurityTests(TestCase):
                 self.assertEqual(session.checkin_photo, payload["attendance_photo"])
                 self.assertEqual(session.checkout_photo, payload["attendance_photo"])
 
+    def test_android_v1_direct_nfc_payload_without_proof_can_check_in_and_out(self):
+        user = Users(UserName="Android v1 NFC", UserSerie="ANDROID-V1-NFC")
+        user.set_pin("9901")
+        user.save()
+        payload = {
+            "uid": "MANUAL",
+            "tag_type": "manual",
+            "content": "9901",
+            "timestamp": timezone.now().isoformat(),
+            "device_key": "android-v1-direct",
+            "mode": "manual",
+            "worksite": "The Lake Home Blocurile E si F",
+            "gps": {
+                "lat": 45.81027575048179,
+                "lng": 24.130539205078342,
+                "accuracy": 10,
+                "captured_at": timezone.now().isoformat(),
+            },
+        }
+
+        checkin = self.client.post(
+            "/api/nfc/scan/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(checkin.status_code, 200, checkin.content)
+        self.assertEqual(checkin.json()["state"], "ENTER")
+
+        tool_views._last_seen.clear()
+        checkout = self.client.post(
+            "/api/nfc/scan/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(checkout.status_code, 200, checkout.content)
+        self.assertEqual(checkout.json()["state"], "EXIT")
+
+        session = AttendanceSession.objects.get(user_fk=user)
+        self.assertFalse(session.data_processing_consent)
+        self.assertEqual(session.checkin_photo, "")
+        self.assertEqual(session.checkout_photo, "")
+        self.assertEqual(session.worksite, "The Lake Home Bloc E & F")
+
+    def test_android_v1_to_v4_clock_payload_without_proof_remains_compatible(self):
+        historical_payloads = (
+            (
+                "9902",
+                "Android v1-v4 raza publicata",
+                "The Lake Home Bloc B2",
+                45.81087575048179,  # ~67 m: acceptat de raza de 100 m publicata in v4.
+                24.130539205078342,
+            ),
+            (
+                "9903",
+                "Android v4 santier istoric",
+                "Cisnadie",
+                45.7164550916678,
+                24.16268772028023,
+            ),
+        )
+
+        for pin, name, worksite, lat, lng in historical_payloads:
+            with self.subTest(worksite=worksite):
+                user = Users(UserName=name, UserSerie=f"ANDROID-LEGACY-{pin}")
+                user.set_pin(pin)
+                user.save()
+                response = self.post_clock({
+                    "pin": pin,
+                    "timestamp": timezone.now().isoformat(),
+                    "device_key": f"android-v1-v4-{pin}",
+                    "mode": "manual",
+                    "worksite": worksite,
+                    "gps": {
+                        "lat": lat,
+                        "lng": lng,
+                        "accuracy": 10,
+                        "captured_at": timezone.now().isoformat(),
+                    },
+                })
+
+                self.assertEqual(response.status_code, 200, response.content)
+                self.assertEqual(response.json()["state"], "ENTER")
+                session = AttendanceSession.objects.get(user_fk=user)
+                self.assertFalse(session.data_processing_consent)
+                self.assertEqual(session.checkin_photo, "")
+
+    def test_android_v1_driver_payload_without_worksite_or_proof_remains_compatible(self):
+        user = Users(UserName="Android v1 driver", UserSerie="ANDROID-V1-DRIVER")
+        user.set_pin("9904")
+        user.save()
+        response = self.client.post(
+            "/api/nfc/scan/",
+            data=json.dumps({
+                "uid": "MANUAL",
+                "tag_type": "manual",
+                "content": "9904",
+                "timestamp": timezone.now().isoformat(),
+                "device_key": "android-v1-driver",
+                "mode": "driver",
+                "gps": {
+                    "lat": 46.0,
+                    "lng": 25.0,
+                    "accuracy": 10,
+                    "captured_at": timezone.now().isoformat(),
+                },
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["state"], "ENTER")
+        session = AttendanceSession.objects.get(user_fk=user)
+        self.assertFalse(session.data_processing_consent)
+        self.assertEqual(session.checkin_photo, "")
+
+    def test_chef_never_uses_legacy_android_proof_exception(self):
+        self.create_chef_user()
+
+        response = self.post_clock({
+            "pin": "1165",
+            "mode": "chef",
+            "device_key": "chef-without-proof",
+            "timestamp": timezone.now().isoformat(),
+            "gps": {
+                **self.chef_center,
+                "captured_at": timezone.now().isoformat(),
+            },
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error_code"], "DATA_PROCESSING_CONSENT_REQUIRED")
+
     def test_manual_attendance_rejects_missing_consent_expired_and_outside_location(self):
         user = Users(UserName="Validare mobilă", UserSerie="ANDROID-VALIDATION")
         user.set_pin("9920")

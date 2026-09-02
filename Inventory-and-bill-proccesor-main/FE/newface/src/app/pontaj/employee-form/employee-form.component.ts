@@ -57,7 +57,7 @@ export class EmployeeFormComponent implements OnInit {
     ticket_benefit_enabled: [false],
     ticket_benefit_never_used: [true],
     last_home_trip_date: [null as string | null],
-    leave_remaining_days: ['0.00', [Validators.required, Validators.min(0)]],
+    leave_remaining_days: ['0.00', [Validators.required, Validators.pattern(/^-?\d+(?:[.,]\d{1,2})?$/)]],
     accommodation_id: [null as number | null],
     accommodation_room_id: [null as number | null],
   });
@@ -405,11 +405,9 @@ export class EmployeeFormComponent implements OnInit {
       accommodation_room_id: value.accommodation_room_id ? Number(value.accommodation_room_id) : null,
     };
 
-    if (this.isEditMode) {
-      const editedRemaining = this.normalizeRate(value.leave_remaining_days);
-      if (editedRemaining !== this.initialLeaveRemaining) {
-        payload.leave_remaining_override_days = editedRemaining;
-      }
+    const editedRemaining = this.normalizeRate(value.leave_remaining_days);
+    if (!this.isEditMode || editedRemaining !== this.initialLeaveRemaining) {
+      payload.leave_remaining_override_days = editedRemaining;
     }
 
     const pin = (value.UserPin ?? '').trim();

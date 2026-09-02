@@ -64,6 +64,13 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     hi: { title: 'घर जाने के टिकट की सहायता', eligible: 'पात्र', notEligible: 'अभी पात्र नहीं', maxAmount: 'अधिकतम राशि', eligibleFrom: 'इस तारीख से पात्र', lastTrip: 'पिछली घर यात्रा', neverUsed: 'अभी लाभ नहीं लिया', daysRemaining: 'शेष दिन', explanation: 'पात्रता अवधि पूरी होने के बाद, आप घर जाने का यात्रा टिकट खरीदने के लिए अधिकतम 660 यूरो की सहायता प्राप्त कर सकते हैं। यह राशि नकद नहीं दी जाती और केवल टिकट खरीदने के लिए उपयोग की जा सकती है।' },
     ne: { title: 'घर जाने टिकट सहायता', eligible: 'योग्य', notEligible: 'अझै योग्य छैन', maxAmount: 'अधिकतम रकम', eligibleFrom: 'यस मितिदेखि योग्य', lastTrip: 'पछिल्लो घर यात्रा', neverUsed: 'अझै लाभ लिएको छैन', daysRemaining: 'बाँकी दिन', explanation: 'योग्यता अवधि पूरा भएपछि, घर जाने यात्रा टिकट किन्न अधिकतम 660 युरोसम्म सहायता पाउन सक्नुहुन्छ। यो रकम नगदमा दिइँदैन र टिकट किन्न मात्र प्रयोग गर्न सकिन्छ।' },
   };
+  private readonly leaveBalanceCopy: Record<PortalLanguage, { remaining: string; exceeded: string }> = {
+    ro: { remaining: '{days} zile rămase', exceeded: 'Ai depășit soldul de concediu cu {days} zile.' },
+    en: { remaining: '{days} days remaining', exceeded: 'You have exceeded your leave balance by {days} days.' },
+    pa: { remaining: '{days} ਛੁੱਟੀ ਦੇ ਦਿਨ ਬਾਕੀ', exceeded: 'ਤੁਸੀਂ ਆਪਣਾ ਛੁੱਟੀ ਬਕਾਇਆ {days} ਦਿਨਾਂ ਨਾਲ ਪਾਰ ਕਰ ਲਿਆ ਹੈ।' },
+    hi: { remaining: '{days} छुट्टी के दिन शेष', exceeded: 'आपने अपना छुट्टी शेष {days} दिनों से पार कर लिया है।' },
+    ne: { remaining: '{days} बिदाका दिन बाँकी', exceeded: 'तपाईंले बिदा मौज्दात {days} दिनले नाघ्नुभएको छ।' },
+  };
   readonly copy: Record<PortalLanguage, PortalCopy> = {
     ro: {
       dashboard: 'Dashboard echipă', welcome: 'Bine ai venit', language: 'Limbă', attendance: 'Pontaj', employeeFile: 'Fișa angajatului',
@@ -226,6 +233,18 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   get toolsModuleHint(): string { return this.storekeeperCopy[this.language].hint; }
   get hiddenValueLabel(): string { return this.storekeeperCopy[this.language].hidden; }
   get ticketText() { return this.ticketBenefitCopy[this.language]; }
+
+  leaveBalanceIsNegative(payload: any): boolean {
+    return Number(String(payload?.leave_balance?.remaining_days ?? '0').replace(',', '.')) < 0;
+  }
+
+  leaveBalanceLabel(payload: any): string {
+    const raw = String(payload?.leave_balance?.remaining_days ?? '0.00');
+    const template = this.leaveBalanceIsNegative(payload)
+      ? this.leaveBalanceCopy[this.language].exceeded
+      : this.leaveBalanceCopy[this.language].remaining;
+    return template.replace('{days}', raw.startsWith('-') ? raw.slice(1) : raw);
+  }
 
   /** Numai rolurile pe care utilizatorul le are efectiv, în ordinea ierarhiei. */
   get roleLabels(): string[] {

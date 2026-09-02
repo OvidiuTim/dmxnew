@@ -2124,6 +2124,9 @@ def nfc_scan(request):
     gps_captured_at = _extract_gps_captured_at(data)
     raw_consent = data.get("data_processing_consent")
     data_processing_consent = raw_consent is True or str(raw_consent).strip().lower() in {"1", "true", "yes"}
+    manual_proof_contract = attendance_mode == "chef" or any(
+        key in data for key in ("data_processing_consent", "attendance_photo", "checkin_photo")
+    )
 
     try:
         attendance_photo = _extract_attendance_photo(data) if is_manual_scan else ""
@@ -2132,17 +2135,17 @@ def nfc_scan(request):
 
     # COMPATIBILITATE CRITICA ANDROID — NU SCHIMBA ACEST CONTRACT INTR-UN TASK NELEGAT:
     # Aici ajung atat browserul, cat si aplicatia Android deja instalata in teren,
-    # prin /api/pontaj/clock/. Faptul ca browserul trimite un camp NU inseamna ca
-    # versiunea Android distribuita il trimite. Inainte de a adauga, elimina sau
-    # face obligatorii campuri precum acordul, selfie-ul, GPS-ul ori santierul,
-    # actualizeaza clientul Android, distribuie versiunea noua si pastreaza o cale
-    # de compatibilitate pentru versiunile vechi; altfel angajatii nu se mai pot ponta.
-    if is_manual_scan and not data_processing_consent:
+    # prin /api/pontaj/clock/, iar Android v1 timpuriu ajunge direct prin
+    # /api/nfc/scan/. Versiunile Android v1-v4 NU trimit acord/selfie; v6 si
+    # browserul le trimit. Validam dovada strict numai pentru contractele care o
+    # declara, dar Chef ramane mereu strict. Nu face campuri noi obligatorii pentru
+    # toate scanarile manuale fara update + rollout Android si teste de compatibilitate.
+    if is_manual_scan and manual_proof_contract and not data_processing_consent:
         return JsonResponse({
             "error": "Este necesar acordul pentru prelucrarea datelor înainte de pontaj.",
             "error_code": "DATA_PROCESSING_CONSENT_REQUIRED",
         }, status=400)
-    if is_manual_scan and not attendance_photo:
+    if is_manual_scan and manual_proof_contract and not attendance_photo:
         return JsonResponse({
             "error": "Selfie-ul confirmat este obligatoriu pentru pontaj.",
             "error_code": "ATTENDANCE_PHOTO_REQUIRED",
@@ -2154,9 +2157,15 @@ def nfc_scan(request):
             "error_code": "GPS_REQUIRED_FOR_DRIVER"
         }, status=400)
 
-    # Manual mobile attendance has a stricter, explicit validation block below
-    # that also rejects future timestamps and returns the mobile error contract.
-    if not is_manual_scan and gps_payload and gps_captured_at and gps_captured_at < (timezone.now() - timedelta(minutes=10)):
+    # Pontajul manual al muncitorilor are mai jos contractul GPS strict. Driverii
+    # vechi trimit GPS, dar unele versiuni nu trimit santier si permit pontajul din
+    # afara perimetrului; pentru ei pastram doar obligativitatea si prospetimea GPS.
+    if (
+        (not is_manual_scan or attendance_mode == "driver")
+        and gps_payload
+        and gps_captured_at
+        and gps_captured_at < (timezone.now() - timedelta(minutes=10))
+    ):
         return JsonResponse({
             "error": "Locatia GPS salvata a expirat. Cere din nou locatia si introdu PIN-ul in maximum 10 minute.",
             "error_code": "GPS_CAPTURE_EXPIRED"
@@ -2269,7 +2278,7 @@ def nfc_scan(request):
         _log_pin_attempt(request, success=False, reason="invalid_worksite", device_key=data.get("device_key"), uid=uid, worksite=ws)
         return _invalid_worksite_response(exc)
 
-    if is_manual_scan and attendance_mode in {"manual", "driver"}:
+    if is_manual_scan and attendance_mode == "manual":
         rule = ATTENDANCE_WORKSITE_BY_NAME.get(ws)
         if not rule:
             return JsonResponse({
@@ -2604,6 +2613,10 @@ def pontaj_clock(request):
     Orice schimbare incompatibila necesita intai update si rollout Android, apoi
     eliminarea controlata a compatibilitatii vechi.
 
+    Contracte aflate in productie:
+    - Android v1-v4: PIN + device + mod + santier/GPS, fara acord sau selfie;
+    - Android v6 si browser: aceleasi date plus acord si selfie.
+
     Body Android/web:
     {
       "pin": "1234",
@@ -2630,11 +2643,14 @@ def pontaj_clock(request):
         "gps": data.get("gps"),
         "worksite": data.get("worksite") or data.get("site") or data.get("santier"),
         "mode": data.get("mode") or data.get("attendance_mode") or "manual",
-        # Pasăm explicit datele de acord și fotografia către fluxul comun NFC.
-        # Fără acestea, wrapperul /pontaj/clock/ le elimina înainte de validare.
-        "data_processing_consent": data.get("data_processing_consent"),
-        "attendance_photo": data.get("attendance_photo") or data.get("checkin_photo"),
     }
+    # Prezenta cheilor reprezinta capabilitatea contractului nou. Nu adauga cheile
+    # cu None pentru payloadurile Android vechi: asta le-ar reclasifica drept client
+    # nou si le-ar bloca din nou cu DATA_PROCESSING_CONSENT_REQUIRED.
+    if "data_processing_consent" in data:
+        payload["data_processing_consent"] = data.get("data_processing_consent")
+    if "attendance_photo" in data or "checkin_photo" in data:
+        payload["attendance_photo"] = data.get("attendance_photo") or data.get("checkin_photo")
     request._body = json.dumps(payload).encode("utf-8")
     return nfc_scan(request)
 

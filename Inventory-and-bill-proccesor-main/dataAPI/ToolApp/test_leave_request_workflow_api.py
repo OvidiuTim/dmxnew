@@ -168,6 +168,37 @@ class LeaveRequestWorkflowApiTests(TestCase):
         self.assertIsNotNone(item.approved_at)
         self.assertEqual(LeaveDay.objects.filter(source_leave_request=item).count(), 3)
 
+    def test_approval_can_take_the_saved_balance_below_zero(self):
+        override = self.admin.put(
+            "/api/user/",
+            data=json.dumps({
+                "UserId": self.worker_a.pk,
+                "UserName": self.worker_a.UserName,
+                "UserSerie": self.worker_a.UserSerie,
+                "leave_remaining_override_days": "2.00",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(override.status_code, 200, override.content)
+        self.assertEqual(override.json()["leave_balance"]["remaining_days"], "2.00")
+
+        created = self.mobile_create(
+            "5101",
+            start="2026-09-07",
+            end="2026-09-11",
+            leave_type="paid_leave",
+        )
+        self.assertEqual(created.status_code, 201, created.content)
+        item = LeaveRequest.objects.get()
+
+        approved = self.decide(self.client_a, item, "approve")
+
+        self.assertEqual(approved.status_code, 200, approved.content)
+        self.assertEqual(LeaveDay.objects.filter(source_leave_request=item).count(), 5)
+        refreshed = self.admin.get(f"/api/user/{self.worker_a.pk}")
+        self.assertEqual(refreshed.json()["leave_balance"]["remaining_days"], "-3.00")
+        self.assertEqual(refreshed.json()["leave_balance"]["extra_days_taken"], "3.00")
+
         mobile = self.client.post(
             reverse("mobile_leave_request_list"),
             data=json.dumps({"pin": "5101", "device_key": "android-status-a"}),

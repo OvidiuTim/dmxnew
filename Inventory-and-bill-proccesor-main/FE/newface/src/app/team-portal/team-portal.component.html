@@ -90,8 +90,11 @@
     <section *ngIf="view === 'salary' && salary && !loading" class="detail-section">
       <h1>{{ t.employeeFile }}</h1>
       <p class="detail-owner">{{ salary.employee.name }}</p>
+      <article class="leave-balance-card" [class.negative]="leaveBalanceIsNegative(salary)">
+        <span>{{ t.remainingLeave }}</span>
+        <strong>{{ leaveBalanceLabel(salary) }}</strong>
+      </article>
       <div class="salary-grid masked-financials" aria-disabled="true">
-        <article><span>{{ t.remainingLeave }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
         <article><span>{{ t.totalSalary }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
         <article><span>{{ t.mealVouchers }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
         <article><span>{{ t.advance }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
@@ -159,6 +162,10 @@
 
     <section *ngIf="view === 'leave' && leaveData && !loading" class="detail-section">
       <h1>{{ t.leaveRequest }}</h1>
+      <article class="leave-balance-card" [class.negative]="leaveBalanceIsNegative(leaveData)">
+        <span>{{ t.remainingLeave }}</span>
+        <strong>{{ leaveBalanceLabel(leaveData) }}</strong>
+      </article>
       <form class="portal-form" (ngSubmit)="submitLeave()">
         <label><span>{{ t.leaveType }}</span><select [(ngModel)]="leaveForm.leave_type" name="leave_type"><option value="paid_leave">{{ t.paidLeave }}</option><option value="unpaid_leave">{{ t.unpaidLeave }}</option></select></label>
         <label><span>{{ t.startDate }}</span><input type="date" [(ngModel)]="leaveForm.start_date" name="start_date" required></label>

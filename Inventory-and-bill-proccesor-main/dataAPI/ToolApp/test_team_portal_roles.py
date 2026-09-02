@@ -4,8 +4,10 @@ from unittest.mock import patch
 
 from django.http import JsonResponse
 from django.test import Client, TestCase
+from django.utils import timezone
 
 from ToolApp.leave_email import SUPERVISOR_PERSONAL_LEAVE_EMAIL, leave_request_recipients
+from ToolApp.mobile_services import build_leave_summary
 from ToolApp.models import (
     AppUser,
     EmployeeTeam,
@@ -114,11 +116,12 @@ class TeamPortalRoleSecurityTests(TestCase):
         self.assertIsNone(salary.json()["salary_advance_ron"])
         self.assertIsNone(salary.json()["salary_remainder_ron"])
         self.assertIsNone(salary.json()["meal_vouchers_ron"])
-        self.assertIsNone(salary.json()["leave_balance"]["remaining_days"])
+        expected_balance = build_leave_summary(self.plain, timezone.localdate())["remaining_days"]
+        self.assertEqual(salary.json()["leave_balance"]["remaining_days"], expected_balance)
         leave_page = client.get("/api/team-portal/leave-requests/")
         self.assertEqual(leave_page.status_code, 200, leave_page.content)
-        self.assertTrue(leave_page.json()["leave_balance_hidden"])
-        self.assertIsNone(leave_page.json()["leave_balance"]["remaining_days"])
+        self.assertFalse(leave_page.json()["leave_balance_hidden"])
+        self.assertEqual(leave_page.json()["leave_balance"]["remaining_days"], expected_balance)
         for endpoint in (
             "/api/team-portal/teams/",
             "/api/team-portal/supervised-teams/",

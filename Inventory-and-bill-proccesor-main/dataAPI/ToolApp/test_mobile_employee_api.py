@@ -450,7 +450,7 @@ class MobileEmployeeApiTests(TestCase):
         )
         leave.save()
         summary = build_leave_summary(self.employee, date(2026, 7, 31))
-        self.assertEqual(summary["remaining_days"], "0.00")
+        self.assertEqual(summary["remaining_days"], "-0.25")
         self.assertEqual(summary["extra_days_taken"], "0.25")
 
     def test_india_leave_reduces_balance_like_paid_leave(self):
