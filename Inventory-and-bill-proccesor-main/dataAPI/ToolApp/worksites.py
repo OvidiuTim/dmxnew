@@ -3,10 +3,17 @@ import unicodedata
 
 
 _LAKE_HOME_CENTER = {"latitude": 45.81027575048179, "longitude": 24.130539205078342}
+ENGINEERING_OFFICE_WORKSITE = {
+    "name": "Birou ingineri",
+    "latitude": 45.79680855369633,
+    "longitude": 24.14230494031001,
+    "radius_meters": 100,
+}
 ATTENDANCE_WORKSITES = (
     {"name": "The Lake Home Bloc A", **_LAKE_HOME_CENTER, "radius_meters": 90},
     {"name": "The Lake Home Bloc B2", **_LAKE_HOME_CENTER, "radius_meters": 40},
     {"name": "The Lake Home Bloc E & F", **_LAKE_HOME_CENTER, "radius_meters": 40},
+    dict(ENGINEERING_OFFICE_WORKSITE),
     {"name": "Psihiatrie C8", "latitude": 45.80720228440877, "longitude": 24.15440514734915, "radius_meters": 40},
     {"name": "Psihiatrie C16", "latitude": 45.80768553302182, "longitude": 24.157085884823974, "radius_meters": 40},
     {"name": "Spital Victoria", "latitude": 45.725861888407216, "longitude": 24.70584969156609, "radius_meters": 40},
@@ -55,7 +62,35 @@ ATTENDANCE_WORKSITE_BY_NAME.update({
         "name": "diverse", "latitude": 45.81014245534635,
         "longitude": 24.130572226199238, "radius_meters": 50,
     },
+    # Magazia/depozitul apare in APK-urile vechi si in lista de santiere
+    # acceptate, dar nu a avut niciodata perimetru pe server -> pontajul
+    # returna WORKSITE_GPS_NOT_CONFIGURED. Coordonatele sunt cele publicate
+    # in APK-ul din teren (dmxclockin1).
+    "magazie/depozit": {
+        "name": "magazie/depozit", "latitude": 45.81011221451825,
+        "longitude": 24.13080757832596, "radius_meters": 100,
+    },
 })
+
+
+# COMPATIBILITATE CRITICA ANDROID v1-v4:
+# APK-urile vechi valideaza local cu propriile coordonate, apoi trimit acelasi
+# pontaj catre server. Unde punctul din APK difera de cel curent (server/browser),
+# serverul accepta SUPLIMENTAR perimetrul vechi, altfel omul trece de verificarea
+# din telefon si e respins cu OUTSIDE_WORKSITE_AREA. Nu elimina fara update fortat.
+LEGACY_ANDROID_PERIMETERS = {
+    "Birou ingineri": (
+        {"latitude": 45.810126261224724, "longitude": 24.13046096426116, "radius_meters": 100},
+    ),
+}
+
+
+def worksite_perimeters(name):
+    """Toate cercurile GPS acceptate de server pentru un santier (curent + legacy)."""
+    rule = ATTENDANCE_WORKSITE_BY_NAME.get(name)
+    if not rule:
+        return ()
+    return (rule,) + tuple(LEGACY_ANDROID_PERIMETERS.get(name, ()))
 
 
 ACCEPTED_WORKSITES = (

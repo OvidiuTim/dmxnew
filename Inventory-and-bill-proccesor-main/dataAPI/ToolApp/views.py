@@ -66,9 +66,11 @@ from ToolApp.module_access import (
 from ToolApp.worksites import (
     ACCEPTED_WORKSITES,
     ATTENDANCE_WORKSITE_BY_NAME,
+    ENGINEERING_OFFICE_WORKSITE,
     InvalidWorksite,
     fold_worksite,
     match_worksite,
+    worksite_perimeters,
     normalize_worksite,
 )
 
@@ -1850,10 +1852,12 @@ def _fmt_hms(seconds: int):
 PONTAJ_SHIFT_END_HOUR = 18   # 18:00 ora locală = sfârșitul zilei
 PONTAJ_MAX_SHIFT_HOURS = 14  # limită de siguranță (cap durată sesiune)
 CHEF_ATTENDANCE_PIN = "1165"
-CHEF_ATTENDANCE_LATITUDE = 45.79680855369633
-CHEF_ATTENDANCE_LONGITUDE = 24.14230494031001
-CHEF_ATTENDANCE_RADIUS_METERS = 100
-CHEF_ATTENDANCE_WORKSITE = "Birou ingineri"
+# IMPORTANT: pontarea Chef si pontarea normala la Birou ingineri trebuie sa
+# foloseasca acelasi perimetru. Configuratia unica este in worksites.py.
+CHEF_ATTENDANCE_LATITUDE = ENGINEERING_OFFICE_WORKSITE["latitude"]
+CHEF_ATTENDANCE_LONGITUDE = ENGINEERING_OFFICE_WORKSITE["longitude"]
+CHEF_ATTENDANCE_RADIUS_METERS = ENGINEERING_OFFICE_WORKSITE["radius_meters"]
+CHEF_ATTENDANCE_WORKSITE = ENGINEERING_OFFICE_WORKSITE["name"]
 
 
 #--- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---
@@ -2279,7 +2283,8 @@ def nfc_scan(request):
         return _invalid_worksite_response(exc)
 
     if is_manual_scan and attendance_mode == "manual":
-        rule = ATTENDANCE_WORKSITE_BY_NAME.get(ws)
+        perimeters = worksite_perimeters(ws)
+        rule = perimeters[0] if perimeters else None
         if not rule:
             return JsonResponse({
                 "error": "Șantierul selectat nu are un perimetru GPS configurat.",
@@ -2301,18 +2306,30 @@ def nfc_scan(request):
                 "error": "Locația GPS a expirat. Actualizează poziția și încearcă din nou.",
                 "error_code": "GPS_LOCATION_EXPIRED",
             }, status=409)
-        distance_meters = _gps_distance_meters(
-            gps_payload["lat"],
-            gps_payload["lng"],
-            rule["latitude"],
-            rule["longitude"],
+        # Acceptam orice perimetru configurat pentru santier (cel curent + cele
+        # publicate in APK-urile vechi). Raportam cel mai apropiat cerc.
+        best = min(
+            (
+                (
+                    _gps_distance_meters(
+                        gps_payload["lat"],
+                        gps_payload["lng"],
+                        perimeter["latitude"],
+                        perimeter["longitude"],
+                    ),
+                    perimeter,
+                )
+                for perimeter in perimeters
+            ),
+            key=lambda item: item[0] - item[1]["radius_meters"],
         )
-        if distance_meters > rule["radius_meters"]:
+        distance_meters, matched_perimeter = best
+        if distance_meters > matched_perimeter["radius_meters"]:
             return JsonResponse({
                 "error": "Poziția curentă este în afara perimetrului permis al șantierului.",
                 "error_code": "OUTSIDE_WORKSITE_AREA",
                 "distance_meters": round(distance_meters, 1),
-                "allowed_radius_meters": rule["radius_meters"],
+                "allowed_radius_meters": matched_perimeter["radius_meters"],
             }, status=403)
 
     # Marcăm scanarea pentru debounce numai după toate validările. Altfel, o

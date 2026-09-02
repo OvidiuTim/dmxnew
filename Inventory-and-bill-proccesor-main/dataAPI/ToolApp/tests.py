@@ -9,6 +9,7 @@ from django.utils.timezone import localdate, localtime
 from ToolApp.models import AttendanceSession, Users
 from ToolApp.security import make_admin_token
 from ToolApp import views as tool_views
+from ToolApp.worksites import ACCEPTED_WORKSITES, worksite_perimeters
 
 
 class MonitorPontajTests(TestCase):
@@ -228,6 +229,88 @@ class ManualAttendanceSecurityTests(TestCase):
         session.refresh_from_db()
         self.assertIsNotNone(session.out_time)
         self.assertAlmostEqual(session.out_gps_longitude, self.chef_center["lng"])
+
+    def test_regular_employee_can_clock_in_at_engineering_office(self):
+        user = Users(UserName="Inginer cu pontaj normal", UserSerie="ING-001")
+        user.set_pin("1177")
+        user.save()
+
+        response = self.post_clock({
+            "pin": "1177",
+            "mode": "manual",
+            "device_key": "telefon-inginer",
+            "worksite": "Birou ingineri",
+            "timestamp": timezone.now().isoformat(),
+            "gps": {
+                **self.chef_center,
+                "captured_at": timezone.now().isoformat(),
+            },
+            "data_processing_consent": True,
+            "attendance_photo": "data:image/webp;base64,MTIz",
+        })
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["state"], "ENTER")
+        session = AttendanceSession.objects.get(user_fk=user)
+        self.assertEqual(session.worksite, "Birou ingineri")
+        self.assertAlmostEqual(session.in_gps_latitude, self.chef_center["lat"])
+
+    def test_legacy_android_engineering_office_center_is_accepted(self):
+        """APK-urile vechi valideaza local alt centru pentru «Birou ingineri»."""
+        user = Users(UserName="Inginer APK vechi", UserSerie="ING-002")
+        user.set_pin("1178")
+        user.save()
+
+        response = self.post_clock({
+            "pin": "1178",
+            "mode": "manual",
+            "device_key": "telefon-vechi",
+            "worksite": "Birou ingineri",
+            "timestamp": timezone.now().isoformat(),
+            "gps": {
+                "lat": 45.810126261224724,
+                "lng": 24.13046096426116,
+                "accuracy": 12,
+                "captured_at": timezone.now().isoformat(),
+            },
+            "data_processing_consent": True,
+            "attendance_photo": "data:image/webp;base64,MTIz",
+        })
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["state"], "ENTER")
+
+    def test_regular_employee_can_clock_in_at_warehouse(self):
+        user = Users(UserName="Magazioner cu pontaj", UserSerie="MAG-001")
+        user.set_pin("1179")
+        user.save()
+
+        response = self.post_clock({
+            "pin": "1179",
+            "mode": "manual",
+            "device_key": "telefon-magazie",
+            "worksite": "magazie/depozit",
+            "timestamp": timezone.now().isoformat(),
+            "gps": {
+                "lat": 45.81011221451825,
+                "lng": 24.13080757832596,
+                "accuracy": 10,
+                "captured_at": timezone.now().isoformat(),
+            },
+            "data_processing_consent": True,
+            "attendance_photo": "data:image/webp;base64,MTIz",
+        })
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["state"], "ENTER")
+        self.assertEqual(
+            AttendanceSession.objects.get(user_fk=user).worksite, "magazie/depozit"
+        )
+
+    def test_every_accepted_worksite_has_gps_perimeter(self):
+        """Regresie: nici un santier acceptat nu poate ramane fara perimetru."""
+        for name in ACCEPTED_WORKSITES:
+            self.assertTrue(worksite_perimeters(name), f"{name} nu are perimetru GPS")
 
     def test_collaborator_cannot_log_in_or_clock(self):
         collaborator = Users(
