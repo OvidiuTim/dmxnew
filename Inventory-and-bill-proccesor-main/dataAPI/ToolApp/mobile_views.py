@@ -40,7 +40,40 @@ from ToolApp.models import (
     Users,
 )
 from ToolApp.module_access import TEAM_SCHEDULE_ROUTES, app_user_roles, effective_module_codes
+from ToolApp import team_portal_views
 from ToolApp.views import _find_user_by_pin, _log_pin_attempt, _pin_is_blocked
+
+
+def _mobile_portal_request(request, target, *, method="GET", target_args=(), query=None):
+    """Run a Team Dashboard view with the identity resolved by the mobile session.
+
+    The portal views remain the single authorization and business-logic layer.  A
+    mobile client only exchanges its PIN/device session for the corresponding
+    ``AppUser`` and is then subject to the exact same module, role, team and time
+    restrictions as the web portal.
+    """
+    data, employee, error = _mobile_post(request)
+    if error:
+        return error
+    app_user = AppUser.objects.select_related("employee").filter(
+        employee=employee,
+        is_active=True,
+    ).first()
+    if not app_user:
+        return _error(
+            "TEAM_DASHBOARD_ACCOUNT_REQUIRED",
+            "Contul angajatului nu este activat pentru Team Dashboard.",
+            403,
+        )
+
+    request.app_user = app_user
+    request.method = method
+    if query:
+        mobile_query = request.GET.copy()
+        for key, value in query.items():
+            mobile_query[key] = str(value)
+        request.GET = mobile_query
+    return target(request, *target_args)
 
 
 def _error(error_code, message, status):
@@ -109,7 +142,8 @@ def mobile_access_context(employee):
             roles.append("team_leader")
         if EmployeeTeam.objects.filter(active=True, supervisor=employee).exists():
             roles.append("supervisor")
-    if roles:
+    team_roles = set(roles).intersection({"team_leader", "supervisor"})
+    if team_roles:
         permissions.update(TEAM_SCHEDULE_ROUTES)
         if "teams_schedule" not in modules:
             modules.append("teams_schedule")
@@ -132,6 +166,8 @@ def mobile_access_context(employee):
     return {
         "roles": roles,
         "modules": modules,
+        "is_storekeeper": "storekeeper" in roles,
+        "can_access_tools": "tools" in modules,
         "effective_permissions": sorted(permissions),
         "coordinated_teams": [
             {
@@ -144,7 +180,7 @@ def mobile_access_context(employee):
             for team in teams
         ],
         "unread_notifications": unread,
-        "is_team_coordinator": bool(roles),
+        "is_team_coordinator": bool(team_roles),
     }
 
 
@@ -470,16 +506,152 @@ def leave_request_list(request):
 
 @csrf_exempt
 def leave_request_cancel(request, request_id):
-    data, employee, error = _mobile_post(request)
-    if error:
-        return error
-    item = LeaveRequest.objects.filter(pk=request_id, employee=employee).first()
-    if not item:
-        return _error("LEAVE_REQUEST_NOT_FOUND", "Cererea de concediu nu există.", 404)
-    if item.status != LeaveRequest.Status.PENDING:
-        return _error("LEAVE_REQUEST_NOT_CANCELLABLE", "Doar cererile în așteptare pot fi anulate.", 409)
-    item.status = LeaveRequest.Status.REJECTED
-    item.reviewed_at = timezone.now()
-    item.seen_at = item.reviewed_at
-    item.save(update_fields=("status", "reviewed_at", "seen_at"))
-    return JsonResponse({"success": True, "leave_request": serialize_leave_request(item)})
+    return _mobile_portal_request(
+        request,
+        team_portal_views.portal_own_leave_cancel,
+        method="POST",
+        target_args=(request_id,),
+    )
+
+
+# Team Dashboard mobile facade -------------------------------------------------
+#
+# Every function below delegates to the web portal view after resolving the
+# mobile identity.  Keeping these wrappers intentionally small prevents Android
+# from acquiring a second set of business rules.
+
+
+@csrf_exempt
+def team_dashboard(request):
+    return _mobile_portal_request(request, team_portal_views.portal_dashboard)
+
+
+@csrf_exempt
+def team_dashboard_led_teams(request):
+    return _mobile_portal_request(request, team_portal_views.portal_teams)
+
+
+@csrf_exempt
+def team_dashboard_supervised_teams(request):
+    return _mobile_portal_request(request, team_portal_views.portal_supervised_teams)
+
+
+@csrf_exempt
+def team_dashboard_personnel(request):
+    return _mobile_portal_request(request, team_portal_views.portal_personnel)
+
+
+@csrf_exempt
+def team_dashboard_member_candidates(request, team_id):
+    return _mobile_portal_request(
+        request,
+        team_portal_views.portal_member_candidates,
+        query={"team_id": team_id},
+    )
+
+
+@csrf_exempt
+def team_dashboard_transfer_requests(request):
+    return _mobile_portal_request(
+        request,
+        team_portal_views.portal_transfer_requests,
+        method="POST",
+    )
+
+
+@csrf_exempt
+def team_dashboard_transfer_request_list(request):
+    return _mobile_portal_request(request, team_portal_views.portal_transfer_requests)
+
+
+@csrf_exempt
+def team_dashboard_own_transfer_requests(request):
+    return _mobile_portal_request(request, team_portal_views.portal_own_transfer_requests)
+
+
+@csrf_exempt
+def team_dashboard_transfer_decision(request, request_id):
+    return _mobile_portal_request(
+        request,
+        team_portal_views.portal_transfer_decision,
+        method="POST",
+        target_args=(request_id,),
+    )
+
+
+@csrf_exempt
+def team_dashboard_leave_requests(request):
+    return _mobile_portal_request(
+        request,
+        team_portal_views.portal_own_leave_requests,
+        method="POST",
+    )
+
+
+@csrf_exempt
+def team_dashboard_leave_request_list(request):
+    return _mobile_portal_request(request, team_portal_views.portal_own_leave_requests)
+
+
+@csrf_exempt
+def team_dashboard_request_summary(request):
+    return _mobile_portal_request(request, team_portal_views.portal_supervisor_request_summary)
+
+
+@csrf_exempt
+def team_dashboard_leave_approvals(request):
+    return _mobile_portal_request(request, team_portal_views.portal_supervisor_leave_requests)
+
+
+@csrf_exempt
+def team_dashboard_transfer_approvals(request):
+    return _mobile_portal_request(request, team_portal_views.portal_supervisor_transfer_requests)
+
+
+@csrf_exempt
+def team_dashboard_leave_decision(request, request_id):
+    return _mobile_portal_request(
+        request,
+        team_portal_views.portal_leave_decision,
+        method="POST",
+        target_args=(request_id,),
+    )
+
+
+@csrf_exempt
+def team_dashboard_missing_today(request):
+    return _mobile_portal_request(request, team_portal_views.portal_missing_today)
+
+
+@csrf_exempt
+def team_dashboard_absent_today(request):
+    return _mobile_portal_request(request, team_portal_views.portal_absent_today)
+
+
+@csrf_exempt
+def team_dashboard_mark_absent(request, employee_id):
+    return _mobile_portal_request(
+        request,
+        team_portal_views.portal_mark_absent,
+        method="POST",
+        target_args=(employee_id,),
+    )
+
+
+@csrf_exempt
+def team_dashboard_notifications(request):
+    return _mobile_portal_request(request, team_portal_views.portal_notifications)
+
+
+@csrf_exempt
+def team_dashboard_notifications_read(request):
+    return _mobile_portal_request(
+        request,
+        team_portal_views.portal_notifications,
+        method="POST",
+    )
+
+
+@csrf_exempt
+def team_dashboard_worksites(request):
+    return _mobile_portal_request(request, team_portal_views.portal_worksites)

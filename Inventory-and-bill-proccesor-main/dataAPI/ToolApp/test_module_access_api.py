@@ -3,7 +3,7 @@ import json
 from django.test import Client, TestCase
 
 from ToolApp.models import AppModuleAccess, AppPagePermission, AppUser, Users
-from ToolApp.module_access import MODULE_DEFINITIONS, default_module_route, effective_module_codes
+from ToolApp.module_access import MODULE_DEFINITIONS, app_user_roles, default_module_route, effective_module_codes
 from ToolApp.security import app_user_can_access_api_path, make_admin_token, make_app_user_token
 from ToolApp.views import _make_admin_app_token
 
@@ -153,6 +153,68 @@ class ModuleAccessApiTests(TestCase):
 
         AppPagePermission.objects.filter(app_user=self.app_user, route="/predare-unealta").update(can_access=True)
         self.assertEqual(self.app_client.get("/tools/issue/").status_code, 405)
+
+    def test_storekeeper_role_grants_inherited_tools_access_and_tool_mutations(self):
+        self.app_user.is_storekeeper = True
+        self.app_user.save(update_fields=("is_storekeeper",))
+
+        self.assertIn("storekeeper", app_user_roles(self.app_user))
+        self.assertIn("tools", effective_module_codes(self.app_user))
+        self.assertNotIn("teams_schedule", effective_module_codes(self.app_user))
+        self.assertTrue(app_user_can_access_api_path(self.app_user, "/api/tool/"))
+        self.assertTrue(app_user_can_access_api_path(self.app_user, "/api/tool/", "POST"))
+        self.assertTrue(app_user_can_access_api_path(self.app_user, "/api/tools/assign-quantity/", "POST"))
+
+        verified = self.app_client.post(
+            "/api/app-auth/verify/",
+            data=json.dumps({"route": "/unelte", "module_code": "tools"}),
+            content_type="application/json",
+        )
+        self.assertEqual(verified.status_code, 200, verified.content)
+        self.assertIn("storekeeper", verified.json()["roles"])
+        self.assertIn("tools", verified.json()["app_user"]["inherited_modules"])
+        self.assertFalse(verified.json()["app_user"]["manual_module_access"]["tools"])
+
+    def test_ordinary_employee_cannot_open_tools_or_manage_storekeepers(self):
+        self.assertFalse(app_user_can_access_api_path(self.app_user, "/api/tool/"))
+        self.assertFalse(app_user_can_access_api_path(self.app_user, "/api/warehouse/storekeepers/"))
+        self.assertEqual(self.app_client.get("/api/tool/").status_code, 403)
+        self.assertEqual(self.app_client.get("/api/warehouse/storekeepers/").status_code, 403)
+
+    def test_storekeeper_configuration_prevents_duplicates_and_preserves_manual_access(self):
+        AppModuleAccess.objects.create(
+            app_user=self.app_user,
+            module_code=AppModuleAccess.ModuleCode.TOOLS,
+            can_access=True,
+        )
+        created = self.admin_client.post(
+            "/api/warehouse/storekeepers/",
+            data=json.dumps({"employee_id": self.employee.pk}),
+            content_type="application/json",
+        )
+        self.assertEqual(created.status_code, 200, created.content)
+        self.assertTrue(created.json()["storekeepers"][0]["has_manual_tools_access"])
+
+        duplicate = self.admin_client.post(
+            "/api/warehouse/storekeepers/",
+            data=json.dumps({"employee_id": self.employee.pk}),
+            content_type="application/json",
+        )
+        self.assertEqual(duplicate.status_code, 409)
+
+        removed = self.admin_client.delete(
+            "/api/warehouse/storekeepers/",
+            data=json.dumps({"employee_id": self.employee.pk}),
+            content_type="application/json",
+        )
+        self.assertEqual(removed.status_code, 200, removed.content)
+        self.app_user.refresh_from_db()
+        self.assertFalse(self.app_user.is_storekeeper)
+        self.assertIn("tools", effective_module_codes(self.app_user))
+        self.assertTrue(AppModuleAccess.objects.get(
+            app_user=self.app_user,
+            module_code=AppModuleAccess.ModuleCode.TOOLS,
+        ).can_access)
 
     def test_granular_permission_can_be_changed_independently_from_module(self):
         AppModuleAccess.objects.create(app_user=self.app_user, module_code="warehouse")

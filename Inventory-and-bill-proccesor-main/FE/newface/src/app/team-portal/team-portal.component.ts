@@ -47,6 +47,13 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     { code: 'hi', label: 'हिन्दी' },
     { code: 'ne', label: 'नेपाली' },
   ];
+  private readonly storekeeperCopy: Record<PortalLanguage, { role: string; tools: string; hint: string; hidden: string }> = {
+    ro: { role: 'Magazioner', tools: 'Unelte', hint: 'Deschide registrul de unelte și predări', hidden: 'Indisponibil momentan' },
+    en: { role: 'Storekeeper', tools: 'Tools', hint: 'Open the tool and assignment register', hidden: 'Temporarily unavailable' },
+    pa: { role: 'ਸਟੋਰਕੀਪਰ', tools: 'ਔਜ਼ਾਰ', hint: 'ਔਜ਼ਾਰ ਅਤੇ ਵੰਡ ਰਜਿਸਟਰ ਖੋਲ੍ਹੋ', hidden: 'ਫਿਲਹਾਲ ਉਪਲਬਧ ਨਹੀਂ' },
+    hi: { role: 'स्टोरकीपर', tools: 'औज़ार', hint: 'औज़ार और वितरण रजिस्टर खोलें', hidden: 'फ़िलहाल उपलब्ध नहीं' },
+    ne: { role: 'भण्डारपाल', tools: 'औजार', hint: 'औजार र वितरण रजिस्टर खोल्नुहोस्', hidden: 'हाल उपलब्ध छैन' },
+  };
   readonly copy: Record<PortalLanguage, PortalCopy> = {
     ro: {
       dashboard: 'Dashboard echipă', welcome: 'Bine ai venit', language: 'Limbă', attendance: 'Pontaj', employeeFile: 'Fișa angajatului',
@@ -205,6 +212,9 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   /** Nivel 1 și Nivel 2 văd cardurile globale de lipsă. */
   get isLevel1(): boolean { return !!this.dashboard?.alert_level_1; }
   get isLevel2(): boolean { return !!this.dashboard?.alert_level_2; }
+  get toolsModuleLabel(): string { return this.storekeeperCopy[this.language].tools; }
+  get toolsModuleHint(): string { return this.storekeeperCopy[this.language].hint; }
+  get hiddenValueLabel(): string { return this.storekeeperCopy[this.language].hidden; }
 
   /** Numai rolurile pe care utilizatorul le are efectiv, în ordinea ierarhiei. */
   get roleLabels(): string[] {
@@ -212,6 +222,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     const labels: string[] = [];
     if (this.dashboard.is_team_leader) labels.push(this.t.teamLeaderRole);
     if (this.dashboard.is_supervisor) labels.push(this.t.supervisorRole);
+    if (this.dashboard.is_storekeeper) labels.push(this.storekeeperCopy[this.language].role);
     const configured = this.dashboard.role_labels || {};
     if (this.dashboard.alert_level_1) labels.push(configured['1'] || 'Nivel 1');
     if (this.dashboard.alert_level_2) labels.push(configured['2'] || 'Nivel 2');
@@ -253,6 +264,10 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     void this.router.navigateByUrl('/team-dashboard/pontaj', {
       state: { teamDashboardOrigin: this.router.url },
     });
+  }
+
+  openTools(): void {
+    void this.router.navigateByUrl('/unelte');
   }
 
   loadCurrentView(): void {

@@ -21,4 +21,52 @@
     <button type="button" (click)="seeIstoric()"><span class="module-icon material-symbols-rounded" aria-hidden="true">history</span><div><strong>Istoric mișcări</strong><p>Trasabilitate pentru unelte, materiale și schelă.</p></div><i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i></button>
     <button type="button" routerLink="/rafturi"><span class="module-icon material-symbols-rounded" aria-hidden="true">shelves</span><div><strong>Rafturi</strong><p>Organizarea fizică a spațiilor de depozitare.</p></div><i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i></button>
   </section>
+
+  <section class="storekeeper-section" aria-labelledby="storekeeper-title">
+    <header class="section-header">
+      <div>
+        <span class="eyebrow">Acces la registrul de unelte</span>
+        <h2 id="storekeeper-title">Setează magazioneri</h2>
+        <p>Rolul oferă automat acces la modulul „Unelte”. Permisiunile acordate manual rămân independente.</p>
+      </div>
+      <button type="button" class="secondary-action" (click)="openStorekeeperForm()" [disabled]="storekeeperFormOpen || !availableStorekeepers.length">
+        <span class="material-symbols-rounded" aria-hidden="true">person_add</span>
+        + Mai adaugă un magazioner
+      </button>
+    </header>
+
+    <div class="storekeeper-form" *ngIf="storekeeperFormOpen">
+      <label>
+        <span>Selectează angajatul</span>
+        <select [(ngModel)]="selectedStorekeeperId" [disabled]="savingStorekeeper">
+          <option [ngValue]="null">Alege un angajat</option>
+          <option *ngFor="let employee of availableStorekeepers" [ngValue]="employee.id">
+            {{ employee.name }} · {{ employee.serie }}{{ employee.company ? ' · ' + employee.company : '' }}
+          </option>
+        </select>
+      </label>
+      <button type="button" class="primary-action" (click)="addStorekeeper()" [disabled]="!selectedStorekeeperId || savingStorekeeper">
+        <span class="material-symbols-rounded" aria-hidden="true">verified_user</span>
+        {{ savingStorekeeper ? 'Se salvează…' : 'Setează ca magazioner' }}
+      </button>
+      <button type="button" class="cancel-action" (click)="storekeeperFormOpen = false" [disabled]="savingStorekeeper">Renunță</button>
+    </div>
+
+    <div class="state error" *ngIf="storekeeperError">{{ storekeeperError }}</div>
+    <p class="empty-copy" *ngIf="!storekeepers.length">Nu există magazioneri configurați.</p>
+    <div class="storekeeper-list" *ngIf="storekeepers.length">
+      <article *ngFor="let item of storekeepers">
+        <span class="person-icon material-symbols-rounded" aria-hidden="true">inventory</span>
+        <div>
+          <strong>{{ item.name }}</strong>
+          <small>{{ item.serie }}{{ item.company ? ' · ' + item.company : '' }}</small>
+          <span>Acces „Unelte” prin rol<span *ngIf="item.has_manual_tools_access"> · acces manual activ</span></span>
+        </div>
+        <button type="button" class="remove-action" (click)="removeStorekeeper(item)" [disabled]="savingStorekeeper" [attr.aria-label]="'Elimină rolul de magazioner pentru ' + item.name">
+          <span class="material-symbols-rounded" aria-hidden="true">person_remove</span>
+          Elimină rolul
+        </button>
+      </article>
+    </div>
+  </section>
 </div>

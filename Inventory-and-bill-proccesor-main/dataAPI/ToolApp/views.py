@@ -65,6 +65,7 @@ from ToolApp.module_access import (
 )
 from ToolApp.worksites import (
     ACCEPTED_WORKSITES,
+    ATTENDANCE_WORKSITE_BY_NAME,
     InvalidWorksite,
     fold_worksite,
     match_worksite,
@@ -2121,13 +2122,26 @@ def nfc_scan(request):
     except ValueError as exc:
         return JsonResponse({"error": str(exc), "error_code": "INVALID_ATTENDANCE_PHOTO"}, status=400)
 
+    if is_manual_scan and not data_processing_consent:
+        return JsonResponse({
+            "error": "Este necesar acordul pentru prelucrarea datelor înainte de pontaj.",
+            "error_code": "DATA_PROCESSING_CONSENT_REQUIRED",
+        }, status=400)
+    if is_manual_scan and not attendance_photo:
+        return JsonResponse({
+            "error": "Selfie-ul confirmat este obligatoriu pentru pontaj.",
+            "error_code": "ATTENDANCE_PHOTO_REQUIRED",
+        }, status=400)
+
     if attendance_mode == "driver" and not gps_payload:
         return JsonResponse({
             "error": "Locatia GPS este obligatorie pentru pontajul soferilor.",
             "error_code": "GPS_REQUIRED_FOR_DRIVER"
         }, status=400)
 
-    if gps_payload and gps_captured_at and gps_captured_at < (timezone.now() - timedelta(minutes=10)):
+    # Manual mobile attendance has a stricter, explicit validation block below
+    # that also rejects future timestamps and returns the mobile error contract.
+    if not is_manual_scan and gps_payload and gps_captured_at and gps_captured_at < (timezone.now() - timedelta(minutes=10)):
         return JsonResponse({
             "error": "Locatia GPS salvata a expirat. Cere din nou locatia si introdu PIN-ul in maximum 10 minute.",
             "error_code": "GPS_CAPTURE_EXPIRED"
@@ -2217,15 +2231,6 @@ def nfc_scan(request):
             "retry_after_seconds": retry_after,
         }, status=429)
 
-    # Debounce identic (server-side) – folosim PINUL EFECTIV, nu contentul brut
-    now_ts = timezone.now().timestamp()
-    debounce_identity = effective_pin or (f"user:{mapped_user.UserId}" if mapped_user else "")
-    key = (uid, debounce_identity)
-    if key in _last_seen and (now_ts - _last_seen[key]) < _DEBOUNCE_SEC:
-        print(f"[NFC] DEBOUNCED scan pentru UID={uid} pin={effective_pin}")
-        return JsonResponse({"ok": True, "debounced": True})
-    _last_seen[key] = now_ts
-
     # 1) Identific user după PIN EFECTIV
     if not effective_pin and not mapped_user:
         # nici PIN pe tag, nici în mapare -> nu avem cum găsi user
@@ -2248,6 +2253,54 @@ def nfc_scan(request):
     except InvalidWorksite as exc:
         _log_pin_attempt(request, success=False, reason="invalid_worksite", device_key=data.get("device_key"), uid=uid, worksite=ws)
         return _invalid_worksite_response(exc)
+
+    if is_manual_scan and attendance_mode in {"manual", "driver"}:
+        rule = ATTENDANCE_WORKSITE_BY_NAME.get(ws)
+        if not rule:
+            return JsonResponse({
+                "error": "Șantierul selectat nu are un perimetru GPS configurat.",
+                "error_code": "WORKSITE_GPS_NOT_CONFIGURED",
+            }, status=409)
+        if not gps_payload:
+            return JsonResponse({
+                "error": "Locația GPS este obligatorie pentru pontaj.",
+                "error_code": "GPS_REQUIRED",
+            }, status=400)
+        if not gps_captured_at:
+            return JsonResponse({
+                "error": "Locația GPS trebuie citită din nou înainte de pontaj.",
+                "error_code": "GPS_CAPTURE_TIME_REQUIRED",
+            }, status=400)
+        location_age = (timezone.now() - gps_captured_at).total_seconds()
+        if location_age > 600 or location_age < -60:
+            return JsonResponse({
+                "error": "Locația GPS a expirat. Actualizează poziția și încearcă din nou.",
+                "error_code": "GPS_LOCATION_EXPIRED",
+            }, status=409)
+        distance_meters = _gps_distance_meters(
+            gps_payload["lat"],
+            gps_payload["lng"],
+            rule["latitude"],
+            rule["longitude"],
+        )
+        if distance_meters > rule["radius_meters"]:
+            return JsonResponse({
+                "error": "Poziția curentă este în afara perimetrului permis al șantierului.",
+                "error_code": "OUTSIDE_WORKSITE_AREA",
+                "distance_meters": round(distance_meters, 1),
+                "allowed_radius_meters": rule["radius_meters"],
+            }, status=403)
+
+    # Marcăm scanarea pentru debounce numai după toate validările. Altfel, o
+    # încercare respinsă (GPS expirat/în afara perimetrului) ar putea face ca
+    # următoarea încercare să fie raportată eronat ca reușită.
+    now_ts = timezone.now().timestamp()
+    debounce_identity = effective_pin or (f"user:{mapped_user.UserId}" if mapped_user else "")
+    key = (uid, debounce_identity)
+    if key in _last_seen and (now_ts - _last_seen[key]) < _DEBOUNCE_SEC:
+        print(f"[NFC] DEBOUNCED scan pentru UID={uid} pin={effective_pin}")
+        return JsonResponse({"ok": True, "debounced": True})
+    _last_seen[key] = now_ts
 
     _log_pin_attempt(request, success=True, reason="ok", device_key=data.get("device_key"), uid=uid, worksite=ws)
 
@@ -4239,6 +4292,8 @@ def _serialize_app_user(app_user):
         inherited_modules.append("teams_schedule")
     elif set(app_user_roles(app_user)).intersection({"alert_level_1", "alert_level_2"}):
         inherited_modules.append("team_dashboard")
+    if app_user.is_storekeeper:
+        inherited_modules.append("tools")
     coordinated_teams = list(
         EmployeeTeam.objects.filter(active=True).filter(
             Q(leader_id=app_user.employee_id) | Q(supervisor_id=app_user.employee_id)
@@ -4268,6 +4323,95 @@ def _serialize_app_user(app_user):
         "coordinated_teams": coordinated_teams,
         "default_module_route": default_module_route(app_user),
     }
+
+
+def _storekeeper_payload(app_user):
+    manual_tools_access = app_user.module_accesses.filter(
+        module_code=AppModuleAccess.ModuleCode.TOOLS,
+        can_access=True,
+    ).exists()
+    return {
+        "app_user_id": app_user.pk,
+        "employee_id": app_user.employee_id,
+        "name": app_user.employee.UserName,
+        "serie": app_user.employee.UserSerie,
+        "company": app_user.employee.Company or "",
+        "username": app_user.username,
+        "role": "storekeeper",
+        "access_source": "role",
+        "has_manual_tools_access": manual_tools_access,
+    }
+
+
+@csrf_exempt
+def warehouse_storekeepers(request):
+    """Configurează rolul moștenit de magazioner fără a altera accesul manual."""
+    actor = getattr(request, "app_user", None) or get_app_user_from_request(request)
+    if not request_has_admin(request) and not app_user_has_module(actor, "warehouse"):
+        return JsonResponse({"error": "Acces interzis."}, status=403)
+
+    if request.method == "GET":
+        pass
+    elif request.method == "POST":
+        try:
+            data = json.loads(request.body or "{}")
+            employee_id = int(data.get("employee_id"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return JsonResponse({"error": "Angajat invalid."}, status=400)
+        employee = Users.objects.filter(
+            pk=employee_id,
+            active=True,
+            employment_status=Users.EmploymentStatus.ACTIVE,
+            person_type=Users.PersonType.EMPLOYEE,
+        ).first()
+        if not employee:
+            return JsonResponse({"error": "Angajatul nu este activ sau nu există."}, status=404)
+        from ToolApp.app_accounts import sync_employee_app_user
+        app_user, _ = sync_employee_app_user(employee)
+        if not app_user or not app_user.is_active:
+            return JsonResponse({"error": "Contul aplicației nu a putut fi activat."}, status=400)
+        if app_user.is_storekeeper:
+            return JsonResponse({"error": "Angajatul este deja magazioner."}, status=409)
+        app_user.is_storekeeper = True
+        app_user.save(update_fields=("is_storekeeper", "updated_at"))
+    elif request.method == "DELETE":
+        try:
+            data = json.loads(request.body or "{}")
+            employee_id = int(data.get("employee_id"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return JsonResponse({"error": "Angajat invalid."}, status=400)
+        app_user = AppUser.objects.filter(employee_id=employee_id, is_storekeeper=True).first()
+        if not app_user:
+            return JsonResponse({"error": "Rolul de magazioner nu este configurat."}, status=404)
+        app_user.is_storekeeper = False
+        app_user.save(update_fields=("is_storekeeper", "updated_at"))
+    else:
+        return JsonResponse({"error": "Metodă nepermisă."}, status=405)
+
+    storekeepers = list(
+        AppUser.objects.filter(is_active=True, is_storekeeper=True)
+        .select_related("employee")
+        .prefetch_related("module_accesses")
+        .order_by("employee__UserName")
+    )
+    configured_employee_ids = {item.employee_id for item in storekeepers}
+    available = Users.objects.filter(
+        active=True,
+        employment_status=Users.EmploymentStatus.ACTIVE,
+        person_type=Users.PersonType.EMPLOYEE,
+    ).exclude(pk__in=configured_employee_ids).order_by("UserName")
+    return JsonResponse({
+        "storekeepers": [_storekeeper_payload(item) for item in storekeepers],
+        "available_employees": [
+            {
+                "id": employee.pk,
+                "name": employee.UserName,
+                "serie": employee.UserSerie,
+                "company": employee.Company or "",
+            }
+            for employee in available
+        ],
+    })
 
 
 def _app_user_permissions(app_user):
@@ -4377,7 +4521,13 @@ def app_auth_login(request):
         return JsonResponse({"error": "Cont invalid sau inactiv."}, status=401)
 
     if not app_user.check_pin(pin):
-        return JsonResponse({"error": "PIN invalid."}, status=401)
+        # Conturile create prin migrare/sincronizare bulk folosesc temporar o
+        # parolă inutilizabilă. Validăm PIN-ul legacy o singură dată prin
+        # angajat, apoi salvăm hashul AppUser pentru autentificările viitoare.
+        if not app_user.employee.check_pin(pin):
+            return JsonResponse({"error": "PIN invalid."}, status=401)
+        app_user.set_pin(pin)
+        app_user.save(update_fields=("pin_hash", "updated_at"))
 
     serialized_app_user = _serialize_app_user(app_user)
     resp = JsonResponse({
@@ -4630,7 +4780,10 @@ def app_admin_module_access(request, module_code):
                 and app_user.employee.employment_status == Users.EmploymentStatus.ACTIVE
             )
             if (
-                (module_code == "teams_schedule" and app_user_roles(app_user))
+                (
+                    module_code == "teams_schedule"
+                    and set(app_user_roles(app_user)).intersection({"team_leader", "supervisor"})
+                )
                 or (module_code == "team_dashboard" and employee_eligible_for_portal)
             ):
                 enabled = False

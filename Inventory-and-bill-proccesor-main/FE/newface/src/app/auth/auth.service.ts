@@ -11,7 +11,7 @@ export interface AuthSession {
   can_access?: boolean;
   can_access_module?: boolean;
   modules?: string[];
-  roles?: Array<'team_leader' | 'supervisor' | 'alert_level_1' | 'alert_level_2'>;
+  roles?: Array<'team_leader' | 'supervisor' | 'alert_level_1' | 'alert_level_2' | 'storekeeper'>;
   effective_permissions?: string[];
   coordinated_teams?: Array<{ id: number; name: string; leader_id: number; supervisor_id: number | null }>;
   default_module_route?: string | null;

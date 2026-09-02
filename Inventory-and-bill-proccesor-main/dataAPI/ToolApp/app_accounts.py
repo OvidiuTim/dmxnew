@@ -35,7 +35,7 @@ def employee_can_have_app_account(employee):
 
 
 @transaction.atomic
-def sync_employee_app_user(employee):
+def sync_employee_app_user(employee, *, sync_pin=True):
     """Create/update the single AppUser owned by an employee.
 
     The login secret is only persisted through Django's password hasher.  The
@@ -63,10 +63,16 @@ def sync_employee_app_user(employee):
         app_user.login_redirect_path = "/team-dashboard"
         changed_fields.append("login_redirect_path")
     raw_pin = str(employee.UserPin or "").strip()
-    if raw_pin and not app_user.check_pin(raw_pin):
+    employee_pin_hash = str(employee.pin_hash or "").strip()
+    if created and employee_pin_hash:
+        app_user.pin_hash = employee_pin_hash
+        changed_fields.append("pin_hash")
+    elif raw_pin and sync_pin and not app_user.check_pin(raw_pin):
         app_user.set_pin(employee.UserPin)
         changed_fields.append("pin_hash")
-    elif created and not raw_pin:
+    elif created:
+        # Sincronizarea bulk rămâne rapidă; loginul validează PIN-ul legacy și
+        # persistă hashul la prima utilizare.
         app_user.pin_hash = make_password(None)
         changed_fields.append("pin_hash")
     if created:
@@ -81,7 +87,7 @@ def sync_all_employee_app_users(queryset=None):
     summary = {"created": 0, "updated": 0, "deactivated": 0, "skipped": 0}
     for employee in queryset.iterator():
         before = AppUser.objects.filter(employee=employee).values("is_active", "pin_hash").first()
-        app_user, created = sync_employee_app_user(employee)
+        app_user, created = sync_employee_app_user(employee, sync_pin=False)
         if created:
             summary["created"] += 1
         elif app_user is None:

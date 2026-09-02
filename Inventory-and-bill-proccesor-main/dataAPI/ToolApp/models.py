@@ -272,6 +272,7 @@ class AppUser(models.Model):
     username = models.CharField(max_length=100, unique=True, db_index=True)
     pin_hash = models.CharField(max_length=256)
     is_active = models.BooleanField(default=True, db_index=True)
+    is_storekeeper = models.BooleanField(default=False, db_index=True)
     login_redirect_path = models.CharField(max_length=160, default="/pontaj")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -680,6 +681,7 @@ class LeaveRequest(models.Model):
         PENDING = "pending", "În așteptare"
         APPROVED = "approved", "Aprobată"
         REJECTED = "rejected", "Respinsă"
+        CANCELLED = "cancelled", "Anulată"
 
     employee = models.ForeignKey(Users, on_delete=models.CASCADE, related_name="leave_requests")
     team = models.ForeignKey(
@@ -734,7 +736,7 @@ class LeaveRequest(models.Model):
                 employee_id=self.employee_id,
                 start_date__lte=self.end_date,
                 end_date__gte=self.start_date,
-            ).exclude(status=self.Status.REJECTED)
+            ).exclude(status__in=(self.Status.REJECTED, self.Status.CANCELLED))
             if self.pk:
                 overlap = overlap.exclude(pk=self.pk)
             if overlap.exists():

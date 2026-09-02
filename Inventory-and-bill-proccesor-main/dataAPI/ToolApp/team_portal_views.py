@@ -38,6 +38,7 @@ from ToolApp.models import (
 from ToolApp.module_access import app_user_has_module, app_user_roles
 from ToolApp.leave_email import send_leave_approval_email, send_leave_request_email
 from ToolApp.mobile_services import build_inventory, build_leave_summary, serialize_leave_request
+from ToolApp.push_notifications import send_employee_push
 from ToolApp.security import get_app_user_from_request
 from ToolApp.team_attendance_notifications import (
     ALERT_HOUR,
@@ -47,7 +48,7 @@ from ToolApp.team_attendance_notifications import (
 )
 from ToolApp.team_organization_sync import sync_team_to_organization
 from ToolApp.views import nfc_scan
-from ToolApp.worksites import ACCEPTED_WORKSITES
+from ToolApp.worksites import ACCEPTED_WORKSITES, ATTENDANCE_WORKSITES
 
 
 def _error(message, status=400, details=None):
@@ -122,7 +123,7 @@ def _create_request_notification(*, recipient, kind, request_id, leave=None, tra
     elif transfer and requester_id == recipient.pk and kind == TeamPortalNotification.Kind.TRANSFER_APPROVAL:
         return None
     key = f"{kind}:{request_id}:{recipient.pk}:{stage or 'event'}"
-    notification, _ = TeamPortalNotification.objects.get_or_create(
+    notification, created = TeamPortalNotification.objects.get_or_create(
         dedupe_key=key,
         defaults={
             "recipient": recipient,
@@ -131,6 +132,30 @@ def _create_request_notification(*, recipient, kind, request_id, leave=None, tra
             "transfer_request": transfer,
         },
     )
+    if created:
+        subject = leave.employee.UserName if leave else transfer.employee.UserName
+        is_result = kind in {
+            TeamPortalNotification.Kind.LEAVE_RESULT,
+            TeamPortalNotification.Kind.TRANSFER_RESULT,
+        }
+        request_kind = "leave" if leave else "transfer"
+        title = (
+            "Rezultat cerere de concediu" if leave and is_result
+            else "Cerere nouă de concediu" if leave
+            else "Rezultat cerere de transfer" if is_result
+            else "Cerere nouă de transfer"
+        )
+        status_label = (leave.get_status_display() if leave else transfer.get_status_display()) if is_result else "Necesită atenția ta"
+        send_employee_push(
+            [recipient.employee_id],
+            title,
+            f"{subject} · {status_label}",
+            {
+                "route": "notifications",
+                "type": f"{request_kind}_{'result' if is_result else 'request'}",
+                "request_id": str(request_id),
+            },
+        )
     return notification
 
 
@@ -181,13 +206,22 @@ def _notify_request_result(item, kind):
             leave=item,
             stage=item.status,
         )
-    return _create_request_notification(
-        recipient=item.requested_by,
-        kind=kind,
-        request_id=item.pk,
-        transfer=item,
-        stage=item.status,
-    )
+    recipients = {item.requested_by_id: item.requested_by}
+    for team in (item.source_team, item.destination_team):
+        if team:
+            account = _account_for_employee(team.effective_supervisor.pk)
+            if account:
+                recipients[account.pk] = account
+    return [
+        _create_request_notification(
+            recipient=recipient,
+            kind=kind,
+            request_id=item.pk,
+            transfer=item,
+            stage=item.status,
+        )
+        for recipient in recipients.values()
+    ]
 
 
 def _initial_alert_available(now=None):
@@ -224,7 +258,7 @@ def _presence_status(employee_ids, day=None):
 
 
 def _employee_summary(employee, status):
-    return {
+    payload = {
         "id": employee.pk,
         "name": employee.UserName,
         "phone": employee.phone_number or "",
@@ -234,6 +268,18 @@ def _employee_summary(employee, status):
         "company": employee.Company or "",
         "trade": employee.trade or "",
     }
+    if status == "marked_absent":
+        mark = AttendanceAbsenceMark.objects.filter(
+            employee=employee,
+            work_date=timezone.localdate(),
+        ).select_related("marked_by", "marked_by__employee").first()
+        if mark:
+            payload.update({
+                "marked_by": mark.marked_by.employee.UserName if mark.marked_by_id else "Automat · Nivel 2",
+                "marked_at": timezone.localtime(mark.marked_at).isoformat(),
+                "source": mark.source,
+            })
+    return payload
 
 
 @csrf_exempt
@@ -265,6 +311,8 @@ def portal_dashboard(request):
         "role_labels": {str(level): label for level, label in labels.items()},
         "is_team_leader": "team_leader" in roles,
         "is_supervisor": "supervisor" in roles,
+        "is_storekeeper": "storekeeper" in roles,
+        "can_access_tools": app_user_has_module(app_user, "tools"),
         "alert_level_1": 1 in levels,
         "alert_level_2": 2 in levels,
         "status": own_status,
@@ -312,11 +360,16 @@ def portal_salary(request):
     equipment, tools = build_inventory(employee)
     return JsonResponse({
         "employee": {"id": employee.pk, "name": employee.UserName},
-        "total_salary_ron": str(employee.total_salary_ron or "0.00"),
-        "salary_advance_ron": str(employee.salary_advance_ron or "0.00"),
-        "salary_remainder_ron": str(employee.salary_remainder_ron or "0.00"),
-        "meal_vouchers_ron": str(employee.meal_vouchers_ron or "0.00"),
-        "leave_balance": build_leave_summary(employee, timezone.localdate()),
+        "financial_details_hidden": True,
+        "total_salary_ron": None,
+        "salary_advance_ron": None,
+        "salary_remainder_ron": None,
+        "meal_vouchers_ron": None,
+        "leave_balance": {
+            "accrued_days": None,
+            "used_days": None,
+            "remaining_days": None,
+        },
         "tools": tools,
         "equipment": equipment,
     })
@@ -697,6 +750,20 @@ def portal_transfer_requests(request):
 
 
 @csrf_exempt
+def portal_own_transfer_requests(request):
+    if request.method != "GET":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user:
+        return _error("Acces interzis.", 403)
+    items = PortalTeamTransferRequest.objects.select_related(
+        "employee", "source_team__leader", "source_team__supervisor",
+        "destination_team__leader", "destination_team__supervisor", "requested_by__employee",
+    ).filter(requested_by=app_user).order_by("-created_at")
+    return JsonResponse({"requests": [_transfer_payload(item, app_user) for item in items]})
+
+
+@csrf_exempt
 @transaction.atomic
 def portal_transfer_decision(request, request_id):
     if request.method != "POST":
@@ -821,6 +888,34 @@ def portal_own_leave_requests(request):
         "leave_request": serialize_leave_request(item),
         "leave_balance": build_leave_summary(employee, timezone.localdate()),
     }, status=201)
+
+
+@csrf_exempt
+@transaction.atomic
+def portal_own_leave_cancel(request, request_id):
+    if request.method != "POST":
+        return _error("Metodă nepermisă.", 405)
+    app_user = _portal_actor(request)
+    if not app_user:
+        return _error("Acces interzis.", 403)
+    item = LeaveRequest.objects.select_for_update().filter(
+        pk=request_id,
+        employee_id=app_user.employee_id,
+    ).first()
+    if not item:
+        return _error("Cererea de concediu nu există.", 404)
+    if item.status != LeaveRequest.Status.PENDING:
+        return _error("Doar cererile în așteptare pot fi anulate.", 409)
+    item.status = LeaveRequest.Status.CANCELLED
+    item.reviewed_at = timezone.now()
+    item.employee_seen_at = item.reviewed_at
+    item.save(update_fields=("status", "reviewed_at", "employee_seen_at"))
+    TeamPortalNotification.objects.filter(
+        leave_request=item,
+        kind=TeamPortalNotification.Kind.LEAVE_APPROVAL,
+        read_at__isnull=True,
+    ).update(read_at=timezone.now())
+    return JsonResponse({"leave_request": serialize_leave_request(item)})
 
 
 def _supervisor_leave_payload(item, app_user):
@@ -1676,7 +1771,11 @@ def portal_worksites(request):
         return _error("Metodă nepermisă.", 405)
     if not _portal_actor(request):
         return _error("Acces interzis.", 403)
-    return JsonResponse({"worksites": list(ACCEPTED_WORKSITES)})
+    return JsonResponse({
+        "worksites": list(ACCEPTED_WORKSITES),
+        "attendance_worksites": list(ATTENDANCE_WORKSITES),
+        "location_validity_seconds": 600,
+    })
 
 
 @csrf_exempt

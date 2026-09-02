@@ -4,7 +4,7 @@ from django.conf import settings
 from django.core import signing
 from django.http import JsonResponse
 
-from ToolApp.module_access import TEAM_SCHEDULE_ROUTES, app_user_has_module, app_user_has_standard_route, app_user_roles
+from ToolApp.module_access import MODULE_DEFINITIONS, TEAM_SCHEDULE_ROUTES, app_user_has_module, app_user_has_standard_route, app_user_roles
 
 
 TOKEN_SALT = "pontaj-auth"
@@ -30,6 +30,7 @@ PUBLIC_API_PREFIXES = (
 )
 
 API_ROUTE_REQUIREMENTS = (
+    ("/api/warehouse/storekeepers/", ("/magazie",)),
     ("/api/attendance-alerts/", ("/pontaj/alerte",)),
     ("/api/organization/", ("/pontaj/organigrama",)),
     ("/api/leave-requests/", ("/pontaj/concedii",)),
@@ -66,6 +67,7 @@ API_ROUTE_REQUIREMENTS = (
 )
 
 API_MODULE_REQUIREMENTS = (
+    ("/api/warehouse/storekeepers/", ("warehouse",)),
     ("/api/organization/", ("attendance",)),
     ("/api/leave-requests/", ("teams_schedule",)),
     ("/api/leave/", ("attendance",)),
@@ -181,6 +183,10 @@ def app_user_has_route(app_user, route: str) -> bool:
         return False
     if (route == "/team-dashboard" or route.startswith("/team-dashboard/")) and app_user_has_module(app_user, "team_dashboard"):
         return True
+    if getattr(app_user, "is_storekeeper", False) and route in {
+        item["path"] for item in MODULE_DEFINITIONS["tools"]["routes"]
+    }:
+        return True
     if route in TEAM_SCHEDULE_ROUTES and (
         app_user.employee.led_employee_teams.filter(active=True).exists()
         or app_user.employee.supervised_employee_teams.filter(active=True).exists()
@@ -202,6 +208,8 @@ def app_user_can_access_api_path(app_user, path: str, method: str = "GET") -> bo
     normalized = _normalize_public_path(path)
     if normalized.startswith("/api/team-portal/"):
         return app_user_has_module(app_user, "team_dashboard")
+    if normalized.startswith("/api/warehouse/storekeepers/"):
+        return app_user_has_module(app_user, "warehouse")
     module_endpoint = False
     for prefix, module_codes in API_MODULE_REQUIREMENTS:
         if normalized.startswith(prefix):

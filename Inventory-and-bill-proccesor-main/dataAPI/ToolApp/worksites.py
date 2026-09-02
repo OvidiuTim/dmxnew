@@ -2,6 +2,24 @@ import re
 import unicodedata
 
 
+_LAKE_HOME_CENTER = {"latitude": 45.81027575048179, "longitude": 24.130539205078342}
+ATTENDANCE_WORKSITES = (
+    {"name": "The Lake Home Bloc A", **_LAKE_HOME_CENTER, "radius_meters": 90},
+    {"name": "The Lake Home Bloc B2", **_LAKE_HOME_CENTER, "radius_meters": 40},
+    {"name": "The Lake Home Bloc E & F", **_LAKE_HOME_CENTER, "radius_meters": 40},
+    {"name": "Psihiatrie C8", "latitude": 45.80720228440877, "longitude": 24.15440514734915, "radius_meters": 40},
+    {"name": "Psihiatrie C16", "latitude": 45.80768553302182, "longitude": 24.157085884823974, "radius_meters": 40},
+    {"name": "Spital Victoria", "latitude": 45.725861888407216, "longitude": 24.70584969156609, "radius_meters": 40},
+    {"name": "Casa de Cultură Victoria", "latitude": 45.73050790281027, "longitude": 24.70109770865094, "radius_meters": 40},
+    {"name": "Bazin Ucea", "latitude": 45.70058115535115, "longitude": 24.689376326811146, "radius_meters": 40},
+    {"name": "Bloc Agnita", "latitude": 45.97724541353617, "longitude": 24.62272565333796, "radius_meters": 40},
+    {"name": "Grădinița Agnita", "latitude": 45.97789754940184, "longitude": 24.61674765866955, "radius_meters": 40},
+    {"name": "Bloc 14 Victoria", "latitude": 45.73336901742498, "longitude": 24.701707107591304, "radius_meters": 40},
+    {"name": "Bloc 3 Victoria", "latitude": 45.73105012404724, "longitude": 24.696154238062714, "radius_meters": 40},
+)
+ATTENDANCE_WORKSITE_BY_NAME = {row["name"]: row for row in ATTENDANCE_WORKSITES}
+
+
 ACCEPTED_WORKSITES = (
     "The Lake Home Bloc A",
     "The Lake Home Bloc B2",

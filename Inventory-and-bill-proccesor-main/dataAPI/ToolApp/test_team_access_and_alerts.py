@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
-from ToolApp.app_accounts import sync_employee_app_user
+from ToolApp.app_accounts import sync_all_employee_app_users, sync_employee_app_user
 from ToolApp.models import (
     AppModuleAccess,
     AppUser,
@@ -74,6 +74,27 @@ class AutomaticAppUserTests(TestCase):
         self.assertIsNotNone(account)
         self.assertTrue(account.is_active)
         self.assertEqual(account.login_redirect_path, "/team-dashboard")
+
+    def test_bulk_sync_defers_legacy_pin_hash_until_first_login(self):
+        person = Users.objects.bulk_create([Users(
+            UserName="Bulk Legacy",
+            UserSerie="BULK-1",
+            UserPin="6789",
+            person_type=Users.PersonType.EMPLOYEE,
+        )])[0]
+        summary = sync_all_employee_app_users(Users.objects.filter(pk=person.pk))
+        self.assertEqual(summary["created"], 1)
+        account = AppUser.objects.get(employee=person)
+        self.assertFalse(account.check_pin("6789"))
+
+        response = Client().post(
+            "/api/app-auth/login/",
+            data=json.dumps({"username": account.username, "pin": "6789"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        account.refresh_from_db()
+        self.assertTrue(account.check_pin("6789"))
 
 
 class EffectiveTeamPermissionTests(TestCase):

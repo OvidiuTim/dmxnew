@@ -50,6 +50,11 @@
           <span><strong>{{ t.leaveRequest }}</strong><small>{{ t.leaveHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
+        <button *ngIf="dashboard.can_access_tools" type="button" class="action-card tools-card" (click)="openTools()">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">construction</span>
+          <span><strong>{{ toolsModuleLabel }}</strong><small>{{ toolsModuleHint }}</small></span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </button>
         <button *ngIf="dashboard.is_supervisor" type="button" class="action-card" (click)="open('supervised')">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">groups_2</span>
           <span><strong>{{ t.supervisedTeams }}</strong><small>{{ t.supervisedHint }}</small></span>
@@ -85,12 +90,12 @@
     <section *ngIf="view === 'salary' && salary && !loading" class="detail-section">
       <h1>{{ t.employeeFile }}</h1>
       <p class="detail-owner">{{ salary.employee.name }}</p>
-      <div class="salary-grid">
-        <article><span>{{ t.remainingLeave }}</span><strong>{{ salary.leave_balance.remaining_days }}</strong></article>
-        <article><span>{{ t.totalSalary }}</span><strong>{{ salary.total_salary_ron }} <small>{{ t.lei }}</small></strong></article>
-        <article><span>{{ t.mealVouchers }}</span><strong>{{ salary.meal_vouchers_ron }} <small>{{ t.lei }}</small></strong></article>
-        <article><span>{{ t.advance }}</span><strong>{{ salary.salary_advance_ron }} <small>{{ t.lei }}</small></strong></article>
-        <article><span>{{ t.settlement }}</span><strong>{{ salary.salary_remainder_ron }} <small>{{ t.lei }}</small></strong></article>
+      <div class="salary-grid masked-financials" aria-disabled="true">
+        <article><span>{{ t.remainingLeave }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
+        <article><span>{{ t.totalSalary }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
+        <article><span>{{ t.mealVouchers }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
+        <article><span>{{ t.advance }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
+        <article><span>{{ t.settlement }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
       </div>
       <div class="subsection-heading"><h2>{{ t.assignedTools }}</h2></div>
       <p *ngIf="!salary.tools.length" class="empty-copy standalone">{{ t.noTools }}</p>

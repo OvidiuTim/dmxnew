@@ -62,7 +62,44 @@ class TeamPortalRoleSecurityTests(TestCase):
         EmployeeTeamMember.objects.create(team=self.destination, employee=self.member)
         EmployeeTeamMember.objects.create(team=self.source, employee=self.source_member)
 
+    def mobile_post(self, path, pin, **extra):
+        return self.client.post(
+            path,
+            data=json.dumps({"pin": pin, "device_key": "android-test-device", **extra}),
+            content_type="application/json",
+        )
+
+    def test_mobile_facade_uses_the_same_actor_and_role_restrictions(self):
+        dashboard = self.mobile_post(
+            "/api/mobile/team-dashboard/",
+            "4102",
+            employee_id=self.source_member.pk,
+        )
+        self.assertEqual(dashboard.status_code, 200, dashboard.content)
+        self.assertEqual(dashboard.json()["employee"]["id"], self.leader.pk)
+        self.assertTrue(dashboard.json()["is_team_leader"])
+
+        led = self.mobile_post("/api/mobile/team-dashboard/teams/", "4102")
+        self.assertEqual(led.status_code, 200, led.content)
+        self.assertEqual([item["id"] for item in led.json()["teams"]], [self.destination.pk])
+
+        forbidden = self.mobile_post("/api/mobile/team-dashboard/personnel/", "4101")
+        self.assertEqual(forbidden.status_code, 403)
+
+    def test_mobile_worksites_are_served_by_the_portal_configuration(self):
+        response = self.mobile_post("/api/mobile/team-dashboard/worksites/", "4101")
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["location_validity_seconds"], 600)
+        self.assertTrue(response.json()["attendance_worksites"])
+        self.assertEqual(response.json()["attendance_worksites"][0]["radius_meters"], 90)
+
     def test_plain_employee_gets_only_own_portal_endpoints(self):
+        self.plain.total_salary_ron = "9000.00"
+        self.plain.salary_advance_ron = "1000.00"
+        self.plain.salary_remainder_ron = "8000.00"
+        self.plain.meal_vouchers_ron = "600.00"
+        self.plain.leave_remaining_override_days = "12.50"
+        self.plain.save()
         client = client_for(self.plain_account)
         dashboard = client.get("/api/team-portal/dashboard/")
         salary = client.get("/api/team-portal/salary/")
@@ -72,6 +109,12 @@ class TeamPortalRoleSecurityTests(TestCase):
         self.assertEqual(salary.json()["employee"]["id"], self.plain.pk)
         for field in ("leave_balance", "total_salary_ron", "meal_vouchers_ron", "salary_advance_ron", "salary_remainder_ron", "tools"):
             self.assertIn(field, salary.json())
+        self.assertTrue(salary.json()["financial_details_hidden"])
+        self.assertIsNone(salary.json()["total_salary_ron"])
+        self.assertIsNone(salary.json()["salary_advance_ron"])
+        self.assertIsNone(salary.json()["salary_remainder_ron"])
+        self.assertIsNone(salary.json()["meal_vouchers_ron"])
+        self.assertIsNone(salary.json()["leave_balance"]["remaining_days"])
         for endpoint in (
             "/api/team-portal/teams/",
             "/api/team-portal/supervised-teams/",
@@ -124,6 +167,24 @@ class TeamPortalRoleSecurityTests(TestCase):
         payload = client_for(self.leader_account).get("/api/team-portal/dashboard/").json()
         self.assertTrue(payload["is_team_leader"])
         self.assertTrue(payload["is_supervisor"])
+
+    def test_storekeeper_role_is_exposed_to_web_and_mobile_dashboards(self):
+        self.plain_account.is_storekeeper = True
+        self.plain_account.save(update_fields=("is_storekeeper",))
+
+        payload = client_for(self.plain_account).get("/api/team-portal/dashboard/").json()
+        self.assertTrue(payload["is_storekeeper"])
+        self.assertTrue(payload["can_access_tools"])
+        self.assertIn("storekeeper", payload["roles"])
+
+        mobile = self.mobile_post("/api/mobile/access-context/", "4101")
+        self.assertEqual(mobile.status_code, 200, mobile.content)
+        access = mobile.json()["access"]
+        self.assertTrue(access["is_storekeeper"])
+        self.assertTrue(access["can_access_tools"])
+        self.assertIn("tools", access["modules"])
+        self.assertNotIn("teams_schedule", access["modules"])
+        self.assertFalse(access["is_team_coordinator"])
 
     def test_supervisor_only_sees_supervised_teams_but_personnel_is_company_wide(self):
         client = client_for(self.supervisor_account)

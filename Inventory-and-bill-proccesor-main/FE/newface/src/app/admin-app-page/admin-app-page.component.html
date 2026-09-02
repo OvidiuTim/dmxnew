@@ -34,7 +34,7 @@
         <div class="selected-list" *ngIf="selectedUsers(module.code).length; else emptySelection">
           <span class="user-chip" *ngFor="let user of selectedUsers(module.code); trackBy: trackById">
             <span>{{ user.employee?.name || user.username }}</span>
-            <button type="button" (click)="toggleModuleUser(module.code, user, false)" [disabled]="isInherited(module.code, user)" [attr.aria-label]="'Elimină ' + (user.employee?.name || user.username)" [title]="isInherited(module.code, user) ? 'Acces inclus pentru șeful unei echipe active' : 'Elimină din modul'">
+            <button type="button" (click)="toggleModuleUser(module.code, user, false)" [disabled]="isInherited(module.code, user)" [attr.aria-label]="'Elimină ' + (user.employee?.name || user.username)" [title]="isInherited(module.code, user) ? 'Acces automat prin statut sau rol' : 'Elimină din modul'">
               <span class="material-symbols-rounded" aria-hidden="true">close</span>
             </button>
           </span>

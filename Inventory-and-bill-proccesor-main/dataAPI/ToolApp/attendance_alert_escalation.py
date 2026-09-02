@@ -31,6 +31,7 @@ from ToolApp.team_attendance_notifications import (
     create_team_attendance_alerts,
     is_team_working_day,
 )
+from ToolApp.push_notifications import send_employee_push
 
 
 logger = logging.getLogger(__name__)
@@ -466,7 +467,7 @@ def _send_central_email(level, work_date, email, cases):
         raise RuntimeError(f"SendGrid a răspuns cu status {status}")
 
 
-def process_escalation_level(level, work_date=None, now=None, send_email=True):
+def process_escalation_level(level, work_date=None, now=None, send_email=True, send_push=True):
     local_now = timezone.localtime(now or timezone.now())
     work_date = work_date or local_now.date()
     config = next((row for row in ensure_default_configs() if row.level == level), None)
@@ -506,7 +507,7 @@ def process_escalation_level(level, work_date=None, now=None, send_email=True):
 
         recipients = [config.app_user.username]
         with transaction.atomic():
-            notification, _ = AttendanceAlertEscalationNotification.objects.get_or_create(
+            notification, notification_created = AttendanceAlertEscalationNotification.objects.get_or_create(
                 recipient=config.app_user,
                 work_date=work_date,
                 level=level,
@@ -539,6 +540,17 @@ def process_escalation_level(level, work_date=None, now=None, send_email=True):
                 changed.append("notification_sent_at")
             if changed:
                 dispatch.save(update_fields=tuple(changed) + ("updated_at",))
+
+        if send_push and notification_created:
+            send_employee_push(
+                [config.app_user.employee_id],
+                EMAIL_SUBJECTS[level],
+                f"{len(cases)} persoane · {work_date.strftime('%d.%m.%Y')}",
+                {
+                    "route": "missing" if level == AttendanceAlertCase.Level.LEVEL_1 else "absent",
+                    "type": f"attendance_level_{level}",
+                },
+            )
 
         email = str(config.email or "").strip()
         if send_email and email and not dispatch.email_sent_at:
@@ -592,7 +604,13 @@ def process_due_attendance_alerts(now=None, send_email=True, send_push=True):
         results.append({"level": 0, **initial})
     for config in ensure_default_configs():
         if local_now.time().replace(tzinfo=None) >= config.alert_time:
-            results.append(process_escalation_level(config.level, work_date, now=now, send_email=send_email))
+            results.append(process_escalation_level(
+                config.level,
+                work_date,
+                now=now,
+                send_email=send_email,
+                send_push=send_push,
+            ))
     if (local_now.hour, local_now.minute) >= (18, 0):
         results.append(send_late_checkin_report(work_date, now=now, send_email=send_email))
     return {"date": work_date.isoformat(), "skipped_non_working_day": False, "results": results}

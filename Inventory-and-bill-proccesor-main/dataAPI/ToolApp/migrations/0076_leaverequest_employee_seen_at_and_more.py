@@ -31,8 +31,11 @@ def sync_existing_employee_accounts(apps, schema_editor):
         if account:
             account.is_active = True
             account.login_redirect_path = '/team-dashboard'
-            if str(employee.UserPin or '').strip():
-                account.pin_hash = make_password(str(employee.UserPin).strip())
+            # Copiem hashul Django deja calculat pentru angajat. Nu refacem
+            # PBKDF2 pentru fiecare persoană în timpul migrării; pe serverele
+            # mici această buclă putea dura minute întregi.
+            if str(getattr(employee, 'pin_hash', '') or '').strip():
+                account.pin_hash = employee.pin_hash
             account.save(update_fields=('is_active', 'login_redirect_path', 'pin_hash', 'updated_at'))
             continue
         parts = [_username_part(part) for part in str(employee.UserName or '').split() if part.strip()]
@@ -45,7 +48,9 @@ def sync_existing_employee_accounts(apps, schema_editor):
         AppUser.objects.create(
             employee_id=employee.pk,
             username=username,
-            pin_hash=make_password(str(employee.UserPin or '').strip()) if employee.UserPin else make_password(None),
+            # PIN-urile legacy rămase în UserPin sunt validate și hash-uite
+            # lazy la prima autentificare.
+            pin_hash=(str(getattr(employee, 'pin_hash', '') or '').strip() or make_password(None)),
             is_active=True,
             login_redirect_path='/team-dashboard',
         )

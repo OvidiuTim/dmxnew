@@ -92,6 +92,8 @@ def app_user_roles(app_user):
         return []
     roles = []
     employee = app_user.employee
+    if getattr(app_user, "is_storekeeper", False):
+        roles.append("storekeeper")
     if employee.led_employee_teams.filter(active=True).exists():
         roles.append("team_leader")
     if employee.supervised_employee_teams.filter(active=True).exists():
@@ -145,6 +147,8 @@ def effective_module_codes(app_user):
         codes.add("team_dashboard")
     if roles.intersection({"alert_level_1", "alert_level_2"}):
         codes.add("team_dashboard")
+    if "storekeeper" in roles:
+        codes.add("tools")
     return [code for code in MODULE_ORDER if code in codes]
 
 

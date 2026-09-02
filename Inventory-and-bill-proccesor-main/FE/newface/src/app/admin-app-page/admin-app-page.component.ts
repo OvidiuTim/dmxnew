@@ -103,6 +103,7 @@ export class AdminAppPageComponent implements OnInit {
       supervisor: 'Supervisor',
       alert_level_1: 'Nivel 1',
       alert_level_2: 'Nivel 2',
+      storekeeper: 'Magazioner',
     };
     return labels[role] || role;
   }

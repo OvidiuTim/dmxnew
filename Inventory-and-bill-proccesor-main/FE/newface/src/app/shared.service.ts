@@ -93,6 +93,11 @@ export class SharedService {
   deleteTool(id: any)                  { return this.http.delete(`${this.API}/tool/${id}`); }
   assignToolQuantity(val: any)         { return this.http.post(`${this.API}/tools/assign-quantity/`, val); }
   returnToolQuantity(val: any)         { return this.http.post(`${this.API}/tools/return-quantity/`, val); }
+  getStorekeepers()                    { return this.http.get<any>(`${this.API}/warehouse/storekeepers/`); }
+  addStorekeeper(employeeId: number)   { return this.http.post<any>(`${this.API}/warehouse/storekeepers/`, { employee_id: employeeId }); }
+  removeStorekeeper(employeeId: number) {
+    return this.http.delete<any>(`${this.API}/warehouse/storekeepers/`, { body: { employee_id: employeeId } });
+  }
 
   // --- Istoric ---
   getHisList(): Observable<any[]>      { return this.http.get<any[]>(`${this.API}/history/`); }

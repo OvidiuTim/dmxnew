@@ -141,6 +141,17 @@ class ManualAttendanceSecurityTests(TestCase):
             content_type="application/json",
         )
 
+    def worker_location(self):
+        return {
+            "worksite": "The Lake Home Bloc B2",
+            "gps": {
+                "lat": 45.81027575048179,
+                "lng": 24.130539205078342,
+                "accuracy": 8,
+                "captured_at": timezone.now().isoformat(),
+            },
+        }
+
     def test_chef_mode_rejects_every_other_pin(self):
         other = Users(UserName="Alt angajat", UserSerie="CHEF-OTHER")
         other.set_pin("2211")
@@ -296,14 +307,8 @@ class ManualAttendanceSecurityTests(TestCase):
                     "mode": mode,
                     "data_processing_consent": True,
                     "attendance_photo": "data:image/webp;base64,MTIz",
+                    **self.worker_location(),
                 }
-                if mode == "driver":
-                    payload["gps"] = {
-                        "lat": 45.81,
-                        "lng": 24.13,
-                        "accuracy": 10,
-                        "captured_at": now.isoformat(),
-                    }
 
                 response = self.client.post(
                     "/api/pontaj/clock/",
@@ -350,6 +355,7 @@ class ManualAttendanceSecurityTests(TestCase):
                 "mode": "manual",
                 "data_processing_consent": True,
                 "attendance_photo": "data:image/webp;base64,MTIz",
+                **self.worker_location(),
             }),
             content_type="application/json",
         )
@@ -375,10 +381,11 @@ class ManualAttendanceSecurityTests(TestCase):
             "tag_type": "manual",
             "timestamp": timezone.now().isoformat(),
             "worksite": "Tractorului Bloc B2",
-            "gps": {"lat": 45.81, "lng": 24.13, "accuracy": 10},
+            **self.worker_location(),
             "mode": "manual",
             "data_processing_consent": True,
             "attendance_photo": "data:image/webp;base64,MTIz",
+            **self.worker_location(),
         }
 
         first_response = self.client.post(
@@ -414,6 +421,7 @@ class ManualAttendanceSecurityTests(TestCase):
             "mode": "manual",
             "device_key": "telefon-comun",
             "data_processing_consent": True,
+            **self.worker_location(),
             "attendance_photo": "data:image/webp;base64,MTIz",
         }
         for pin in ("1205", "1206"):
@@ -437,6 +445,7 @@ class ManualAttendanceSecurityTests(TestCase):
             "pin": "1209",
             "mode": "manual",
             "data_processing_consent": True,
+            **self.worker_location(),
         }
 
         enter_photo = "data:image/webp;base64,SU4="
@@ -476,6 +485,7 @@ class ManualAttendanceSecurityTests(TestCase):
             "mode": "manual",
             "data_processing_consent": True,
             "attendance_photo": "data:image/webp;base64,U0VMRklF",
+            **self.worker_location(),
         }
 
         response = self.client.post(
@@ -489,7 +499,7 @@ class ManualAttendanceSecurityTests(TestCase):
         self.assertEqual(user.photo, existing_photo)
         self.assertEqual(AttendanceSession.objects.get(user_fk=user).checkin_photo, payload["attendance_photo"])
 
-    def test_legacy_android_payload_allows_checkin_and_checkout(self):
+    def test_android_payload_requires_and_saves_consent_and_selfie(self):
         for index, mode in enumerate(("manual", "driver"), start=1):
             with self.subTest(mode=mode):
                 user = Users(UserName=f"Android {mode}", UserSerie=f"ANDROID-{index}")
@@ -499,14 +509,16 @@ class ManualAttendanceSecurityTests(TestCase):
                     "pin": f"991{index}",
                     "device_key": f"android-device-{index}",
                     "mode": mode,
-                    "worksite": "diverse",
+                    "worksite": "The Lake Home Bloc B2",
                     "timestamp": timezone.now().isoformat(),
                     "gps": {
-                        "lat": 45.81,
-                        "lng": 24.13,
+                        "lat": 45.81027575048179,
+                        "lng": 24.130539205078342,
                         "accuracy": 10,
                         "captured_at": timezone.now().isoformat(),
                     },
+                    "data_processing_consent": True,
+                    "attendance_photo": "data:image/webp;base64,MTIz",
                 }
 
                 checkin_response = self.client.post(
@@ -527,9 +539,44 @@ class ManualAttendanceSecurityTests(TestCase):
                 self.assertEqual(checkout_response.json()["state"], "EXIT")
 
                 session = AttendanceSession.objects.get(user_fk=user)
-                self.assertFalse(session.data_processing_consent)
-                self.assertEqual(session.checkin_photo, "")
-                self.assertEqual(session.checkout_photo, "")
+                self.assertTrue(session.data_processing_consent)
+                self.assertEqual(session.checkin_photo, payload["attendance_photo"])
+                self.assertEqual(session.checkout_photo, payload["attendance_photo"])
+
+    def test_manual_attendance_rejects_missing_consent_expired_and_outside_location(self):
+        user = Users(UserName="Validare mobilă", UserSerie="ANDROID-VALIDATION")
+        user.set_pin("9920")
+        user.save()
+        base = {
+            "pin": "9920",
+            "device_key": "android-validation",
+            "mode": "manual",
+            "data_processing_consent": True,
+            "attendance_photo": "data:image/webp;base64,MTIz",
+            **self.worker_location(),
+        }
+
+        no_consent = self.post_clock({**base, "data_processing_consent": False})
+        self.assertEqual(no_consent.status_code, 400)
+        self.assertEqual(no_consent.json()["error_code"], "DATA_PROCESSING_CONSENT_REQUIRED")
+
+        expired = self.post_clock({
+            **base,
+            "gps": {
+                **base["gps"],
+                "captured_at": (timezone.now() - timedelta(minutes=11)).isoformat(),
+            },
+        })
+        self.assertEqual(expired.status_code, 409)
+        self.assertEqual(expired.json()["error_code"], "GPS_LOCATION_EXPIRED")
+
+        outside = self.post_clock({
+            **base,
+            "gps": {**base["gps"], "lat": 45.0, "lng": 24.0},
+        })
+        self.assertEqual(outside.status_code, 403)
+        self.assertEqual(outside.json()["error_code"], "OUTSIDE_WORKSITE_AREA")
+        self.assertFalse(AttendanceSession.objects.filter(user_fk=user).exists())
 
     def test_successful_pin_lookup_uses_plain_userpin(self):
         user = Users(UserName="Muncitor 3", UserSerie="SER-203")
