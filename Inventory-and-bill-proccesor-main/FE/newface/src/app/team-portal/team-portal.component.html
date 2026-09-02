@@ -145,7 +145,6 @@
 
     <section *ngIf="view === 'leave' && leaveData && !loading" class="detail-section">
       <h1>{{ t.leaveRequest }}</h1>
-      <div class="leave-balance"><span>{{ t.remainingLeave }}</span><strong>{{ leaveData.leave_balance.remaining_days }}</strong></div>
       <form class="portal-form" (ngSubmit)="submitLeave()">
         <label><span>{{ t.leaveType }}</span><select [(ngModel)]="leaveForm.leave_type" name="leave_type"><option value="paid_leave">{{ t.paidLeave }}</option><option value="unpaid_leave">{{ t.unpaidLeave }}</option></select></label>
         <label><span>{{ t.startDate }}</span><input type="date" [(ngModel)]="leaveForm.start_date" name="start_date" required></label>

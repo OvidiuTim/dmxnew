@@ -115,6 +115,10 @@ class TeamPortalRoleSecurityTests(TestCase):
         self.assertIsNone(salary.json()["salary_remainder_ron"])
         self.assertIsNone(salary.json()["meal_vouchers_ron"])
         self.assertIsNone(salary.json()["leave_balance"]["remaining_days"])
+        leave_page = client.get("/api/team-portal/leave-requests/")
+        self.assertEqual(leave_page.status_code, 200, leave_page.content)
+        self.assertTrue(leave_page.json()["leave_balance_hidden"])
+        self.assertIsNone(leave_page.json()["leave_balance"]["remaining_days"])
         for endpoint in (
             "/api/team-portal/teams/",
             "/api/team-portal/supervised-teams/",

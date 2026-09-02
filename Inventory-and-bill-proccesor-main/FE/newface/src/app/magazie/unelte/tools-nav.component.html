@@ -6,6 +6,7 @@
     <a *ngIf="canRoute('/predare-unealta')" routerLink="/predare-unealta" [class.active]="active === 'handover'"><span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span><span>Predare / primire</span></a>
   </nav>
   <div class="nav-footer">
+    <a *ngIf="isAppUser()" class="back-to-app" routerLink="/team-dashboard"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span><span>Înapoi în aplicație</span></a>
     <button type="button" (click)="logout()"><span class="material-symbols-rounded" aria-hidden="true">logout</span><span>Deconectare</span></button>
   </div>
 </aside>

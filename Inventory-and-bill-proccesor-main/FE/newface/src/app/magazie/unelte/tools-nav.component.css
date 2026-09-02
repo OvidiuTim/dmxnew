@@ -12,5 +12,6 @@ a.active { border-color: rgba(49, 214, 143, .25); background: rgba(49, 214, 143,
 .material-symbols-rounded { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 20px; line-height: 1; }
 .nav-footer { display: grid; gap: 6px; margin-top: auto; padding-top: 24px; border-top: 1px solid #22303d; }
 .nav-footer button { width: 100%; font: inherit; }
+.nav-footer .back-to-app { width: 100%; border-color: rgba(49, 214, 143, .28); background: rgba(49, 214, 143, .1); color: #69e5b1; font-weight: 800; }
 @media (max-width: 1180px) { :host { width: 100%; } .tools-nav { position: static; min-height: auto; border-right: 0; border-bottom: 1px solid #232d39; padding: 14px 20px; } .brand { padding: 0 0 12px; border: 0; } nav, .nav-footer { display: flex; flex-wrap: wrap; margin-top: 8px; padding-top: 0; border: 0; } .nav-footer { margin-top: 8px; } }
 @media (max-width: 680px) { .tools-nav { padding: 12px; } .brand { min-height: 44px; } nav, .nav-footer { display: grid; grid-template-columns: 1fr; width: 100%; } a, button { min-height: 42px; } }

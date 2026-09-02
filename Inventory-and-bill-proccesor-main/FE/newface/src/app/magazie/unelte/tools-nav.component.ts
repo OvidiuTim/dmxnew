@@ -17,6 +17,10 @@ export class ToolsNavComponent {
     return !!session && (session.role === 'admin' || session.auth_type === 'legacy' || !!session.modules?.includes('tools'));
   }
 
+  isAppUser(): boolean {
+    return this.auth.currentSession()?.auth_type === 'app_user';
+  }
+
   logout(): void {
     this.auth.logout();
     this.router.navigate(['/login']);
