@@ -2122,6 +2122,13 @@ def nfc_scan(request):
     except ValueError as exc:
         return JsonResponse({"error": str(exc), "error_code": "INVALID_ATTENDANCE_PHOTO"}, status=400)
 
+    # COMPATIBILITATE CRITICA ANDROID — NU SCHIMBA ACEST CONTRACT INTR-UN TASK NELEGAT:
+    # Aici ajung atat browserul, cat si aplicatia Android deja instalata in teren,
+    # prin /api/pontaj/clock/. Faptul ca browserul trimite un camp NU inseamna ca
+    # versiunea Android distribuita il trimite. Inainte de a adauga, elimina sau
+    # face obligatorii campuri precum acordul, selfie-ul, GPS-ul ori santierul,
+    # actualizeaza clientul Android, distribuie versiunea noua si pastreaza o cale
+    # de compatibilitate pentru versiunile vechi; altfel angajatii nu se mai pot ponta.
     if is_manual_scan and not data_processing_consent:
         return JsonResponse({
             "error": "Este necesar acordul pentru prelucrarea datelor înainte de pontaj.",
@@ -2583,6 +2590,12 @@ def pontaj_login(request):
 def pontaj_clock(request):
     """
     POST /api/pontaj/clock/
+
+    CONTRACT PUBLIC FOLOSIT DE APLICATIA ANDROID INSTALATA SI DE BROWSER.
+    Nu modifica payloadul obligatoriu doar pe baza comportamentului frontendului web.
+    Orice schimbare incompatibila necesita intai update si rollout Android, apoi
+    eliminarea controlata a compatibilitatii vechi.
+
     Body Android/web:
     {
       "pin": "1234",

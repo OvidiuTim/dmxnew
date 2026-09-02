@@ -71,6 +71,7 @@ urlpatterns = [
     path('api/pontaj/login/', views.pontaj_login, name='pontaj_login'),
     path('api/pontaj/clock/', pontaj_clock, name='pontaj_clock'),
     path('api/mobile/employee-dashboard/', mobile_views.employee_dashboard, name='mobile_employee_dashboard'),
+    path('api/mobile/attendance-status/', mobile_views.attendance_status, name='mobile_attendance_status'),
     path('api/mobile/access-context/', mobile_views.access_context, name='mobile_access_context'),
     path('api/mobile/teams/', mobile_views.coordinated_teams, name='mobile_coordinated_teams'),
     path('api/mobile/notifications/', mobile_views.mobile_notifications, name='mobile_notifications'),

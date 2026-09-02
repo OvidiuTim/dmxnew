@@ -34,11 +34,13 @@ from ToolApp.models import (
     EmployeeTeam,
     EmployeeTeamMember,
     LeaveRequest,
+    LeaveDay,
     MobileDevice,
     TeamAttendanceAlertRecipient,
     TemporaryWorkerRequest,
     Users,
 )
+from ToolApp.team_attendance_notifications import is_team_working_day
 from ToolApp.module_access import TEAM_SCHEDULE_ROUTES, app_user_roles, effective_module_codes
 from ToolApp import team_portal_views
 from ToolApp.views import _find_user_by_pin, _log_pin_attempt, _pin_is_blocked
@@ -117,6 +119,63 @@ def _mobile_post(request):
         return None, None, _error("INVALID_JSON", "Corpul cererii nu este JSON valid.", 400)
     employee, error = resolve_mobile_employee(request, data)
     return data, employee, error
+
+
+@csrf_exempt
+def attendance_status(request):
+    """Return the current employee state used by Android attendance reminders."""
+    data, employee, error = _mobile_post(request)
+    if error:
+        return error
+
+    day = localdate()
+    sessions = AttendanceSession.objects.filter(
+        user_fk=employee,
+        work_date=day,
+        in_time__isnull=False,
+    )
+    open_session = sessions.filter(out_time__isnull=True).exclude(
+        source__contains="|missing_exit",
+    ).order_by("-in_time").first()
+    last_session = open_session or sessions.order_by("-in_time").first()
+    on_leave = (
+        LeaveDay.objects.filter(user_fk=employee, work_date=day).exists()
+        or LeaveRequest.objects.filter(
+            employee=employee,
+            status=LeaveRequest.Status.APPROVED,
+            start_date__lte=day,
+            end_date__gte=day,
+        ).exists()
+    )
+    attendance_required = not employee.attendance_exempt and (
+        employee.hire_date is None or employee.hire_date <= day
+    )
+    payload = {
+        "ok": True,
+        "active": open_session is not None,
+        "state": "ENTER" if open_session else "EXIT" if last_session else "NONE",
+        "attendance_required": attendance_required,
+        "is_working_day": is_team_working_day(day),
+        "on_leave": on_leave,
+        "employment_status": employee.employment_status,
+        "user": {
+            "id": employee.UserId,
+            "name": employee.UserName,
+            "serie": employee.UserSerie,
+            "company": employee.Company,
+        },
+    }
+    if last_session:
+        elapsed_seconds = 0
+        if open_session:
+            elapsed_seconds = max(0, int((timezone.now() - open_session.in_time).total_seconds()))
+        payload["session"] = {
+            "work_date": str(last_session.work_date),
+            "in_time": timezone.localtime(last_session.in_time).isoformat(),
+            "elapsed_seconds": elapsed_seconds,
+            "worksite": last_session.worksite,
+        }
+    return JsonResponse(payload)
 
 
 def _coordinated_teams(employee):
