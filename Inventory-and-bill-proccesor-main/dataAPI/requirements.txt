@@ -2,6 +2,7 @@ Django
 djangorestframework
 django-cors-headers
 openpyxl
+xlrd>=2.0,<3
 python-dotenv
 whitenoise
 sendgrid
