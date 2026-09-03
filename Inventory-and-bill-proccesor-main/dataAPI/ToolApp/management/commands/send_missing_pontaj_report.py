@@ -39,14 +39,24 @@ def get_missing_users_for_day(target_day):
         .distinct()
     )
 
-    leave_user_ids = set(
+    justified_leave_user_ids = set(
         LeaveDay.objects
         .filter(work_date=target_day)
+        .exclude(reason=LeaveDay.Reason.UNEXCUSED)
+        .values_list("user_fk_id", flat=True)
+        .distinct()
+    )
+    unexcused_user_ids = set(
+        LeaveDay.objects
+        .filter(work_date=target_day, reason=LeaveDay.Reason.UNEXCUSED)
         .values_list("user_fk_id", flat=True)
         .distinct()
     )
 
-    excluded_ids = present_user_ids | leave_user_ids
+    # O absență nemotivată rămâne în raport chiar dacă angajatul s-a
+    # pontat ulterior în aceeași zi. Doar pontajul fără marcaj de absență
+    # și concediile justificate exclud angajatul din raport.
+    excluded_ids = (present_user_ids - unexcused_user_ids) | justified_leave_user_ids
 
     users = (
         Users.objects.filter(
@@ -60,6 +70,15 @@ def get_missing_users_for_day(target_day):
     )
 
     return list(users)
+
+
+def get_unexcused_user_ids_for_day(target_day):
+    return set(
+        LeaveDay.objects.filter(
+            work_date=target_day,
+            reason=LeaveDay.Reason.UNEXCUSED,
+        ).values_list("user_fk_id", flat=True)
+    )
 
 
 def get_workdays_ending_on(target_day, count=CONSECUTIVE_MISSING_DAYS):
@@ -86,13 +105,22 @@ def get_consecutive_missing_user_ids(target_day, missing_users, minimum_days=CON
             work_date__in=workdays,
         ).values_list("user_fk_id", "work_date")
     )
-    on_leave = set(
+    unexcused = set(
         LeaveDay.objects.filter(
             user_fk_id__in=user_ids,
             work_date__in=workdays,
+            reason=LeaveDay.Reason.UNEXCUSED,
         ).values_list("user_fk_id", "work_date")
     )
-    unavailable = attended | on_leave
+    on_justified_leave = set(
+        LeaveDay.objects.filter(
+            user_fk_id__in=user_ids,
+            work_date__in=workdays,
+        )
+        .exclude(reason=LeaveDay.Reason.UNEXCUSED)
+        .values_list("user_fk_id", "work_date")
+    )
+    unavailable = (attended - unexcused) | on_justified_leave
     return {
         user_id
         for user_id in user_ids
@@ -151,8 +179,14 @@ def group_open_checkouts_by_company(open_checkouts):
     )
 
 
-def build_company_table(company, users, consecutive_missing_user_ids=None):
+def build_company_table(
+    company,
+    users,
+    consecutive_missing_user_ids=None,
+    unexcused_user_ids=None,
+):
     consecutive_missing_user_ids = consecutive_missing_user_ids or set()
+    unexcused_user_ids = unexcused_user_ids or set()
     rows = []
     for idx, user in enumerate(users, start=1):
         user_name = escape(str(getattr(user, "UserName", "") or ""))
@@ -163,12 +197,18 @@ def build_company_table(company, users, consecutive_missing_user_ids=None):
                 '<div style="margin-top:6px;color:#d00000;font-size:20px;'
                 'font-weight:800;line-height:1.2;">Nu s-a pontat 3 zile la rând</div>'
             )
+        status = (
+            "Absență nemotivată"
+            if getattr(user, "UserId", None) in unexcused_user_ids
+            else "Fără pontaj"
+        )
         rows.append(
             f"""
             <tr>
               <td style="padding:8px;border:1px solid #ddd;">{idx}</td>
               <td style="padding:8px;border:1px solid #ddd;">{user_name}{warning}</td>
               <td style="padding:8px;border:1px solid #ddd;">{user_serie}</td>
+              <td style="padding:8px;border:1px solid #ddd;color:#b42318;font-weight:700;">{status}</td>
             </tr>
             """
         )
@@ -183,6 +223,7 @@ def build_company_table(company, users, consecutive_missing_user_ids=None):
               <th style="padding:8px;border:1px solid #ddd;text-align:left;">#</th>
               <th style="padding:8px;border:1px solid #ddd;text-align:left;">Nume</th>
               <th style="padding:8px;border:1px solid #ddd;text-align:left;">Serie</th>
+              <th style="padding:8px;border:1px solid #ddd;text-align:left;">Status</th>
             </tr>
           </thead>
           <tbody>{''.join(rows)}</tbody>
@@ -227,16 +268,28 @@ def build_open_checkout_table(company, rows):
     """
 
 
-def build_html(target_day, missing_users, consecutive_missing_user_ids=None, open_checkouts=None):
+def build_html(
+    target_day,
+    missing_users,
+    consecutive_missing_user_ids=None,
+    open_checkouts=None,
+    unexcused_user_ids=None,
+):
     count = len(missing_users)
     consecutive_missing_user_ids = consecutive_missing_user_ids or set()
     open_checkouts = open_checkouts or []
+    unexcused_user_ids = unexcused_user_ids or set()
 
     if count == 0:
-        companies_html = "<p>Toți angajații au fost pontați sau au leave înregistrat.</p>"
+        companies_html = "<p>Toți angajații au fost pontați sau au un concediu justificat înregistrat.</p>"
     else:
         companies_html = "".join(
-            build_company_table(company, users, consecutive_missing_user_ids)
+            build_company_table(
+                company,
+                users,
+                consecutive_missing_user_ids,
+                unexcused_user_ids,
+            )
             for company, users in group_users_by_company(missing_users).items()
         )
 
@@ -253,7 +306,7 @@ def build_html(target_day, missing_users, consecutive_missing_user_ids=None, ope
       <body style="font-family:Arial,Helvetica,sans-serif;">
         <h2>Raport pontaj lipsă - {target_day.isoformat()}</h2>
         <p>
-          Angajați fără pontaj și fără leave înregistrat pentru ziua de
+          Angajați fără pontaj sau cu absență nemotivată pentru ziua de
           <strong>{target_day.isoformat()}</strong>: <strong>{count}</strong>
         </p>
 
@@ -270,18 +323,25 @@ def build_html(target_day, missing_users, consecutive_missing_user_ids=None, ope
     """
 
 
-def build_text(target_day, missing_users, consecutive_missing_user_ids=None, open_checkouts=None):
+def build_text(
+    target_day,
+    missing_users,
+    consecutive_missing_user_ids=None,
+    open_checkouts=None,
+    unexcused_user_ids=None,
+):
     consecutive_missing_user_ids = consecutive_missing_user_ids or set()
     open_checkouts = open_checkouts or []
+    unexcused_user_ids = unexcused_user_ids or set()
 
     lines = [
         f"Raport pontaj lipsă - {target_day.isoformat()}",
         "",
-        f"Angajați fără pontaj și fără leave înregistrat: {len(missing_users)}",
+        f"Angajați fără pontaj sau cu absență nemotivată: {len(missing_users)}",
         "",
     ]
     if not missing_users:
-        lines.extend(["Toți angajații au fost pontați sau au leave înregistrat.", ""])
+        lines.extend(["Toți angajații au fost pontați sau au un concediu justificat înregistrat.", ""])
     else:
         for company, users in group_users_by_company(missing_users).items():
             lines.append(f"{company} — lipsă: {len(users)}")
@@ -290,9 +350,15 @@ def build_text(target_day, missing_users, consecutive_missing_user_ids=None, ope
                     " | ATENȚIE: Nu s-a pontat 3 zile la rând"
                     if getattr(user, "UserId", None) in consecutive_missing_user_ids else ""
                 )
+                status = (
+                    "Absență nemotivată"
+                    if getattr(user, "UserId", None) in unexcused_user_ids
+                    else "Fără pontaj"
+                )
                 lines.append(
                     f"{idx}. {getattr(user, 'UserName', '')} | "
-                    f"Serie: {getattr(user, 'UserSerie', '') or '-'}{warning}"
+                    f"Serie: {getattr(user, 'UserSerie', '') or '-'} | "
+                    f"Status: {status}{warning}"
                 )
             lines.append("")
 
@@ -375,6 +441,7 @@ class Command(BaseCommand):
             return
 
         missing_users = get_missing_users_for_day(target_day)
+        unexcused_user_ids = get_unexcused_user_ids_for_day(target_day)
         consecutive_missing_user_ids = get_consecutive_missing_user_ids(target_day, missing_users)
         open_checkouts = get_open_checkouts_for_day(target_day)
 
@@ -391,12 +458,14 @@ class Command(BaseCommand):
             missing_users,
             consecutive_missing_user_ids,
             open_checkouts,
+            unexcused_user_ids,
         )
         text_content = build_text(
             target_day,
             missing_users,
             consecutive_missing_user_ids,
             open_checkouts,
+            unexcused_user_ids,
         )
 
         self.stdout.write(self.style.WARNING(f"Zi raport: {target_day.isoformat()}"))

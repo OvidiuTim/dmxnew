@@ -2807,6 +2807,11 @@ def attendance_day(request):
     rows = []
     for _, row in rows_by_user.items():
         ld = leaves_map.get(row["UserId"])
+        attendance_status = (
+            "ABSENT"
+            if ld and ld.reason == LeaveDay.Reason.UNEXCUSED
+            else "LEAVE" if ld else row["status"]
+        )
         rows.append({
             "UserId": row["UserId"],
             "UserName": row["UserName"],
@@ -2814,7 +2819,7 @@ def attendance_day(request):
             "first_in": row["first_in"],
             "last_out": row["last_out"],
             "total_hms": _fmt_hms(row["total_seconds"]),
-            "status": "LEAVE" if ld else row["status"],
+            "status": attendance_status,
             "sessions": row["sessions"],
             "day_worksite": row["day_worksite"],
             "leave": (
@@ -2835,7 +2840,11 @@ def attendance_day(request):
             "first_in": None,
             "last_out": None,
             "total_hms": "00:00:00",
-            "status": "LEAVE",
+            "status": (
+                "ABSENT"
+                if ld.reason == LeaveDay.Reason.UNEXCUSED
+                else "LEAVE"
+            ),
             "sessions": [],
             "day_worksite": None,
             "leave": {
@@ -3389,13 +3398,16 @@ def attendance_absence_report(request):
                     not user.dismissed_at or current > user.dismissed_at
                 ):
                     continue
-                if (user.UserId, current) in attendance_days:
+                leave = leave_by_day.get((user.UserId, current))
+                if (
+                    (user.UserId, current) in attendance_days
+                    and (not leave or leave.reason != LeaveDay.Reason.UNEXCUSED)
+                ):
                     continue
                 site_label = team_worksites.get(user.UserId, "Fără șantier asignat")
                 site_key = _canonicalize_worksite_label(site_label)[1]
                 if worksite_key_filter and site_key != worksite_key_filter:
                     continue
-                leave = leave_by_day.get((user.UserId, current))
                 reason = leave.reason if leave and leave.reason in reason_meta else "no_attendance"
                 counts[reason] += 1
                 rows.append({
@@ -3416,7 +3428,10 @@ def attendance_absence_report(request):
         "summary": {
             "total": len(rows),
             "people_count": len({item["UserId"] for item in rows}),
-            "no_attendance": counts["no_attendance"],
+            # Indicatorul „Fără pontaj” include și absențele nemotivate,
+            # inclusiv atunci când persoana s-a pontat ulterior în acea zi.
+            "no_attendance": counts["no_attendance"] + counts[LeaveDay.Reason.UNEXCUSED],
+            "strict_no_attendance": counts["no_attendance"],
             "paid_leave": counts[LeaveDay.Reason.CO],
             "medical_leave": counts[LeaveDay.Reason.CM],
             "unpaid_leave": counts[LeaveDay.Reason.UNPAID],

@@ -72,6 +72,40 @@ class AdvancedAttendanceReportsTests(TestCase):
         self.assertEqual({row["reason"] for row in payload["rows"]}, {"CO", "no_attendance"})
         self.assertTrue(all(row["worksite"] == "The Lake Home Bloc A" for row in payload["rows"]))
 
+    def test_absence_report_counts_unexcused_in_without_attendance_even_after_check_in(self):
+        employee = Users.objects.create(
+            UserName="Absent pontat ulterior",
+            UserSerie="ABS-LATE",
+            Company="DMX",
+            hire_date=date(2026, 1, 1),
+        )
+        AttendanceSession.objects.create(
+            user_fk=employee,
+            work_date=self.day,
+            in_time=self.aware(10),
+            out_time=self.aware(16),
+            duration_seconds=6 * 3600,
+            worksite="The Lake Home Bloc A",
+        )
+        LeaveDay.objects.create(
+            user_fk=employee,
+            work_date=self.day,
+            reason=LeaveDay.Reason.UNEXCUSED,
+        )
+
+        response = self.client.get(
+            "/api/pontaj/reports/absences/",
+            {"start": self.day, "end": self.day, "company": "DMX"},
+            **self.auth,
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertEqual(payload["summary"]["no_attendance"], 1)
+        self.assertEqual(payload["summary"]["strict_no_attendance"], 0)
+        self.assertEqual(payload["summary"]["unexcused_absence"], 1)
+        self.assertEqual(payload["rows"][0]["reason"], LeaveDay.Reason.UNEXCUSED)
+
     def test_incomplete_report_only_returns_open_sessions(self):
         employee = Users.objects.create(UserName="Pontaj deschis", UserSerie="OPEN-1", Company="DMX")
         open_session = AttendanceSession.objects.create(

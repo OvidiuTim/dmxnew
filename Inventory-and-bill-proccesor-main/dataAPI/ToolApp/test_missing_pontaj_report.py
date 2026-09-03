@@ -13,6 +13,7 @@ from ToolApp.management.commands.send_missing_pontaj_report import (
     get_consecutive_missing_user_ids,
     get_missing_users_for_day,
     get_open_checkouts_for_day,
+    get_unexcused_user_ids_for_day,
     group_users_by_company,
 )
 from ToolApp.models import AttendanceSession, LeaveDay, Users
@@ -52,8 +53,8 @@ class MissingPontajReportTests(SimpleTestCase):
     def test_text_contains_company_sections(self):
         text = build_text(date(2026, 8, 3), self.users)
 
-        self.assertIn("Angajați fără pontaj și fără leave înregistrat: 4", text)
-        self.assertIn("DMX — lipsă: 1\n1. Dan | Serie: DMX-1", text)
+        self.assertIn("Angajați fără pontaj sau cu absență nemotivată: 4", text)
+        self.assertIn("DMX — lipsă: 1\n1. Dan | Serie: DMX-1 | Status: Fără pontaj", text)
         self.assertIn("VB-ROM — lipsă: 2", text)
 
     def test_html_escapes_employee_data(self):
@@ -73,7 +74,11 @@ class MissingPontajReportTests(SimpleTestCase):
         self.assertIn("Nu s-a pontat 3 zile la rând", html)
         self.assertIn("color:#d00000", html)
         self.assertIn("font-size:20px", html)
-        self.assertIn("Victor | Serie: VB-2 | ATENȚIE: Nu s-a pontat 3 zile la rând", text)
+        self.assertIn(
+            "Victor | Serie: VB-2 | Status: Fără pontaj | "
+            "ATENȚIE: Nu s-a pontat 3 zile la rând",
+            text,
+        )
 
     def test_open_checkouts_are_grouped_by_company(self):
         session = type(
@@ -143,6 +148,43 @@ class MissingPontajReportQueryTests(TestCase):
         self.assertIn(flagged.UserId, flagged_ids)
         self.assertNotIn(attendance_break.UserId, flagged_ids)
         self.assertNotIn(leave_break.UserId, flagged_ids)
+
+    def test_unexcused_absence_is_reported_even_when_employee_clocked_in_later(self):
+        employee = self.create_user("Absent pontat ulterior", "DMX-ABS-LATE")
+        self.attendance(employee, self.target_day, hour=10)
+        LeaveDay.objects.create(
+            user_fk=employee,
+            work_date=self.target_day,
+            reason=LeaveDay.Reason.UNEXCUSED,
+        )
+
+        missing_users = get_missing_users_for_day(self.target_day)
+        unexcused_ids = get_unexcused_user_ids_for_day(self.target_day)
+        html = build_html(
+            self.target_day,
+            missing_users,
+            unexcused_user_ids=unexcused_ids,
+        )
+
+        self.assertIn(employee, missing_users)
+        self.assertIn(employee.UserId, unexcused_ids)
+        self.assertIn("Absent pontat ulterior", html)
+        self.assertIn("Absență nemotivată", html)
+
+    def test_unexcused_absence_counts_toward_consecutive_missing_even_with_attendance(self):
+        employee = self.create_user("Absent trei zile", "DMX-ABS-3")
+        for work_day in (date(2026, 8, 12), date(2026, 8, 13), self.target_day):
+            self.attendance(employee, work_day, hour=10)
+            LeaveDay.objects.create(
+                user_fk=employee,
+                work_date=work_day,
+                reason=LeaveDay.Reason.UNEXCUSED,
+            )
+
+        missing_users = get_missing_users_for_day(self.target_day)
+        flagged_ids = get_consecutive_missing_user_ids(self.target_day, missing_users)
+
+        self.assertIn(employee.UserId, flagged_ids)
 
     def test_report_queries_only_active_employees_and_consolidates_open_sessions(self):
         open_user = self.create_user("Fără ieșire", "DMX-200")

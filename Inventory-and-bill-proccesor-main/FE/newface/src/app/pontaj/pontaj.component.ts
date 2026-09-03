@@ -22,7 +22,7 @@ interface DayUserRow {
   first_in: string | null;    // ISO local time sau null
   last_out: string | null;    // ISO local time sau null
   total_hms: string;          // "HH:MM:SS"
-  status: 'IN' | 'OUT' | 'ABSENT' | 'LEAVE';
+  status: 'IN' | 'OUT' | 'ABSENT' | 'NO_ATTENDANCE' | 'LEAVE';
   sessions: SessionRow[];
   day_worksite?: string | null;
   leave?: { reason: string; label?: string; hours: string; multiplier: string } | null;
@@ -101,7 +101,7 @@ seeFisaAngajat(id: number): void {
               trade: u.trade ?? null,
             };
           }
-          // absent — nu are sesiuni în ziua aleasă
+          // Fără pontaj — nu are sesiuni și nici o absență marcată în ziua aleasă.
           return {
             UserId: u.UserId,
             UserName: u.UserName,
@@ -111,7 +111,7 @@ seeFisaAngajat(id: number): void {
             first_in: null,
             last_out: null,
             total_hms: '00:00:00',
-            status: 'ABSENT',
+            status: 'NO_ATTENDANCE',
             sessions: [],
             day_worksite: null,
           };
@@ -191,7 +191,9 @@ seeFisaAngajat(id: number): void {
 
   get clockedToday(): number { return this.rows.filter(row => row.status === 'IN' || row.status === 'OUT').length; }
   get finishedToday(): number { return this.rows.filter(row => row.status === 'OUT').length; }
-  get absentToday(): number { return this.rows.filter(row => row.status === 'ABSENT').length; }
+  get absentToday(): number {
+    return this.rows.filter(row => row.status === 'ABSENT' || row.status === 'NO_ATTENDANCE').length;
+  }
   get leaveToday(): number { return this.rows.filter(row => row.status === 'LEAVE').length; }
 
   onCompanyChange(event: Event): void {
@@ -245,6 +247,7 @@ seeFisaAngajat(id: number): void {
       'IN': 'chip in',
       'OUT': 'chip out',
       'ABSENT': 'chip absent',
+      'NO_ATTENDANCE': 'chip absent',
       'LEAVE': 'chip leave'
     }[status];
   }

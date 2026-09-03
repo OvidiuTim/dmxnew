@@ -20,7 +20,7 @@
     <div class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" aria-label="Caută angajat" [value]="searchTerm" (input)="onSearchChange($event)" placeholder="Caută după numele angajatului…" autocomplete="off" /></div>
     <label><span>Firmă</span><select [value]="selectedCompany" (change)="onCompanyChange($event)"><option value="ALL">Toate firmele</option><option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option></select></label>
     <label><span>Șantier</span><select [value]="selectedWorksite" (change)="onWorksiteChange($event)"><option value="ALL">Toate șantierele</option><option *ngFor="let worksite of worksiteOptions" [value]="worksite">{{ worksite }}</option></select></label>
-    <label><span>Status</span><select [value]="selectedStatus" (change)="onStatusChange($event)"><option value="ALL">Toate statusurile</option><option value="IN">În lucru</option><option value="OUT">Ieșit</option><option value="LEAVE">Concediu</option><option value="ABSENT">Fără pontaj</option></select></label>
+    <label><span>Status</span><select [value]="selectedStatus" (change)="onStatusChange($event)"><option value="ALL">Toate statusurile</option><option value="IN">În lucru</option><option value="OUT">Ieșit</option><option value="LEAVE">Concediu</option><option value="ABSENT">Absent</option><option value="NO_ATTENDANCE">Fără pontaj</option></select></label>
     <button class="icon-button" type="button" (click)="refresh()" [disabled]="loading" aria-label="Actualizează pontajul" title="Actualizează"><span class="material-symbols-rounded" aria-hidden="true">refresh</span></button>
   </section>
 
@@ -51,7 +51,7 @@
             <td class="mono">{{ r.last_out ? (r.last_out | date:'HH:mm') : '—' }}</td>
             <td><div class="sessions"><span *ngFor="let s of r.sessions">{{ hm(s.in_time) }}–{{ s.out_time ? hm(s.out_time) : (s.missing_exit ? '—' : 'acum') }}</span><span class="muted" *ngIf="!r.sessions.length">Nicio sesiune</span></div></td>
             <td><strong class="worked">{{ durataOre(r.total_hms) }}</strong></td>
-            <td><span [class]="statusChipClass(r.status)">{{ r.status === 'IN' ? 'În lucru' : (r.status === 'OUT' ? 'Ieșit' : (r.status === 'LEAVE' ? (r.leave?.label || 'Concediu') : 'Fără pontaj')) }}</span></td>
+            <td><span [class]="statusChipClass(r.status)">{{ r.status === 'IN' ? 'În lucru' : (r.status === 'OUT' ? 'Ieșit' : (r.status === 'LEAVE' ? (r.leave?.label || 'Concediu') : (r.status === 'ABSENT' ? 'Absent' : 'Fără pontaj'))) }}</span></td>
             <td><div class="row-actions"><button type="button" aria-label="Editează angajat" title="Editează angajat" (click)="editEmployee(r.UserId)"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button><button type="button" aria-label="Detalii pontaj" title="Detalii pontaj" (click)="seeAngajat(r.UserId)"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></button><button type="button" aria-label="Fișa angajat" title="Fișa angajat" (click)="seeFisaAngajat(r.UserId)"><span class="material-symbols-rounded" aria-hidden="true">badge</span></button></div></td>
           </tr>
         </tbody>
