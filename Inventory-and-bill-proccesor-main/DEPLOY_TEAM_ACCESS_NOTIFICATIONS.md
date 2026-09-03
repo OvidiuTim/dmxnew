@@ -14,6 +14,26 @@ python manage.py sync_app_users
 python manage.py collectstatic --noinput
 ```
 
+La primul deploy care include migrarea `ToolApp.0082`, comanda `migrate` importă
+automat și o singură dată datele pentru „Ajutor bilet acasă”. În terminal sunt
+afișate totalul rândurilor, angajații actualizați/nemodificați și listele pentru
+negăsiți, ambigui și valori ignorate. Fiecare câmp este procesat independent:
+celulele goale nu blochează celelalte valori valide, iar o valoare invalidă este
+raportată și ignorată numai pentru câmpul ei. Raportul separă data angajării,
+eligibilitatea și istoricul biletului. Importul nu este legat de Gunicorn.
+
+După migrare, verificarea idempotentă fără scriere se poate repeta cu:
+
+```bash
+python manage.py import_home_ticket_benefits
+python manage.py showmigrations ToolApp | tail -5
+```
+
+Prima comandă trebuie să afișeze `DRY-RUN`; pentru angajații deja importați,
+aceștia apar la „deja actualizați și nemodificați”. Păstrează ieșirea completă a
+migrării pentru corectarea manuală a angajaților negăsiți, a potrivirilor ambigue
+sau a valorilor ignorate.
+
 `sync_app_users` poate fi rulat de mai multe ori. Nu creează dubluri, reactivează contul când angajatul redevine activ, actualizează hash-ul PIN-ului și dezactivează contul angajatului demis/inactiv.
 
 ## 2. Configurarea emailului și Firebase în Django

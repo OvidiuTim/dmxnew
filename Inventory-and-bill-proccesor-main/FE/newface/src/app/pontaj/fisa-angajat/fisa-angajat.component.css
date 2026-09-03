@@ -629,3 +629,24 @@
 @media (max-width: 600px) { .ticket-benefit-card header { grid-template-columns: 44px minmax(0, 1fr); }.ticket-benefit-card header > strong { grid-column: 1 / -1; justify-self: start; }.ticket-benefit-details { grid-template-columns: 1fr; } }
 @media (max-width: 1050px) { .document-upload { grid-template-columns: 1fr 1fr; }.document-sections { grid-template-columns: 1fr; } }
 @media (max-width: 680px) { .document-upload { grid-template-columns: 1fr; }.document-row { grid-template-columns: 36px minmax(0, 1fr) auto; }.document-row .expiry { grid-column: 2 / -1; justify-self: start; }.document-row-actions { grid-column: 3; grid-row: 1; } }
+
+.export-employees-button { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 1px solid #31d68f; border-radius: 10px; background: #133c26; color: #72efb8; font-weight: 800; cursor: pointer; }
+.directory-header .export-employees-button { border-color: #31d68f; background: #133c26; color: #72efb8; }
+.export-employees-button .material-symbols-rounded { font-size: 19px; line-height: 1; }
+.export-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 22px; background: rgba(2, 6, 13, .82); backdrop-filter: blur(6px); }
+.export-modal { width: min(1040px, 100%); max-height: min(860px, calc(100vh - 44px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #26364d; border-radius: 18px; background: #0b1220; color: #fff; box-shadow: 0 28px 80px rgba(0, 0, 0, .5); }
+.export-modal > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 22px 24px 17px; border-bottom: 1px solid #1f2a3a; }
+.export-modal > header > div > span { color: #31d68f; font-size: 10px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
+.export-modal h2 { margin: 6px 0; font-size: 25px; }.export-modal header p { margin: 0; color: #8ea0b9; font-size: 12px; }
+.modal-close { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 38px; border: 1px solid #26364d; border-radius: 10px; background: #121b2b; color: #fff; cursor: pointer; }.modal-close span { font-size: 20px; }
+.export-selection-actions { display: flex; align-items: center; gap: 9px; padding: 13px 24px; border-bottom: 1px solid #1f2a3a; background: #09111f; }
+.export-selection-actions button { min-height: 34px; padding: 0 11px; border: 1px solid #26364d; border-radius: 8px; background: #121b2b; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer; }.export-selection-actions span { margin-left: auto; color: #8ea0b9; font-size: 11px; }
+.export-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; overflow-y: auto; padding: 18px 24px; }
+.export-groups fieldset { min-width: 0; margin: 0; padding: 13px; border: 1px solid #1f2a3a; border-radius: 12px; background: #09111f; }
+.export-groups legend { padding: 0 6px; color: #72efb8; font-size: 11px; font-weight: 900; }
+.export-groups label { display: grid; grid-template-columns: 17px minmax(0, 1fr); align-items: start; gap: 9px; padding: 7px 4px; color: #d5dce7; font-size: 11px; cursor: pointer; }.export-groups input { width: 16px; height: 16px; margin: 0; accent-color: #31d68f; }
+.export-error { margin: 0 24px 12px; padding: 10px 12px; border: 1px solid rgba(255,100,100,.32); border-radius: 9px; background: rgba(255,100,100,.08); color: #ff9aa5; font-size: 11px; }
+.export-modal > footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid #1f2a3a; background: #09111f; }
+.export-modal > footer button { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 16px; border-radius: 9px; font-weight: 800; cursor: pointer; }.export-modal > footer .secondary { border: 1px solid #26364d; background: #121b2b; color: #fff; }.export-modal > footer .primary { border: 1px solid #31d68f; background: #31d68f; color: #04140d; }.export-modal button:disabled { opacity: .5; cursor: default; }
+@media (max-width: 850px) { .export-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .export-modal-backdrop { padding: 10px; }.export-groups { grid-template-columns: 1fr; padding: 14px; }.export-modal > header, .export-modal > footer { padding-left: 15px; padding-right: 15px; }.export-selection-actions { align-items: stretch; flex-direction: column; padding: 12px 15px; }.export-selection-actions span { margin: 2px 0 0; }.export-modal > footer button { flex: 1; } }

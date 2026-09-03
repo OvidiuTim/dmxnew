@@ -67,6 +67,7 @@ Backend-ul oferă API-uri pentru:
 - generare Excel lunar de pontaj, opțional filtrat pe firmă, folosind șablonul din `dataAPI/media/model_xcel_pontaj.xlsx`;
 - pagini server-side pentru monitor pontaj normal și variantă albă, plus stream SSE pentru evenimente live;
 - comenzi de administrare pentru închiderea sesiunilor deschise la 17:30, asignarea PIN-urilor din TSV/CSV și trimiterea raportului zilnic cu angajații fără pontaj.
+- import one-shot, tranzacțional și idempotent pentru datele „Ajutor bilet acasă” din `ToolApp/data/bonus_avion_excel_general.xlsx`; migrarea `ToolApp.0082` rulează automat la următorul `python manage.py migrate`, nu la pornirea Gunicorn. Importul procesează independent data angajării, activarea beneficiului și istoricul ultimei plecări, astfel încât o celulă goală sau invalidă nu blochează celelalte câmpuri valide, și nu creează angajați. Comanda `python manage.py import_home_ticket_benefits` repetă verificarea în mod dry-run, iar `--apply` este disponibil doar pentru o reluare manuală explicită.
 
 ### Frontend Angular
 

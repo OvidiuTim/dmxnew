@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { SharedService } from '../../shared.service';
+import { AuthService } from '../../auth/auth.service';
 
 type SheetTab = 'general' | 'documents' | 'site' | 'ssm';
 type DocumentCategory = 'personal' | 'employment';
@@ -78,12 +79,75 @@ interface EmployeeTool {
   DateLost?: string | null;
 }
 
+type ExportField = { key: string; label: string };
+type ExportGroup = { label: string; fields: ExportField[] };
+
+const EMPLOYEE_EXPORT_GROUPS: ExportGroup[] = [
+  { label: 'Identificare', fields: [
+    { key: 'employee_id', label: 'ID angajat' }, { key: 'name', label: 'Nume' },
+    { key: 'series', label: 'Serie angajat' }, { key: 'person_type', label: 'Categorie persoană' },
+    { key: 'employment_status', label: 'Activ/demis' }, { key: 'dismissed_at', label: 'Data demiterii' },
+  ]},
+  { label: 'Contact și angajare', fields: [
+    { key: 'company', label: 'Companie' }, { key: 'trade', label: 'Meserie' },
+    { key: 'phone', label: 'Telefon' }, { key: 'email', label: 'E-mail' },
+    { key: 'hire_date', label: 'Data angajării' }, { key: 'seniority', label: 'Vechime' },
+  ]},
+  { label: 'Acces în aplicație', fields: [
+    { key: 'app_username', label: 'Utilizator aplicație' }, { key: 'app_account_active', label: 'Cont aplicație activ' },
+    { key: 'is_storekeeper', label: 'Magazioner' }, { key: 'app_modules', label: 'Module permise' },
+    { key: 'page_permissions', label: 'Pagini permise' },
+  ]},
+  { label: 'Salarizare', fields: [
+    { key: 'hourly_rate', label: 'Tarif orar (RON)' }, { key: 'total_salary_ron', label: 'Salariu total (RON)' },
+    { key: 'salary_advance_ron', label: 'Avans (RON)' }, { key: 'salary_remainder_ron', label: 'Rest (RON)' },
+    { key: 'meal_vouchers_ron', label: 'Bonuri de masă (RON)' }, { key: 'net_salary_eur', label: 'Salariu net (EUR)' },
+    { key: 'net_salary_ron', label: 'Salariu net profil (RON)' }, { key: 'food_money_enabled', label: 'Bani de mâncare activați' },
+    { key: 'food_money_ron', label: 'Bani de mâncare (RON)' },
+  ]},
+  { label: 'Concedii', fields: [
+    { key: 'leave_accrued', label: 'Zile acumulate' }, { key: 'leave_used', label: 'Zile folosite' },
+    { key: 'leave_remaining', label: 'Zile rămase' }, { key: 'leave_extra', label: 'Zile suplimentare luate' },
+    { key: 'leave_requests', label: 'Cereri de concediu (sheet separat)' },
+  ]},
+  { label: 'Ajutor bilet acasă', fields: [
+    { key: 'ticket_enabled', label: 'Eligibil pentru ajutor' }, { key: 'ticket_already_used', label: 'A beneficiat deja' },
+    { key: 'last_home_trip', label: 'Data ultimei plecări' }, { key: 'next_ticket_eligibility', label: 'Următoarea eligibilitate' },
+    { key: 'ticket_amount_eur', label: 'Sumă maximă (EUR)' },
+  ]},
+  { label: 'Cazare', fields: [
+    { key: 'accommodation', label: 'Cazare' }, { key: 'accommodation_address', label: 'Adresă cazare' },
+    { key: 'accommodation_room', label: 'Cameră' },
+  ]},
+  { label: 'Echipament personal', fields: [
+    { key: 'equipment_received', label: 'A primit echipament' }, { key: 'equipment_size', label: 'Mărime echipament' },
+  ]},
+  { label: 'Scule', fields: [{ key: 'tools', label: 'Scule atribuite (sheet separat)' }] },
+  { label: 'Documente', fields: [{ key: 'documents', label: 'Documente (sheet separat)' }] },
+  { label: 'Echipe', fields: [
+    { key: 'team', label: 'Echipă' }, { key: 'team_role', label: 'Rol în echipă' },
+    { key: 'team_records', label: 'Apartenențe și roluri (sheet separat)' },
+    { key: 'transfer_requests', label: 'Cereri transfer (sheet separat)' },
+  ]},
+  { label: 'Organigramă', fields: [
+    { key: 'organization_department', label: 'Departament' }, { key: 'organization_role', label: 'Funcție' },
+    { key: 'organization_manager', label: 'Superior direct' },
+  ]},
+];
+
+const DEFAULT_EMPLOYEE_EXPORT_FIELDS = [
+  'employee_id', 'name', 'series', 'company', 'trade', 'phone', 'email', 'employment_status',
+  'hire_date', 'seniority', 'total_salary_ron', 'leave_remaining', 'ticket_enabled',
+  'ticket_already_used', 'last_home_trip', 'next_ticket_eligibility', 'accommodation', 'team',
+];
+
 @Component({
   selector: 'app-fisa-angajat',
   templateUrl: './fisa-angajat.component.html',
   styleUrls: ['./fisa-angajat.component.css']
 })
 export class FisaAngajatComponent implements OnInit {
+  readonly exportGroups = EMPLOYEE_EXPORT_GROUPS;
   userId: number | null = null;
   employeeDirectory: EmployeeProfile[] = [];
   directorySearch = '';
@@ -104,6 +168,11 @@ export class FisaAngajatComponent implements OnInit {
   documentError: string | null = null;
   documentNotice: string | null = null;
   uploadingDocument = false;
+  canExportEmployees = false;
+  exportModalOpen = false;
+  exportingEmployees = false;
+  exportError = '';
+  selectedExportFields = new Set<string>();
   selectedDocumentFile: File | null = null;
   selectedDocumentFileName = '';
   documentForm: {
@@ -118,9 +187,12 @@ export class FisaAngajatComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private api: SharedService,
+    private auth: AuthService,
   ) {}
 
   ngOnInit(): void {
+    const session = this.auth.currentSession();
+    this.canExportEmployees = !!session && (session.role === 'admin' || session.auth_type === 'legacy');
     const rawId = this.route.snapshot.paramMap.get('id');
     const parsedId = Number(rawId);
 
@@ -131,6 +203,58 @@ export class FisaAngajatComponent implements OnInit {
 
     this.userId = parsedId;
     this.loadEmployeeSheet(parsedId);
+  }
+
+  openEmployeeExport(): void {
+    if (!this.canExportEmployees) return;
+    this.selectedExportFields = new Set(DEFAULT_EMPLOYEE_EXPORT_FIELDS);
+    this.exportError = '';
+    this.exportModalOpen = true;
+  }
+
+  closeEmployeeExport(): void {
+    if (!this.exportingEmployees) this.exportModalOpen = false;
+  }
+
+  isExportFieldSelected(key: string): boolean {
+    return this.selectedExportFields.has(key);
+  }
+
+  toggleExportField(key: string, checked: boolean): void {
+    checked ? this.selectedExportFields.add(key) : this.selectedExportFields.delete(key);
+    this.selectedExportFields = new Set(this.selectedExportFields);
+    this.exportError = '';
+  }
+
+  selectAllExportFields(): void {
+    this.selectedExportFields = new Set(this.exportGroups.flatMap(group => group.fields.map(field => field.key)));
+    this.exportError = '';
+  }
+
+  deselectAllExportFields(): void {
+    this.selectedExportFields = new Set();
+    this.exportError = '';
+  }
+
+  generateEmployeeExport(): void {
+    const fields = Array.from(this.selectedExportFields);
+    if (!fields.length) {
+      this.exportError = 'Selectează cel puțin un câmp pentru export.';
+      return;
+    }
+    this.exportingEmployees = true;
+    this.exportError = '';
+    this.api.exportEmployees(fields).subscribe({
+      next: response => {
+        this.exportingEmployees = false;
+        this.downloadResponse(response, `angajati_${this.todayFileDate()}.xlsx`);
+        this.exportModalOpen = false;
+      },
+      error: error => {
+        this.exportingEmployees = false;
+        this.exportError = error?.error?.error || 'Fișierul Excel nu a putut fi generat.';
+      },
+    });
   }
 
   loadEmployeeDirectory(query = this.directorySearch): void {
@@ -455,6 +579,27 @@ export class FisaAngajatComponent implements OnInit {
     }
     const pieces = Number(tool.Pieces);
     return Number.isFinite(pieces) ? Math.max(0, Math.floor(pieces)) : 1;
+  }
+
+  private downloadResponse(response: any, fallbackName: string): void {
+    const blob = response?.body as Blob | null;
+    if (!blob) return;
+    const disposition = String(response?.headers?.get('content-disposition') || '');
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = match?.[1] || fallbackName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  private todayFileDate(): string {
+    const today = new Date();
+    return [
+      String(today.getDate()).padStart(2, '0'),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      today.getFullYear(),
+    ].join('-');
   }
 
   private normalizeStatus(status: string | null | undefined): string {

@@ -39,6 +39,12 @@ export class SharedService {
     return this.http.post<any>(`${this.API}/user/${id}/attendance-exempt/`, { attendance_exempt: attendanceExempt });
   }
   deleteUser(id: any, force = false)   { return this.http.delete(`${this.API}/user/${id}${force ? '?force=1' : ''}`); }
+  exportEmployees(fields: string[]) {
+    return this.http.post(`${this.API}/employee-reports/export/`, { fields }, {
+      observe: 'response',
+      responseType: 'blob',
+    });
+  }
 
   // --- Cazări ---
   getAccommodations()                  { return this.http.get<any>(`${this.API}/accommodations/`); }
@@ -56,6 +62,18 @@ export class SharedService {
   getLeaveRequests()                   { return this.http.get<any>(`${this.API}/leave-requests/`); }
   decideLeaveRequest(requestId: number, action: 'approve' | 'reject') {
     return this.http.post<any>(`${this.API}/leave-requests/${requestId}/decision/`, { action });
+  }
+  getIndiaTicketEligibilityReport(startDate: string, endDate: string) {
+    return this.http.get<any>(`${this.API}/employee-reports/india-ticket/`, {
+      params: { start_date: startDate, end_date: endDate },
+    });
+  }
+  exportIndiaTicketEligibilityReport(startDate: string, endDate: string) {
+    return this.http.get(`${this.API}/employee-reports/india-ticket/excel/`, {
+      params: { start_date: startDate, end_date: endDate },
+      observe: 'response',
+      responseType: 'blob',
+    });
   }
   markLeaveRange(employeeId: number, startDate: string, endDate: string, leaveType: 'CO' | 'CM' | 'UNPAID' | 'INDIA') {
     return this.http.post<any>(`${this.API}/leave/mark-range/`, {

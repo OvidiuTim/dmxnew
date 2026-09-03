@@ -1,5 +1,5 @@
 <div class="employee-directory" *ngIf="!userId">
-  <header class="directory-header"><div><span>Personal</span><h1>Fișe angajați</h1><p>Selectează un angajat pentru profil, date generale și echipamentele alocate.</p></div><div class="directory-actions"><button class="add-employee-button" type="button" (click)="addEmployee()"><span class="material-symbols-rounded" aria-hidden="true">person_add</span>Adaugă angajat</button><button type="button" (click)="goBack()">Înapoi la pontaj</button></div></header>
+  <header class="directory-header"><div><span>Personal</span><h1>Fișe angajați</h1><p>Selectează un angajat pentru profil, date generale și echipamentele alocate.</p></div><div class="directory-actions"><button *ngIf="canExportEmployees" class="export-employees-button" type="button" (click)="openEmployeeExport()"><span class="material-symbols-rounded" aria-hidden="true">download</span>Exportă angajații</button><button class="add-employee-button" type="button" (click)="addEmployee()"><span class="material-symbols-rounded" aria-hidden="true">person_add</span>Adaugă angajat</button><button type="button" (click)="goBack()">Înapoi la pontaj</button></div></header>
   <div class="state error" *ngIf="error">{{ error }}</div>
   <div class="state" *ngIf="loading">Se încarcă angajații…</div>
   <label class="directory-search" *ngIf="!loading && !error">
@@ -32,6 +32,7 @@
 <div class="employee-sheet" *ngIf="userId">
   <div class="topbar">
     <button class="back-btn" type="button" (click)="goBack()">Inapoi la lista angajati</button>
+    <button *ngIf="canExportEmployees" class="export-employees-button" type="button" (click)="openEmployeeExport()"><span class="material-symbols-rounded" aria-hidden="true">download</span>Exportă angajații</button>
   </div>
 
   <div class="state error" *ngIf="error">{{ error }}</div>
@@ -292,4 +293,37 @@
       </aside>
     </section>
   </ng-container>
+</div>
+
+<div class="export-modal-backdrop" *ngIf="exportModalOpen" (click)="closeEmployeeExport()">
+  <section class="export-modal" role="dialog" aria-modal="true" aria-labelledby="employee-export-title" (click)="$event.stopPropagation()">
+    <header>
+      <div><span>Export Excel</span><h2 id="employee-export-title">Exportă angajații</h2><p>Alege informațiile care vor apărea în fișier. Exportul include toți angajații.</p></div>
+      <button type="button" class="modal-close" (click)="closeEmployeeExport()" [disabled]="exportingEmployees" aria-label="Închide"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+    </header>
+
+    <div class="export-selection-actions">
+      <button type="button" (click)="selectAllExportFields()">Selectează toate</button>
+      <button type="button" (click)="deselectAllExportFields()">Deselectează toate</button>
+      <span>{{ selectedExportFields.size }} câmpuri selectate</span>
+    </div>
+
+    <div class="export-groups">
+      <fieldset *ngFor="let group of exportGroups">
+        <legend>{{ group.label }}</legend>
+        <label *ngFor="let field of group.fields">
+          <input type="checkbox" [checked]="isExportFieldSelected(field.key)" (change)="toggleExportField(field.key, $any($event.target).checked)">
+          <span>{{ field.label }}</span>
+        </label>
+      </fieldset>
+    </div>
+
+    <div class="export-error" *ngIf="exportError">{{ exportError }}</div>
+    <footer>
+      <button type="button" class="secondary" (click)="closeEmployeeExport()" [disabled]="exportingEmployees">Renunță</button>
+      <button type="button" class="primary" (click)="generateEmployeeExport()" [disabled]="exportingEmployees">
+        <span class="material-symbols-rounded" aria-hidden="true">table_view</span>{{ exportingEmployees ? 'Se generează…' : 'Generează Excel' }}
+      </button>
+    </footer>
+  </section>
 </div>

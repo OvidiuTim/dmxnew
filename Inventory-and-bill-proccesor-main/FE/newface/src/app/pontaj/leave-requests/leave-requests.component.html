@@ -5,10 +5,16 @@
       <h1>Cereri de concediu</h1>
       <p>{{ canManageAll ? 'Vezi și soluționează cererile tuturor angajaților.' : 'Vezi și soluționează cererile angajaților din echipa ta.' }}</p>
     </div>
-    <button type="button" class="button" (click)="load()" [disabled]="loading">
-      <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
-      Actualizează
-    </button>
+    <div class="page-actions">
+      <button *ngIf="canManageAll" type="button" class="button ticket-report-button" (click)="openIndiaTicketReport()">
+        <span class="material-symbols-rounded" aria-hidden="true">flight_takeoff</span>
+        Eligibili bilet India
+      </button>
+      <button type="button" class="button" (click)="load()" [disabled]="loading">
+        <span class="material-symbols-rounded" aria-hidden="true">refresh</span>
+        Actualizează
+      </button>
+    </div>
   </header>
 
   <div class="notice success" *ngIf="notice"><span class="material-symbols-rounded" aria-hidden="true">task_alt</span>{{ notice }}</div>
@@ -69,3 +75,53 @@
     <small>Cererile trimise din aplicația Android vor apărea automat aici.</small>
   </div>
 </section>
+
+<div class="ticket-modal-backdrop" *ngIf="indiaReportOpen" (click)="closeIndiaTicketReport()">
+  <section class="ticket-modal" role="dialog" aria-modal="true" aria-labelledby="india-ticket-title" (click)="$event.stopPropagation()">
+    <header>
+      <div><span>Raport beneficiu</span><h2 id="india-ticket-title">Eligibili bilet India</h2><p>Selectează perioada în care vrei să verifici eligibilitatea.</p></div>
+      <button type="button" class="modal-close" (click)="closeIndiaTicketReport()" [disabled]="indiaReportLoading || indiaReportExporting" aria-label="Închide"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+    </header>
+
+    <div class="ticket-report-filters">
+      <label><span>Data de început</span><input type="date" [(ngModel)]="indiaReportForm.start_date"></label>
+      <label><span>Data de sfârșit</span><input type="date" [(ngModel)]="indiaReportForm.end_date"></label>
+      <button type="button" class="button search-report" (click)="searchIndiaTicketReport()" [disabled]="indiaReportLoading">
+        <span class="material-symbols-rounded" aria-hidden="true">search</span>{{ indiaReportLoading ? 'Se caută…' : 'Caută' }}
+      </button>
+    </div>
+
+    <div class="ticket-report-error" *ngIf="indiaReportError">{{ indiaReportError }}</div>
+    <div class="ticket-report-loading" *ngIf="indiaReportLoading"><span></span>Se verifică eligibilitatea…</div>
+
+    <div class="ticket-results" *ngIf="indiaReportSearched && indiaReportRows.length">
+      <div class="ticket-result-summary"><strong>{{ indiaReportRows.length }}</strong><span>angajați eligibili în perioada selectată</span></div>
+      <div class="ticket-table-scroll">
+        <table>
+          <thead><tr><th>Angajat</th><th>Companie</th><th>Meserie</th><th>Data angajării</th><th>Vechime</th><th>A beneficiat deja</th><th>Ultima plecare</th><th>Următoarea eligibilitate</th><th>Situația în perioada selectată</th></tr></thead>
+          <tbody><tr *ngFor="let item of indiaReportRows">
+            <td><strong>{{ item.name }}</strong><small>{{ item.series }}</small></td>
+            <td>{{ item.company || '—' }}</td><td>{{ item.trade || '—' }}</td>
+            <td>{{ item.hire_date | date:'dd.MM.yyyy' }}</td><td>{{ item.seniority }}</td>
+            <td>{{ item.already_used ? 'Da' : 'Nu' }}</td>
+            <td>{{ item.last_home_trip_date ? (item.last_home_trip_date | date:'dd.MM.yyyy') : '—' }}</td>
+            <td><strong>{{ item.next_eligibility_date | date:'dd.MM.yyyy' }}</strong></td>
+            <td><span class="eligibility-situation">{{ item.situation }}</span></td>
+          </tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="ticket-report-empty" *ngIf="indiaReportSearched && !indiaReportRows.length && !indiaReportError">
+      <span class="material-symbols-rounded" aria-hidden="true">event_busy</span>
+      <strong>Nu există angajați eligibili pentru ajutorul de bilet în perioada selectată.</strong>
+    </div>
+
+    <footer>
+      <button type="button" class="button" (click)="closeIndiaTicketReport()" [disabled]="indiaReportLoading || indiaReportExporting">Închide</button>
+      <button type="button" class="button export-report" (click)="exportIndiaTicketReport()" [disabled]="!indiaReportSearched || !indiaReportRows.length || indiaReportExporting">
+        <span class="material-symbols-rounded" aria-hidden="true">download</span>{{ indiaReportExporting ? 'Se exportă…' : 'Exportă Excel' }}
+      </button>
+    </footer>
+  </section>
+</div>

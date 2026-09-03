@@ -5,6 +5,7 @@ from ToolApp import team_views, team_portal_views, attendance_alert_views
 from ToolApp import employee_views
 from ToolApp import leave_views
 from ToolApp import organization_views
+from ToolApp import employee_reports
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -208,6 +209,9 @@ urlpatterns = [
     path('api/employees/<int:employee_id>/documents/', employee_views.employee_documents, name='employee_documents'),
     path('api/employee-documents/<int:document_id>/', employee_views.employee_document_detail, name='employee_document_detail'),
     path('api/employee-documents/<int:document_id>/download/', employee_views.employee_document_download, name='employee_document_download'),
+    path('api/employee-reports/export/', employee_reports.employee_export, name='employee_export'),
+    path('api/employee-reports/india-ticket/', employee_reports.india_ticket_report, name='india_ticket_report'),
+    path('api/employee-reports/india-ticket/excel/', employee_reports.india_ticket_report_excel, name='india_ticket_report_excel'),
 
     # Echipe permanente, împrumuturi temporare și situația zilnică
     path('api/teams/', team_views.teams_collection, name='teams_collection'),

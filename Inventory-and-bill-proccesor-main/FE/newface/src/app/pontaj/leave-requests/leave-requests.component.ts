@@ -23,6 +23,21 @@ type LeaveRequest = {
   can_decide: boolean;
 };
 
+type IndiaTicketEmployee = {
+  employee_id: number;
+  name: string;
+  series: string;
+  company: string;
+  trade: string;
+  hire_date: string;
+  seniority_months: number;
+  seniority: string;
+  already_used: boolean;
+  last_home_trip_date: string | null;
+  next_eligibility_date: string;
+  situation: string;
+};
+
 @Component({
   selector: 'app-leave-requests',
   templateUrl: './leave-requests.component.html',
@@ -36,6 +51,13 @@ export class LeaveRequestsComponent implements OnInit {
   error = '';
   notice = '';
   canManageAll = false;
+  indiaReportOpen = false;
+  indiaReportLoading = false;
+  indiaReportExporting = false;
+  indiaReportSearched = false;
+  indiaReportError = '';
+  indiaReportRows: IndiaTicketEmployee[] = [];
+  indiaReportForm = { start_date: '', end_date: '' };
   private busyIds = new Set<number>();
 
   constructor(private api: SharedService) {}
@@ -113,6 +135,69 @@ export class LeaveRequestsComponent implements OnInit {
     });
   }
 
+  openIndiaTicketReport(): void {
+    if (!this.canManageAll) return;
+    const today = new Date();
+    const periodEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+    this.indiaReportForm = {
+      start_date: this.localIsoDate(today),
+      end_date: this.localIsoDate(periodEnd),
+    };
+    this.indiaReportRows = [];
+    this.indiaReportError = '';
+    this.indiaReportSearched = false;
+    this.indiaReportOpen = true;
+  }
+
+  closeIndiaTicketReport(): void {
+    if (!this.indiaReportLoading && !this.indiaReportExporting) this.indiaReportOpen = false;
+  }
+
+  searchIndiaTicketReport(): void {
+    const { start_date, end_date } = this.indiaReportForm;
+    if (!start_date || !end_date) {
+      this.indiaReportError = 'Selectează data de început și data de sfârșit.';
+      return;
+    }
+    if (end_date < start_date) {
+      this.indiaReportError = 'Data de sfârșit nu poate fi înaintea datei de început.';
+      return;
+    }
+    this.indiaReportLoading = true;
+    this.indiaReportSearched = false;
+    this.indiaReportError = '';
+    this.api.getIndiaTicketEligibilityReport(start_date, end_date).subscribe({
+      next: response => {
+        this.indiaReportRows = response?.employees || [];
+        this.indiaReportLoading = false;
+        this.indiaReportSearched = true;
+      },
+      error: error => {
+        this.indiaReportRows = [];
+        this.indiaReportLoading = false;
+        this.indiaReportSearched = true;
+        this.indiaReportError = error?.error?.error || 'Raportul nu a putut fi generat.';
+      },
+    });
+  }
+
+  exportIndiaTicketReport(): void {
+    if (!this.indiaReportSearched || !this.indiaReportRows.length) return;
+    const { start_date, end_date } = this.indiaReportForm;
+    this.indiaReportExporting = true;
+    this.indiaReportError = '';
+    this.api.exportIndiaTicketEligibilityReport(start_date, end_date).subscribe({
+      next: response => {
+        this.indiaReportExporting = false;
+        this.downloadResponse(response, `eligibili_bilet_india_${this.fileDate(start_date)}_${this.fileDate(end_date)}.xlsx`);
+      },
+      error: () => {
+        this.indiaReportExporting = false;
+        this.indiaReportError = 'Fișierul Excel nu a putut fi generat.';
+      },
+    });
+  }
+
   trackById(_: number, item: LeaveRequest): number {
     return item.id;
   }
@@ -121,6 +206,27 @@ export class LeaveRequestsComponent implements OnInit {
     const details = error?.error?.details;
     const detail = details ? Object.values(details).flat().join(' ') : '';
     return detail || error?.error?.error || 'Cererea nu a putut fi soluționată.';
+  }
+
+  private downloadResponse(response: any, fallbackName: string): void {
+    const blob = response?.body as Blob | null;
+    if (!blob) return;
+    const disposition = String(response?.headers?.get('content-disposition') || '');
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = match?.[1] || fallbackName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  private localIsoDate(value: Date): string {
+    return [value.getFullYear(), String(value.getMonth() + 1).padStart(2, '0'), String(value.getDate()).padStart(2, '0')].join('-');
+  }
+
+  private fileDate(value: string): string {
+    const [year, month, day] = value.split('-');
+    return `${day}-${month}-${year}`;
   }
 
   private normalize(value: string): string {
