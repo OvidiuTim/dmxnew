@@ -3,20 +3,20 @@ from datetime import date, time
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from ToolApp.attendance_alert_escalation import (
     absence_marking_locked,
+    alert_config_snapshot,
     company_missing_employees,
-    ensure_default_configs,
-    ensure_level2_auto_marks,
     escalation_levels_for_user,
     level_alert_time,
     mark_employee_absent,
     refresh_resolutions,
+    run_attendance_maintenance,
     team_by_employee,
 )
 from ToolApp.models import (
@@ -44,7 +44,6 @@ from ToolApp.team_attendance_notifications import (
     ALERT_HOUR,
     ALERT_MINUTE,
     _missing_members,
-    ensure_team_attendance_alerts_due,
 )
 from ToolApp.team_organization_sync import sync_team_to_organization
 from ToolApp.views import nfc_scan
@@ -79,29 +78,64 @@ def _has_global_absence_access(app_user):
 def _role_labels(app_user):
     """Denumirile configurate pentru nivelurile de alertă ale utilizatorului."""
     levels = _escalation_levels(app_user)
-    labels = {}
-    for config in ensure_default_configs():
-        if config.level in levels:
-            labels[config.level] = (config.role_name or f"Nivel {config.level}").strip()
-    return labels
+    return {
+        level: entry["role_name"]
+        for level, entry in alert_config_snapshot().items()
+        if level in levels
+    }
+
+
+# Filtrul unic pentru „membru activ al echipei”. Îl folosim și în Prefetch, și în
+# varianta de rezervă, ca să nu existe două definiții care pot să se depărteze.
+ACTIVE_MEMBERSHIP_FILTERS = {
+    "active": True,
+    "employee__active": True,
+    "employee__employment_status": Users.EmploymentStatus.ACTIVE,
+}
+
+
+def _active_memberships_prefetch():
+    """Prefetch care aduce membrii activi o singură dată, cu tot cu angajat.
+
+    Important: filtrele stau aici, în Prefetch. Dacă s-ar apela mai târziu
+    team.memberships.filter(...), Django ar ignora prefetch-ul și ar trimite un
+    query nou pentru fiecare echipă.
+    """
+    return Prefetch(
+        "memberships",
+        queryset=EmployeeTeamMember.objects.filter(**ACTIVE_MEMBERSHIP_FILTERS).select_related(
+            "employee"
+        ),
+        to_attr="active_memberships",
+    )
+
+
+def _active_memberships(team):
+    """Membrii activi ai echipei, din prefetch dacă există, altfel dintr-un query."""
+    cached = getattr(team, "active_memberships", None)
+    if cached is not None:
+        return cached
+    return list(
+        team.memberships.filter(**ACTIVE_MEMBERSHIP_FILTERS).select_related("employee")
+    )
 
 
 def _coordinated_teams(app_user):
     return EmployeeTeam.objects.filter(active=True).filter(
         Q(leader_id=app_user.employee_id) | Q(supervisor_id=app_user.employee_id)
-    ).select_related("leader", "supervisor").prefetch_related("memberships__employee").distinct()
+    ).select_related("leader", "supervisor").prefetch_related(_active_memberships_prefetch()).distinct()
 
 
 def _led_teams(app_user):
     return EmployeeTeam.objects.filter(active=True, leader_id=app_user.employee_id).select_related(
         "leader", "supervisor"
-    ).prefetch_related("memberships__employee")
+    ).prefetch_related(_active_memberships_prefetch())
 
 
 def _supervised_teams(app_user):
     return EmployeeTeam.objects.filter(active=True, supervisor_id=app_user.employee_id).select_related(
         "leader", "supervisor"
-    ).prefetch_related("memberships__employee")
+    ).prefetch_related(_active_memberships_prefetch())
 
 
 def _is_supervisor(app_user):
@@ -293,8 +327,7 @@ def portal_dashboard(request):
     own_status = _presence_status([app_user.employee_id]).get(app_user.employee_id, "absent")
     levels = _escalation_levels(app_user)
     day = timezone.localdate()
-    ensure_level2_auto_marks(day)
-    ensure_team_attendance_alerts_due()
+    run_attendance_maintenance(day)
     own_reviewed = LeaveRequest.objects.filter(employee_id=app_user.employee_id).exclude(
         status=LeaveRequest.Status.PENDING
     ).filter(employee_seen_at__isnull=True).count()
@@ -385,29 +418,21 @@ def portal_teams(request):
     if not app_user:
         return _error("Acces interzis.", 403)
     day = timezone.localdate()
-    ensure_level2_auto_marks(day)
+    run_attendance_maintenance(day)
     teams = list(_led_teams(app_user))
     if not teams:
         return _error("Această pagină este disponibilă numai șefilor de echipă.", 403)
     member_ids = {
         membership.employee_id
         for team in teams
-        for membership in team.memberships.filter(
-            active=True,
-            employee__active=True,
-            employee__employment_status=Users.EmploymentStatus.ACTIVE,
-        )
+        for membership in _active_memberships(team)
     }
     statuses = _presence_status(member_ids)
     payload = []
     for team in teams:
         members = []
         seen = set()
-        for membership in team.memberships.filter(
-            active=True,
-            employee__active=True,
-            employee__employment_status=Users.EmploymentStatus.ACTIVE,
-        ).select_related("employee"):
+        for membership in _active_memberships(team):
             if membership.employee_id in seen:
                 continue
             seen.add(membership.employee_id)
@@ -429,11 +454,7 @@ def portal_teams(request):
 def _portal_team_payload(team, statuses):
     members = []
     seen = set()
-    for membership in team.memberships.filter(
-        active=True,
-        employee__active=True,
-        employee__employment_status=Users.EmploymentStatus.ACTIVE,
-    ).select_related("employee"):
+    for membership in _active_memberships(team):
         if membership.employee_id in seen:
             continue
         seen.add(membership.employee_id)
@@ -462,7 +483,7 @@ def portal_supervised_teams(request):
     employee_ids = {
         membership.employee_id
         for team in teams
-        for membership in team.memberships.filter(active=True, employee__active=True)
+        for membership in _active_memberships(team)
     }
     employee_ids.update(team.leader_id for team in teams)
     statuses = _presence_status(employee_ids)
@@ -1243,7 +1264,7 @@ def _global_notification_payloads(app_user, day=None):
         # înainte de 08:10 conține numai marcările manuale, iar după prag toate
         # cazurile Nivelului 2.
         if absence_marking_locked():
-            ensure_level2_auto_marks(day)
+            run_attendance_maintenance(day)
         level_2_rows = _absent_today_rows(day)
         item = build_item(AttendanceAlertCase.Level.LEVEL_2, level_2_rows)
         if item:
@@ -1277,7 +1298,7 @@ def portal_missing_today(request):
             "employees": [],
             "count": 0,
         })
-    ensure_team_attendance_alerts_due()
+    run_attendance_maintenance(day)
     refresh_resolutions(day)
     locked = absence_marking_locked()
     rows_by_employee = {
@@ -1323,8 +1344,7 @@ def portal_absent_today(request):
     if 2 not in _escalation_levels(app_user):
         return _error("Această listă este disponibilă doar pentru Nivel 2.", 403)
     day = timezone.localdate()
-    ensure_team_attendance_alerts_due()
-    ensure_level2_auto_marks(day)
+    run_attendance_maintenance(day)
     refresh_resolutions(day)
     rows = _absent_today_rows(day)
     return JsonResponse({
@@ -1627,7 +1647,7 @@ def portal_notifications(request):
         return _error("Acces interzis.", 403)
     levels = _escalation_levels(app_user)
     if request.method == "GET":
-        ensure_team_attendance_alerts_due()
+        run_attendance_maintenance()
         attendance_items = _team_notification_payloads(app_user)
         if levels:
             attendance_items += _global_notification_payloads(app_user)

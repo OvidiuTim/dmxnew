@@ -1,15 +1,33 @@
 from django.db import transaction
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from ToolApp.app_accounts import sync_employee_app_user
 from ToolApp.models import (
     AppUser,
+    AttendanceAlertEscalationConfig,
     LeaveRequest,
     PortalTeamTransferRequest,
     TeamPortalNotification,
     Users,
 )
+
+
+@receiver(
+    post_save,
+    sender=AttendanceAlertEscalationConfig,
+    dispatch_uid="invalidate_alert_config_cache_save",
+)
+@receiver(
+    post_delete,
+    sender=AttendanceAlertEscalationConfig,
+    dispatch_uid="invalidate_alert_config_cache_delete",
+)
+def invalidate_alert_config_cache(sender, **kwargs):
+    """Orele/denumirile Nivel 1-2 sunt ținute în cache; le invalidăm la orice salvare."""
+    from ToolApp.attendance_alert_escalation import invalidate_alert_config_cache as clear
+
+    clear()
 
 
 @receiver(post_save, sender=Users, dispatch_uid="sync_employee_app_user")

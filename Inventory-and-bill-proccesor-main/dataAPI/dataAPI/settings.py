@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 import os
+import sys
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -151,6 +152,23 @@ else:
     raise ImproperlyConfigured(
         "Unsupported DB_ENGINE. Use 'sqlite' or 'postgresql'."
     )
+
+
+# --- Pontaj: cadenta joburilor idempotente si a configurarilor de alerta ---
+# Joburile de alerta/marcare sunt idempotente si ruleaza si din cron. Din request
+# le lasam sa ruleze cel mult o data la atatea secunde, ca sa nu repete acelasi
+# scan complet la fiecare apel. 0 = fara limitare (comportamentul vechi).
+ATTENDANCE_MAINTENANCE_THROTTLE_SECONDS = int(
+    os.getenv("ATTENDANCE_MAINTENANCE_THROTTLE_SECONDS", "60")
+)
+# Orele si denumirile Nivel 1 / Nivel 2 se schimba foarte rar; le tinem in cache.
+ATTENDANCE_ALERT_CONFIG_CACHE_SECONDS = int(
+    os.getenv("ATTENDANCE_ALERT_CONFIG_CACHE_SECONDS", "60")
+)
+if "test" in sys.argv:
+    # In teste nu limitam nimic, ca sa ramana valabile asertiunile existente.
+    ATTENDANCE_MAINTENANCE_THROTTLE_SECONDS = 0
+    ATTENDANCE_ALERT_CONFIG_CACHE_SECONDS = 0
 
 
 # Password validation

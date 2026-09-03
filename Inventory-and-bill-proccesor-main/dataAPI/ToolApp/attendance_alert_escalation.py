@@ -3,6 +3,7 @@ from collections import defaultdict
 from datetime import time
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -29,6 +30,7 @@ from ToolApp.team_attendance_notifications import (
     ALERT_MINUTE,
     _missing_members,
     create_team_attendance_alerts,
+    ensure_team_attendance_alerts_due,
     is_team_working_day,
 )
 from ToolApp.push_notifications import send_employee_push
@@ -43,19 +45,66 @@ EMAIL_SUBJECTS = {
 LATE_CHECKIN_SUBJECT = "Angajați marcați absenți care s-au pontat ulterior"
 
 
+ALERT_CONFIG_CACHE_KEY = "attendance-alert-configs:v1"
+
+
+def _alert_config_cache_seconds():
+    return int(getattr(settings, "ATTENDANCE_ALERT_CONFIG_CACHE_SECONDS", 60) or 0)
+
+
+def invalidate_alert_config_cache():
+    """Golește cache-ul configurărilor. Apelat din semnalul post_save/post_delete."""
+    cache.delete(ALERT_CONFIG_CACHE_KEY)
+
+
 def ensure_default_configs():
-    configs = []
+    """Rândurile de configurare pentru Nivel 1 și Nivel 2, create la prima rulare.
+
+    Citește tot într-un singur SELECT și scrie doar dacă lipsește efectiv un nivel.
+    Înainte se făcea câte un get_or_create pentru fiecare nivel, la fiecare apel.
+    """
+    rows = {
+        row.level: row
+        for row in AttendanceAlertEscalationConfig.objects.filter(
+            level__in=list(DEFAULT_LEVEL_TIMES)
+        )
+    }
     for level, alert_time in DEFAULT_LEVEL_TIMES.items():
-        config, _ = AttendanceAlertEscalationConfig.objects.get_or_create(
+        if level in rows:
+            continue
+        rows[level] = AttendanceAlertEscalationConfig.objects.get_or_create(
             level=level,
             defaults={
                 "role_name": f"Nivel {level}",
                 "alert_time": alert_time,
                 "active": True,
             },
-        )
-        configs.append(config)
-    return configs
+        )[0]
+        invalidate_alert_config_cache()
+    return [rows[level] for level in sorted(DEFAULT_LEVEL_TIMES)]
+
+
+def alert_config_snapshot():
+    """Ora și denumirea fiecărui nivel, în cache scurt (se schimbă foarte rar).
+
+    Doar pentru citire. Cine modifică rândurile folosește tot ensure_default_configs().
+    """
+    seconds = _alert_config_cache_seconds()
+    if seconds > 0:
+        cached = cache.get(ALERT_CONFIG_CACHE_KEY)
+        if cached is not None:
+            return cached
+    snapshot = {
+        row.level: {
+            "alert_time": row.alert_time or DEFAULT_LEVEL_TIMES.get(row.level),
+            "role_name": (row.role_name or f"Nivel {row.level}").strip(),
+            "active": row.active,
+        }
+        for row in ensure_default_configs()
+    }
+    if seconds > 0:
+        cache.set(ALERT_CONFIG_CACHE_KEY, snapshot, seconds)
+    return snapshot
 
 
 def _current_missing_by_employee(work_date):
@@ -127,8 +176,10 @@ def team_by_employee(employee_ids):
 
 
 def level_alert_time(level):
-    config = AttendanceAlertEscalationConfig.objects.filter(level=level).first()
-    return config.alert_time if config and config.alert_time else DEFAULT_LEVEL_TIMES[level]
+    entry = alert_config_snapshot().get(level)
+    if entry and entry.get("alert_time"):
+        return entry["alert_time"]
+    return DEFAULT_LEVEL_TIMES[level]
 
 
 def absence_marking_locked(now=None):
@@ -165,6 +216,42 @@ def ensure_level2_auto_marks(work_date=None, now=None):
     marked = _auto_mark_level2_cases(cases, work_date)
     _refresh_escalation_notification(AttendanceAlertCase.Level.LEVEL_2, work_date)
     return marked
+
+
+def run_attendance_maintenance(
+    work_date=None,
+    now=None,
+    force=False,
+    send_email=True,
+    send_push=True,
+):
+    """Întreținerea de pontaj: alertele de la 07:40 plus marcajele automate Nivel 2.
+
+    Face exact aceleași operații ca înainte, în aceeași ordine ca jobul din cron,
+    dar dintr-un request se execută cel mult o dată la
+    settings.ATTENDANCE_MAINTENANCE_THROTTLE_SECONDS secunde. Ambele operații sunt
+    idempotente, deci rezultatul final este identic; se elimină doar repetarea lor
+    la fiecare cerere HTTP.
+
+    Returnează True dacă s-a executat acum, False dacă a fost sărită de limitator.
+    Cronul apelează cu force=True.
+    """
+    local_now = timezone.localtime(now or timezone.now())
+    work_date = work_date or local_now.date()
+    throttle = int(getattr(settings, "ATTENDANCE_MAINTENANCE_THROTTLE_SECONDS", 60) or 0)
+    if not force and throttle > 0:
+        key = f"attendance-maintenance:{work_date.isoformat()}"
+        # cache.add scrie numai dacă cheia nu există: primul request din fereastră
+        # face treaba, restul sar peste ea.
+        if not cache.add(key, 1, throttle):
+            return False
+    ensure_team_attendance_alerts_due(
+        now=local_now,
+        send_email=send_email,
+        send_push=send_push,
+    )
+    ensure_level2_auto_marks(work_date, now=local_now)
+    return True
 
 
 @transaction.atomic
