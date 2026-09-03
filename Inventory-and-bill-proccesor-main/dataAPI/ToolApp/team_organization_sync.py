@@ -129,7 +129,7 @@ def sync_team_to_organization(team, department=None):
 @transaction.atomic
 def sync_organization_members_to_team(department):
     """Apply associated organization members to the linked team's permanent membership."""
-    department = OrganizationDepartment.objects.select_for_update().select_related("team").get(pk=department.pk)
+    department = OrganizationDepartment.objects.select_for_update(of=("self",)).select_related("team").get(pk=department.pk)
     team = department.team
     if not team:
         return None

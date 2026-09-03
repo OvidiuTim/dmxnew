@@ -1038,7 +1038,7 @@ def tool_return_quantity(request):
 
     with transaction.atomic():
         try:
-            source = Tools.objects.select_for_update().select_related("AssignedTo").get(ToolId=tool_id)
+            source = Tools.objects.select_for_update(of=("self",)).select_related("AssignedTo").get(ToolId=tool_id)
         except Tools.DoesNotExist:
             return JsonResponse({"error": "Tool not found"}, status=404)
 

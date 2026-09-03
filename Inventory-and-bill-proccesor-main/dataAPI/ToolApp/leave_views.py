@@ -130,7 +130,7 @@ def leave_request_decision(request, request_id):
     if not target_status:
         return _error("Acțiunea trebuie să fie approve sau reject.")
 
-    item = _base_queryset().select_for_update().filter(pk=request_id).first()
+    item = _base_queryset().select_for_update(of=("self",)).filter(pk=request_id).first()
     if not item:
         return _error("Cererea de concediu nu există.", 404)
     supervisor_id = (item.team.supervisor_id or item.team.leader_id) if item.team_id else item.assigned_leader_id

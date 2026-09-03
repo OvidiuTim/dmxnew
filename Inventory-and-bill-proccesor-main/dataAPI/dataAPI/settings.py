@@ -10,12 +10,14 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
+import os
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-import os
-from dotenv import load_dotenv
 
 # încarcă variabilele din .env în os.environ
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -111,12 +113,42 @@ WSGI_APPLICATION = 'dataAPI.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DB_ENGINE = os.getenv("DB_ENGINE", "sqlite").strip().lower()
+
+if DB_ENGINE in {"postgres", "postgresql", "django.db.backends.postgresql"}:
+    postgres_settings = {
+        "NAME": os.getenv("DB_NAME", "").strip(),
+        "USER": os.getenv("DB_USER", "").strip(),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "").strip(),
+        "PORT": os.getenv("DB_PORT", "").strip(),
     }
-}
+    missing_database_settings = [
+        f"DB_{name}" for name, value in postgres_settings.items() if not value
+    ]
+    if missing_database_settings:
+        raise ImproperlyConfigured(
+            "DB_ENGINE=postgresql requires: "
+            + ", ".join(missing_database_settings)
+        )
+
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            **postgres_settings,
+        }
+    }
+elif DB_ENGINE in {"sqlite", "sqlite3", "django.db.backends.sqlite3"}:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+else:
+    raise ImproperlyConfigured(
+        "Unsupported DB_ENGINE. Use 'sqlite' or 'postgresql'."
+    )
 
 
 # Password validation

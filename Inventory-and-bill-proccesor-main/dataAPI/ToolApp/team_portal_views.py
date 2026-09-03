@@ -780,7 +780,7 @@ def portal_transfer_decision(request, request_id):
     action = str(data.get("action") or "").strip().lower()
     if action not in {"approve", "reject"}:
         return _error("Acțiunea trebuie să fie approve sau reject.")
-    item = PortalTeamTransferRequest.objects.select_for_update().select_related(
+    item = PortalTeamTransferRequest.objects.select_for_update(of=("self",)).select_related(
         "employee", "source_team__leader", "source_team__supervisor",
         "destination_team__leader", "destination_team__supervisor", "requested_by__employee",
     ).filter(pk=request_id).first()
@@ -1038,7 +1038,7 @@ def portal_leave_decision(request, request_id):
     if action not in {"approve", "reject"}:
         return _error("Acțiunea trebuie să fie approve sau reject.")
     supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
-    item = LeaveRequest.objects.select_for_update().select_related("employee", "team").filter(
+    item = LeaveRequest.objects.select_for_update(of=("self",)).select_related("employee", "team").filter(
         pk=request_id,
         team_id__in=supervised_ids,
     ).first()
