@@ -136,6 +136,8 @@ if DB_ENGINE in {"postgres", "postgresql", "django.db.backends.postgresql"}:
         "default": {
             "ENGINE": "django.db.backends.postgresql",
             **postgres_settings,
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+            "CONN_HEALTH_CHECKS": True,
         }
     }
 elif DB_ENGINE in {"sqlite", "sqlite3", "django.db.backends.sqlite3"}:

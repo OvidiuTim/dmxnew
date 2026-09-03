@@ -466,19 +466,49 @@ def build_leave_summary(employee, as_of_date):
         start_date__lte=year_end,
         end_date__gte=year_start,
     ), year_start, year_end)
-    accrued = accrued_leave_days(employee, as_of_date)
-    remaining = remaining_paid_leave_days(employee, as_of_date)
-    extra_days_taken = extra_paid_leave_days(employee, as_of_date)
-    effective_hire_date = employee_effective_hire_date(employee, as_of_date)
+    if employee.hire_date:
+        effective_hire_date = employee.hire_date
+        hire_date_source = "manual"
+    else:
+        first_attendance = (
+            AttendanceSession.objects.filter(user_fk=employee)
+            .order_by("work_date")
+            .values_list("work_date", flat=True)
+            .first()
+        )
+        effective_hire_date = first_attendance or year_start
+        hire_date_source = "first_attendance" if first_attendance else "year_start_fallback"
+
+    completed_months = completed_full_months(effective_hire_date, as_of_date)
+    accrued = (
+        ANNUAL_LEAVE_DAYS
+        if completed_months >= 12
+        else (Decimal(completed_months) * LEAVE_ACCRUAL_PER_MONTH).quantize(MONEY_PLACES)
+    )
+    if (
+        employee.leave_remaining_override_days is not None
+        and employee.leave_remaining_override_year == as_of_date.year
+    ):
+        used_since_override = used - int(employee.leave_remaining_override_used_days or 0)
+        accrued_since_override = (
+            accrued - Decimal(employee.leave_remaining_override_accrued_days or 0)
+        )
+        remaining = (
+            Decimal(employee.leave_remaining_override_days)
+            + accrued_since_override
+            - Decimal(used_since_override)
+        ).quantize(MONEY_PLACES)
+    else:
+        remaining = (accrued - Decimal(used)).quantize(MONEY_PLACES)
+    extra_days_taken = max(Decimal("0.00"), -remaining).quantize(MONEY_PLACES)
+    available_days = max(0, int(remaining.to_integral_value(rounding=ROUND_FLOOR)))
     return {
         "year": as_of_date.year,
         "annual_entitlement_days": int(ANNUAL_LEAVE_DAYS),
         "monthly_accrual_days": f"{LEAVE_ACCRUAL_PER_MONTH:.2f}",
-        "completed_employment_months": completed_full_months(effective_hire_date, as_of_date),
+        "completed_employment_months": completed_months,
         "effective_hire_date": effective_hire_date.isoformat(),
-        "hire_date_source": "manual" if employee.hire_date else (
-            "first_attendance" if AttendanceSession.objects.filter(user_fk=employee).exists() else "year_start_fallback"
-        ),
+        "hire_date_source": hire_date_source,
         "total_accrued_days": f"{accrued:.2f}",
         "total_used_days": used,
         "prior_used_days": int(employee.prior_paid_leave_days or 0) if employee.prior_paid_leave_year == as_of_date.year else 0,
@@ -490,7 +520,7 @@ def build_leave_summary(employee, as_of_date):
             and employee.leave_remaining_override_year == as_of_date.year
         ),
         "accrued_days": f"{accrued:.2f}",
-        "available_days": calculate_available_leave_days(employee, as_of_date),
+        "available_days": available_days,
         "pending_days": len(pending_dates),
         "used_days": used,
     }

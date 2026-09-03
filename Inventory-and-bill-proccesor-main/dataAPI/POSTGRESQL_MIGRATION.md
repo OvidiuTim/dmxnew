@@ -17,7 +17,17 @@ DB_USER=dmx_app
 DB_PASSWORD=replace-with-a-strong-secret
 DB_HOST=127.0.0.1
 DB_PORT=5432
+DB_CONN_MAX_AGE=60
 ```
+
+`DB_CONN_MAX_AGE` este opțional și are valoarea implicită `60` de secunde.
+Verificarea conexiunii înainte de reutilizare este activată pentru PostgreSQL.
+Aceste două opțiuni nu sunt aplicate fallback-ului SQLite.
+
+Cu limita PostgreSQL de 30 conexiuni și maximum 8 conexiuni persistente Gunicorn,
+aplicația folosește cel mult 26,7% din limită și păstrează o rezervă de 22. Numărul
+real trebuie calculat ca `workers × threads`; configurația serviciului trebuie să
+garanteze că produsul nu depășește 8.
 
 Instalare:
 
@@ -224,8 +234,8 @@ sincronizare inversă înainte de rollback.
 - Testul temporar de creare și autentificare PIN a trecut și a fost anulat prin
   rollback.
 - Suita completă: 255 teste trecute pe PostgreSQL.
-
-Observație: fișierul principal `requirements.txt` nu fixează versiunea Django,
-iar `dataAPI/requirements.txt` fixează Django 5.1.7. Acest decalaj exista deja;
-versiunile nu au fost schimbate în această pregătire și ar trebui unificate într-o
-schimbare separată, testată explicit.
+- Ambele fișiere de dependențe fixează `Django==5.2.12`.
+- Profilul endpointurilor de concediu (mediană după încălzire, PostgreSQL local):
+  o zi a scăzut de la 12 query-uri / 4,647 ms la 8 query-uri / 4,002 ms, iar un
+  interval de 21 zile lucrătoare a scăzut de la 249 query-uri / 57,230 ms la
+  12 query-uri / 7,439 ms.

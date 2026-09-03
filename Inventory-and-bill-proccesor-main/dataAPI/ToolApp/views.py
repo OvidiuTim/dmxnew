@@ -3841,6 +3841,7 @@ def attendance_force_close_1730(request):
 
 #un concediu pentru un angajat într-o zi.
 @csrf_exempt
+@transaction.atomic
 def leave_upsert(request):
     """
     POST /api/leave/upsert/
@@ -3865,11 +3866,13 @@ def leave_upsert(request):
     # user lookup
     user = None
     if data.get("user_id"):
-        user = Users.objects.filter(UserId=data["user_id"]).first()
+        user = Users.objects.select_for_update().filter(UserId=data["user_id"]).first()
     elif data.get("user_pin"):
         user = _find_user_by_pin(data["user_pin"])
+        if user:
+            user = Users.objects.select_for_update().get(pk=user.pk)
     elif data.get("user_serie"):
-        user = Users.objects.filter(UserSerie=str(data["user_serie"])).first()
+        user = Users.objects.select_for_update().filter(UserSerie=str(data["user_serie"])).first()
     if not user:
         return JsonResponse({"error": "user not found"}, status=404)
     dismissed_response = _dismissed_attendance_response(user)
@@ -3900,7 +3903,7 @@ def leave_upsert(request):
             "note": x.note or "",
         }
 
-    existing = LeaveDay.objects.filter(user_fk=user, work_date=d).first()
+    existing = LeaveDay.objects.select_for_update().filter(user_fk=user, work_date=d).first()
     before = _snap_leave(existing)
 
     from decimal import Decimal, ROUND_HALF_UP
@@ -3914,18 +3917,7 @@ def leave_upsert(request):
 
     pay = (rate * hours * multiplier).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-    obj, _ = LeaveDay.objects.get_or_create(
-        user_fk=user,
-        work_date=d,
-        defaults={
-            "reason": reason,
-            "hours": hours,
-            "multiplier": multiplier,
-            "hourly_rate_snapshot": rate,
-            "pay_amount": pay,
-            "note": data.get("note") or "",
-        },
-    )
+    obj = existing or LeaveDay(user_fk=user, work_date=d)
     obj.reason = reason
     obj.hours = hours
     obj.multiplier = multiplier
@@ -3973,7 +3965,7 @@ def leave_mark_range(request):
         return JsonResponse({"error": "Only POST allowed"}, status=405)
     try:
         data = json.loads(request.body or "{}")
-        user = Users.objects.get(UserId=int(data.get("user_id")))
+        user = Users.objects.select_for_update().get(UserId=int(data.get("user_id")))
         start_date = _date.fromisoformat(str(data.get("start_date") or ""))
         end_date = _date.fromisoformat(str(data.get("end_date") or ""))
     except Users.DoesNotExist:
@@ -4007,25 +3999,50 @@ def leave_mark_range(request):
         LeaveDay.Reason.INDIA: Decimal("0.00"),
     }[leave_type]
     leave_label = dict(LeaveDay.Reason.choices)[leave_type]
-    marked_dates = []
+    dates_to_mark = []
     current = start_date
     while current <= end_date:
         if current.isoweekday() <= 6:
-            LeaveDay.objects.update_or_create(
-                user_fk=user,
-                work_date=current,
-                defaults={
-                    "reason": leave_type,
-                    "hours": hours,
-                    "multiplier": multiplier,
-                    "hourly_rate_snapshot": rate,
-                    "pay_amount": rate * hours * multiplier,
-                    "note": f"{leave_label} marcat manual",
-                },
-            )
-            recompute_daily_pay(user, current)
-            marked_dates.append(current.isoformat())
+            dates_to_mark.append(current)
         current += timedelta(days=1)
+
+    # Serializăm modificările existente și folosim UPSERT pentru datele care
+    # pot fi create simultan de alt request. Blocarea angajatului de mai sus
+    # protejează întregul interval, nu doar fiecare zi separat.
+    list(
+        LeaveDay.objects.select_for_update().filter(
+            user_fk=user,
+            work_date__in=dates_to_mark,
+        )
+    )
+    LeaveDay.objects.bulk_create(
+        [
+            LeaveDay(
+                user_fk=user,
+                work_date=work_date,
+                reason=leave_type,
+                hours=hours,
+                multiplier=multiplier,
+                hourly_rate_snapshot=rate,
+                pay_amount=rate * hours * multiplier,
+                note=f"{leave_label} marcat manual",
+            )
+            for work_date in dates_to_mark
+        ],
+        update_conflicts=True,
+        update_fields=(
+            "reason",
+            "hours",
+            "multiplier",
+            "hourly_rate_snapshot",
+            "pay_amount",
+            "note",
+            "updated_at",
+        ),
+        unique_fields=("user_fk", "work_date"),
+    )
+    recompute_daily_pays(user, dates_to_mark)
+    marked_dates = [work_date.isoformat() for work_date in dates_to_mark]
 
     from ToolApp.mobile_services import build_leave_summary
 
@@ -4967,6 +4984,52 @@ def recompute_daily_pay(user, day):
         obj.day_pay = day_pay
         obj.save()
     return obj
+
+
+def recompute_daily_pays(user, days):
+    """Recompute several daily snapshots with bounded query count."""
+    days = sorted(set(days))
+    if not days:
+        return
+
+    attendance_totals = dict(
+        AttendanceSession.objects.filter(
+            user_fk=user,
+            work_date__in=days,
+            out_time__isnull=False,
+        )
+        .values("work_date")
+        .annotate(total=Sum("duration_seconds"))
+        .values_list("work_date", "total")
+    )
+    list(
+        DailyPay.objects.select_for_update().filter(
+            user_fk=user,
+            work_date__in=days,
+        )
+    )
+
+    rate = user.hourly_rate or Decimal("0.00")
+    snapshots = []
+    for day in days:
+        total_seconds = int(attendance_totals.get(day) or 0)
+        hours = Decimal(total_seconds) / Decimal(3600)
+        day_pay = (rate * hours).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        snapshots.append(
+            DailyPay(
+                user_fk=user,
+                work_date=day,
+                total_seconds=total_seconds,
+                hourly_rate_snapshot=rate,
+                day_pay=day_pay,
+            )
+        )
+    DailyPay.objects.bulk_create(
+        snapshots,
+        update_conflicts=True,
+        update_fields=("total_seconds", "hourly_rate_snapshot", "day_pay"),
+        unique_fields=("user_fk", "work_date"),
+    )
 
 #rescrie manual pontajul unei zi anume pt un user anume
 @csrf_exempt
