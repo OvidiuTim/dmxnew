@@ -17,6 +17,8 @@ SALARY_ADVANCE = "salary_advance"
 SALARY_REMAINDER = "salary_remainder"
 FOOD_MONEY = "food_money"
 TICKET_BENEFIT_AMOUNT_EUR = Decimal("660.00")
+LUNI_ELIGIBILITATE_BILET = 12
+ZILE_CONCEDIU_NECESARE_BILET = Decimal("15")
 
 TRADE_CODE_MAP = {
     "instalator": "installer",
@@ -352,29 +354,84 @@ def _one_year_after(value):
         return value.replace(year=value.year + 1, month=2, day=28)
 
 
-def build_ticket_benefit(employee, as_of_date=None):
-    """Single source of truth for the annual home-ticket benefit."""
+def luni_complete_scurse(data_start, as_of_date):
+    """Luni calendaristice complete intre doua date, calculate pe aniversara.
+
+    Spre deosebire de completed_full_months(), NU se reseteaza la 1 ianuarie:
+    bonusul de bilet se acumuleaza continuu de la data de start, nu pe an calendaristic.
+    """
+    if not data_start or not as_of_date or as_of_date < data_start:
+        return 0
+    luni = (as_of_date.year - data_start.year) * 12 + (as_of_date.month - data_start.month)
+    if as_of_date.day < data_start.day:
+        luni -= 1
+    return max(0, luni)
+
+
+def data_start_bilet(employee, as_of_date):
+    """Data de la care se acumuleaza bonusul: angajarea sau ultima plecare acasa."""
+    data_start = employee_effective_hire_date(employee, as_of_date)
+    last_trip = employee.last_home_trip_date
+    if last_trip and last_trip > data_start:
+        return last_trip
+    return data_start
+
+
+def build_ticket_benefit(employee, as_of_date=None, leave_summary=None):
+    """Single source of truth for the annual home-ticket benefit.
+
+    leave_summary este optional: daca nu e primit, campurile legate de concediu raman
+    None si nu se face niciun query in plus (vezi employee_reports, care itereaza
+    toti angajatii). Zilele de concediu sunt informative - nu influenteaza
+    is_currently_eligible.
+    """
     today = as_of_date or date.today()
     enabled = bool(employee.ticket_benefit_enabled)
     last_trip = employee.last_home_trip_date
+    rata_lunara = (TICKET_BENEFIT_AMOUNT_EUR / Decimal(LUNI_ELIGIBILITATE_BILET)).quantize(MONEY_PLACES)
     payload = {
         "ticket_benefit_enabled": enabled,
         "last_home_trip_date": last_trip.isoformat() if last_trip else None,
         "ticket_benefit_amount_eur": f"{TICKET_BENEFIT_AMOUNT_EUR:.2f}",
+        "monthly_rate": f"{rata_lunara:.2f}",
         "next_eligibility_date": None,
         "is_currently_eligible": None,
         "days_until_eligible": None,
+        "accrued_amount": None,
+        "completed_months": None,
+        "leave_days_available": None,
+        "required_leave_days": None,
+        "has_enough_leave_days": None,
     }
     if not enabled:
         return payload
 
-    eligibility_base = last_trip or employee_effective_hire_date(employee, today)
-    next_eligibility = _one_year_after(eligibility_base)
+    data_start = data_start_bilet(employee, today)
+    next_eligibility = _one_year_after(data_start)
+    eligibil = today >= next_eligibility
+    if eligibil:
+        luni_complete = LUNI_ELIGIBILITATE_BILET
+    else:
+        luni_complete = min(luni_complete_scurse(data_start, today), LUNI_ELIGIBILITATE_BILET)
+    suma_acumulata = min(
+        (rata_lunara * Decimal(luni_complete)).quantize(MONEY_PLACES),
+        TICKET_BENEFIT_AMOUNT_EUR,
+    )
     payload.update({
         "next_eligibility_date": next_eligibility.isoformat(),
-        "is_currently_eligible": today >= next_eligibility,
+        "is_currently_eligible": eligibil,
         "days_until_eligible": max(0, (next_eligibility - today).days),
+        "accrued_amount": f"{suma_acumulata:.2f}",
+        "completed_months": luni_complete,
     })
+
+    if leave_summary is not None:
+        zile_disponibile = Decimal(str(leave_summary.get("remaining_days") or "0"))
+        payload.update({
+            "leave_days_available": f"{zile_disponibile:.2f}",
+            "required_leave_days": f"{ZILE_CONCEDIU_NECESARE_BILET:g}",
+            "has_enough_leave_days": zile_disponibile >= ZILE_CONCEDIU_NECESARE_BILET,
+        })
     return payload
 
 

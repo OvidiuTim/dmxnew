@@ -597,8 +597,10 @@ class MobileEmployeeApiTests(TestCase):
                 "salary_remainder_ron", "meal_vouchers_ron", "attendance", "payroll",
                 "salary_payments", "leave_summary", "equipment", "tools", "team", "access",
                 "ticket_benefit", "ticket_benefit_enabled", "last_home_trip_date",
-                "ticket_benefit_amount_eur", "next_eligibility_date",
-                "is_currently_eligible", "days_until_eligible",
+                "ticket_benefit_amount_eur", "monthly_rate", "next_eligibility_date",
+                "is_currently_eligible", "days_until_eligible", "accrued_amount",
+                "completed_months", "leave_days_available", "required_leave_days",
+                "has_enough_leave_days",
             },
         )
 

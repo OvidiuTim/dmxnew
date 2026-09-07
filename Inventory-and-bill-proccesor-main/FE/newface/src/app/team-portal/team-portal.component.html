@@ -108,11 +108,13 @@
         </header>
         <div>
           <span>{{ ticketText.maxAmount }}<b>{{ salary.ticket_benefit.ticket_benefit_amount_eur }} EUR</b></span>
+          <span>{{ ticketText.accrued }}<b>{{ salary.ticket_benefit.accrued_amount }} EUR</b></span>
           <span>{{ ticketText.eligibleFrom }}<b>{{ salary.ticket_benefit.next_eligibility_date | date:'dd.MM.yyyy' }}</b></span>
           <span>{{ ticketText.lastTrip }}<b>{{ salary.ticket_benefit.last_home_trip_date ? (salary.ticket_benefit.last_home_trip_date | date:'dd.MM.yyyy') : ticketText.neverUsed }}</b></span>
+          <span *ngIf="salary.ticket_benefit.leave_days_available">{{ ticketText.leaveRemaining }}<b>{{ salary.ticket_benefit.leave_days_available }}</b></span>
           <span *ngIf="!salary.ticket_benefit.is_currently_eligible">{{ ticketText.daysRemaining }}<b>{{ salary.ticket_benefit.days_until_eligible }}</b></span>
         </div>
-        <p>{{ ticketText.explanation }}</p>
+        <p>{{ ticketExplanation(salary.ticket_benefit) }}</p>
       </article>
       <div class="subsection-heading"><h2>{{ t.assignedTools }}</h2></div>
       <p *ngIf="!salary.tools.length" class="empty-copy standalone">{{ t.noTools }}</p>

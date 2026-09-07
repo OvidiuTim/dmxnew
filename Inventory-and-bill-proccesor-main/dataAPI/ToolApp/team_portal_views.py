@@ -392,8 +392,8 @@ def portal_salary(request):
     employee = app_user.employee
     today = timezone.localdate()
     equipment, tools = build_inventory(employee)
-    ticket_benefit = build_ticket_benefit(employee, today)
     leave_summary = build_leave_summary(employee, today)
+    ticket_benefit = build_ticket_benefit(employee, today, leave_summary=leave_summary)
     return JsonResponse({
         "employee": {"id": employee.pk, "name": employee.UserName},
         "financial_details_hidden": False,

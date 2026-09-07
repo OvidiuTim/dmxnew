@@ -1,0 +1,477 @@
+diff --git a/Inventory-and-bill-proccesor-main/FE/newface/src/app/pontaj/fisa-angajat/fisa-angajat.component.html b/Inventory-and-bill-proccesor-main/FE/newface/src/app/pontaj/fisa-angajat/fisa-angajat.component.html
+index 2885e6c7..ef8e1f69 100644
+--- a/Inventory-and-bill-proccesor-main/FE/newface/src/app/pontaj/fisa-angajat/fisa-angajat.component.html
++++ b/Inventory-and-bill-proccesor-main/FE/newface/src/app/pontaj/fisa-angajat/fisa-angajat.component.html
+@@ -168,12 +168,13 @@
+           <strong [class.eligible]="employee.is_currently_eligible">{{ employee.is_currently_eligible ? 'Eligibil' : 'Încă neeligibil' }}</strong>
+         </header>
+         <div class="ticket-benefit-details">
+-          <div><span>Suma maximă</span><b>{{ employee.ticket_benefit_amount_eur || '660.00' }} EUR</b></div>
++          <div><span>Suma maximă</span><b>{{ employee.ticket_benefit_amount_eur }} EUR</b></div>
++          <div><span>Acumulat până acum</span><b>{{ employee.accrued_amount }} EUR</b></div>
+           <div><span>Eligibil de la</span><b>{{ employee.next_eligibility_date | date:'dd.MM.yyyy' }}</b></div>
+           <div><span>Ultima plecare acasă</span><b>{{ employee.last_home_trip_date ? (employee.last_home_trip_date | date:'dd.MM.yyyy') : 'Nu a beneficiat încă' }}</b></div>
+           <div *ngIf="!employee.is_currently_eligible"><span>Zile rămase</span><b>{{ employee.days_until_eligible || 0 }} zile</b></div>
+         </div>
+-        <p>După împlinirea perioadei de eligibilitate, poți beneficia de un ajutor de maximum 660 EUR pentru achiziționarea biletului de călătorie acasă. Această sumă nu se plătește în numerar și poate fi folosită doar pentru cumpărarea biletului.</p>
++        <p>Bonusul se acumulează lunar: {{ employee.monthly_rate }} EUR pentru fiecare lună completă lucrată, până la maximum {{ employee.ticket_benefit_amount_eur }} EUR după 12 luni. Perioada se calculează de la data angajării sau de la ultima plecare acasă, oricare este mai recentă. Poți folosi bonusul după împlinirea celor 12 luni și doar dacă ai suficiente zile de concediu acumulate pentru deplasare. Suma nu se plătește în numerar și poate fi folosită exclusiv pentru cumpărarea biletului de călătorie acasă.<ng-container *ngIf="employee.required_leave_days"> Pentru deplasare ai nevoie de minimum {{ employee.required_leave_days }} zile de concediu disponibile.</ng-container></p>
+       </article>
+     </section>
+ 
+diff --git a/Inventory-and-bill-proccesor-main/FE/newface/src/app/pontaj/fisa-angajat/fisa-angajat.component.ts b/Inventory-and-bill-proccesor-main/FE/newface/src/app/pontaj/fisa-angajat/fisa-angajat.component.ts
+index f9e40f42..a6491a8a 100644
+--- a/Inventory-and-bill-proccesor-main/FE/newface/src/app/pontaj/fisa-angajat/fisa-angajat.component.ts
++++ b/Inventory-and-bill-proccesor-main/FE/newface/src/app/pontaj/fisa-angajat/fisa-angajat.component.ts
+@@ -28,6 +28,12 @@ interface EmployeeProfile {
+   ticket_benefit_enabled?: boolean;
+   last_home_trip_date?: string | null;
+   ticket_benefit_amount_eur?: string | number | null;
++  monthly_rate?: string | null;
++  accrued_amount?: string | null;
++  completed_months?: number | null;
++  leave_days_available?: string | null;
++  required_leave_days?: string | null;
++  has_enough_leave_days?: boolean | null;
+   next_eligibility_date?: string | null;
+   is_currently_eligible?: boolean | null;
+   days_until_eligible?: number | null;
+diff --git a/Inventory-and-bill-proccesor-main/FE/newface/src/app/team-portal/team-portal.component.html b/Inventory-and-bill-proccesor-main/FE/newface/src/app/team-portal/team-portal.component.html
+index 85f25fa2..b9ff8b7d 100644
+--- a/Inventory-and-bill-proccesor-main/FE/newface/src/app/team-portal/team-portal.component.html
++++ b/Inventory-and-bill-proccesor-main/FE/newface/src/app/team-portal/team-portal.component.html
+@@ -108,11 +108,13 @@
+         </header>
+         <div>
+           <span>{{ ticketText.maxAmount }}<b>{{ salary.ticket_benefit.ticket_benefit_amount_eur }} EUR</b></span>
++          <span>{{ ticketText.accrued }}<b>{{ salary.ticket_benefit.accrued_amount }} EUR</b></span>
+           <span>{{ ticketText.eligibleFrom }}<b>{{ salary.ticket_benefit.next_eligibility_date | date:'dd.MM.yyyy' }}</b></span>
+           <span>{{ ticketText.lastTrip }}<b>{{ salary.ticket_benefit.last_home_trip_date ? (salary.ticket_benefit.last_home_trip_date | date:'dd.MM.yyyy') : ticketText.neverUsed }}</b></span>
++          <span *ngIf="salary.ticket_benefit.leave_days_available">{{ ticketText.leaveRemaining }}<b>{{ salary.ticket_benefit.leave_days_available }}</b></span>
+           <span *ngIf="!salary.ticket_benefit.is_currently_eligible">{{ ticketText.daysRemaining }}<b>{{ salary.ticket_benefit.days_until_eligible }}</b></span>
+         </div>
+-        <p>{{ ticketText.explanation }}</p>
++        <p>{{ ticketExplanation(salary.ticket_benefit) }}</p>
+       </article>
+       <div class="subsection-heading"><h2>{{ t.assignedTools }}</h2></div>
+       <p *ngIf="!salary.tools.length" class="empty-copy standalone">{{ t.noTools }}</p>
+diff --git a/Inventory-and-bill-proccesor-main/FE/newface/src/app/team-portal/team-portal.component.ts b/Inventory-and-bill-proccesor-main/FE/newface/src/app/team-portal/team-portal.component.ts
+index 33ffb384..3dd00f4b 100644
+--- a/Inventory-and-bill-proccesor-main/FE/newface/src/app/team-portal/team-portal.component.ts
++++ b/Inventory-and-bill-proccesor-main/FE/newface/src/app/team-portal/team-portal.component.ts
+@@ -55,14 +55,15 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
+     ne: { role: 'भण्डारपाल', tools: 'औजार', hint: 'औजार र वितरण रजिस्टर खोल्नुहोस्', hidden: 'हाल उपलब्ध छैन' },
+   };
+   private readonly ticketBenefitCopy: Record<PortalLanguage, {
+-    title: string; eligible: string; notEligible: string; maxAmount: string; eligibleFrom: string;
+-    lastTrip: string; neverUsed: string; daysRemaining: string; explanation: string;
++    title: string; eligible: string; notEligible: string; maxAmount: string; accrued: string;
++    eligibleFrom: string; lastTrip: string; neverUsed: string; daysRemaining: string;
++    leaveRemaining: string; explanation: string; leaveNote: string;
+   }> = {
+-    ro: { title: 'Ajutor bilet acasă', eligible: 'Eligibil', notEligible: 'Încă neeligibil', maxAmount: 'Suma maximă', eligibleFrom: 'Eligibil de la', lastTrip: 'Ultima plecare acasă', neverUsed: 'Nu a beneficiat încă', daysRemaining: 'Zile rămase', explanation: 'După împlinirea perioadei de eligibilitate, poți beneficia de un ajutor de maximum 660 EUR pentru achiziționarea biletului de călătorie acasă. Această sumă nu se plătește în numerar și poate fi folosită doar pentru cumpărarea biletului.' },
+-    en: { title: 'Home travel ticket benefit', eligible: 'Eligible', notEligible: 'Not eligible yet', maxAmount: 'Maximum amount', eligibleFrom: 'Eligible from', lastTrip: 'Last trip home', neverUsed: 'Not used yet', daysRemaining: 'Days remaining', explanation: 'After completing the eligibility period, you may receive support of up to EUR 660 to purchase your travel ticket home. This amount is not paid in cash and may only be used to buy the ticket.' },
+-    pa: { title: 'ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਸਹਾਇਤਾ', eligible: 'ਯੋਗ', notEligible: 'ਹਾਲੇ ਯੋਗ ਨਹੀਂ', maxAmount: 'ਵੱਧ ਤੋਂ ਵੱਧ ਰਕਮ', eligibleFrom: 'ਇਸ ਮਿਤੀ ਤੋਂ ਯੋਗ', lastTrip: 'ਆਖਰੀ ਘਰ ਯਾਤਰਾ', neverUsed: 'ਹਾਲੇ ਲਾਭ ਨਹੀਂ ਲਿਆ', daysRemaining: 'ਬਾਕੀ ਦਿਨ', explanation: 'ਯੋਗਤਾ ਦੀ ਮਿਆਦ ਪੂਰੀ ਹੋਣ ਤੋਂ ਬਾਅਦ, ਤੁਸੀਂ ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਖਰੀਦਣ ਲਈ ਵੱਧ ਤੋਂ ਵੱਧ 660 ਯੂਰੋ ਦੀ ਸਹਾਇਤਾ ਲੈ ਸਕਦੇ ਹੋ। ਇਹ ਰਕਮ ਨਕਦ ਨਹੀਂ ਦਿੱਤੀ ਜਾਂਦੀ ਅਤੇ ਸਿਰਫ਼ ਟਿਕਟ ਖਰੀਦਣ ਲਈ ਵਰਤੀ ਜਾ ਸਕਦੀ ਹੈ।' },
+-    hi: { title: 'घर जाने के टिकट की सहायता', eligible: 'पात्र', notEligible: 'अभी पात्र नहीं', maxAmount: 'अधिकतम राशि', eligibleFrom: 'इस तारीख से पात्र', lastTrip: 'पिछली घर यात्रा', neverUsed: 'अभी लाभ नहीं लिया', daysRemaining: 'शेष दिन', explanation: 'पात्रता अवधि पूरी होने के बाद, आप घर जाने का यात्रा टिकट खरीदने के लिए अधिकतम 660 यूरो की सहायता प्राप्त कर सकते हैं। यह राशि नकद नहीं दी जाती और केवल टिकट खरीदने के लिए उपयोग की जा सकती है।' },
+-    ne: { title: 'घर जाने टिकट सहायता', eligible: 'योग्य', notEligible: 'अझै योग्य छैन', maxAmount: 'अधिकतम रकम', eligibleFrom: 'यस मितिदेखि योग्य', lastTrip: 'पछिल्लो घर यात्रा', neverUsed: 'अझै लाभ लिएको छैन', daysRemaining: 'बाँकी दिन', explanation: 'योग्यता अवधि पूरा भएपछि, घर जाने यात्रा टिकट किन्न अधिकतम 660 युरोसम्म सहायता पाउन सक्नुहुन्छ। यो रकम नगदमा दिइँदैन र टिकट किन्न मात्र प्रयोग गर्न सकिन्छ।' },
++    ro: { title: 'Bonus performanță bilet acasă', eligible: 'Eligibil', notEligible: 'Încă neeligibil', maxAmount: 'Sumă maximă', accrued: 'Acumulat până acum', eligibleFrom: 'Eligibil din', lastTrip: 'Ultima plecare acasă', neverUsed: 'Nu a beneficiat încă', daysRemaining: 'Zile rămase', leaveRemaining: 'Concediu rămas', explanation: 'Bonusul se acumulează lunar: {lunar} EUR pentru fiecare lună completă lucrată, până la maximum {max} EUR după 12 luni. Perioada se calculează de la data angajării sau de la ultima plecare acasă, oricare este mai recentă. Poți folosi bonusul după împlinirea celor 12 luni și doar dacă ai suficiente zile de concediu acumulate pentru deplasare. Suma nu se plătește în numerar și poate fi folosită exclusiv pentru cumpărarea biletului de călătorie acasă.', leaveNote: 'Pentru deplasare ai nevoie de minimum {zile} zile de concediu disponibile.' },
++    en: { title: 'Home travel ticket performance bonus', eligible: 'Eligible', notEligible: 'Not eligible yet', maxAmount: 'Maximum amount', accrued: 'Accrued so far', eligibleFrom: 'Eligible from', lastTrip: 'Last trip home', neverUsed: 'Not used yet', daysRemaining: 'Days remaining', leaveRemaining: 'Remaining leave days', explanation: 'The bonus accrues monthly: {lunar} EUR for every full month worked, up to a maximum of {max} EUR after 12 months. The period is counted from your hire date or from your last trip home, whichever is later. You can use the bonus once the 12 months are complete and only if you have enough accrued leave days for the trip. The amount is not paid in cash and may only be used to buy your travel ticket home.', leaveNote: 'You need at least {zile} available leave days for the trip.' },
++    pa: { title: 'ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਲਈ ਕਾਰਗੁਜ਼ਾਰੀ ਬੋਨਸ', eligible: 'ਯੋਗ', notEligible: 'ਅਜੇ ਯੋਗ ਨਹੀਂ', maxAmount: 'ਵੱਧ ਤੋਂ ਵੱਧ ਰਕਮ', accrued: 'ਹੁਣ ਤੱਕ ਜਮ੍ਹਾਂ ਹੋਇਆ', eligibleFrom: 'ਯੋਗਤਾ ਦੀ ਮਿਤੀ', lastTrip: 'ਪਿਛਲੀ ਵਾਰ ਘਰ ਜਾਣਾ', neverUsed: 'ਹਾਲੇ ਲਾਭ ਨਹੀਂ ਲਿਆ', daysRemaining: 'ਬਾਕੀ ਦਿਨ', leaveRemaining: 'ਬਾਕੀ ਛੁੱਟੀਆਂ', explanation: 'ਇਹ ਬੋਨਸ ਹਰ ਮਹੀਨੇ ਜਮ੍ਹਾਂ ਹੁੰਦਾ ਹੈ: ਹਰ ਪੂਰੇ ਕੰਮ ਕੀਤੇ ਮਹੀਨੇ ਲਈ {lunar} EUR, 12 ਮਹੀਨਿਆਂ ਬਾਅਦ ਵੱਧ ਤੋਂ ਵੱਧ {max} EUR ਤੱਕ। ਇਹ ਮਿਆਦ ਨੌਕਰੀ ਸ਼ੁਰੂ ਕਰਨ ਦੀ ਮਿਤੀ ਜਾਂ ਪਿਛਲੀ ਵਾਰ ਘਰ ਜਾਣ ਦੀ ਮਿਤੀ ਤੋਂ ਗਿਣੀ ਜਾਂਦੀ ਹੈ, ਜਿਹੜੀ ਵੀ ਬਾਅਦ ਵਿੱਚ ਹੋਵੇ। ਤੁਸੀਂ ਇਹ ਬੋਨਸ 12 ਮਹੀਨੇ ਪੂਰੇ ਹੋਣ ਤੋਂ ਬਾਅਦ ਅਤੇ ਸਿਰਫ਼ ਤਾਂ ਵਰਤ ਸਕਦੇ ਹੋ ਜੇ ਤੁਹਾਡੇ ਕੋਲ ਸਫ਼ਰ ਲਈ ਕਾਫ਼ੀ ਜਮ੍ਹਾਂ ਹੋਈਆਂ ਛੁੱਟੀਆਂ ਹਨ। ਇਹ ਰਕਮ ਨਕਦ ਨਹੀਂ ਦਿੱਤੀ ਜਾਂਦੀ ਅਤੇ ਸਿਰਫ਼ ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਖਰੀਦਣ ਲਈ ਹੀ ਵਰਤੀ ਜਾ ਸਕਦੀ ਹੈ।', leaveNote: 'ਸਫ਼ਰ ਲਈ ਤੁਹਾਨੂੰ ਘੱਟੋ-ਘੱਟ {zile} ਉਪਲਬਧ ਛੁੱਟੀ ਦੇ ਦਿਨ ਚਾਹੀਦੇ ਹਨ।' },
++    hi: { title: 'घर जाने के टिकट का प्रदर्शन बोनस', eligible: 'पात्र', notEligible: 'अभी पात्र नहीं', maxAmount: 'अधिकतम राशि', accrued: 'अब तक जमा', eligibleFrom: 'पात्रता की तिथि', lastTrip: 'पिछली बार घर जाना', neverUsed: 'अभी लाभ नहीं लिया', daysRemaining: 'शेष दिन', leaveRemaining: 'शेष छुट्टी के दिन', explanation: 'यह बोनस हर महीने जमा होता है: काम किए गए हर पूरे महीने के लिए {lunar} EUR, 12 महीनों के बाद अधिकतम {max} EUR तक। यह अवधि नौकरी शुरू होने की तिथि या पिछली बार घर जाने की तिथि — जो भी बाद में हो — से गिनी जाती है। आप इस बोनस का उपयोग 12 महीने पूरे होने के बाद और तभी कर सकते हैं जब आपके पास यात्रा के लिए पर्याप्त अर्जित छुट्टी के दिन हों। यह राशि नकद में नहीं दी जाती और केवल घर जाने का टिकट खरीदने के लिए ही उपयोग की जा सकती है।', leaveNote: 'यात्रा के लिए आपको कम से कम {zile} उपलब्ध छुट्टी के दिन चाहिए।' },
++    ne: { title: 'घर जाने टिकटको कार्यसम्पादन बोनस', eligible: 'योग्य', notEligible: 'अझै योग्य छैन', maxAmount: 'अधिकतम रकम', accrued: 'अहिलेसम्म जम्मा', eligibleFrom: 'योग्यता मिति', lastTrip: 'अघिल्लो पटक घर गएको', neverUsed: 'अझै लाभ लिएको छैन', daysRemaining: 'बाँकी दिन', leaveRemaining: 'बाँकी बिदाका दिन', explanation: 'यो बोनस हरेक महिना जम्मा हुन्छ: काम गरेको हरेक पूरा महिनाका लागि {lunar} EUR, १२ महिनापछि बढीमा {max} EUR सम्म। यो अवधि जागिर सुरु भएको मिति वा अघिल्लो पटक घर गएको मिति — जुन पछिल्लो हो — बाट गणना गरिन्छ। तपाईं यो बोनस १२ महिना पूरा भएपछि र यात्राका लागि पर्याप्त संचित बिदाका दिन भएमा मात्र प्रयोग गर्न सक्नुहुन्छ। यो रकम नगदमा दिइँदैन र घर जाने टिकट किन्नका लागि मात्र प्रयोग गर्न सकिन्छ।', leaveNote: 'यात्राका लागि तपाईंलाई कम्तीमा {zile} उपलब्ध बिदाका दिन चाहिन्छ।' },
+   };
+   private readonly leaveBalanceCopy: Record<PortalLanguage, { remaining: string; exceeded: string }> = {
+     ro: { remaining: '{days} zile rămase', exceeded: 'Ai depășit soldul de concediu cu {days} zile.' },
+@@ -234,6 +235,28 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
+   get hiddenValueLabel(): string { return this.storekeeperCopy[this.language].hidden; }
+   get ticketText() { return this.ticketBenefitCopy[this.language]; }
+ 
++  /** Inlocuieste {cheie} cu valoarea primita, pentru textele traduse. */
++  private interpoleaza(sablon: string, valori: Record<string, string>): string {
++    return Object.keys(valori).reduce(
++      (text, cheie) => text.split(`{${cheie}}`).join(valori[cheie]),
++      sablon || '',
++    );
++  }
++
++  /** Textul explicativ al bonusului, cu sumele si pragul injectate din payload. */
++  ticketExplanation(ticket: any): string {
++    const text = this.interpoleaza(this.ticketText.explanation, {
++      lunar: String(ticket?.monthly_rate ?? ''),
++      max: String(ticket?.ticket_benefit_amount_eur ?? ''),
++      acumulat: String(ticket?.accrued_amount ?? ''),
++    });
++    if (ticket?.required_leave_days == null) return text;
++    const nota = this.interpoleaza(this.ticketText.leaveNote, {
++      zile: String(ticket.required_leave_days),
++    });
++    return `${text} ${nota}`;
++  }
++
+   leaveBalanceIsNegative(payload: any): boolean {
+     return Number(String(payload?.leave_balance?.remaining_days ?? '0').replace(',', '.')) < 0;
+   }
+diff --git a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/mobile_services.py b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/mobile_services.py
+index 4d4d805c..5d6f3adb 100644
+--- a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/mobile_services.py
++++ b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/mobile_services.py
+@@ -17,6 +17,8 @@ SALARY_ADVANCE = "salary_advance"
+ SALARY_REMAINDER = "salary_remainder"
+ FOOD_MONEY = "food_money"
+ TICKET_BENEFIT_AMOUNT_EUR = Decimal("660.00")
++LUNI_ELIGIBILITATE_BILET = 12
++ZILE_CONCEDIU_NECESARE_BILET = Decimal("15")
+ 
+ TRADE_CODE_MAP = {
+     "instalator": "installer",
+@@ -352,29 +354,84 @@ def _one_year_after(value):
+         return value.replace(year=value.year + 1, month=2, day=28)
+ 
+ 
+-def build_ticket_benefit(employee, as_of_date=None):
+-    """Single source of truth for the annual home-ticket benefit."""
++def luni_complete_scurse(data_start, as_of_date):
++    """Luni calendaristice complete intre doua date, calculate pe aniversara.
++
++    Spre deosebire de completed_full_months(), NU se reseteaza la 1 ianuarie:
++    bonusul de bilet se acumuleaza continuu de la data de start, nu pe an calendaristic.
++    """
++    if not data_start or not as_of_date or as_of_date < data_start:
++        return 0
++    luni = (as_of_date.year - data_start.year) * 12 + (as_of_date.month - data_start.month)
++    if as_of_date.day < data_start.day:
++        luni -= 1
++    return max(0, luni)
++
++
++def data_start_bilet(employee, as_of_date):
++    """Data de la care se acumuleaza bonusul: angajarea sau ultima plecare acasa."""
++    data_start = employee_effective_hire_date(employee, as_of_date)
++    last_trip = employee.last_home_trip_date
++    if last_trip and last_trip > data_start:
++        return last_trip
++    return data_start
++
++
++def build_ticket_benefit(employee, as_of_date=None, leave_summary=None):
++    """Single source of truth for the annual home-ticket benefit.
++
++    leave_summary este optional: daca nu e primit, campurile legate de concediu raman
++    None si nu se face niciun query in plus (vezi employee_reports, care itereaza
++    toti angajatii). Zilele de concediu sunt informative - nu influenteaza
++    is_currently_eligible.
++    """
+     today = as_of_date or date.today()
+     enabled = bool(employee.ticket_benefit_enabled)
+     last_trip = employee.last_home_trip_date
++    rata_lunara = (TICKET_BENEFIT_AMOUNT_EUR / Decimal(LUNI_ELIGIBILITATE_BILET)).quantize(MONEY_PLACES)
+     payload = {
+         "ticket_benefit_enabled": enabled,
+         "last_home_trip_date": last_trip.isoformat() if last_trip else None,
+         "ticket_benefit_amount_eur": f"{TICKET_BENEFIT_AMOUNT_EUR:.2f}",
++        "monthly_rate": f"{rata_lunara:.2f}",
+         "next_eligibility_date": None,
+         "is_currently_eligible": None,
+         "days_until_eligible": None,
++        "accrued_amount": None,
++        "completed_months": None,
++        "leave_days_available": None,
++        "required_leave_days": None,
++        "has_enough_leave_days": None,
+     }
+     if not enabled:
+         return payload
+ 
+-    eligibility_base = last_trip or employee_effective_hire_date(employee, today)
+-    next_eligibility = _one_year_after(eligibility_base)
++    data_start = data_start_bilet(employee, today)
++    next_eligibility = _one_year_after(data_start)
++    eligibil = today >= next_eligibility
++    if eligibil:
++        luni_complete = LUNI_ELIGIBILITATE_BILET
++    else:
++        luni_complete = min(luni_complete_scurse(data_start, today), LUNI_ELIGIBILITATE_BILET)
++    suma_acumulata = min(
++        (rata_lunara * Decimal(luni_complete)).quantize(MONEY_PLACES),
++        TICKET_BENEFIT_AMOUNT_EUR,
++    )
+     payload.update({
+         "next_eligibility_date": next_eligibility.isoformat(),
+-        "is_currently_eligible": today >= next_eligibility,
++        "is_currently_eligible": eligibil,
+         "days_until_eligible": max(0, (next_eligibility - today).days),
++        "accrued_amount": f"{suma_acumulata:.2f}",
++        "completed_months": luni_complete,
+     })
++
++    if leave_summary is not None:
++        zile_disponibile = Decimal(str(leave_summary.get("remaining_days") or "0"))
++        payload.update({
++            "leave_days_available": f"{zile_disponibile:.2f}",
++            "required_leave_days": f"{ZILE_CONCEDIU_NECESARE_BILET:g}",
++            "has_enough_leave_days": zile_disponibile >= ZILE_CONCEDIU_NECESARE_BILET,
++        })
+     return payload
+ 
+ 
+diff --git a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/team_portal_views.py b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/team_portal_views.py
+index 2b16602d..4843e3b6 100644
+--- a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/team_portal_views.py
++++ b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/team_portal_views.py
+@@ -392,8 +392,8 @@ def portal_salary(request):
+     employee = app_user.employee
+     today = timezone.localdate()
+     equipment, tools = build_inventory(employee)
+-    ticket_benefit = build_ticket_benefit(employee, today)
+     leave_summary = build_leave_summary(employee, today)
++    ticket_benefit = build_ticket_benefit(employee, today, leave_summary=leave_summary)
+     return JsonResponse({
+         "employee": {"id": employee.pk, "name": employee.UserName},
+         "financial_details_hidden": False,
+diff --git a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/test_mobile_employee_api.py b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/test_mobile_employee_api.py
+index 7925b42d..d371f978 100644
+--- a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/test_mobile_employee_api.py
++++ b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/test_mobile_employee_api.py
+@@ -597,8 +597,10 @@ class MobileEmployeeApiTests(TestCase):
+                 "salary_remainder_ron", "meal_vouchers_ron", "attendance", "payroll",
+                 "salary_payments", "leave_summary", "equipment", "tools", "team", "access",
+                 "ticket_benefit", "ticket_benefit_enabled", "last_home_trip_date",
+-                "ticket_benefit_amount_eur", "next_eligibility_date",
+-                "is_currently_eligible", "days_until_eligible",
++                "ticket_benefit_amount_eur", "monthly_rate", "next_eligibility_date",
++                "is_currently_eligible", "days_until_eligible", "accrued_amount",
++                "completed_months", "leave_days_available", "required_leave_days",
++                "has_enough_leave_days",
+             },
+         )
+ 
+diff --git a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/test_ticket_benefit.py b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/test_ticket_benefit.py
+index 15e387e8..5c38187c 100644
+--- a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/test_ticket_benefit.py
++++ b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/test_ticket_benefit.py
+@@ -3,7 +3,11 @@ from datetime import date
+ 
+ from django.test import Client, TestCase
+ 
+-from ToolApp.mobile_services import build_ticket_benefit
++from ToolApp.mobile_services import (
++    TICKET_BENEFIT_AMOUNT_EUR,
++    ZILE_CONCEDIU_NECESARE_BILET,
++    build_ticket_benefit,
++)
+ from ToolApp.models import Users
+ from ToolApp.security import make_admin_token
+ 
+@@ -122,8 +126,190 @@ class TicketBenefitApiTests(TestCase):
+                 "ticket_benefit_enabled",
+                 "last_home_trip_date",
+                 "ticket_benefit_amount_eur",
++                "monthly_rate",
+                 "next_eligibility_date",
+                 "is_currently_eligible",
+                 "days_until_eligible",
++                "accrued_amount",
++                "completed_months",
++                "leave_days_available",
++                "required_leave_days",
++                "has_enough_leave_days",
+             )
+         })
++
++
++class TicketBenefitAccrualTests(TestCase):
++    """Acumularea lunara, plafonarea si campurile informative de concediu."""
++
++    def _employee(self, **kwargs):
++        kwargs.setdefault("UserName", "Benefit Accrual")
++        kwargs.setdefault("UserSerie", f"ACC-{Users.objects.count() + 1:03d}")
++        kwargs.setdefault("ticket_benefit_enabled", True)
++        return Users.objects.create(**kwargs)
++
++    def test_monthly_rate_is_derived_from_the_configured_amount(self):
++        employee = self._employee(hire_date=date(2026, 1, 1))
++
++        result = build_ticket_benefit(employee, date(2026, 3, 1))
++
++        self.assertEqual(result["monthly_rate"], f"{TICKET_BENEFIT_AMOUNT_EUR / 12:.2f}")
++
++    def test_accrual_is_proportional_to_completed_months(self):
++        employee = self._employee(hire_date=date(2026, 1, 10))
++
++        # 4 luni complete la 10 mai: februarie, martie, aprilie, mai nu -> 10.05 = 4 luni
++        result = build_ticket_benefit(employee, date(2026, 5, 10))
++
++        self.assertEqual(result["completed_months"], 4)
++        self.assertEqual(result["accrued_amount"], "220.00")
++
++    def test_partial_month_does_not_count(self):
++        employee = self._employee(hire_date=date(2026, 1, 10))
++
++        result = build_ticket_benefit(employee, date(2026, 5, 9))
++
++        self.assertEqual(result["completed_months"], 3)
++        self.assertEqual(result["accrued_amount"], "165.00")
++
++    def test_accrual_is_capped_at_twelve_months(self):
++        employee = self._employee(hire_date=date(2020, 3, 15))
++
++        result = build_ticket_benefit(employee, date(2026, 9, 7))
++
++        self.assertEqual(result["completed_months"], 12)
++        self.assertEqual(result["accrued_amount"], f"{TICKET_BENEFIT_AMOUNT_EUR:.2f}")
++        self.assertTrue(result["is_currently_eligible"])
++
++    def test_accrual_does_not_reset_on_january_first(self):
++        """Bonusul nu foloseste completed_full_months, care se reseteaza anual."""
++        employee = self._employee(hire_date=date(2025, 7, 15))
++
++        result = build_ticket_benefit(employee, date(2026, 1, 20))
++
++        self.assertEqual(result["completed_months"], 6)
++        self.assertEqual(result["accrued_amount"], "330.00")
++
++    def test_last_trip_home_resets_the_accrual(self):
++        employee = self._employee(
++            hire_date=date(2020, 1, 1),
++            last_home_trip_date=date(2026, 6, 7),
++        )
++
++        result = build_ticket_benefit(employee, date(2026, 9, 7))
++
++        self.assertEqual(result["completed_months"], 3)
++        self.assertEqual(result["accrued_amount"], "165.00")
++        self.assertEqual(result["next_eligibility_date"], "2027-06-07")
++
++    def test_hire_date_wins_when_it_is_later_than_the_last_trip(self):
++        employee = self._employee(
++            hire_date=date(2026, 3, 1),
++            last_home_trip_date=date(2025, 1, 1),
++        )
++
++        result = build_ticket_benefit(employee, date(2026, 9, 1))
++
++        self.assertEqual(result["completed_months"], 6)
++        self.assertEqual(result["next_eligibility_date"], "2027-03-01")
++
++    def test_leap_day_start_is_fully_accrued_on_the_anniversary(self):
++        employee = self._employee(hire_date=date(2024, 2, 29))
++
++        result = build_ticket_benefit(employee, date(2025, 2, 28))
++
++        self.assertTrue(result["is_currently_eligible"])
++        self.assertEqual(result["completed_months"], 12)
++        self.assertEqual(result["accrued_amount"], f"{TICKET_BENEFIT_AMOUNT_EUR:.2f}")
++
++    def test_disabled_benefit_has_no_accrual(self):
++        employee = self._employee(hire_date=date(2020, 1, 1), ticket_benefit_enabled=False)
++
++        result = build_ticket_benefit(employee, date(2026, 9, 7))
++
++        self.assertIsNone(result["accrued_amount"])
++        self.assertIsNone(result["completed_months"])
++        self.assertEqual(result["monthly_rate"], f"{TICKET_BENEFIT_AMOUNT_EUR / 12:.2f}")
++
++
++class TicketBenefitLeaveDaysTests(TestCase):
++    """Zilele de concediu sunt informative: nu ating niciodata is_currently_eligible."""
++
++    def _employee(self, **kwargs):
++        kwargs.setdefault("UserName", "Benefit Leave")
++        kwargs.setdefault("UserSerie", f"LEA-{Users.objects.count() + 1:03d}")
++        kwargs.setdefault("ticket_benefit_enabled", True)
++        return Users.objects.create(**kwargs)
++
++    def test_without_leave_summary_the_fields_stay_null(self):
++        employee = self._employee(hire_date=date(2020, 1, 1))
++
++        result = build_ticket_benefit(employee, date(2026, 9, 7))
++
++        self.assertIsNone(result["leave_days_available"])
++        self.assertIsNone(result["required_leave_days"])
++        self.assertIsNone(result["has_enough_leave_days"])
++
++    def test_leave_summary_is_reported_without_extra_queries(self):
++        employee = self._employee(hire_date=date(2020, 1, 1))
++
++        with self.assertNumQueries(0):
++            result = build_ticket_benefit(
++                employee,
++                date(2026, 9, 7),
++                leave_summary={"remaining_days": "8.50"},
++            )
++
++        self.assertEqual(result["leave_days_available"], "8.50")
++        self.assertEqual(result["required_leave_days"], f"{ZILE_CONCEDIU_NECESARE_BILET:g}")
++        self.assertFalse(result["has_enough_leave_days"])
++
++    def test_enough_leave_days_is_true_at_the_threshold(self):
++        employee = self._employee(hire_date=date(2020, 1, 1))
++
++        result = build_ticket_benefit(
++            employee,
++            date(2026, 9, 7),
++            leave_summary={"remaining_days": f"{ZILE_CONCEDIU_NECESARE_BILET:.2f}"},
++        )
++
++        self.assertTrue(result["has_enough_leave_days"])
++
++    def test_negative_leave_balance_is_reported_as_is(self):
++        employee = self._employee(hire_date=date(2020, 1, 1))
++
++        result = build_ticket_benefit(
++            employee,
++            date(2026, 9, 7),
++            leave_summary={"remaining_days": "-2.00"},
++        )
++
++        self.assertEqual(result["leave_days_available"], "-2.00")
++        self.assertFalse(result["has_enough_leave_days"])
++
++    def test_insufficient_leave_days_do_not_block_eligibility(self):
++        """Badge-ul ramane pe 2 stari: zilele de concediu nu il influenteaza."""
++        employee = self._employee(hire_date=date(2020, 1, 1))
++
++        fara_zile = build_ticket_benefit(
++            employee, date(2026, 9, 7), leave_summary={"remaining_days": "0.00"}
++        )
++        cu_zile = build_ticket_benefit(
++            employee, date(2026, 9, 7), leave_summary={"remaining_days": "21.00"}
++        )
++
++        self.assertTrue(fara_zile["is_currently_eligible"])
++        self.assertTrue(cu_zile["is_currently_eligible"])
++        self.assertFalse(fara_zile["has_enough_leave_days"])
++        self.assertTrue(cu_zile["has_enough_leave_days"])
++
++    def test_not_eligible_yet_keeps_the_two_state_badge(self):
++        employee = self._employee(hire_date=date(2026, 3, 1))
++
++        result = build_ticket_benefit(
++            employee, date(2026, 9, 7), leave_summary={"remaining_days": "21.00"}
++        )
++
++        self.assertFalse(result["is_currently_eligible"])
++        self.assertTrue(result["has_enough_leave_days"])
++        self.assertEqual(result["days_until_eligible"], 175)
+diff --git a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/views.py b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/views.py
+index e43c984f..0417f154 100644
+--- a/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/views.py
++++ b/Inventory-and-bill-proccesor-main/dataAPI/ToolApp/views.py
+@@ -424,15 +424,16 @@ def _employee_api_payload(user):
+     today = localdate()
+     payload = dict(UserSerializer(user).data)
+     effective_hire_date = employee_effective_hire_date(user, today)
++    leave_summary = build_leave_summary(user, today)
+     payload.update({
+         "effective_hire_date": effective_hire_date.isoformat(),
+         "hire_date_source": "manual" if user.hire_date else (
+             "first_attendance" if AttendanceSession.objects.filter(user_fk=user).exists() else "year_start_fallback"
+         ),
+         "seniority_months": seniority_months(effective_hire_date, today),
+-        "leave_balance": build_leave_summary(user, today),
++        "leave_balance": leave_summary,
+     })
+-    ticket_benefit = build_ticket_benefit(user, today)
++    ticket_benefit = build_ticket_benefit(user, today, leave_summary=leave_summary)
+     payload.update(ticket_benefit)
+     payload["ticket_benefit"] = ticket_benefit
+     return payload

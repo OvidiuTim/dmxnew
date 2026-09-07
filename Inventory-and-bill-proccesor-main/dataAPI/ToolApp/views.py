@@ -424,15 +424,16 @@ def _employee_api_payload(user):
     today = localdate()
     payload = dict(UserSerializer(user).data)
     effective_hire_date = employee_effective_hire_date(user, today)
+    leave_summary = build_leave_summary(user, today)
     payload.update({
         "effective_hire_date": effective_hire_date.isoformat(),
         "hire_date_source": "manual" if user.hire_date else (
             "first_attendance" if AttendanceSession.objects.filter(user_fk=user).exists() else "year_start_fallback"
         ),
         "seniority_months": seniority_months(effective_hire_date, today),
-        "leave_balance": build_leave_summary(user, today),
+        "leave_balance": leave_summary,
     })
-    ticket_benefit = build_ticket_benefit(user, today)
+    ticket_benefit = build_ticket_benefit(user, today, leave_summary=leave_summary)
     payload.update(ticket_benefit)
     payload["ticket_benefit"] = ticket_benefit
     return payload

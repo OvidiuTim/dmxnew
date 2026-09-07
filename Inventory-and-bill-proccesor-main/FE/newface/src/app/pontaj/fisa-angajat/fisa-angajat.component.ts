@@ -28,6 +28,12 @@ interface EmployeeProfile {
   ticket_benefit_enabled?: boolean;
   last_home_trip_date?: string | null;
   ticket_benefit_amount_eur?: string | number | null;
+  monthly_rate?: string | null;
+  accrued_amount?: string | null;
+  completed_months?: number | null;
+  leave_days_available?: string | null;
+  required_leave_days?: string | null;
+  has_enough_leave_days?: boolean | null;
   next_eligibility_date?: string | null;
   is_currently_eligible?: boolean | null;
   days_until_eligible?: number | null;

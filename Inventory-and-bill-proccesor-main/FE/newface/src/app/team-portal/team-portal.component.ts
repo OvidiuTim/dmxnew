@@ -55,14 +55,15 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     ne: { role: 'भण्डारपाल', tools: 'औजार', hint: 'औजार र वितरण रजिस्टर खोल्नुहोस्', hidden: 'हाल उपलब्ध छैन' },
   };
   private readonly ticketBenefitCopy: Record<PortalLanguage, {
-    title: string; eligible: string; notEligible: string; maxAmount: string; eligibleFrom: string;
-    lastTrip: string; neverUsed: string; daysRemaining: string; explanation: string;
+    title: string; eligible: string; notEligible: string; maxAmount: string; accrued: string;
+    eligibleFrom: string; lastTrip: string; neverUsed: string; daysRemaining: string;
+    leaveRemaining: string; explanation: string; leaveNote: string;
   }> = {
-    ro: { title: 'Ajutor bilet acasă', eligible: 'Eligibil', notEligible: 'Încă neeligibil', maxAmount: 'Suma maximă', eligibleFrom: 'Eligibil de la', lastTrip: 'Ultima plecare acasă', neverUsed: 'Nu a beneficiat încă', daysRemaining: 'Zile rămase', explanation: 'După împlinirea perioadei de eligibilitate, poți beneficia de un ajutor de maximum 660 EUR pentru achiziționarea biletului de călătorie acasă. Această sumă nu se plătește în numerar și poate fi folosită doar pentru cumpărarea biletului.' },
-    en: { title: 'Home travel ticket benefit', eligible: 'Eligible', notEligible: 'Not eligible yet', maxAmount: 'Maximum amount', eligibleFrom: 'Eligible from', lastTrip: 'Last trip home', neverUsed: 'Not used yet', daysRemaining: 'Days remaining', explanation: 'After completing the eligibility period, you may receive support of up to EUR 660 to purchase your travel ticket home. This amount is not paid in cash and may only be used to buy the ticket.' },
-    pa: { title: 'ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਸਹਾਇਤਾ', eligible: 'ਯੋਗ', notEligible: 'ਹਾਲੇ ਯੋਗ ਨਹੀਂ', maxAmount: 'ਵੱਧ ਤੋਂ ਵੱਧ ਰਕਮ', eligibleFrom: 'ਇਸ ਮਿਤੀ ਤੋਂ ਯੋਗ', lastTrip: 'ਆਖਰੀ ਘਰ ਯਾਤਰਾ', neverUsed: 'ਹਾਲੇ ਲਾਭ ਨਹੀਂ ਲਿਆ', daysRemaining: 'ਬਾਕੀ ਦਿਨ', explanation: 'ਯੋਗਤਾ ਦੀ ਮਿਆਦ ਪੂਰੀ ਹੋਣ ਤੋਂ ਬਾਅਦ, ਤੁਸੀਂ ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਖਰੀਦਣ ਲਈ ਵੱਧ ਤੋਂ ਵੱਧ 660 ਯੂਰੋ ਦੀ ਸਹਾਇਤਾ ਲੈ ਸਕਦੇ ਹੋ। ਇਹ ਰਕਮ ਨਕਦ ਨਹੀਂ ਦਿੱਤੀ ਜਾਂਦੀ ਅਤੇ ਸਿਰਫ਼ ਟਿਕਟ ਖਰੀਦਣ ਲਈ ਵਰਤੀ ਜਾ ਸਕਦੀ ਹੈ।' },
-    hi: { title: 'घर जाने के टिकट की सहायता', eligible: 'पात्र', notEligible: 'अभी पात्र नहीं', maxAmount: 'अधिकतम राशि', eligibleFrom: 'इस तारीख से पात्र', lastTrip: 'पिछली घर यात्रा', neverUsed: 'अभी लाभ नहीं लिया', daysRemaining: 'शेष दिन', explanation: 'पात्रता अवधि पूरी होने के बाद, आप घर जाने का यात्रा टिकट खरीदने के लिए अधिकतम 660 यूरो की सहायता प्राप्त कर सकते हैं। यह राशि नकद नहीं दी जाती और केवल टिकट खरीदने के लिए उपयोग की जा सकती है।' },
-    ne: { title: 'घर जाने टिकट सहायता', eligible: 'योग्य', notEligible: 'अझै योग्य छैन', maxAmount: 'अधिकतम रकम', eligibleFrom: 'यस मितिदेखि योग्य', lastTrip: 'पछिल्लो घर यात्रा', neverUsed: 'अझै लाभ लिएको छैन', daysRemaining: 'बाँकी दिन', explanation: 'योग्यता अवधि पूरा भएपछि, घर जाने यात्रा टिकट किन्न अधिकतम 660 युरोसम्म सहायता पाउन सक्नुहुन्छ। यो रकम नगदमा दिइँदैन र टिकट किन्न मात्र प्रयोग गर्न सकिन्छ।' },
+    ro: { title: 'Bonus performanță bilet acasă', eligible: 'Eligibil', notEligible: 'Încă neeligibil', maxAmount: 'Sumă maximă', accrued: 'Acumulat până acum', eligibleFrom: 'Eligibil din', lastTrip: 'Ultima plecare acasă', neverUsed: 'Nu a beneficiat încă', daysRemaining: 'Zile rămase', leaveRemaining: 'Concediu rămas', explanation: 'Bonusul se acumulează lunar: {lunar} EUR pentru fiecare lună completă lucrată, până la maximum {max} EUR după 12 luni. Perioada se calculează de la data angajării sau de la ultima plecare acasă, oricare este mai recentă. Poți folosi bonusul după împlinirea celor 12 luni și doar dacă ai suficiente zile de concediu acumulate pentru deplasare. Suma nu se plătește în numerar și poate fi folosită exclusiv pentru cumpărarea biletului de călătorie acasă.', leaveNote: 'Pentru deplasare ai nevoie de minimum {zile} zile de concediu disponibile.' },
+    en: { title: 'Home travel ticket performance bonus', eligible: 'Eligible', notEligible: 'Not eligible yet', maxAmount: 'Maximum amount', accrued: 'Accrued so far', eligibleFrom: 'Eligible from', lastTrip: 'Last trip home', neverUsed: 'Not used yet', daysRemaining: 'Days remaining', leaveRemaining: 'Remaining leave days', explanation: 'The bonus accrues monthly: {lunar} EUR for every full month worked, up to a maximum of {max} EUR after 12 months. The period is counted from your hire date or from your last trip home, whichever is later. You can use the bonus once the 12 months are complete and only if you have enough accrued leave days for the trip. The amount is not paid in cash and may only be used to buy your travel ticket home.', leaveNote: 'You need at least {zile} available leave days for the trip.' },
+    pa: { title: 'ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਲਈ ਕਾਰਗੁਜ਼ਾਰੀ ਬੋਨਸ', eligible: 'ਯੋਗ', notEligible: 'ਅਜੇ ਯੋਗ ਨਹੀਂ', maxAmount: 'ਵੱਧ ਤੋਂ ਵੱਧ ਰਕਮ', accrued: 'ਹੁਣ ਤੱਕ ਜਮ੍ਹਾਂ ਹੋਇਆ', eligibleFrom: 'ਯੋਗਤਾ ਦੀ ਮਿਤੀ', lastTrip: 'ਪਿਛਲੀ ਵਾਰ ਘਰ ਜਾਣਾ', neverUsed: 'ਹਾਲੇ ਲਾਭ ਨਹੀਂ ਲਿਆ', daysRemaining: 'ਬਾਕੀ ਦਿਨ', leaveRemaining: 'ਬਾਕੀ ਛੁੱਟੀਆਂ', explanation: 'ਇਹ ਬੋਨਸ ਹਰ ਮਹੀਨੇ ਜਮ੍ਹਾਂ ਹੁੰਦਾ ਹੈ: ਹਰ ਪੂਰੇ ਕੰਮ ਕੀਤੇ ਮਹੀਨੇ ਲਈ {lunar} EUR, 12 ਮਹੀਨਿਆਂ ਬਾਅਦ ਵੱਧ ਤੋਂ ਵੱਧ {max} EUR ਤੱਕ। ਇਹ ਮਿਆਦ ਨੌਕਰੀ ਸ਼ੁਰੂ ਕਰਨ ਦੀ ਮਿਤੀ ਜਾਂ ਪਿਛਲੀ ਵਾਰ ਘਰ ਜਾਣ ਦੀ ਮਿਤੀ ਤੋਂ ਗਿਣੀ ਜਾਂਦੀ ਹੈ, ਜਿਹੜੀ ਵੀ ਬਾਅਦ ਵਿੱਚ ਹੋਵੇ। ਤੁਸੀਂ ਇਹ ਬੋਨਸ 12 ਮਹੀਨੇ ਪੂਰੇ ਹੋਣ ਤੋਂ ਬਾਅਦ ਅਤੇ ਸਿਰਫ਼ ਤਾਂ ਵਰਤ ਸਕਦੇ ਹੋ ਜੇ ਤੁਹਾਡੇ ਕੋਲ ਸਫ਼ਰ ਲਈ ਕਾਫ਼ੀ ਜਮ੍ਹਾਂ ਹੋਈਆਂ ਛੁੱਟੀਆਂ ਹਨ। ਇਹ ਰਕਮ ਨਕਦ ਨਹੀਂ ਦਿੱਤੀ ਜਾਂਦੀ ਅਤੇ ਸਿਰਫ਼ ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਖਰੀਦਣ ਲਈ ਹੀ ਵਰਤੀ ਜਾ ਸਕਦੀ ਹੈ।', leaveNote: 'ਸਫ਼ਰ ਲਈ ਤੁਹਾਨੂੰ ਘੱਟੋ-ਘੱਟ {zile} ਉਪਲਬਧ ਛੁੱਟੀ ਦੇ ਦਿਨ ਚਾਹੀਦੇ ਹਨ।' },
+    hi: { title: 'घर जाने के टिकट का प्रदर्शन बोनस', eligible: 'पात्र', notEligible: 'अभी पात्र नहीं', maxAmount: 'अधिकतम राशि', accrued: 'अब तक जमा', eligibleFrom: 'पात्रता की तिथि', lastTrip: 'पिछली बार घर जाना', neverUsed: 'अभी लाभ नहीं लिया', daysRemaining: 'शेष दिन', leaveRemaining: 'शेष छुट्टी के दिन', explanation: 'यह बोनस हर महीने जमा होता है: काम किए गए हर पूरे महीने के लिए {lunar} EUR, 12 महीनों के बाद अधिकतम {max} EUR तक। यह अवधि नौकरी शुरू होने की तिथि या पिछली बार घर जाने की तिथि — जो भी बाद में हो — से गिनी जाती है। आप इस बोनस का उपयोग 12 महीने पूरे होने के बाद और तभी कर सकते हैं जब आपके पास यात्रा के लिए पर्याप्त अर्जित छुट्टी के दिन हों। यह राशि नकद में नहीं दी जाती और केवल घर जाने का टिकट खरीदने के लिए ही उपयोग की जा सकती है।', leaveNote: 'यात्रा के लिए आपको कम से कम {zile} उपलब्ध छुट्टी के दिन चाहिए।' },
+    ne: { title: 'घर जाने टिकटको कार्यसम्पादन बोनस', eligible: 'योग्य', notEligible: 'अझै योग्य छैन', maxAmount: 'अधिकतम रकम', accrued: 'अहिलेसम्म जम्मा', eligibleFrom: 'योग्यता मिति', lastTrip: 'अघिल्लो पटक घर गएको', neverUsed: 'अझै लाभ लिएको छैन', daysRemaining: 'बाँकी दिन', leaveRemaining: 'बाँकी बिदाका दिन', explanation: 'यो बोनस हरेक महिना जम्मा हुन्छ: काम गरेको हरेक पूरा महिनाका लागि {lunar} EUR, १२ महिनापछि बढीमा {max} EUR सम्म। यो अवधि जागिर सुरु भएको मिति वा अघिल्लो पटक घर गएको मिति — जुन पछिल्लो हो — बाट गणना गरिन्छ। तपाईं यो बोनस १२ महिना पूरा भएपछि र यात्राका लागि पर्याप्त संचित बिदाका दिन भएमा मात्र प्रयोग गर्न सक्नुहुन्छ। यो रकम नगदमा दिइँदैन र घर जाने टिकट किन्नका लागि मात्र प्रयोग गर्न सकिन्छ।', leaveNote: 'यात्राका लागि तपाईंलाई कम्तीमा {zile} उपलब्ध बिदाका दिन चाहिन्छ।' },
   };
   private readonly leaveBalanceCopy: Record<PortalLanguage, { remaining: string; exceeded: string }> = {
     ro: { remaining: '{days} zile rămase', exceeded: 'Ai depășit soldul de concediu cu {days} zile.' },
@@ -233,6 +234,28 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   get toolsModuleHint(): string { return this.storekeeperCopy[this.language].hint; }
   get hiddenValueLabel(): string { return this.storekeeperCopy[this.language].hidden; }
   get ticketText() { return this.ticketBenefitCopy[this.language]; }
+
+  /** Inlocuieste {cheie} cu valoarea primita, pentru textele traduse. */
+  private interpoleaza(sablon: string, valori: Record<string, string>): string {
+    return Object.keys(valori).reduce(
+      (text, cheie) => text.split(`{${cheie}}`).join(valori[cheie]),
+      sablon || '',
+    );
+  }
+
+  /** Textul explicativ al bonusului, cu sumele si pragul injectate din payload. */
+  ticketExplanation(ticket: any): string {
+    const text = this.interpoleaza(this.ticketText.explanation, {
+      lunar: String(ticket?.monthly_rate ?? ''),
+      max: String(ticket?.ticket_benefit_amount_eur ?? ''),
+      acumulat: String(ticket?.accrued_amount ?? ''),
+    });
+    if (ticket?.required_leave_days == null) return text;
+    const nota = this.interpoleaza(this.ticketText.leaveNote, {
+      zile: String(ticket.required_leave_days),
+    });
+    return `${text} ${nota}`;
+  }
 
   leaveBalanceIsNegative(payload: any): boolean {
     return Number(String(payload?.leave_balance?.remaining_days ?? '0').replace(',', '.')) < 0;
