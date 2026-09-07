@@ -15,6 +15,7 @@ DEFAULT_RECIPIENTS = [
     "achizitii2@dmxconstruction.ro",
     "hr@xuxinvestment.ro",
     "ovidiu.pirvu@novarion.ro",
+    "gabrielaih.x@gmail.com",
 ]
 CONSECUTIVE_MISSING_DAYS = 3
 

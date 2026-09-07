@@ -390,19 +390,21 @@ def portal_salary(request):
     if not app_user:
         return _error("Acces interzis.", 403)
     employee = app_user.employee
+    today = timezone.localdate()
     equipment, tools = build_inventory(employee)
-    ticket_benefit = build_ticket_benefit(employee, timezone.localdate())
+    ticket_benefit = build_ticket_benefit(employee, today)
+    leave_summary = build_leave_summary(employee, today)
     return JsonResponse({
         "employee": {"id": employee.pk, "name": employee.UserName},
-        "financial_details_hidden": True,
-        "total_salary_ron": None,
-        "salary_advance_ron": None,
-        "salary_remainder_ron": None,
-        "meal_vouchers_ron": None,
+        "financial_details_hidden": False,
+        "total_salary_ron": f"{employee.total_salary_ron or 0:.2f}",
+        "salary_advance_ron": f"{employee.salary_advance_ron or 0:.2f}",
+        "salary_remainder_ron": f"{employee.salary_remainder_ron or 0:.2f}",
+        "meal_vouchers_ron": f"{employee.meal_vouchers_ron or 0:.2f}",
         "leave_balance": {
-            "accrued_days": None,
-            "used_days": None,
-            "remaining_days": build_leave_summary(employee, timezone.localdate())["remaining_days"],
+            "accrued_days": leave_summary["accrued_days"],
+            "used_days": leave_summary["used_days"],
+            "remaining_days": leave_summary["remaining_days"],
         },
         "tools": tools,
         "equipment": equipment,

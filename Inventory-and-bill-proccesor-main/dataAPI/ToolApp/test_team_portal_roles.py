@@ -111,11 +111,11 @@ class TeamPortalRoleSecurityTests(TestCase):
         self.assertEqual(salary.json()["employee"]["id"], self.plain.pk)
         for field in ("leave_balance", "total_salary_ron", "meal_vouchers_ron", "salary_advance_ron", "salary_remainder_ron", "tools"):
             self.assertIn(field, salary.json())
-        self.assertTrue(salary.json()["financial_details_hidden"])
-        self.assertIsNone(salary.json()["total_salary_ron"])
-        self.assertIsNone(salary.json()["salary_advance_ron"])
-        self.assertIsNone(salary.json()["salary_remainder_ron"])
-        self.assertIsNone(salary.json()["meal_vouchers_ron"])
+        self.assertFalse(salary.json()["financial_details_hidden"])
+        self.assertEqual(salary.json()["total_salary_ron"], "9000.00")
+        self.assertEqual(salary.json()["salary_advance_ron"], "1000.00")
+        self.assertEqual(salary.json()["salary_remainder_ron"], "8000.00")
+        self.assertEqual(salary.json()["meal_vouchers_ron"], "600.00")
         expected_balance = build_leave_summary(self.plain, timezone.localdate())["remaining_days"]
         self.assertEqual(salary.json()["leave_balance"]["remaining_days"], expected_balance)
         leave_page = client.get("/api/team-portal/leave-requests/")

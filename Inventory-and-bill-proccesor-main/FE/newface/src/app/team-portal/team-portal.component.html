@@ -94,11 +94,11 @@
         <span>{{ t.remainingLeave }}</span>
         <strong>{{ leaveBalanceLabel(salary) }}</strong>
       </article>
-      <div class="salary-grid masked-financials" aria-disabled="true">
-        <article><span>{{ t.totalSalary }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
-        <article><span>{{ t.mealVouchers }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
-        <article><span>{{ t.advance }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
-        <article><span>{{ t.settlement }}</span><strong>—</strong><small>{{ hiddenValueLabel }}</small></article>
+      <div class="salary-grid">
+        <article><span>{{ t.totalSalary }}</span><strong>{{ salary.total_salary_ron }}</strong><small>{{ t.lei }}</small></article>
+        <article><span>{{ t.mealVouchers }}</span><strong>{{ salary.meal_vouchers_ron }}</strong><small>{{ t.lei }}</small></article>
+        <article><span>{{ t.advance }}</span><strong>{{ salary.salary_advance_ron }}</strong><small>{{ t.lei }}</small></article>
+        <article><span>{{ t.settlement }}</span><strong>{{ salary.salary_remainder_ron }}</strong><small>{{ t.lei }}</small></article>
       </div>
       <article *ngIf="salary.ticket_benefit?.ticket_benefit_enabled" class="portal-ticket-benefit">
         <header>
