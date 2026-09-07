@@ -100,21 +100,40 @@
         <article><span>{{ t.advance }}</span><strong>{{ salary.salary_advance_ron }}</strong><small>{{ t.lei }}</small></article>
         <article><span>{{ t.settlement }}</span><strong>{{ salary.salary_remainder_ron }}</strong><small>{{ t.lei }}</small></article>
       </div>
-      <article *ngIf="salary.ticket_benefit?.ticket_benefit_enabled" class="portal-ticket-benefit">
+      <article *ngIf="ticketCardVisible(salary)" class="portal-ticket-benefit">
         <header>
           <span class="material-symbols-rounded" aria-hidden="true">flight_takeoff</span>
-          <h2>{{ ticketText.title }}</h2>
-          <strong [class.eligible]="salary.ticket_benefit.is_currently_eligible">{{ salary.ticket_benefit.is_currently_eligible ? ticketText.eligible : ticketText.notEligible }}</strong>
+          <h2>{{ ticketCardTitle(salary) }}</h2>
         </header>
-        <div>
-          <span>{{ ticketText.maxAmount }}<b>{{ salary.ticket_benefit.ticket_benefit_amount_eur }} EUR</b></span>
-          <span>{{ ticketText.accrued }}<b>{{ salary.ticket_benefit.accrued_amount }} EUR</b></span>
+        <div class="ticket-figures">
+          <div class="ticket-figure" *ngIf="salary.ticket_benefit?.ticket_benefit_enabled">
+            <span class="ticket-figure-label">{{ ticketText.ticketFigure }}</span>
+            <div class="ticket-figure-main">
+              <strong class="ticket-figure-value">{{ salary.ticket_benefit.accrued_amount }} EUR</strong>
+              <strong class="ticket-status" [class.eligible]="salary.ticket_benefit.is_currently_eligible">{{ salary.ticket_benefit.is_currently_eligible ? ticketText.eligible : ticketText.notEligible }}</strong>
+            </div>
+            <span class="ticket-figure-sub">{{ ticketOfMax(salary.ticket_benefit) }}</span>
+            <div class="ticket-progress" role="presentation"><i [style.width.%]="ticketProgress(salary.ticket_benefit)"></i></div>
+            <span class="ticket-figure-note" [class.available]="salary.ticket_benefit.is_currently_eligible">{{ ticketStatusNote(salary.ticket_benefit) }}</span>
+          </div>
+          <div class="ticket-figure" *ngIf="leaderBonus(salary)?.accrued_amount">
+            <span class="ticket-figure-label">{{ ticketText.leaderFigure }}</span>
+            <div class="ticket-figure-main">
+              <strong class="ticket-figure-value">{{ leaderBonus(salary).accrued_amount }} EUR</strong>
+            </div>
+            <span class="ticket-figure-sub">{{ leaderMonthlyLabel(leaderBonus(salary)) }}</span>
+          </div>
+        </div>
+        <p class="ticket-leader-note" *ngIf="leaderBonus(salary) && !leaderBonus(salary).accrued_amount">
+          {{ ticketText.leaderFigure }}: <b>{{ leaderMonthlyLabel(leaderBonus(salary)) }}</b>
+        </p>
+        <div class="ticket-meta" *ngIf="salary.ticket_benefit?.ticket_benefit_enabled">
           <span>{{ ticketText.eligibleFrom }}<b>{{ salary.ticket_benefit.next_eligibility_date | date:'dd.MM.yyyy' }}</b></span>
           <span>{{ ticketText.lastTrip }}<b>{{ salary.ticket_benefit.last_home_trip_date ? (salary.ticket_benefit.last_home_trip_date | date:'dd.MM.yyyy') : ticketText.neverUsed }}</b></span>
           <span *ngIf="salary.ticket_benefit.leave_days_available">{{ ticketText.leaveRemaining }}<b>{{ salary.ticket_benefit.leave_days_available }}</b></span>
-          <span *ngIf="!salary.ticket_benefit.is_currently_eligible">{{ ticketText.daysRemaining }}<b>{{ salary.ticket_benefit.days_until_eligible }}</b></span>
         </div>
-        <p>{{ ticketExplanation(salary.ticket_benefit) }}</p>
+        <p class="ticket-explanation" *ngIf="salary.ticket_benefit?.ticket_benefit_enabled">{{ ticketExplanation(salary.ticket_benefit) }}</p>
+        <p class="ticket-explanation" *ngIf="leaderBonus(salary)">{{ leaderExplanation(leaderBonus(salary)) }}</p>
       </article>
       <div class="subsection-heading"><h2>{{ t.assignedTools }}</h2></div>
       <p *ngIf="!salary.tools.length" class="empty-copy standalone">{{ t.noTools }}</p>

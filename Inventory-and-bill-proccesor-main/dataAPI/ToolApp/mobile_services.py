@@ -16,7 +16,8 @@ ANNUAL_LEAVE_DAYS = LEAVE_ACCRUAL_PER_MONTH * Decimal("12")
 SALARY_ADVANCE = "salary_advance"
 SALARY_REMAINDER = "salary_remainder"
 FOOD_MONEY = "food_money"
-TICKET_BENEFIT_AMOUNT_EUR = Decimal("660.00")
+# Fallback folosit cand angajatul nu are o suma proprie (suma_bonus_bilet_eur = NULL).
+TICKET_BENEFIT_DEFAULT_AMOUNT_EUR = Decimal("660.00")
 LUNI_ELIGIBILITATE_BILET = 12
 ZILE_CONCEDIU_NECESARE_BILET = Decimal("15")
 
@@ -368,6 +369,14 @@ def luni_complete_scurse(data_start, as_of_date):
     return max(0, luni)
 
 
+def suma_bonus_bilet(employee):
+    """Suma maxima a bonusului: cea de pe angajat, altfel valoarea implicita."""
+    suma = getattr(employee, "suma_bonus_bilet_eur", None)
+    if suma is None:
+        return TICKET_BENEFIT_DEFAULT_AMOUNT_EUR
+    return Decimal(suma).quantize(MONEY_PLACES)
+
+
 def data_start_bilet(employee, as_of_date):
     """Data de la care se acumuleaza bonusul: angajarea sau ultima plecare acasa."""
     data_start = employee_effective_hire_date(employee, as_of_date)
@@ -388,11 +397,12 @@ def build_ticket_benefit(employee, as_of_date=None, leave_summary=None):
     today = as_of_date or date.today()
     enabled = bool(employee.ticket_benefit_enabled)
     last_trip = employee.last_home_trip_date
-    rata_lunara = (TICKET_BENEFIT_AMOUNT_EUR / Decimal(LUNI_ELIGIBILITATE_BILET)).quantize(MONEY_PLACES)
+    suma_maxima = suma_bonus_bilet(employee)
+    rata_lunara = (suma_maxima / Decimal(LUNI_ELIGIBILITATE_BILET)).quantize(MONEY_PLACES)
     payload = {
         "ticket_benefit_enabled": enabled,
         "last_home_trip_date": last_trip.isoformat() if last_trip else None,
-        "ticket_benefit_amount_eur": f"{TICKET_BENEFIT_AMOUNT_EUR:.2f}",
+        "ticket_benefit_amount_eur": f"{suma_maxima:.2f}",
         "monthly_rate": f"{rata_lunara:.2f}",
         "next_eligibility_date": None,
         "is_currently_eligible": None,
@@ -415,7 +425,7 @@ def build_ticket_benefit(employee, as_of_date=None, leave_summary=None):
         luni_complete = min(luni_complete_scurse(data_start, today), LUNI_ELIGIBILITATE_BILET)
     suma_acumulata = min(
         (rata_lunara * Decimal(luni_complete)).quantize(MONEY_PLACES),
-        TICKET_BENEFIT_AMOUNT_EUR,
+        suma_maxima,
     )
     payload.update({
         "next_eligibility_date": next_eligibility.isoformat(),
@@ -432,6 +442,65 @@ def build_ticket_benefit(employee, as_of_date=None, leave_summary=None):
             "required_leave_days": f"{ZILE_CONCEDIU_NECESARE_BILET:g}",
             "has_enough_leave_days": zile_disponibile >= ZILE_CONCEDIU_NECESARE_BILET,
         })
+    return payload
+
+
+def este_sef_de_echipa(employee):
+    """Sef de echipa = conduce cel putin o echipa activa (nu exista flag pe angajat)."""
+    return employee.led_employee_teams.filter(active=True).exists()
+
+
+def data_start_bonus_sef(employee):
+    """Acumularea porneste de la preluarea rolului sau de la ultima plata a bonusului."""
+    start = employee.data_start_sef_echipa
+    if not start:
+        return None
+    ultima_plata = employee.data_ultimei_plati_bonus_sef
+    if ultima_plata and ultima_plata > start:
+        return ultima_plata
+    return start
+
+
+def build_team_leader_bonus(employee, as_of_date=None, is_team_leader=None):
+    """Bonusul lunar al sefilor de echipa. Nu atinge bonusul de bilet si nici salarizarea.
+
+    Fara data_start_sef_echipa nu se acumuleaza nimic: se raporteaza doar suma lunara,
+    iar needs_start_date semnaleaza ca adminul trebuie sa completeze data. Preferam un
+    camp gol unei cifre inventate.
+    """
+    today = as_of_date or date.today()
+    if is_team_leader is None:
+        is_team_leader = este_sef_de_echipa(employee)
+    suma_lunara = employee.bonus_lunar_sef_echipa
+    payload = {
+        "is_team_leader": bool(is_team_leader),
+        "monthly_amount": None,
+        "start_date": None,
+        "last_payment_date": (
+            employee.data_ultimei_plati_bonus_sef.isoformat()
+            if employee.data_ultimei_plati_bonus_sef
+            else None
+        ),
+        "completed_months": None,
+        "accrued_amount": None,
+        "needs_start_date": False,
+    }
+    if not is_team_leader or suma_lunara is None:
+        return payload
+
+    suma_lunara = Decimal(suma_lunara).quantize(MONEY_PLACES)
+    payload["monthly_amount"] = f"{suma_lunara:.2f}"
+    data_start = data_start_bonus_sef(employee)
+    if not data_start:
+        payload["needs_start_date"] = True
+        return payload
+
+    luni_complete = luni_complete_scurse(data_start, today)
+    payload.update({
+        "start_date": data_start.isoformat(),
+        "completed_months": luni_complete,
+        "accrued_amount": f"{(suma_lunara * Decimal(luni_complete)).quantize(MONEY_PLACES):.2f}",
+    })
     return payload
 
 

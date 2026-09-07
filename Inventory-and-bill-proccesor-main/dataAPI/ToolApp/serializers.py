@@ -1,6 +1,7 @@
 # serializers.py
 import hashlib
 import uuid
+from decimal import Decimal
 
 from rest_framework import serializers
 from django.core.cache import cache
@@ -23,6 +24,7 @@ class UserSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     accommodation = serializers.SerializerMethodField(read_only=True)
+    is_team_leader = serializers.SerializerMethodField(read_only=True)
     accommodation_room_id = serializers.PrimaryKeyRelatedField(
         source="accommodation_room",
         queryset=AccommodationRoom.objects.all(),
@@ -58,6 +60,11 @@ class UserSerializer(serializers.ModelSerializer):
             "hire_date",
             "ticket_benefit_enabled",
             "last_home_trip_date",
+            "suma_bonus_bilet_eur",
+            "bonus_lunar_sef_echipa",
+            "data_start_sef_echipa",
+            "data_ultimei_plati_bonus_sef",
+            "is_team_leader",
             "prior_paid_leave_days",
             "prior_paid_leave_year",
             "leave_remaining_override_days",
@@ -93,6 +100,10 @@ class UserSerializer(serializers.ModelSerializer):
             "hire_date": {"required": False, "allow_null": True},
             "ticket_benefit_enabled": {"required": False},
             "last_home_trip_date": {"required": False, "allow_null": True},
+            "suma_bonus_bilet_eur": {"required": False, "allow_null": True, "min_value": Decimal("0.01")},
+            "bonus_lunar_sef_echipa": {"required": False, "allow_null": True, "min_value": Decimal("0.01")},
+            "data_start_sef_echipa": {"required": False, "allow_null": True},
+            "data_ultimei_plati_bonus_sef": {"required": False, "allow_null": True},
             "prior_paid_leave_days": {"required": False, "min_value": 0},
             "prior_paid_leave_year": {"required": False, "allow_null": True, "min_value": 2000, "max_value": 2200},
             "leave_remaining_override_days": {"required": False, "allow_null": True},
@@ -106,6 +117,10 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_has_pin(self, obj):
         return bool(getattr(obj, "UserPin", None))
+
+    def get_is_team_leader(self, obj):
+        """Sef de echipa = are cel putin o echipa activa; nu exista flag pe angajat."""
+        return any(team.active for team in obj.led_employee_teams.all())
 
     def get_accommodation(self, obj):
         if not obj.accommodation_id:

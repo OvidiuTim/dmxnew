@@ -37,7 +37,13 @@ from ToolApp.models import (
 )
 from ToolApp.module_access import app_user_has_module, app_user_roles
 from ToolApp.leave_email import send_leave_approval_email, send_leave_request_email
-from ToolApp.mobile_services import build_inventory, build_leave_summary, build_ticket_benefit, serialize_leave_request
+from ToolApp.mobile_services import (
+    build_inventory,
+    build_leave_summary,
+    build_team_leader_bonus,
+    build_ticket_benefit,
+    serialize_leave_request,
+)
 from ToolApp.push_notifications import send_employee_push
 from ToolApp.security import get_app_user_from_request
 from ToolApp.team_attendance_notifications import (
@@ -394,6 +400,7 @@ def portal_salary(request):
     equipment, tools = build_inventory(employee)
     leave_summary = build_leave_summary(employee, today)
     ticket_benefit = build_ticket_benefit(employee, today, leave_summary=leave_summary)
+    team_leader_bonus = build_team_leader_bonus(employee, today)
     return JsonResponse({
         "employee": {"id": employee.pk, "name": employee.UserName},
         "financial_details_hidden": False,
@@ -409,6 +416,7 @@ def portal_salary(request):
         "tools": tools,
         "equipment": equipment,
         "ticket_benefit": ticket_benefit,
+        "team_leader_bonus": team_leader_bonus,
     })
 
 

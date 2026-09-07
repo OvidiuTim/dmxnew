@@ -57,6 +57,10 @@ export class EmployeeFormComponent implements OnInit {
     ticket_benefit_enabled: [false],
     ticket_benefit_never_used: [true],
     last_home_trip_date: [null as string | null],
+    suma_bonus_bilet_eur: ['', [Validators.pattern(/^\d+(?:[.,]\d{1,2})?$/), Validators.min(0.01)]],
+    bonus_lunar_sef_echipa: ['', [Validators.pattern(/^\d+(?:[.,]\d{1,2})?$/), Validators.min(0.01)]],
+    data_start_sef_echipa: [null as string | null],
+    data_ultimei_plati_bonus_sef: [null as string | null],
     leave_remaining_days: ['0.00', [Validators.required, Validators.pattern(/^-?\d+(?:[.,]\d{1,2})?$/)]],
     accommodation_id: [null as number | null],
     accommodation_room_id: [null as number | null],
@@ -354,10 +358,15 @@ export class EmployeeFormComponent implements OnInit {
           ticket_benefit_enabled: !!user?.ticket_benefit_enabled,
           ticket_benefit_never_used: !user?.last_home_trip_date,
           last_home_trip_date: user?.last_home_trip_date ?? null,
+          suma_bonus_bilet_eur: user?.suma_bonus_bilet_eur != null ? String(user.suma_bonus_bilet_eur) : '',
+          bonus_lunar_sef_echipa: user?.bonus_lunar_sef_echipa != null ? String(user.bonus_lunar_sef_echipa) : '',
+          data_start_sef_echipa: user?.data_start_sef_echipa ?? null,
+          data_ultimei_plati_bonus_sef: user?.data_ultimei_plati_bonus_sef ?? null,
           leave_remaining_days: String(user?.leave_balance?.remaining_days ?? '0.00'),
           accommodation_id: user?.accommodation_id ?? null,
           accommodation_room_id: user?.accommodation_room_id ?? null,
         });
+        this.isTeamLeader = !!user?.is_team_leader;
         this.configureLoadedPersonType(user?.person_type ?? 'employee');
         this.updateTicketBenefitValidation();
         this.effectiveHireDate = user?.effective_hire_date ?? null;
@@ -401,9 +410,17 @@ export class EmployeeFormComponent implements OnInit {
       hire_date: value.hire_date || null,
       ticket_benefit_enabled: !!value.ticket_benefit_enabled,
       last_home_trip_date: value.last_home_trip_date || null,
+      suma_bonus_bilet_eur: this.normalizeRate(value.suma_bonus_bilet_eur),
       accommodation_id: value.accommodation_id ? Number(value.accommodation_id) : null,
       accommodation_room_id: value.accommodation_room_id ? Number(value.accommodation_room_id) : null,
     };
+
+    // Bonusul de sef se trimite doar pentru cei care chiar conduc o echipa activa.
+    if (this.isTeamLeader) {
+      payload.bonus_lunar_sef_echipa = this.normalizeRate(value.bonus_lunar_sef_echipa);
+      payload.data_start_sef_echipa = value.data_start_sef_echipa || null;
+      payload.data_ultimei_plati_bonus_sef = value.data_ultimei_plati_bonus_sef || null;
+    }
 
     const editedRemaining = this.normalizeRate(value.leave_remaining_days);
     if (!this.isEditMode || editedRemaining !== this.initialLeaveRemaining) {
@@ -434,6 +451,9 @@ export class EmployeeFormComponent implements OnInit {
     this.form.controls.Company.updateValueAndValidity();
     this.form.controls.phone_number.updateValueAndValidity();
   }
+
+  /** Rolul vine din echipele active, nu dintr-un flag pe angajat. */
+  isTeamLeader = false;
 
   private updateTicketBenefitValidation(): void {
     const dateControl = this.form.controls.last_home_trip_date;

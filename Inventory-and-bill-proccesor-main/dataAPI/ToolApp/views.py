@@ -416,6 +416,7 @@ def _user_name_with_serie(user) -> str:
 def _employee_api_payload(user):
     from ToolApp.mobile_services import (
         build_leave_summary,
+        build_team_leader_bonus,
         build_ticket_benefit,
         employee_effective_hire_date,
         seniority_months,
@@ -436,6 +437,7 @@ def _employee_api_payload(user):
     ticket_benefit = build_ticket_benefit(user, today, leave_summary=leave_summary)
     payload.update(ticket_benefit)
     payload["ticket_benefit"] = ticket_benefit
+    payload["team_leader_bonus"] = build_team_leader_bonus(user, today)
     return payload
 
 

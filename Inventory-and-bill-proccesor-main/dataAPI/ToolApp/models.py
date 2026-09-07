@@ -157,6 +157,13 @@ class Users(models.Model):
     hire_date = models.DateField(null=True, blank=True)
     ticket_benefit_enabled = models.BooleanField(default=False, db_index=True)
     last_home_trip_date = models.DateField(null=True, blank=True)
+    # Null = se foloseste TICKET_BENEFIT_DEFAULT_AMOUNT_EUR, ca sa nu inghetam
+    # valoarea implicita pe fiecare rand.
+    suma_bonus_bilet_eur = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    # Bonus lunar pentru sefii de echipa; separat de bonusul de bilet si de salarizare.
+    bonus_lunar_sef_echipa = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    data_start_sef_echipa = models.DateField(null=True, blank=True)
+    data_ultimei_plati_bonus_sef = models.DateField(null=True, blank=True)
     prior_paid_leave_days = models.PositiveIntegerField(default=0)
     prior_paid_leave_year = models.PositiveSmallIntegerField(null=True, blank=True)
     leave_remaining_override_days = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
