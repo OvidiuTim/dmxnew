@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preview bară 12 luni</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0">
+<style>
+body { margin:0; padding:22px; background:#060d18; color:#e7eef8; font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+h1 { font-size:15px; color:#8fa1b7; font-weight:800; letter-spacing:.04em; text-transform:uppercase; margin:0 0 16px; }
+.cards { display:grid; gap:18px; max-width:640px; }
+.portal-ticket-benefit { padding:18px; border:1px solid #1c2f45; border-radius:16px; background:linear-gradient(180deg,#0c1a2a,#0a1420); }
+.portal-ticket-benefit header { display:grid; grid-template-columns:42px minmax(0,1fr); align-items:center; gap:11px; }
+.portal-ticket-benefit header > .material-symbols-rounded { width:42px; height:42px; display:inline-flex; align-items:center; justify-content:center; border-radius:12px; color:#2bd394; background:rgba(43,211,148,.14); font-family:'Material Symbols Rounded'; }
+.portal-ticket-benefit h2 { margin:0; font-size:20px; }
+.ticket-figures { display:grid; grid-template-columns:1fr; gap:14px; margin-top:16px; }
+.ticket-figure { display:grid; align-content:start; gap:3px; min-width:0; }
+.ticket-figure-combined { padding:14px 16px; border:1px solid rgba(43,211,148,.22); border-radius:14px; background:rgba(6,25,28,.34); }
+.ticket-figure-label { color:#91a2b8; font-size:11px; font-weight:800; line-height:1.3; letter-spacing:.05em; text-transform:uppercase; }
+.ticket-figure-value { color:#fff; font-size:clamp(34px,6vw,48px); font-weight:900; line-height:1.08; overflow-wrap:anywhere; }
+.ticket-figure-main { display:flex; align-items:baseline; flex-wrap:wrap; gap:9px; }
+.ticket-status { padding:5px 9px; border-radius:999px; color:#ffc366; background:rgba(196,123,25,.17); font-size:11px; font-weight:800; white-space:nowrap; }
+.ticket-status.eligible { color:#39dfa3; background:rgba(31,151,111,.18); }
+.ticket-figure-sub { color:#8fa1b7; font-size:12px; font-weight:700; }
+.ticket-breakdown { margin-top:7px; color:#63e6b5; font-size:14px; line-height:1.35; }
+/* --- bara noua --- */
+.ticket-progress { display:grid; grid-template-columns:repeat(12,1fr); gap:3px; max-width:340px; margin-top:9px; }
+.ticket-progress > i { display:block; height:14px; border-radius:4px; background:#16273c; box-shadow:inset 0 0 0 1px rgba(255,255,255,.05); }
+.ticket-progress > i.filled { background:linear-gradient(180deg,#39dfa3,#1f9a70); box-shadow:none; }
+.ticket-progress > i.milestone { box-shadow:inset 0 0 0 1px rgba(57,223,163,.45); }
+.ticket-progress > i.milestone.filled { box-shadow:none; }
+.ticket-months { margin-top:6px; color:#8fa1b7; font-size:12px; font-weight:700; }
+.ticket-figure-note { margin-top:2px; color:#ffc366; font-size:13px; font-weight:800; }
+.ticket-figure-note.available { color:#39dfa3; }
+.ticket-leader-note { margin:14px 0 0; color:#c6d4e6; font-size:13px; }
+.old { max-width:340px; height:5px; margin-top:9px; border-radius:999px; background:#16273c; overflow:hidden; }
+.old > i { display:block; height:100%; width:80%; background:linear-gradient(90deg,#1f9a70,#39dfa3); }
+</style></head><body>
+<h1>Bara veche (5px, continuă)</h1>
+<div class="cards"><div class="portal-ticket-benefit"><div class="old"><i></i></div></div></div>
+<h1 style="margin-top:26px">Bara nouă — 12 casete, una pe lună</h1>
+<div class="cards" id="cards"></div>
+<script>
+const stari = [
+  { luni: 3,  suma: '165.00', max: '760.00', eligibil: false, nota: '277 zile rămase' },
+  { luni: 11, suma: '605.00', max: '760.00', eligibil: false, nota: '28 zile rămase' },
+  { luni: 12, suma: '760.00', max: '760.00', eligibil: true,  nota: 'Disponibil acum' },
+];
+document.getElementById('cards').innerHTML = stari.map(s => `
+  <article class="portal-ticket-benefit">
+    <header><span class="material-symbols-rounded">flight_takeoff</span><h2>Bonus performanță bilet acasă</h2></header>
+    <div class="ticket-figures"><div class="ticket-figure ticket-figure-combined">
+      <span class="ticket-figure-label">Bonus bilet acasă + bonus șef de echipă</span>
+      <div class="ticket-figure-main">
+        <strong class="ticket-figure-value">${s.suma} EUR</strong>
+        <strong class="ticket-status${s.eligibil ? ' eligible' : ''}">${s.eligibil ? 'Eligibil' : 'Încă neeligibil'}</strong>
+      </div>
+      <span class="ticket-figure-sub">${s.suma} din ${s.max} EUR</span>
+      <strong class="ticket-breakdown">660.00 EUR bilet + 100.00 EUR șef de echipă</strong>
+      <div class="ticket-progress">${Array.from({length:12},(_,i)=>
+        `<i class="${i+1<=s.luni?'filled':''}${i===11?' milestone':''}"></i>`).join('')}</div>
+      <span class="ticket-months">${s.luni} din 12 luni complete</span>
+      <span class="ticket-figure-note${s.eligibil ? ' available' : ''}">${s.nota}</span>
+    </div></div>
+    <p class="ticket-leader-note">Bonus șef de echipă: <b>100.00 EUR după 12 luni</b></p>
+  </article>`).join('');
+</script></body></html>

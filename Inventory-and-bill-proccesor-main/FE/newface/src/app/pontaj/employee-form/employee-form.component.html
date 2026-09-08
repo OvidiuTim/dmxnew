@@ -141,23 +141,24 @@
         <section class="form-section" *ngIf="isTeamLeader">
           <header class="section-heading">
             <span class="section-icon material-symbols-rounded" aria-hidden="true">badge</span>
-            <div><h2>Bonus șef de echipă</h2><p>Se acumulează lunar de la preluarea rolului sau de la ultima plată.</p></div>
+            <div><h2>Bonus șef de echipă</h2><p>Se adaugă la bonusul pentru bilet după împlinirea perioadei de 12 luni.</p></div>
           </header>
           <div class="form-grid">
             <div class="field">
-              <label for="bonus-lunar-sef">Bonus lunar (EUR)</label>
-              <input id="bonus-lunar-sef" type="number" min="0.01" step="0.01" formControlName="bonus_lunar_sef_echipa" placeholder="100.00">
+              <label for="bonus-lunar-sef">Bonus șef de echipă (EUR)</label>
+              <input id="bonus-lunar-sef" type="number" min="0.01" step="0.01" formControlName="bonus_lunar_sef_echipa" placeholder="100.00 (implicit)">
               <small *ngIf="form.controls.bonus_lunar_sef_echipa.invalid && form.controls.bonus_lunar_sef_echipa.touched">Introdu o sumă mai mare decât zero, cu maximum două zecimale.</small>
+              <small *ngIf="form.controls.bonus_lunar_sef_echipa.valid">Lasă gol pentru bonusul implicit de 100 EUR.</small>
             </div>
             <div class="field">
               <label for="data-start-sef">Șef de echipă din data de</label>
               <input id="data-start-sef" type="date" formControlName="data_start_sef_echipa">
-              <small>Fără această dată nu se acumulează nimic — se afișează doar suma lunară.</small>
+              <small>Dacă rămâne gol, perioada se calculează din data angajării sau din ultima plecare acasă.</small>
             </div>
             <div class="field">
-              <label for="data-plata-bonus-sef">Data ultimei plăți a bonusului</label>
+              <label for="data-plata-bonus-sef">Data ultimei acordări a bonusului</label>
               <input id="data-plata-bonus-sef" type="date" formControlName="data_ultimei_plati_bonus_sef">
-              <small>Completează la plată; acumularea repornește de la această dată.</small>
+              <small>Completează după acordare; următoarea eligibilitate va fi peste un an.</small>
             </div>
           </div>
         </section>

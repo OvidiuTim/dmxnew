@@ -160,7 +160,8 @@ class Users(models.Model):
     # Null = se foloseste TICKET_BENEFIT_DEFAULT_AMOUNT_EUR, ca sa nu inghetam
     # valoarea implicita pe fiecare rand.
     suma_bonus_bilet_eur = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
-    # Bonus lunar pentru sefii de echipa; separat de bonusul de bilet si de salarizare.
+    # Suma configurata pentru bonusul anual de sef de echipa. Numele coloanei
+    # ramane cel istoric pentru compatibilitate cu bazele de date deja migrate.
     bonus_lunar_sef_echipa = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     data_start_sef_echipa = models.DateField(null=True, blank=True)
     data_ultimei_plati_bonus_sef = models.DateField(null=True, blank=True)

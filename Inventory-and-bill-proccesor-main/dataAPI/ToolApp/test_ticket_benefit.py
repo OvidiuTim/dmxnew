@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.test import Client, TestCase
 
 from ToolApp.mobile_services import (
+    TEAM_LEADER_DEFAULT_BONUS_EUR,
     TICKET_BENEFIT_DEFAULT_AMOUNT_EUR,
     ZILE_CONCEDIU_NECESARE_BILET,
     build_team_leader_bonus,
@@ -367,7 +368,7 @@ class TicketBenefitPerEmployeeAmountTests(TestCase):
 
 
 class TeamLeaderBonusTests(TestCase):
-    """Bonusul de sef de echipa: rol din echipele active, acumulare doar cu data de start."""
+    """Bonus anual de sef de echipa: 100 EUR impliciti, disponibili dupa 12 luni."""
 
     def _leader(self, **kwargs):
         kwargs.setdefault("UserName", "Sef Echipa")
@@ -387,45 +388,81 @@ class TeamLeaderBonusTests(TestCase):
         result = build_team_leader_bonus(employee, date(2026, 9, 7))
 
         self.assertFalse(result["is_team_leader"])
-        self.assertIsNone(result["monthly_amount"])
+        self.assertIsNone(result["bonus_amount"])
         self.assertIsNone(result["accrued_amount"])
 
-    def test_leader_without_start_date_reports_only_the_monthly_amount(self):
-        employee = self._leader(bonus_lunar_sef_echipa=Decimal("100.00"))
+    def test_leader_without_configured_amount_gets_the_default_hundred(self):
+        employee = self._leader(hire_date=date(2026, 1, 1))
 
         result = build_team_leader_bonus(employee, date(2026, 9, 7))
 
         self.assertTrue(result["is_team_leader"])
-        self.assertEqual(result["monthly_amount"], "100.00")
-        self.assertIsNone(result["accrued_amount"])
-        self.assertIsNone(result["completed_months"])
-        self.assertTrue(result["needs_start_date"])
+        self.assertEqual(result["bonus_amount"], f"{TEAM_LEADER_DEFAULT_BONUS_EUR:.2f}")
+        self.assertTrue(result["default_amount_applied"])
 
-    def test_leader_without_configured_amount_has_no_bonus(self):
-        employee = self._leader(data_start_sef_echipa=date(2026, 1, 1))
-
-        result = build_team_leader_bonus(employee, date(2026, 9, 7))
-
-        self.assertTrue(result["is_team_leader"])
-        self.assertIsNone(result["monthly_amount"])
-        self.assertFalse(result["needs_start_date"])
-
-    def test_accrual_runs_from_the_leadership_start_date(self):
+    def test_configured_amount_overrides_the_default(self):
         employee = self._leader(
-            bonus_lunar_sef_echipa=Decimal("100.00"),
+            hire_date=date(2026, 1, 1),
+            bonus_lunar_sef_echipa=Decimal("150.00"),
+        )
+
+        result = build_team_leader_bonus(employee, date(2026, 9, 7))
+
+        self.assertEqual(result["bonus_amount"], "150.00")
+        self.assertFalse(result["default_amount_applied"])
+
+    def test_bonus_is_zero_before_the_twelve_months_are_complete(self):
+        employee = self._leader(hire_date=date(2026, 1, 1))
+
+        result = build_team_leader_bonus(employee, date(2026, 9, 7))
+
+        self.assertEqual(result["start_date"], "2026-01-01")
+        self.assertEqual(result["eligibility_date"], "2027-01-01")
+        self.assertFalse(result["is_currently_eligible"])
+        self.assertEqual(result["accrued_amount"], "0.00")
+        self.assertEqual(result["completed_months"], 8)
+        self.assertEqual(result["days_until_eligible"], 116)
+
+    def test_full_bonus_becomes_available_after_twelve_months(self):
+        employee = self._leader(hire_date=date(2025, 9, 7))
+
+        result = build_team_leader_bonus(employee, date(2026, 9, 7))
+
+        self.assertTrue(result["is_currently_eligible"])
+        self.assertEqual(result["accrued_amount"], "100.00")
+        self.assertEqual(result["days_until_eligible"], 0)
+
+    def test_period_starts_from_the_leadership_date_when_it_is_later(self):
+        employee = self._leader(
+            hire_date=date(2024, 1, 1),
             data_start_sef_echipa=date(2026, 3, 10),
         )
 
         result = build_team_leader_bonus(employee, date(2026, 9, 10))
 
         self.assertEqual(result["start_date"], "2026-03-10")
-        self.assertEqual(result["completed_months"], 6)
-        self.assertEqual(result["accrued_amount"], "600.00")
-        self.assertFalse(result["needs_start_date"])
+        self.assertEqual(result["eligibility_date"], "2027-03-10")
+        self.assertFalse(result["is_currently_eligible"])
+        self.assertEqual(result["accrued_amount"], "0.00")
 
-    def test_last_payment_restarts_the_accrual(self):
+    def test_trip_home_restarts_the_leader_bonus_period(self):
+        """Plecarea acasa reseteaza si bonusul de sef, la fel ca bonusul de bilet."""
         employee = self._leader(
-            bonus_lunar_sef_echipa=Decimal("100.00"),
+            hire_date=date(2024, 1, 1),
+            data_start_sef_echipa=date(2024, 1, 1),
+            last_home_trip_date=date(2026, 3, 1),
+        )
+
+        result = build_team_leader_bonus(employee, date(2026, 9, 7))
+
+        self.assertEqual(result["start_date"], "2026-03-01")
+        self.assertEqual(result["eligibility_date"], "2027-03-01")
+        self.assertFalse(result["is_currently_eligible"])
+        self.assertEqual(result["accrued_amount"], "0.00")
+
+    def test_last_payment_restarts_the_period(self):
+        employee = self._leader(
+            hire_date=date(2024, 1, 1),
             data_start_sef_echipa=date(2024, 1, 1),
             data_ultimei_plati_bonus_sef=date(2026, 6, 7),
         )
@@ -435,12 +472,11 @@ class TeamLeaderBonusTests(TestCase):
         self.assertEqual(result["start_date"], "2026-06-07")
         self.assertEqual(result["last_payment_date"], "2026-06-07")
         self.assertEqual(result["completed_months"], 3)
-        self.assertEqual(result["accrued_amount"], "300.00")
+        self.assertEqual(result["accrued_amount"], "0.00")
 
     def test_payment_older_than_the_start_date_is_ignored(self):
         employee = self._leader(
-            bonus_lunar_sef_echipa=Decimal("100.00"),
-            data_start_sef_echipa=date(2026, 3, 1),
+            hire_date=date(2026, 3, 1),
             data_ultimei_plati_bonus_sef=date(2025, 12, 1),
         )
 
@@ -449,30 +485,41 @@ class TeamLeaderBonusTests(TestCase):
         self.assertEqual(result["start_date"], "2026-03-01")
         self.assertEqual(result["completed_months"], 6)
 
-    def test_accrual_does_not_reset_on_january_first(self):
+    def test_completed_months_never_pass_twelve(self):
+        employee = self._leader(hire_date=date(2024, 1, 1))
+
+        result = build_team_leader_bonus(employee, date(2026, 9, 7))
+
+        self.assertEqual(result["completed_months"], 12)
+
+    def test_leader_bonus_adds_up_with_the_ticket_benefit(self):
         employee = self._leader(
-            bonus_lunar_sef_echipa=Decimal("100.00"),
-            data_start_sef_echipa=date(2025, 7, 15),
+            hire_date=date(2025, 1, 1),
+            ticket_benefit_enabled=True,
         )
 
-        result = build_team_leader_bonus(employee, date(2026, 1, 20))
+        ticket = build_ticket_benefit(employee, date(2026, 7, 1))
+        leader = build_team_leader_bonus(employee, date(2026, 7, 1))
 
-        self.assertEqual(result["completed_months"], 6)
-        self.assertEqual(result["accrued_amount"], "600.00")
+        self.assertEqual(ticket["accrued_amount"], f"{TICKET_BENEFIT_DEFAULT_AMOUNT_EUR:.2f}")
+        self.assertEqual(leader["accrued_amount"], f"{TEAM_LEADER_DEFAULT_BONUS_EUR:.2f}")
+        self.assertEqual(
+            Decimal(ticket["accrued_amount"]) + Decimal(leader["accrued_amount"]),
+            Decimal("760.00"),
+        )
 
-    def test_leader_bonus_does_not_touch_the_ticket_benefit(self):
+    def test_leader_bonus_does_not_change_the_ticket_benefit_figures(self):
         employee = self._leader(
             hire_date=date(2026, 1, 1),
             ticket_benefit_enabled=True,
             bonus_lunar_sef_echipa=Decimal("100.00"),
-            data_start_sef_echipa=date(2026, 1, 1),
         )
 
         ticket = build_ticket_benefit(employee, date(2026, 7, 1))
         leader = build_team_leader_bonus(employee, date(2026, 7, 1))
 
         self.assertEqual(ticket["accrued_amount"], "330.00")
-        self.assertEqual(leader["accrued_amount"], "600.00")
+        self.assertEqual(leader["accrued_amount"], "0.00")
         self.assertEqual(
             ticket["ticket_benefit_amount_eur"], f"{TICKET_BENEFIT_DEFAULT_AMOUNT_EUR:.2f}"
         )

@@ -57,55 +57,66 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   };
   private readonly ticketBenefitCopy: Record<PortalLanguage, {
     title: string; eligible: string; notEligible: string;
-    ticketFigure: string; leaderFigure: string; ofMax: string; perMonth: string;
+    ticketFigure: string; leaderFigure: string; combinedFigure: string; ofMax: string; breakdown: string; afterYear: string;
+    monthsProgress: string;
     availableNow: string; daysLeft: string; daysLeftDe: string;
-    eligibleFrom: string; lastTrip: string; neverUsed: string; leaveRemaining: string;
+    eligibleFrom: string; leaderEligibleFrom: string; lastTrip: string; neverUsed: string; leaveRemaining: string;
     explanation: string; explanationLeader: string;
   }> = {
     ro: {
       title: 'Bonus performanță bilet acasă', eligible: 'Eligibil', notEligible: 'Încă neeligibil',
       ticketFigure: 'Bonus bilet acasă', leaderFigure: 'Bonus șef de echipă',
-      ofMax: '{acumulat} din {max} EUR', perMonth: '{suma} EUR / lună',
+      combinedFigure: 'Bonus bilet acasă + bonus șef de echipă', ofMax: '{acumulat} din {max} EUR',
+      monthsProgress: '{luni} din 12 luni complete',
+      breakdown: '{bilet} EUR bilet + {sef} EUR șef de echipă', afterYear: '{suma} EUR după 12 luni',
       availableNow: 'Disponibil acum', daysLeft: 'Încă {zile} zile', daysLeftDe: 'Încă {zile} de zile',
-      eligibleFrom: 'Eligibil din', lastTrip: 'Ultima plecare acasă', neverUsed: 'Nu a beneficiat încă', leaveRemaining: 'Concediu rămas',
+      eligibleFrom: 'Bonus bilet eligibil din', leaderEligibleFrom: 'Bonus șef eligibil din', lastTrip: 'Ultima plecare acasă', neverUsed: 'Nu a beneficiat încă', leaveRemaining: 'Concediu rămas',
       explanation: 'Primești {lunar} EUR pentru fiecare lună completă lucrată, până la {max} EUR după 12 luni. Perioada se numără de la data angajării sau de la ultima plecare acasă, dacă aceasta e mai recentă. După împlinirea celor 12 luni și dacă ai cel puțin {zile} zile de concediu disponibile, bonusul poate fi folosit pentru cumpărarea biletului spre casă. Nu se plătește în numerar.',
-      explanationLeader: 'Ca șef de echipă primești în plus {bonus_sef} EUR pentru fiecare lună completă. Suma se acumulează până la plată, apoi repornește de la zero.',
+      explanationLeader: 'Ca șef de echipă primești în plus {bonus_sef} EUR după împlinirea perioadei de 12 luni. Bonusul nu se acumulează lunar; se adaugă integral la bonusul pentru bilet când devine eligibil.',
     },
     en: {
       title: 'Home travel ticket performance bonus', eligible: 'Eligible', notEligible: 'Not eligible yet',
       ticketFigure: 'Travel ticket bonus', leaderFigure: 'Team leader bonus',
-      ofMax: '{acumulat} of {max} EUR', perMonth: '{suma} EUR / month',
+      combinedFigure: 'Travel ticket bonus + team leader bonus', ofMax: '{acumulat} of {max} EUR',
+      monthsProgress: '{luni} of 12 full months',
+      breakdown: '{bilet} EUR ticket + {sef} EUR team leader', afterYear: '{suma} EUR after 12 months',
       availableNow: 'Available now', daysLeft: '{zile} days left', daysLeftDe: '{zile} days left',
-      eligibleFrom: 'Eligible from', lastTrip: 'Last trip home', neverUsed: 'Not used yet', leaveRemaining: 'Remaining leave days',
+      eligibleFrom: 'Ticket bonus eligible from', leaderEligibleFrom: 'Team leader bonus eligible from', lastTrip: 'Last trip home', neverUsed: 'Not used yet', leaveRemaining: 'Remaining leave days',
       explanation: 'You earn {lunar} EUR for every full month worked, up to {max} EUR after 12 months. The count starts from your hire date, or from your last trip home if that is more recent. Once the 12 months are complete and you have at least {zile} available leave days, the bonus can be used to buy your ticket home. It is not paid in cash.',
-      explanationLeader: 'As a team leader you also earn {bonus_sef} EUR for every full month. This amount accrues until it is paid out, and then starts again from zero.',
+      explanationLeader: 'As a team leader you receive an additional {bonus_sef} EUR after the 12-month period is complete. It does not accrue monthly; the full amount is added to the travel ticket bonus once eligible.',
     },
     pa: {
       title: 'ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਲਈ ਕਾਰਗੁਜ਼ਾਰੀ ਬੋਨਸ', eligible: 'ਯੋਗ', notEligible: 'ਅਜੇ ਯੋਗ ਨਹੀਂ',
       ticketFigure: 'ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਬੋਨਸ', leaderFigure: 'ਟੀਮ ਲੀਡਰ ਬੋਨਸ',
-      ofMax: '{max} EUR ਵਿੱਚੋਂ {acumulat} EUR', perMonth: '{suma} EUR / ਮਹੀਨਾ',
+      combinedFigure: 'ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਬੋਨਸ + ਟੀਮ ਲੀਡਰ ਬੋਨਸ', ofMax: '{max} EUR ਵਿੱਚੋਂ {acumulat} EUR',
+      monthsProgress: '12 ਪੂਰੇ ਮਹੀਨਿਆਂ ਵਿੱਚੋਂ {luni}',
+      breakdown: '{bilet} EUR ਟਿਕਟ + {sef} EUR ਟੀਮ ਲੀਡਰ', afterYear: '12 ਮਹੀਨਿਆਂ ਬਾਅਦ {suma} EUR',
       availableNow: 'ਹੁਣ ਉਪਲਬਧ', daysLeft: '{zile} ਦਿਨ ਬਾਕੀ', daysLeftDe: '{zile} ਦਿਨ ਬਾਕੀ',
-      eligibleFrom: 'ਯੋਗਤਾ ਦੀ ਮਿਤੀ', lastTrip: 'ਪਿਛਲੀ ਵਾਰ ਘਰ ਜਾਣਾ', neverUsed: 'ਹਾਲੇ ਲਾਭ ਨਹੀਂ ਲਿਆ', leaveRemaining: 'ਬਾਕੀ ਛੁੱਟੀਆਂ',
+      eligibleFrom: 'ਟਿਕਟ ਬੋਨਸ ਯੋਗਤਾ ਦੀ ਮਿਤੀ', leaderEligibleFrom: 'ਟੀਮ ਲੀਡਰ ਬੋਨਸ ਯੋਗਤਾ ਦੀ ਮਿਤੀ', lastTrip: 'ਪਿਛਲੀ ਵਾਰ ਘਰ ਜਾਣਾ', neverUsed: 'ਹਾਲੇ ਲਾਭ ਨਹੀਂ ਲਿਆ', leaveRemaining: 'ਬਾਕੀ ਛੁੱਟੀਆਂ',
       explanation: 'ਹਰ ਪੂਰੇ ਕੰਮ ਕੀਤੇ ਮਹੀਨੇ ਲਈ ਤੁਸੀਂ {lunar} EUR ਕਮਾਉਂਦੇ ਹੋ, 12 ਮਹੀਨਿਆਂ ਬਾਅਦ {max} EUR ਤੱਕ। ਗਿਣਤੀ ਨੌਕਰੀ ਸ਼ੁਰੂ ਕਰਨ ਦੀ ਮਿਤੀ ਤੋਂ ਸ਼ੁਰੂ ਹੁੰਦੀ ਹੈ, ਜਾਂ ਪਿਛਲੀ ਵਾਰ ਘਰ ਜਾਣ ਦੀ ਮਿਤੀ ਤੋਂ ਜੇ ਉਹ ਬਾਅਦ ਵਿੱਚ ਹੈ। 12 ਮਹੀਨੇ ਪੂਰੇ ਹੋਣ ਤੋਂ ਬਾਅਦ ਅਤੇ ਜੇ ਤੁਹਾਡੇ ਕੋਲ ਘੱਟੋ-ਘੱਟ {zile} ਉਪਲਬਧ ਛੁੱਟੀ ਦੇ ਦਿਨ ਹਨ, ਤਾਂ ਇਹ ਬੋਨਸ ਘਰ ਜਾਣ ਦੀ ਟਿਕਟ ਖਰੀਦਣ ਲਈ ਵਰਤਿਆ ਜਾ ਸਕਦਾ ਹੈ। ਇਹ ਨਕਦ ਨਹੀਂ ਦਿੱਤਾ ਜਾਂਦਾ।',
-      explanationLeader: 'ਟੀਮ ਲੀਡਰ ਵਜੋਂ ਤੁਸੀਂ ਹਰ ਪੂਰੇ ਮਹੀਨੇ ਲਈ ਵਾਧੂ {bonus_sef} EUR ਕਮਾਉਂਦੇ ਹੋ। ਇਹ ਰਕਮ ਭੁਗਤਾਨ ਹੋਣ ਤੱਕ ਜਮ੍ਹਾਂ ਹੁੰਦੀ ਹੈ, ਫਿਰ ਸਿਫ਼ਰ ਤੋਂ ਦੁਬਾਰਾ ਸ਼ੁਰੂ ਹੁੰਦੀ ਹੈ।',
+      explanationLeader: 'ਟੀਮ ਲੀਡਰ ਵਜੋਂ 12 ਮਹੀਨੇ ਪੂਰੇ ਹੋਣ ਤੋਂ ਬਾਅਦ ਤੁਹਾਨੂੰ ਵਾਧੂ {bonus_sef} EUR ਮਿਲਦੇ ਹਨ। ਇਹ ਮਹੀਨਾਵਾਰ ਇਕੱਠਾ ਨਹੀਂ ਹੁੰਦਾ; ਯੋਗ ਹੋਣ ਤੇ ਪੂਰੀ ਰਕਮ ਟਿਕਟ ਬੋਨਸ ਵਿੱਚ ਜੋੜੀ ਜਾਂਦੀ ਹੈ।',
     },
     hi: {
       title: 'घर जाने के टिकट का प्रदर्शन बोनस', eligible: 'पात्र', notEligible: 'अभी पात्र नहीं',
       ticketFigure: 'घर जाने के टिकट का बोनस', leaderFigure: 'टीम लीडर बोनस',
-      ofMax: '{max} EUR में से {acumulat} EUR', perMonth: '{suma} EUR / माह',
+      combinedFigure: 'घर जाने के टिकट का बोनस + टीम लीडर बोनस', ofMax: '{max} EUR में से {acumulat} EUR',
+      monthsProgress: '12 पूरे महीनों में से {luni}',
+      breakdown: '{bilet} EUR टिकट + {sef} EUR टीम लीडर', afterYear: '12 महीने बाद {suma} EUR',
       availableNow: 'अभी उपलब्ध', daysLeft: '{zile} दिन शेष', daysLeftDe: '{zile} दिन शेष',
-      eligibleFrom: 'पात्रता की तिथि', lastTrip: 'पिछली बार घर जाना', neverUsed: 'अभी लाभ नहीं लिया', leaveRemaining: 'शेष छुट्टी के दिन',
+      eligibleFrom: 'टिकट बोनस की पात्रता तिथि', leaderEligibleFrom: 'टीम लीडर बोनस की पात्रता तिथि', lastTrip: 'पिछली बार घर जाना', neverUsed: 'अभी लाभ नहीं लिया', leaveRemaining: 'शेष छुट्टी के दिन',
       explanation: 'आप काम किए गए हर पूरे महीने के लिए {lunar} EUR कमाते हैं, 12 महीनों के बाद {max} EUR तक। गिनती नौकरी शुरू होने की तिथि से शुरू होती है, या पिछली बार घर जाने की तिथि से यदि वह अधिक हाल की है। 12 महीने पूरे होने के बाद और यदि आपके पास कम से कम {zile} उपलब्ध छुट्टी के दिन हैं, तो इस बोनस का उपयोग घर जाने का टिकट खरीदने के लिए किया जा सकता है। यह नकद में नहीं दिया जाता।',
-      explanationLeader: 'टीम लीडर के रूप में आप हर पूरे महीने के लिए अतिरिक्त {bonus_sef} EUR कमाते हैं। यह राशि भुगतान होने तक जमा होती है, फिर शून्य से दोबारा शुरू होती है।',
+      explanationLeader: 'टीम लीडर के रूप में 12 महीने पूरे होने के बाद आपको अतिरिक्त {bonus_sef} EUR मिलते हैं। यह हर महीने जमा नहीं होता; पात्र होने पर पूरी राशि टिकट बोनस में जुड़ती है।',
     },
     ne: {
       title: 'घर जाने टिकटको कार्यसम्पादन बोनस', eligible: 'योग्य', notEligible: 'अझै योग्य छैन',
       ticketFigure: 'घर जाने टिकटको बोनस', leaderFigure: 'टोली प्रमुख बोनस',
-      ofMax: '{max} EUR मध्ये {acumulat} EUR', perMonth: '{suma} EUR / महिना',
+      combinedFigure: 'घर जाने टिकटको बोनस + टोली प्रमुख बोनस', ofMax: '{max} EUR मध्ये {acumulat} EUR',
+      monthsProgress: '१२ पूरा महिनामध्ये {luni}',
+      breakdown: '{bilet} EUR टिकट + {sef} EUR टोली प्रमुख', afterYear: '१२ महिनापछि {suma} EUR',
       availableNow: 'अहिले उपलब्ध', daysLeft: '{zile} दिन बाँकी', daysLeftDe: '{zile} दिन बाँकी',
-      eligibleFrom: 'योग्यता मिति', lastTrip: 'अघिल्लो पटक घर गएको', neverUsed: 'अझै लाभ लिएको छैन', leaveRemaining: 'बाँकी बिदाका दिन',
+      eligibleFrom: 'टिकट बोनस योग्य हुने मिति', leaderEligibleFrom: 'टोली प्रमुख बोनस योग्य हुने मिति', lastTrip: 'अघिल्लो पटक घर गएको', neverUsed: 'अझै लाभ लिएको छैन', leaveRemaining: 'बाँकी बिदाका दिन',
       explanation: 'तपाईंले काम गरेको हरेक पूरा महिनाका लागि {lunar} EUR कमाउनुहुन्छ, १२ महिनापछि {max} EUR सम्म। गणना जागिर सुरु भएको मितिबाट सुरु हुन्छ, वा अघिल्लो पटक घर गएको मितिबाट यदि त्यो पछिल्लो हो भने। १२ महिना पूरा भएपछि र तपाईंसँग कम्तीमा {zile} उपलब्ध बिदाका दिन भएमा, यो बोनस घर जाने टिकट किन्न प्रयोग गर्न सकिन्छ। यो नगदमा दिइँदैन।',
-      explanationLeader: 'टोली प्रमुखको रूपमा तपाईंले हरेक पूरा महिनाका लागि थप {bonus_sef} EUR कमाउनुहुन्छ। यो रकम भुक्तानी नहुँदासम्म जम्मा हुन्छ, त्यसपछि शून्यबाट फेरि सुरु हुन्छ।',
+      explanationLeader: 'टोली प्रमुखको रूपमा १२ महिना पूरा भएपछि तपाईंले थप {bonus_sef} EUR पाउनुहुन्छ। यो मासिक रूपमा जम्मा हुँदैन; योग्य भएपछि पूरा रकम टिकट बोनसमा थपिन्छ।',
     },
   };
   private readonly leaveBalanceCopy: Record<PortalLanguage, { remaining: string; exceeded: string }> = {
@@ -308,7 +319,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   /** Bonusul de sef de echipa, cand angajatul chiar conduce o echipa activa. */
   leaderBonus(payload: any): any {
     const bonus = payload?.team_leader_bonus;
-    return bonus?.is_team_leader && bonus?.monthly_amount ? bonus : null;
+    return bonus?.is_team_leader && bonus?.bonus_amount ? bonus : null;
   }
 
   /** Cardul apare si pentru un sef de echipa care nu are bonusul de bilet activ. */
@@ -322,26 +333,80 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
       : this.ticketText.leaderFigure;
   }
 
-  /** Subtitlul cifrei mari: cat s-a strans din suma maxima. */
-  ticketOfMax(ticket: any): string {
-    return this.interpoleaza(this.ticketText.ofMax, {
-      acumulat: String(ticket?.accrued_amount ?? ''),
-      max: String(ticket?.ticket_benefit_amount_eur ?? ''),
+  combinedBonusLabel(payload: any): string {
+    return this.leaderBonus(payload)
+      ? this.ticketText.combinedFigure
+      : this.ticketText.ticketFigure;
+  }
+
+  combinedBonusAmount(payload: any): string {
+    const ticket = payload?.ticket_benefit?.ticket_benefit_enabled
+      ? Number(payload.ticket_benefit.accrued_amount ?? 0)
+      : 0;
+    const leader = Number(this.leaderBonus(payload)?.accrued_amount ?? 0);
+    return (ticket + leader).toFixed(2);
+  }
+
+  combinedBonusMaximum(payload: any): string {
+    const ticket = payload?.ticket_benefit?.ticket_benefit_enabled
+      ? Number(payload.ticket_benefit.ticket_benefit_amount_eur ?? 0)
+      : 0;
+    const leader = Number(this.leaderBonus(payload)?.bonus_amount ?? 0);
+    return (ticket + leader).toFixed(2);
+  }
+
+  combinedBonusBreakdown(payload: any): string {
+    return this.interpoleaza(this.ticketText.breakdown, {
+      bilet: String(payload?.ticket_benefit?.ticket_benefit_enabled
+        ? payload.ticket_benefit.ticket_benefit_amount_eur ?? '0.00'
+        : '0.00'),
+      sef: String(this.leaderBonus(payload)?.bonus_amount ?? '0.00'),
     });
   }
 
-  /** Procentul pentru bara de progres, plafonat la 0-100. */
-  ticketProgress(ticket: any): number {
-    const max = Number(ticket?.ticket_benefit_amount_eur ?? 0);
-    const acumulat = Number(ticket?.accrued_amount ?? 0);
-    if (!Number.isFinite(max) || max <= 0 || !Number.isFinite(acumulat)) return 0;
-    return Math.max(0, Math.min(100, Math.round((acumulat / max) * 100)));
+  /** Subtitlul cifrei mari: totalul disponibil din totalul anual. */
+  ticketOfMax(payload: any): string {
+    return this.interpoleaza(this.ticketText.ofMax, {
+      acumulat: this.combinedBonusAmount(payload),
+      max: this.combinedBonusMaximum(payload),
+    });
   }
 
-  /** „Disponibil acum" sau cate zile mai sunt pana la bonus. */
-  ticketStatusNote(ticket: any): string {
-    if (ticket?.is_currently_eligible) return this.ticketText.availableNow;
-    const zile = Number(ticket?.days_until_eligible ?? 0);
+  /** Cele 12 casute ale barii de progres, cate una pentru fiecare luna a ciclului. */
+  readonly monthSlots: number[] = Array.from({ length: 12 }, (_, index) => index + 1);
+
+  /** Luni complete din ciclul de 12 luni, plafonate la 0-12. */
+  completedMonths(payload: any): number {
+    const bilet = payload?.ticket_benefit?.ticket_benefit_enabled
+      ? Number(payload.ticket_benefit.completed_months ?? 0)
+      : 0;
+    const sef = Number(this.leaderBonus(payload)?.completed_months ?? 0);
+    const luni = Math.max(Number.isFinite(bilet) ? bilet : 0, Number.isFinite(sef) ? sef : 0);
+    return Math.max(0, Math.min(12, Math.floor(luni)));
+  }
+
+  /** Eticheta de sub bara: cate luni complete s-au strans din cele 12. */
+  monthsLabel(payload: any): string {
+    return this.interpoleaza(this.ticketText.monthsProgress, {
+      luni: String(this.completedMonths(payload)),
+    });
+  }
+
+  combinedBonusEligible(payload: any): boolean {
+    const ticketReady = !payload?.ticket_benefit?.ticket_benefit_enabled
+      || !!payload.ticket_benefit.is_currently_eligible;
+    const leaderReady = !this.leaderBonus(payload)
+      || !!this.leaderBonus(payload).is_currently_eligible;
+    return ticketReady && leaderReady;
+  }
+
+  /** „Disponibil acum" sau cate zile mai sunt pana la suma combinata. */
+  ticketStatusNote(payload: any): string {
+    if (this.combinedBonusEligible(payload)) return this.ticketText.availableNow;
+    const zile = Math.max(
+      Number(payload?.ticket_benefit?.days_until_eligible ?? 0),
+      Number(this.leaderBonus(payload)?.days_until_eligible ?? 0),
+    );
     // In romana „de" apare cand ultimele doua cifre sunt 00 sau 20-99.
     const rest = zile % 100;
     const sablon = zile >= 20 && (rest === 0 || rest >= 20)
@@ -350,8 +415,8 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     return this.interpoleaza(sablon, { zile: String(zile) });
   }
 
-  leaderMonthlyLabel(bonus: any): string {
-    return this.interpoleaza(this.ticketText.perMonth, { suma: String(bonus?.monthly_amount ?? '') });
+  leaderAfterYearLabel(bonus: any): string {
+    return this.interpoleaza(this.ticketText.afterYear, { suma: String(bonus?.bonus_amount ?? '') });
   }
 
   /** Primul paragraf: bonusul de bilet, cu toate cifrele injectate din payload. */
@@ -367,7 +432,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   /** Al doilea paragraf: doar pentru sefii de echipa. */
   leaderExplanation(bonus: any): string {
     return this.interpoleaza(this.ticketText.explanationLeader, {
-      bonus_sef: String(bonus?.monthly_amount ?? ''),
+      bonus_sef: String(bonus?.bonus_amount ?? ''),
     });
   }
 

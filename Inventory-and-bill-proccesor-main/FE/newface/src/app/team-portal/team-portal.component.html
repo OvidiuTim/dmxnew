@@ -106,29 +106,25 @@
           <h2>{{ ticketCardTitle(salary) }}</h2>
         </header>
         <div class="ticket-figures">
-          <div class="ticket-figure" *ngIf="salary.ticket_benefit?.ticket_benefit_enabled">
-            <span class="ticket-figure-label">{{ ticketText.ticketFigure }}</span>
+          <div class="ticket-figure ticket-figure-combined">
+            <span class="ticket-figure-label">{{ combinedBonusLabel(salary) }}</span>
             <div class="ticket-figure-main">
-              <strong class="ticket-figure-value">{{ salary.ticket_benefit.accrued_amount }} EUR</strong>
-              <strong class="ticket-status" [class.eligible]="salary.ticket_benefit.is_currently_eligible">{{ salary.ticket_benefit.is_currently_eligible ? ticketText.eligible : ticketText.notEligible }}</strong>
+              <strong class="ticket-figure-value">{{ combinedBonusAmount(salary) }} EUR</strong>
+              <strong class="ticket-status" [class.eligible]="combinedBonusEligible(salary)">{{ combinedBonusEligible(salary) ? ticketText.eligible : ticketText.notEligible }}</strong>
             </div>
-            <span class="ticket-figure-sub">{{ ticketOfMax(salary.ticket_benefit) }}</span>
-            <div class="ticket-progress" role="presentation"><i [style.width.%]="ticketProgress(salary.ticket_benefit)"></i></div>
-            <span class="ticket-figure-note" [class.available]="salary.ticket_benefit.is_currently_eligible">{{ ticketStatusNote(salary.ticket_benefit) }}</span>
-          </div>
-          <div class="ticket-figure" *ngIf="leaderBonus(salary)?.accrued_amount">
-            <span class="ticket-figure-label">{{ ticketText.leaderFigure }}</span>
-            <div class="ticket-figure-main">
-              <strong class="ticket-figure-value">{{ leaderBonus(salary).accrued_amount }} EUR</strong>
-            </div>
-            <span class="ticket-figure-sub">{{ leaderMonthlyLabel(leaderBonus(salary)) }}</span>
+            <span class="ticket-figure-sub">{{ ticketOfMax(salary) }}</span>
+            <strong class="ticket-breakdown" *ngIf="leaderBonus(salary)">{{ combinedBonusBreakdown(salary) }}</strong>
+            <div class="ticket-progress" role="presentation"><i *ngFor="let month of monthSlots" [class.filled]="month <= completedMonths(salary)" [class.milestone]="month === 12"></i></div>
+            <span class="ticket-months">{{ monthsLabel(salary) }}</span>
+            <span class="ticket-figure-note" [class.available]="combinedBonusEligible(salary)">{{ ticketStatusNote(salary) }}</span>
           </div>
         </div>
-        <p class="ticket-leader-note" *ngIf="leaderBonus(salary) && !leaderBonus(salary).accrued_amount">
-          {{ ticketText.leaderFigure }}: <b>{{ leaderMonthlyLabel(leaderBonus(salary)) }}</b>
+        <p class="ticket-leader-note" *ngIf="leaderBonus(salary)">
+          {{ ticketText.leaderFigure }}: <b>{{ leaderAfterYearLabel(leaderBonus(salary)) }}</b>
         </p>
         <div class="ticket-meta" *ngIf="salary.ticket_benefit?.ticket_benefit_enabled">
           <span>{{ ticketText.eligibleFrom }}<b>{{ salary.ticket_benefit.next_eligibility_date | date:'dd.MM.yyyy' }}</b></span>
+          <span *ngIf="leaderBonus(salary)">{{ ticketText.leaderEligibleFrom }}<b>{{ leaderBonus(salary).eligibility_date | date:'dd.MM.yyyy' }}</b></span>
           <span>{{ ticketText.lastTrip }}<b>{{ salary.ticket_benefit.last_home_trip_date ? (salary.ticket_benefit.last_home_trip_date | date:'dd.MM.yyyy') : ticketText.neverUsed }}</b></span>
           <span *ngIf="salary.ticket_benefit.leave_days_available">{{ ticketText.leaveRemaining }}<b>{{ salary.ticket_benefit.leave_days_available }}</b></span>
         </div>

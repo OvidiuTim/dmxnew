@@ -18,6 +18,7 @@ SALARY_REMAINDER = "salary_remainder"
 FOOD_MONEY = "food_money"
 # Fallback folosit cand angajatul nu are o suma proprie (suma_bonus_bilet_eur = NULL).
 TICKET_BENEFIT_DEFAULT_AMOUNT_EUR = Decimal("660.00")
+TEAM_LEADER_DEFAULT_BONUS_EUR = Decimal("100.00")
 LUNI_ELIGIBILITATE_BILET = 12
 ZILE_CONCEDIU_NECESARE_BILET = Decimal("15")
 
@@ -450,11 +451,17 @@ def este_sef_de_echipa(employee):
     return employee.led_employee_teams.filter(active=True).exists()
 
 
-def data_start_bonus_sef(employee):
-    """Acumularea porneste de la preluarea rolului sau de la ultima plata a bonusului."""
-    start = employee.data_start_sef_echipa
-    if not start:
-        return None
+def data_start_bonus_sef(employee, as_of_date):
+    """Începutul perioadei anuale pentru bonusul de șef de echipă.
+
+    Bonusul este legat de ciclul ajutorului pentru bilet. Dacă rolul de șef a
+    început mai târziu, anul se calculează de la preluarea rolului. O plată
+    ulterioară pornește un ciclu nou.
+    """
+    start = data_start_bilet(employee, as_of_date)
+    data_rol = employee.data_start_sef_echipa
+    if data_rol and data_rol > start:
+        start = data_rol
     ultima_plata = employee.data_ultimei_plati_bonus_sef
     if ultima_plata and ultima_plata > start:
         return ultima_plata
@@ -462,19 +469,19 @@ def data_start_bonus_sef(employee):
 
 
 def build_team_leader_bonus(employee, as_of_date=None, is_team_leader=None):
-    """Bonusul lunar al sefilor de echipa. Nu atinge bonusul de bilet si nici salarizarea.
+    """Bonus anual pentru șefii de echipă, disponibil după 12 luni.
 
-    Fara data_start_sef_echipa nu se acumuleaza nimic: se raporteaza doar suma lunara,
-    iar needs_start_date semnaleaza ca adminul trebuie sa completeze data. Preferam un
-    camp gol unei cifre inventate.
+    Câmpul istoric ``bonus_lunar_sef_echipa`` păstrează suma configurată în
+    baza de date, dar nu mai are semantică lunară. Dacă este gol se folosește
+    valoarea implicită de 100 EUR. Bonusul nu se multiplică cu numărul lunilor.
     """
     today = as_of_date or date.today()
     if is_team_leader is None:
         is_team_leader = este_sef_de_echipa(employee)
-    suma_lunara = employee.bonus_lunar_sef_echipa
+    suma_configurata = employee.bonus_lunar_sef_echipa
     payload = {
         "is_team_leader": bool(is_team_leader),
-        "monthly_amount": None,
+        "bonus_amount": None,
         "start_date": None,
         "last_payment_date": (
             employee.data_ultimei_plati_bonus_sef.isoformat()
@@ -483,23 +490,32 @@ def build_team_leader_bonus(employee, as_of_date=None, is_team_leader=None):
         ),
         "completed_months": None,
         "accrued_amount": None,
-        "needs_start_date": False,
+        "eligibility_date": None,
+        "is_currently_eligible": None,
+        "days_until_eligible": None,
+        "default_amount_applied": False,
     }
-    if not is_team_leader or suma_lunara is None:
+    if not is_team_leader:
         return payload
 
-    suma_lunara = Decimal(suma_lunara).quantize(MONEY_PLACES)
-    payload["monthly_amount"] = f"{suma_lunara:.2f}"
-    data_start = data_start_bonus_sef(employee)
-    if not data_start:
-        payload["needs_start_date"] = True
-        return payload
-
-    luni_complete = luni_complete_scurse(data_start, today)
+    suma_bonus = (
+        TEAM_LEADER_DEFAULT_BONUS_EUR
+        if suma_configurata is None
+        else Decimal(suma_configurata).quantize(MONEY_PLACES)
+    )
+    data_start = data_start_bonus_sef(employee, today)
+    data_eligibilitate = _one_year_after(data_start)
+    este_eligibil = today >= data_eligibilitate
+    luni_complete = min(luni_complete_scurse(data_start, today), LUNI_ELIGIBILITATE_BILET)
     payload.update({
+        "bonus_amount": f"{suma_bonus:.2f}",
         "start_date": data_start.isoformat(),
         "completed_months": luni_complete,
-        "accrued_amount": f"{(suma_lunara * Decimal(luni_complete)).quantize(MONEY_PLACES):.2f}",
+        "accrued_amount": f"{(suma_bonus if este_eligibil else Decimal('0.00')):.2f}",
+        "eligibility_date": data_eligibilitate.isoformat(),
+        "is_currently_eligible": este_eligibil,
+        "days_until_eligible": max(0, (data_eligibilitate - today).days),
+        "default_amount_applied": suma_configurata is None,
     })
     return payload
 

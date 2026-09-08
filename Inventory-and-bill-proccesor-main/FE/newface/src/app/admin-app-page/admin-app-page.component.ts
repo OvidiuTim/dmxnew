@@ -170,7 +170,7 @@ export class AdminAppPageComponent implements OnInit {
 
   runNuclearOption(): void {
     const confirmed = window.confirm(
-      'Această acțiune modifică definitiv toate zilele cu peste 10 ore și le reduce la 8 ore. Continui?'
+      'nucleara, Continui?'
     );
     if (!confirmed) return;
 
