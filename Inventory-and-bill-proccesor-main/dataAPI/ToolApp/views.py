@@ -8,7 +8,7 @@ import os
 import uuid
 from threading import Lock
 from queue import Queue, Empty
-from collections import deque
+from collections import defaultdict, deque
 from datetime import datetime, timedelta, date as _date
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
@@ -4918,9 +4918,77 @@ def app_admin_module_access(request, module_code):
     })
 
 
-NUCLEAR_ATTENDANCE_THRESHOLD_SECONDS = 10 * 60 * 60
+# Orice zi care depaseste 8 ore este taiata fix la 8 ore, pentru toti angajatii
+# si pentru toate lunile. Pragul si tinta sunt egale: nu exista zona de toleranta.
 NUCLEAR_ATTENDANCE_TARGET_SECONDS = 8 * 60 * 60
+NUCLEAR_ATTENDANCE_THRESHOLD_SECONDS = NUCLEAR_ATTENDANCE_TARGET_SECONDS
+# Din surplus se taie intai o ora de dimineata (se intarzie venirea), iar restul
+# se taie de seara (se devanseaza plecarea). O zi de 07:30-17:30 devine 08:30-16:30.
+NUCLEAR_ATTENDANCE_MORNING_CUT_SECONDS = 60 * 60
 NUCLEAR_ATTENDANCE_CONFIRMATION = "NUCLEAR BUTTON DO NOT PRESS"
+
+
+def _taie_ziua_la_opt_ore(sessions, taiere_dimineata, taiere_seara):
+    """Scurteaza o zi taind intai de dimineata, apoi de seara.
+
+    ``sessions`` vine ordonata cronologic. Se intarzie venirea cu
+    ``taiere_dimineata`` secunde si se devanseaza plecarea cu ``taiere_seara``;
+    sesiunile consumate integral se sterg. Ce ramane insumeaza exact 8 ore.
+    """
+    randuri = [
+        {
+            "obj": item,
+            "in_time": item.in_time,
+            "durata": max(0, int(item.duration_seconds or 0)),
+            "atins": False,
+            "sters": False,
+        }
+        for item in sessions
+    ]
+
+    def consuma(ordine, secunde, dinspre_inceput):
+        for rand in ordine:
+            if secunde <= 0:
+                break
+            if rand["sters"]:
+                continue
+            if rand["durata"] <= secunde:
+                secunde -= rand["durata"]
+                rand["durata"] = 0
+                rand["sters"] = True
+                continue
+            if dinspre_inceput:
+                rand["in_time"] = rand["in_time"] + timedelta(seconds=secunde)
+            rand["durata"] -= secunde
+            rand["atins"] = True
+            secunde = 0
+        return secunde
+
+    # Restul netaiat dintr-o parte trece in cealalta, ca ziua sa ajunga la 8 ore.
+    taiere_seara += consuma(randuri, taiere_dimineata, dinspre_inceput=True)
+    taiere_dimineata_ramasa = consuma(reversed(randuri), taiere_seara, dinspre_inceput=False)
+    if taiere_dimineata_ramasa:
+        consuma(randuri, taiere_dimineata_ramasa, dinspre_inceput=True)
+
+    modificate = 0
+    de_sters = []
+    for rand in randuri:
+        if rand["sters"]:
+            de_sters.append(rand["obj"].pk)
+            continue
+        if not rand["atins"]:
+            continue
+        session = rand["obj"]
+        session.in_time = rand["in_time"]
+        session.duration_seconds = rand["durata"]
+        session.out_time = rand["in_time"] + timedelta(seconds=rand["durata"])
+        session.save(update_fields=("in_time", "out_time", "duration_seconds"))
+        modificate += 1
+
+    sterse = 0
+    if de_sters:
+        sterse = AttendanceSession.objects.filter(pk__in=de_sters).delete()[0]
+    return modificate, sterse
 
 
 @csrf_exempt
@@ -4945,47 +5013,48 @@ def app_admin_normalize_attendance(request):
         .order_by("user_fk_id", "work_date")
     )
 
+    # Grupam zilele pe angajat ca sa recalculam salariile o singura data per om,
+    # nu o data per zi: pragul de 8 ore prinde mult mai multe zile decat cel vechi.
+    zile_per_angajat = defaultdict(list)
+    for target in target_days:
+        zile_per_angajat[target["user_fk_id"]].append(target["work_date"])
+    angajati = Users.objects.in_bulk(list(zile_per_angajat))
+
     changed_days = 0
     updated_sessions = 0
     deleted_sessions = 0
     with transaction.atomic():
-        for target in target_days:
-            sessions = list(
-                AttendanceSession.objects.select_for_update()
-                .filter(
-                    user_fk_id=target["user_fk_id"],
-                    work_date=target["work_date"],
-                    out_time__isnull=False,
-                )
-                .order_by("in_time", "id")
-            )
-            total_seconds = sum(max(0, int(item.duration_seconds or 0)) for item in sessions)
-            if total_seconds <= NUCLEAR_ATTENDANCE_THRESHOLD_SECONDS:
+        for user_id, zile in zile_per_angajat.items():
+            user = angajati.get(user_id)
+            if user is None:
                 continue
-
-            remaining_seconds = NUCLEAR_ATTENDANCE_TARGET_SECONDS
-            remove_ids = []
-            for session in sessions:
-                duration_seconds = max(0, int(session.duration_seconds or 0))
-                if remaining_seconds <= 0:
-                    remove_ids.append(session.pk)
+            zile_modificate = []
+            for work_date in zile:
+                sessions = list(
+                    AttendanceSession.objects.select_for_update()
+                    .filter(
+                        user_fk_id=user_id,
+                        work_date=work_date,
+                        out_time__isnull=False,
+                    )
+                    .order_by("in_time", "id")
+                )
+                total_seconds = sum(max(0, int(item.duration_seconds or 0)) for item in sessions)
+                if total_seconds <= NUCLEAR_ATTENDANCE_THRESHOLD_SECONDS:
                     continue
-                if duration_seconds <= remaining_seconds:
-                    remaining_seconds -= duration_seconds
-                    continue
 
-                session.duration_seconds = remaining_seconds
-                session.out_time = session.in_time + timedelta(seconds=remaining_seconds)
-                session.save(update_fields=("out_time", "duration_seconds"))
-                updated_sessions += 1
-                remaining_seconds = 0
+                surplus = total_seconds - NUCLEAR_ATTENDANCE_TARGET_SECONDS
+                taiere_dimineata = min(NUCLEAR_ATTENDANCE_MORNING_CUT_SECONDS, surplus)
+                taiere_seara = surplus - taiere_dimineata
+                modificate, sterse = _taie_ziua_la_opt_ore(
+                    sessions, taiere_dimineata, taiere_seara
+                )
+                updated_sessions += modificate
+                deleted_sessions += sterse
+                zile_modificate.append(work_date)
+                changed_days += 1
 
-            if remove_ids:
-                deleted_sessions += AttendanceSession.objects.filter(pk__in=remove_ids).delete()[0]
-
-            user = Users.objects.get(pk=target["user_fk_id"])
-            recompute_daily_pay(user, target["work_date"])
-            changed_days += 1
+            recompute_daily_pays(user, zile_modificate)
 
     return JsonResponse({
         "ok": True,

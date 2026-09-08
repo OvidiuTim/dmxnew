@@ -170,7 +170,8 @@ export class AdminAppPageComponent implements OnInit {
 
   runNuclearOption(): void {
     const confirmed = window.confirm(
-      'nucleara, Continui?'
+      'Această acțiune parcurge pontajul tuturor angajaților, pe toate lunile, '
+      + 'și reduce definitiv la 8 ore fiecare zi care depășește 8 ore. Continui?'
     );
     if (!confirmed) return;
 
@@ -179,7 +180,8 @@ export class AdminAppPageComponent implements OnInit {
     this.auth.normalizeAdminAttendance().subscribe({
       next: (response) => {
         this.nuclearRunning = false;
-        this.success = `Operațiunea s-a încheiat. Zile modificate: ${response.changed_days}.`;
+        this.success = `Operațiunea s-a încheiat. Zile reduse la 8 ore: ${response.changed_days}`
+          + ` (sesiuni scurtate: ${response.updated_sessions}, sesiuni șterse: ${response.deleted_sessions}).`;
       },
       error: (response) => {
         this.nuclearRunning = false;

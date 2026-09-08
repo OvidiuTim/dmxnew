@@ -52,7 +52,7 @@ describe('AdminAppPageComponent modules', () => {
 
   it('rulează opțiunea nucleară numai după confirmare', () => {
     const auth: any = {
-      normalizeAdminAttendance: jasmine.createSpy('normalizeAdminAttendance').and.returnValue(of({ changed_days: 3 }))
+      normalizeAdminAttendance: jasmine.createSpy('normalizeAdminAttendance').and.returnValue(of({ changed_days: 3, updated_sessions: 2, deleted_sessions: 1 }))
     };
     const component = new AdminAppPageComponent(auth);
     spyOn(window, 'confirm').and.returnValue(true);
