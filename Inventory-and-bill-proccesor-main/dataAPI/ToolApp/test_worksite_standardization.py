@@ -24,7 +24,8 @@ class WorksiteNormalizationTests(TestCase):
             "The Lake Home Blocurile E si F": "The Lake Home Bloc E & F",
             "bloc F": "The Lake Home Bloc E & F",
             "c8 PSIHIATRIE": "Psihiatrie C8",
-            "SIBIEL": "Sibiel - the river chalet",
+            "SIBIEL": "The River chalet",
+            "birou ingineri": "Birou ingineri & TESA",
             "gradinita   agnita": "Grădinița Agnita",
             "cisnădie": "Cisnadie",
         }
@@ -132,9 +133,9 @@ class CleanupWorksitesCommandTests(TestCase):
             self.unresolved.refresh_from_db()
             self.event.refresh_from_db()
             self.team.refresh_from_db()
-            self.assertEqual(self.first.worksite, "Birou ingineri")
-            self.assertEqual(self.fallback.worksite, "Birou ingineri")
-            self.assertEqual(self.event.worksite, "Birou ingineri")
+            self.assertEqual(self.first.worksite, "Birou ingineri & TESA")
+            self.assertEqual(self.fallback.worksite, "Birou ingineri & TESA")
+            self.assertEqual(self.event.worksite, "Birou ingineri & TESA")
             self.assertEqual(self.team.default_worksite, "The Lake Home Bloc E & F")
             self.assertEqual(self.unresolved.worksite, "locație complet necunoscută")
 

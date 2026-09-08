@@ -2,8 +2,14 @@ import re
 import unicodedata
 
 
-_LAKE_HOME_CENTER = {"latitude": 45.81027575048179, "longitude": 24.130539205078342}
+_LAKE_HOME_CENTER = {"latitude": 45.81034964338528, "longitude": 24.130413480467038}
 ENGINEERING_OFFICE_WORKSITE = {
+    "name": "Birou ingineri & TESA",
+    "latitude": 45.809820427020156,
+    "longitude": 24.13019018453687,
+    "radius_meters": 100,
+}
+CHEF_ATTENDANCE_WORKSITE_CONFIG = {
     "name": "Birou ingineri",
     "latitude": 45.79680855369633,
     "longitude": 24.14230494031001,
@@ -23,6 +29,8 @@ ATTENDANCE_WORKSITES = (
     {"name": "Grădinița Agnita", "latitude": 45.97789754940184, "longitude": 24.61674765866955, "radius_meters": 40},
     {"name": "Bloc 14 Victoria", "latitude": 45.73336901742498, "longitude": 24.701707107591304, "radius_meters": 40},
     {"name": "Bloc 3 Victoria", "latitude": 45.73105012404724, "longitude": 24.696154238062714, "radius_meters": 40},
+    {"name": "Cisnadie", "latitude": 45.71648035800439, "longitude": 24.162636701234426, "radius_meters": 50},
+    {"name": "The River chalet", "latitude": 45.76837384893173, "longitude": 23.916721618503065, "radius_meters": 50},
 )
 
 # COMPATIBILITATE CRITICA ANDROID v1-v4:
@@ -50,14 +58,6 @@ for _legacy_name in (
 ):
     ATTENDANCE_WORKSITE_BY_NAME[_legacy_name]["radius_meters"] = 50
 ATTENDANCE_WORKSITE_BY_NAME.update({
-    "Cisnadie": {
-        "name": "Cisnadie", "latitude": 45.7164550916678,
-        "longitude": 24.16268772028023, "radius_meters": 50,
-    },
-    "Sibiel - the river chalet": {
-        "name": "Sibiel - the river chalet", "latitude": 45.76833769170176,
-        "longitude": 23.916782631565773, "radius_meters": 50,
-    },
     "diverse": {
         "name": "diverse", "latitude": 45.81014245534635,
         "longitude": 24.130572226199238, "radius_meters": 50,
@@ -79,7 +79,7 @@ ATTENDANCE_WORKSITE_BY_NAME.update({
 # serverul accepta SUPLIMENTAR perimetrul vechi, altfel omul trece de verificarea
 # din telefon si e respins cu OUTSIDE_WORKSITE_AREA. Nu elimina fara update fortat.
 LEGACY_ANDROID_PERIMETERS = {
-    "Birou ingineri": (
+    "Birou ingineri & TESA": (
         {"latitude": 45.810126261224724, "longitude": 24.13046096426116, "radius_meters": 100},
     ),
 }
@@ -97,7 +97,7 @@ ACCEPTED_WORKSITES = (
     "The Lake Home Bloc A",
     "The Lake Home Bloc B2",
     "The Lake Home Bloc E & F",
-    "Birou ingineri",
+    "Birou ingineri & TESA",
     "magazie/depozit",
     "Psihiatrie C8",
     "Psihiatrie C16",
@@ -109,7 +109,7 @@ ACCEPTED_WORKSITES = (
     "Bloc 14 Victoria",
     "Bloc 3 Victoria",
     "Cisnadie",
-    "Sibiel - the river chalet",
+    "The River chalet",
     "diverse",
 )
 
@@ -145,7 +145,10 @@ def _aliases():
             "Tractorului Bloc F", "Tractorului Bloc E si F", "The Lake Home E F",
             "The Lake Home Blocurile E si F", "The Lake Home Bloc E si F",
         ),
-        "Birou ingineri": ("Birou", "Biroul inginerilor", "Birou Ingineri", "Chef"),
+        "Birou ingineri & TESA": (
+            "Birou", "Biroul inginerilor", "Birou Ingineri", "Birou ingineri si TESA",
+            "Birou ingineri TESA", "Chef",
+        ),
         "magazie/depozit": ("Magazie", "Depozit", "Magazie depozit", "Warehouse"),
         "Psihiatrie C8": ("C8 Psihiatrie", "Psihiatrie C 8", "C8"),
         "Psihiatrie C16": ("C16 Psihiatrie", "Psihiatrie C 16", "C16"),
@@ -157,7 +160,7 @@ def _aliases():
         "Bloc 14 Victoria": ("Bloc14 Victoria", "Victoria Bloc 14"),
         "Bloc 3 Victoria": ("Bloc3 Victoria", "Victoria Bloc 3"),
         "Cisnadie": ("Cisnădie",),
-        "Sibiel - the river chalet": ("Sibiel", "The River Chalet", "Sibiel The River Chalet"),
+        "The River chalet": ("Sibiel", "Sibiel - the river chalet", "Sibiel The River Chalet"),
         "diverse": ("Diverse lucrari", "Diverse lucrări", "Altele", "Alt santier", "Alt șantier"),
     }
     return {

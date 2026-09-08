@@ -45,3 +45,8 @@ ENV/
 *.bak.*
 backups/
 _backups/
+
+# Dumpuri de pe productie (date cu caracter personal - nu se urca in git)
+Inventory-and-bill-proccesor-main/dataAPI/prod-*.json
+Inventory-and-bill-proccesor-main/dataAPI/prod-*.json.gz
+Inventory-and-bill-proccesor-main/dataAPI/prod-*.dump

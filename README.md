@@ -39,6 +39,30 @@ Structura importantă este:
 - `Inventory-and-bill-proccesor-main/fisa_angajat-main/` - variantă statică mai veche pentru fișa angajatului.
 - `Inventory-and-bill-proccesor-main/SECURITY_CHANGES.md` - notițe despre securitate, deploy, login, protejarea endpointurilor și schimbările legate de PIN/pontaj.
 
+## Șantierele principale pentru pontaj GPS
+
+Sursa backend unică este `Inventory-and-bill-proccesor-main/dataAPI/ToolApp/worksites.py`. Aceeași configurație este expusă prin API către Team Dashboard și este păstrată sincronizat în fallbackul paginii publice `/clockinandout`.
+
+| Șantier | Latitudine | Longitudine |
+| --- | ---: | ---: |
+| The Lake Home Bloc A | 45.81034964338528 | 24.130413480467038 |
+| The Lake Home Bloc B2 | 45.81034964338528 | 24.130413480467038 |
+| The Lake Home Bloc E & F | 45.81034964338528 | 24.130413480467038 |
+| Birou ingineri & TESA | 45.809820427020156 | 24.13019018453687 |
+| Psihiatrie C8 | 45.80720228440877 | 24.15440514734915 |
+| Psihiatrie C16 | 45.80768553302182 | 24.157085884823974 |
+| Spital Victoria | 45.725861888407216 | 24.70584969156609 |
+| Casa de Cultură Victoria | 45.73050790281027 | 24.70109770865094 |
+| Bazin Ucea | 45.70058115535115 | 24.689376326811146 |
+| Bloc Agnita | 45.97724541353617 | 24.62272565333796 |
+| Grădinița Agnita | 45.97789754940184 | 24.61674765866955 |
+| Bloc 14 Victoria | 45.73336901742498 | 24.701707107591304 |
+| Bloc 3 Victoria | 45.73105012404724 | 24.696154238062714 |
+| Cisnadie | 45.71648035800439 | 24.162636701234426 |
+| The River chalet | 45.76837384893173 | 23.916721618503065 |
+
+Denumirile istorice „Birou ingineri” și „Sibiel - the river chalet” rămân aliasuri acceptate și sunt normalizate automat la denumirile de mai sus. Razele de pontaj sunt configurate separat în aceeași sursă backend.
+
 ## Ce face programul acum
 
 Aplicația este un sistem intern pentru DMX/Novarion care combină gestiunea magaziei cu pontajul angajaților.

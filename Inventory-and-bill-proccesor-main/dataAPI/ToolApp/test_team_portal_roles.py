@@ -92,8 +92,19 @@ class TeamPortalRoleSecurityTests(TestCase):
         response = self.mobile_post("/api/mobile/team-dashboard/worksites/", "4101")
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["location_validity_seconds"], 600)
-        self.assertTrue(response.json()["attendance_worksites"])
-        self.assertEqual(response.json()["attendance_worksites"][0]["radius_meters"], 90)
+        worksites = response.json()["attendance_worksites"]
+        self.assertEqual(worksites[0]["radius_meters"], 90)
+        by_name = {item["name"]: item for item in worksites}
+        self.assertEqual(
+            (by_name["The Lake Home Bloc A"]["latitude"], by_name["The Lake Home Bloc A"]["longitude"]),
+            (45.81034964338528, 24.130413480467038),
+        )
+        self.assertEqual(
+            (by_name["Birou ingineri & TESA"]["latitude"], by_name["Birou ingineri & TESA"]["longitude"]),
+            (45.809820427020156, 24.13019018453687),
+        )
+        self.assertIn("Cisnadie", by_name)
+        self.assertIn("The River chalet", by_name)
 
     def test_plain_employee_gets_only_own_portal_endpoints(self):
         self.plain.total_salary_ron = "9000.00"

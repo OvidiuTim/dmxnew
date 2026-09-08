@@ -67,7 +67,7 @@ from ToolApp.module_access import (
 from ToolApp.worksites import (
     ACCEPTED_WORKSITES,
     ATTENDANCE_WORKSITE_BY_NAME,
-    ENGINEERING_OFFICE_WORKSITE,
+    CHEF_ATTENDANCE_WORKSITE_CONFIG,
     InvalidWorksite,
     fold_worksite,
     match_worksite,
@@ -1910,12 +1910,12 @@ def _fmt_hms(seconds: int):
 PONTAJ_SHIFT_END_HOUR = 18   # 18:00 ora locală = sfârșitul zilei
 PONTAJ_MAX_SHIFT_HOURS = 14  # limită de siguranță (cap durată sesiune)
 CHEF_ATTENDANCE_PIN = "1165"
-# IMPORTANT: pontarea Chef si pontarea normala la Birou ingineri trebuie sa
-# foloseasca acelasi perimetru. Configuratia unica este in worksites.py.
-CHEF_ATTENDANCE_LATITUDE = ENGINEERING_OFFICE_WORKSITE["latitude"]
-CHEF_ATTENDANCE_LONGITUDE = ENGINEERING_OFFICE_WORKSITE["longitude"]
-CHEF_ATTENDANCE_RADIUS_METERS = ENGINEERING_OFFICE_WORKSITE["radius_meters"]
-CHEF_ATTENDANCE_WORKSITE = ENGINEERING_OFFICE_WORKSITE["name"]
+# Ruta /chef are perimetrul ei dedicat; nu trebuie mutata odata cu lista
+# generala de santiere folosita de /clockinandout si Team Dashboard.
+CHEF_ATTENDANCE_LATITUDE = CHEF_ATTENDANCE_WORKSITE_CONFIG["latitude"]
+CHEF_ATTENDANCE_LONGITUDE = CHEF_ATTENDANCE_WORKSITE_CONFIG["longitude"]
+CHEF_ATTENDANCE_RADIUS_METERS = CHEF_ATTENDANCE_WORKSITE_CONFIG["radius_meters"]
+CHEF_ATTENDANCE_WORKSITE = CHEF_ATTENDANCE_WORKSITE_CONFIG["name"]
 
 
 #--- NFC SCAN: la EXIT suprascrie worksite dacă vine în payload ---

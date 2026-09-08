@@ -130,7 +130,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     { code: 'ne', nativeLabel: 'नेपाली', secondaryLabel: 'Nepali', locale: 'ne-NP' }
   ];
 
-  readonly sharedLakeHomeCenter = { lat: 45.81027575048179, lng: 24.130539205078342 };
+  readonly sharedLakeHomeCenter = { lat: 45.81034964338528, lng: 24.130413480467038 };
   readonly chefWorksite: WorksiteDefinition = {
     name: 'Birou ingineri',
     type: 'circle',
@@ -142,6 +142,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     { name: 'The Lake Home Bloc A', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 90 },
     { name: 'The Lake Home Bloc B2', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
     { name: 'The Lake Home Bloc E & F', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
+    { name: 'Birou ingineri & TESA', type: 'circle', center: { lat: 45.809820427020156, lng: 24.13019018453687 }, radiusMeters: 100 },
     { name: 'Psihiatrie C8', type: 'circle', center: { lat: 45.80720228440877, lng: 24.15440514734915 }, radiusMeters: 40 },
     { name: 'Psihiatrie C16', type: 'circle', center: { lat: 45.80768553302182, lng: 24.157085884823974 }, radiusMeters: 40 },
     { name: 'Spital Victoria', type: 'circle', center: { lat: 45.725861888407216, lng: 24.70584969156609 }, radiusMeters: 40 },
@@ -150,7 +151,9 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     { name: 'Bloc Agnita', type: 'circle', center: { lat: 45.97724541353617, lng: 24.62272565333796 }, radiusMeters: 40 },
     { name: 'Grădinița Agnita', type: 'circle', center: { lat: 45.97789754940184, lng: 24.61674765866955 }, radiusMeters: 40 },
     { name: 'Bloc 14 Victoria', type: 'circle', center: { lat: 45.73336901742498, lng: 24.701707107591304 }, radiusMeters: 40 },
-    { name: 'Bloc 3 Victoria', type: 'circle', center: { lat: 45.73105012404724, lng: 24.696154238062714 }, radiusMeters: 40 }
+    { name: 'Bloc 3 Victoria', type: 'circle', center: { lat: 45.73105012404724, lng: 24.696154238062714 }, radiusMeters: 40 },
+    { name: 'Cisnadie', type: 'circle', center: { lat: 45.71648035800439, lng: 24.162636701234426 }, radiusMeters: 50 },
+    { name: 'The River chalet', type: 'circle', center: { lat: 45.76837384893173, lng: 23.916721618503065 }, radiusMeters: 50 }
   ];
 
   readonly translations: Record<LanguageCode, TranslationPack> = {

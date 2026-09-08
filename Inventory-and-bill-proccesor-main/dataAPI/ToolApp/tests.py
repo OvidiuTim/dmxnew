@@ -146,8 +146,8 @@ class ManualAttendanceSecurityTests(TestCase):
         return {
             "worksite": "The Lake Home Bloc B2",
             "gps": {
-                "lat": 45.81027575048179,
-                "lng": 24.130539205078342,
+                "lat": 45.81034964338528,
+                "lng": 24.130413480467038,
                 "accuracy": 8,
                 "captured_at": timezone.now().isoformat(),
             },
@@ -218,7 +218,7 @@ class ManualAttendanceSecurityTests(TestCase):
 
         session = AttendanceSession.objects.get(user_fk=user)
         self.assertEqual(session.source, "manual-chef")
-        self.assertEqual(session.worksite, "Birou ingineri")
+        self.assertEqual(session.worksite, "Birou ingineri & TESA")
         self.assertAlmostEqual(session.in_gps_latitude, self.chef_center["lat"])
 
         tool_views._last_seen.clear()
@@ -242,7 +242,9 @@ class ManualAttendanceSecurityTests(TestCase):
             "worksite": "Birou ingineri",
             "timestamp": timezone.now().isoformat(),
             "gps": {
-                **self.chef_center,
+                "lat": 45.809820427020156,
+                "lng": 24.13019018453687,
+                "accuracy": 8,
                 "captured_at": timezone.now().isoformat(),
             },
             "data_processing_consent": True,
@@ -252,8 +254,8 @@ class ManualAttendanceSecurityTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["state"], "ENTER")
         session = AttendanceSession.objects.get(user_fk=user)
-        self.assertEqual(session.worksite, "Birou ingineri")
-        self.assertAlmostEqual(session.in_gps_latitude, self.chef_center["lat"])
+        self.assertEqual(session.worksite, "Birou ingineri & TESA")
+        self.assertAlmostEqual(session.in_gps_latitude, 45.809820427020156)
 
     def test_legacy_android_engineering_office_center_is_accepted(self):
         """APK-urile vechi valideaza local alt centru pentru «Birou ingineri»."""

@@ -40,4 +40,26 @@ describe('ClockinandoutComponent', () => {
     component.pin = '1165';
     expect(component.canSubmit).toBeTrue();
   });
+
+  it('uses the principal attendance worksite coordinates in clock-in and team dashboard mode', () => {
+    const byName = new Map(component.worksites.map(worksite => [worksite.name, worksite]));
+
+    expect(component.worksites.length).toBe(15);
+    expect(byName.get('The Lake Home Bloc A')?.center).toEqual({
+      lat: 45.81034964338528,
+      lng: 24.130413480467038,
+    });
+    expect(byName.get('Birou ingineri & TESA')?.center).toEqual({
+      lat: 45.809820427020156,
+      lng: 24.13019018453687,
+    });
+    expect(byName.get('Cisnadie')?.center).toEqual({
+      lat: 45.71648035800439,
+      lng: 24.162636701234426,
+    });
+    expect(byName.get('The River chalet')?.center).toEqual({
+      lat: 45.76837384893173,
+      lng: 23.916721618503065,
+    });
+  });
 });
