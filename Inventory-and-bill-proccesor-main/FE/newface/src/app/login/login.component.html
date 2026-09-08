@@ -6,33 +6,32 @@
       type="button"
       class="tab-btn"
       role="tab"
-      aria-label="Username și PIN"
+      aria-label="Angajați · PIN"
       [attr.aria-selected]="mode === 'account'"
       [class.active]="mode === 'account'"
       (click)="setMode('account')"
     >
-      <span>Username și PIN</span>
+      <span>Angajați · PIN</span>
     </button>
     <button
       type="button"
       class="tab-btn"
       role="tab"
-      aria-label="Parola generală"
+      aria-label="Administrator · Parola generală"
       [attr.aria-selected]="mode === 'default'"
       [class.active]="mode === 'default'"
       (click)="setMode('default')"
     >
-      <span>Parola generală</span>
+      <span>Administrator</span>
     </button>
   </div>
 
-  <p class="muted" *ngIf="mode === 'account'">Intră cu utilizatorul tău de aplicație.</p>
-  <p class="muted" *ngIf="mode === 'default'">Introdu parola generală.</p>
+  <p class="muted" *ngIf="mode === 'account'">Introdu PIN-ul tău de angajat pentru Team Management.</p>
+  <p class="muted" *ngIf="mode === 'default'">Introdu parola generală pentru acces de administrator.</p>
 
   <form (ngSubmit)="submit()" *ngIf="mode === 'account'" class="login-form account-form">
-    <input type="text" [(ngModel)]="username" name="username" placeholder="Username" autocomplete="username" />
-    <input type="password" [(ngModel)]="pin" name="pin" placeholder="PIN" autocomplete="current-password" />
-    <button type="submit" [disabled]="loading || !username || !pin">Intră în cont</button>
+    <input type="password" [(ngModel)]="pin" name="pin" placeholder="PIN angajat" aria-label="PIN angajat" inputmode="numeric" autocomplete="current-password" />
+    <button type="submit" [disabled]="loading || !pin.trim()">Intră în cont</button>
   </form>
 
   <form (ngSubmit)="submit()" *ngIf="mode === 'default'" class="login-form general-form">

@@ -98,6 +98,7 @@ export class UserpontatComponent implements OnInit {
   leaveRangeError: string | null = null;
   leaveRangeNotice: string | null = null;
   attendanceExemptSaving = false;
+  reactivateSaving = false;
   leaveRangeForm = { start_date: '', end_date: '', leave_type: 'CO' as 'CO' | 'CM' | 'UNPAID' | 'INDIA' };
 
   // editor
@@ -301,6 +302,27 @@ export class UserpontatComponent implements OnInit {
       error: error => {
         this.attendanceExemptSaving = false;
         this.profileError = error?.error?.error || 'Setarea de pontaj nu a putut fi actualizată.';
+      },
+    });
+  }
+
+  reactivateEmployee(): void {
+    if (!this.employeeProfile || this.reactivateSaving || !this.isDismissed) return;
+    const name = this.employeeProfile.UserName || this.userName || 'angajatul';
+    if (!confirm(`Readuci ${name} în lista de angajați activi?`)) return;
+
+    this.reactivateSaving = true;
+    this.profileError = null;
+    this.api.reactivateUser(this.userId).subscribe({
+      next: (user: EmployeeProfile) => {
+        this.reactivateSaving = false;
+        this.employeeProfile = user;
+        this.leaveRangeNotice = 'Angajatul a fost readus în lista de angajați activi.';
+        this.load();
+      },
+      error: error => {
+        this.reactivateSaving = false;
+        this.profileError = error?.error?.error || 'Angajatul nu a putut fi reactivat.';
       },
     });
   }

@@ -45,6 +45,14 @@ export class AuthService {
     ).pipe(tap((session) => this.setSession({ ...session, auth_type: 'legacy' })));
   }
 
+  pinLogin(pin: string) {
+    return this.http.post<AuthSession>(
+      `${this.API}/app-auth/login/`,
+      { pin },
+      { withCredentials: true }
+    ).pipe(tap((session) => this.setSession(session)));
+  }
+
   appLogin(username: string, pin: string) {
     return this.http.post<AuthSession>(
       `${this.API}/app-auth/login/`,

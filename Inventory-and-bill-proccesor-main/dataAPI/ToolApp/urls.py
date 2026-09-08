@@ -131,6 +131,7 @@ urlpatterns = [
     path('api/user/', views.userApi),
     path('api/user/<int:id>', views.userApi),
     path('api/user/<int:id>/attendance-exempt/', views.attendance_exemption, name='attendance_exemption'),
+    path('api/user/<int:id>/reactivate/', views.employee_reactivate, name='employee_reactivate'),
 
     path('api/tool/', views.toolApi),
     path('api/tool/<int:id>', views.toolApi),

@@ -297,7 +297,16 @@ def _presence_status(employee_ids, day=None):
     }
 
 
-def _employee_summary(employee, status):
+def _absence_marks(employee_ids, day=None):
+    return {
+        mark.employee_id: mark
+        for mark in AttendanceAbsenceMark.objects.filter(
+            employee_id__in=employee_ids, work_date=day or timezone.localdate(),
+        ).select_related("marked_by__employee")
+    }
+
+
+def _employee_summary(employee, status, absence_marks=None):
     payload = {
         "id": employee.pk,
         "name": employee.UserName,
@@ -309,10 +318,11 @@ def _employee_summary(employee, status):
         "trade": employee.trade or "",
     }
     if status == "marked_absent":
-        mark = AttendanceAbsenceMark.objects.filter(
-            employee=employee,
-            work_date=timezone.localdate(),
-        ).select_related("marked_by", "marked_by__employee").first()
+        mark = absence_marks.get(employee.pk) if absence_marks is not None else (
+            AttendanceAbsenceMark.objects.filter(
+                employee=employee, work_date=timezone.localdate(),
+            ).select_related("marked_by__employee").first()
+        )
         if mark:
             payload.update({
                 "marked_by": mark.marked_by.employee.UserName if mark.marked_by_id else "Automat · Nivel 2",
@@ -329,7 +339,7 @@ def portal_dashboard(request):
     app_user = _portal_actor(request)
     if not app_user:
         return _error("Nu ai acces la Team Dashboard.", 403)
-    teams = list(_coordinated_teams(app_user))
+    teams = list(_coordinated_teams(app_user).values("id", "name"))
     own_status = _presence_status([app_user.employee_id]).get(app_user.employee_id, "absent")
     levels = _escalation_levels(app_user)
     day = timezone.localdate()
@@ -355,7 +365,7 @@ def portal_dashboard(request):
         "alert_level_1": 1 in levels,
         "alert_level_2": 2 in levels,
         "status": own_status,
-        "teams": [{"id": team.pk, "name": team.name} for team in teams],
+        "teams": teams,
         "unread_notifications": unread,
         "absence_marking_locked": absence_marking_locked(),
         "lock_time": level_alert_time(AttendanceAlertCase.Level.LEVEL_2).strftime("%H:%M"),
@@ -366,7 +376,7 @@ def portal_dashboard(request):
     if "supervisor" in roles:
         supervised_ids = list(_supervised_teams(app_user).values_list("pk", flat=True))
         pending_transfers = PortalTeamTransferRequest.objects.select_related(
-            "source_team__leader", "source_team__supervisor",
+            "employee", "requested_by__employee", "source_team__leader", "source_team__supervisor",
             "destination_team__leader", "destination_team__supervisor",
         ).filter(status=PortalTeamTransferRequest.Status.PENDING).filter(
             Q(source_team_id__in=supervised_ids) | Q(destination_team_id__in=supervised_ids)
@@ -438,6 +448,7 @@ def portal_teams(request):
         for membership in _active_memberships(team)
     }
     statuses = _presence_status(member_ids)
+    absence_marks = _absence_marks([pk for pk, status in statuses.items() if status == "marked_absent"])
     payload = []
     for team in teams:
         members = []
@@ -449,6 +460,7 @@ def portal_teams(request):
             members.append(_employee_summary(
                 membership.employee,
                 statuses.get(membership.employee_id, "absent"),
+                absence_marks,
             ))
         members.sort(key=lambda item: (item["status"] != "absent", item["name"].casefold()))
         payload.append({"id": team.pk, "name": team.name, "members": members})
@@ -461,7 +473,7 @@ def portal_teams(request):
     })
 
 
-def _portal_team_payload(team, statuses):
+def _portal_team_payload(team, statuses, absence_marks=None):
     members = []
     seen = set()
     for membership in _active_memberships(team):
@@ -471,13 +483,14 @@ def _portal_team_payload(team, statuses):
         members.append(_employee_summary(
             membership.employee,
             statuses.get(membership.employee_id, "absent"),
+            absence_marks,
         ))
     members.sort(key=lambda item: (item["status"] != "absent", item["name"].casefold()))
     return {
         "id": team.pk,
         "name": team.name,
         "worksite": team.default_worksite or "",
-        "leader": _employee_summary(team.leader, statuses.get(team.leader_id, "absent")),
+        "leader": _employee_summary(team.leader, statuses.get(team.leader_id, "absent"), absence_marks),
         "members": members,
     }
 
@@ -497,8 +510,9 @@ def portal_supervised_teams(request):
     }
     employee_ids.update(team.leader_id for team in teams)
     statuses = _presence_status(employee_ids)
+    absence_marks = _absence_marks([pk for pk, status in statuses.items() if status == "marked_absent"])
     return JsonResponse({
-        "teams": [_portal_team_payload(team, statuses) for team in teams],
+        "teams": [_portal_team_payload(team, statuses, absence_marks) for team in teams],
         "can_mark_absent": _initial_alert_available() and not absence_marking_locked(),
         "mark_available_from": f"{ALERT_HOUR:02d}:{ALERT_MINUTE:02d}",
         "locked": absence_marking_locked(),
@@ -608,16 +622,18 @@ def portal_personnel(request):
         employment_status=Users.EmploymentStatus.ACTIVE,
         person_type=Users.PersonType.EMPLOYEE,
     ).order_by("UserName")
-    statuses = _presence_status(list(employees.values_list("pk", flat=True)))
+    employees = list(employees)
+    statuses = _presence_status([employee.pk for employee in employees])
+    absence_marks = _absence_marks([pk for pk, status in statuses.items() if status == "marked_absent"])
     rows = []
     for employee in employees:
         team = memberships.get(employee.pk)
-        row = _employee_summary(employee, statuses.get(employee.pk, "absent"))
+        row = _employee_summary(employee, statuses.get(employee.pk, "absent"), absence_marks)
         row["team"] = ({"id": team.pk, "name": team.name} if team else None)
         rows.append(row)
     return JsonResponse({
         "employees": rows,
-        "teams": [{"id": team.pk, "name": team.name} for team in _supervised_teams(app_user)],
+        "teams": list(_supervised_teams(app_user).values("id", "name")),
     })
 
 

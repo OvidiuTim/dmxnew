@@ -145,12 +145,12 @@
     <section *ngIf="view === 'team' && !loading" class="detail-section">
       <div class="section-title-row"><h1>{{ t.myTeam }}</h1></div>
       <p *ngIf="teamsLocked" class="locked-note">{{ lockedNotice(teamsLockTime) }}</p>
-      <article *ngFor="let team of teams" class="team-card">
+      <article *ngFor="let team of teams; trackBy: trackById" class="team-card">
         <div class="team-title"><h2>{{ team.name }}</h2><button type="button" (click)="startAddMember(team)"><span class="material-symbols-rounded">person_add</span>{{ t.addMember }}</button></div>
         <p *ngIf="!team.members.length" class="empty-copy">{{ t.noMembers }}</p>
-        <div *ngFor="let member of team.members" class="member-row" [attr.data-status]="member.status">
+        <div *ngFor="let member of team.members; trackBy: trackById" class="member-row" [attr.data-status]="member.status">
           <button type="button" class="member-summary" (click)="toggleMember(member.id)" [attr.aria-expanded]="openMemberId === member.id">
-            <span class="member-avatar"><img *ngIf="member.photo" [src]="member.photo" alt="" /><span *ngIf="!member.photo">{{ member.name.charAt(0) }}</span></span>
+            <span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="member.photo" [src]="member.photo" alt="" /><span *ngIf="!member.photo">{{ member.name.charAt(0) }}</span></span>
             <span class="member-name">{{ member.name }}</span>
             <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(member.status) }}</span>{{ statusLabel(member.status) }}</span>
             <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === member.id ? 'expand_less' : 'expand_more' }}</span>
@@ -202,12 +202,12 @@
     <section *ngIf="view === 'supervised' && !loading" class="detail-section">
       <h1>{{ t.supervisedTeams }}</h1>
       <p *ngIf="!supervisedTeams.length" class="empty-copy standalone">{{ t.noMembers }}</p>
-      <article *ngFor="let team of supervisedTeams" class="team-card accordion-team">
+      <article *ngFor="let team of supervisedTeams; trackBy: trackById" class="team-card accordion-team">
         <button type="button" class="team-accordion-header" (click)="toggleTeam(team.id)"><span><strong>{{ team.name }}</strong><small>{{ team.leader.name }}</small></span><span class="material-symbols-rounded">{{ openTeamId === team.id ? 'expand_less' : 'expand_more' }}</span></button>
         <div *ngIf="openTeamId === team.id" class="team-accordion-body">
           <button type="button" class="inline-add" (click)="startAddMember(team)"><span class="material-symbols-rounded">person_add</span>{{ t.addMember }}</button>
-          <div *ngFor="let member of team.members" class="member-row" [attr.data-status]="member.status">
-            <button type="button" class="member-summary" (click)="toggleMember(member.id)"><span class="member-avatar"><img *ngIf="member.photo" [src]="member.photo" alt=""><span *ngIf="!member.photo">{{ member.name.charAt(0) }}</span></span><span class="member-name">{{ member.name }}</span><span class="member-status">{{ statusLabel(member.status) }}</span><span class="material-symbols-rounded expand-icon">{{ openMemberId === member.id ? 'expand_less' : 'expand_more' }}</span></button>
+          <div *ngFor="let member of team.members; trackBy: trackById" class="member-row" [attr.data-status]="member.status">
+            <button type="button" class="member-summary" (click)="toggleMember(member.id)"><span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="member.photo" [src]="member.photo" alt=""><span *ngIf="!member.photo">{{ member.name.charAt(0) }}</span></span><span class="member-name">{{ member.name }}</span><span class="member-status">{{ statusLabel(member.status) }}</span><span class="material-symbols-rounded expand-icon">{{ openMemberId === member.id ? 'expand_less' : 'expand_more' }}</span></button>
             <div *ngIf="openMemberId === member.id" class="member-detail"><span>{{ t.phone }}: {{ member.phone || t.noPhone }}</span><a *ngIf="member.phone" class="call-button" [href]="'tel:' + member.phone"><span class="material-symbols-rounded">call</span>{{ t.call }}</a><button *ngIf="member.status === 'absent' && supervisedCanMarkAbsent" class="absent-button" type="button" (click)="markAbsent(member)"><span class="material-symbols-rounded">person_off</span>{{ t.markAbsent }}</button></div>
           </div>
         </div>
@@ -271,7 +271,7 @@
       <h1>{{ t.personnel }}</h1>
       <label class="portal-search"><span class="material-symbols-rounded">search</span><input type="search" [(ngModel)]="personnelSearch" [placeholder]="t.search"></label>
       <p *ngIf="!personnelGroups.length" class="empty-copy standalone">{{ t.noPersonnel }}</p>
-      <article *ngFor="let group of personnelGroups; let index = index" class="team-card accordion-team"><button type="button" class="team-accordion-header" (click)="toggleTeam(index)"><span><strong>{{ group.name }}</strong><small>{{ group.employees.length }} {{ t.peopleLabel }}</small></span><span class="material-symbols-rounded">{{ openTeamId === index ? 'expand_less' : 'expand_more' }}</span></button><div *ngIf="openTeamId === index" class="team-accordion-body"><div *ngFor="let person of group.employees" class="personnel-row"><span class="member-avatar"><img *ngIf="person.photo" [src]="person.photo" alt=""><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span><div><strong>{{ person.name }}</strong><small>{{ person.serie }} · {{ person.company || '—' }}</small></div><select [(ngModel)]="person.destination_team_id" [attr.aria-label]="t.destinationTeam"><option [ngValue]="null">{{ t.destinationTeam }}</option><option *ngFor="let team of personnelTeams" [ngValue]="team.id">{{ team.name }}</option></select><button type="button" (click)="requestPersonnel(person)" [disabled]="!person.destination_team_id || submitting"><span class="material-symbols-rounded">swap_horiz</span></button></div></div></article>
+      <article *ngFor="let group of personnelGroups; trackBy: trackById" class="team-card accordion-team"><button type="button" class="team-accordion-header" (click)="toggleTeam(group.id)"><span><strong>{{ group.name }}</strong><small>{{ group.employees.length }} {{ t.peopleLabel }}</small></span><span class="material-symbols-rounded">{{ openTeamId === group.id ? 'expand_less' : 'expand_more' }}</span></button><div *ngIf="openTeamId === group.id" class="team-accordion-body"><div *ngFor="let person of group.employees; trackBy: trackById" class="personnel-row"><span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="person.photo" [src]="person.photo" alt=""><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span><div><strong>{{ person.name }}</strong><small>{{ person.serie }} · {{ person.company || '—' }}</small></div><select [(ngModel)]="person.destination_team_id" [attr.aria-label]="t.destinationTeam"><option [ngValue]="null">{{ t.destinationTeam }}</option><option *ngFor="let team of personnelTeams; trackBy: trackById" [ngValue]="team.id">{{ team.name }}</option></select><button type="button" (click)="requestPersonnel(person)" [disabled]="!person.destination_team_id || submitting"><span class="material-symbols-rounded">swap_horiz</span></button></div></div></article>
     </section>
 
     <div *ngIf="memberPicker" class="portal-modal-backdrop" (click)="closeMemberPicker()"><section class="portal-modal" (click)="$event.stopPropagation()"><header><div><small>{{ memberPicker.name }}</small><h2>{{ t.addMember }}</h2></div><button type="button" (click)="closeMemberPicker()" [attr.aria-label]="t.cancel"><span class="material-symbols-rounded">close</span></button></header><label class="portal-search"><span class="material-symbols-rounded">search</span><input type="search" [(ngModel)]="memberSearch" [placeholder]="t.search"></label><div class="candidate-list"><label *ngFor="let person of filteredCandidates" class="candidate-row"><input type="radio" name="candidate" [value]="person.id" [(ngModel)]="selectedMemberId"><span><strong>{{ person.name }}</strong><small>{{ person.team?.name || t.noTeam }} · {{ person.serie }}</small></span></label><p *ngIf="!filteredCandidates.length" class="empty-copy">{{ t.noPersonnel }}</p></div><button class="primary-action" type="button" (click)="submitMemberRequest()" [disabled]="!selectedMemberId || submitting">{{ t.addMember }}</button></section></div>
@@ -289,7 +289,7 @@
       <div *ngIf="missing.employees.length" class="team-card list-card">
         <div *ngFor="let person of missing.employees" class="member-row" [attr.data-status]="person.status">
           <button type="button" class="member-summary" (click)="toggleMember(person.id)" [attr.aria-expanded]="openMemberId === person.id">
-            <span class="member-avatar"><img *ngIf="person.photo" [src]="person.photo" alt="" /><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span>
+            <span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="person.photo" [src]="person.photo" alt="" /><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span>
             <span class="member-name">{{ person.name }}</span>
             <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(person.status) }}</span>{{ statusLabel(person.status) }}</span>
             <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === person.id ? 'expand_less' : 'expand_more' }}</span>
@@ -331,7 +331,7 @@
       <div *ngIf="absentToday.employees.length" class="team-card list-card">
         <div *ngFor="let person of absentToday.employees" class="member-row" data-status="marked_absent" [attr.data-category]="person.category">
           <button type="button" class="member-summary" (click)="toggleMember(person.id)" [attr.aria-expanded]="openMemberId === person.id">
-            <span class="member-avatar"><img *ngIf="person.photo" [src]="person.photo" alt="" /><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span>
+            <span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="person.photo" [src]="person.photo" alt="" /><span *ngIf="!person.photo">{{ person.name.charAt(0) }}</span></span>
             <span class="member-name">{{ person.name }}</span>
             <span class="member-status category-status">{{ absenceCategoryLabel(person.category) }}</span>
             <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === person.id ? 'expand_less' : 'expand_more' }}</span>

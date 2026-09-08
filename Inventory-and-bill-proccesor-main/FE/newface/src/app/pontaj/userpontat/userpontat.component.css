@@ -91,7 +91,12 @@
 .state { margin: 16px 4px; color: #bdc5d1; }
 .state.error { color: #ff9999; }
 .state.success { color: #8ee3b1; }
-.state.dismissed-readonly { display: flex; align-items: center; gap: 8px; padding: 11px 13px; border: 1px solid rgba(248,113,113,.25); border-radius: 10px; background: rgba(248,113,113,.08); color: #fca5a5; }.state.dismissed-readonly span { font-size: 19px; line-height: 1; }
+.state.dismissed-readonly { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 11px 13px; border: 1px solid rgba(248,113,113,.25); border-radius: 10px; background: rgba(248,113,113,.08); color: #fca5a5; }
+.state.dismissed-readonly > span[aria-hidden] { font-size: 19px; line-height: 1; }
+.state.dismissed-readonly .dismissed-text { flex: 1 1 240px; min-width: 0; }
+.reactivate-btn { flex: 0 0 auto; border-color: #1d6a43; background: #12301f; color: #b8f0cc; }
+.reactivate-btn span { font-size: 17px; line-height: 1; }
+.reactivate-btn:disabled { opacity: .6; cursor: not-allowed; }
 
 .profile-card {
   margin: 14px 0 18px;

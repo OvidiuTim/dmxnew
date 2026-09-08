@@ -48,7 +48,14 @@
     </div>
 
     <div class="state success" *ngIf="leaveRangeNotice">{{ leaveRangeNotice }}</div>
-    <div class="state dismissed-readonly" *ngIf="isDismissed"><span class="material-symbols-rounded" aria-hidden="true">lock</span>Angajat demis — istoricul pontajului este disponibil numai pentru consultare.</div>
+    <div class="state dismissed-readonly" *ngIf="isDismissed">
+      <span class="material-symbols-rounded" aria-hidden="true">lock</span>
+      <span class="dismissed-text">Angajat demis — istoricul pontajului este disponibil numai pentru consultare.</span>
+      <button class="btn reactivate-btn" type="button" (click)="reactivateEmployee()" [disabled]="reactivateSaving">
+        <span class="material-symbols-rounded" aria-hidden="true">person_add</span>
+        {{ reactivateSaving ? 'Se reactivează…' : 'Readu la angajați activi' }}
+      </button>
+    </div>
 
     <div class="state" *ngIf="profileLoading">Se încarcă detaliile angajatului…</div>
     <div class="state error" *ngIf="profileError">{{ profileError }}</div>

@@ -578,6 +578,56 @@ def attendance_exemption(request, id):
     user.save(update_fields=("attendance_exempt",))
     return JsonResponse(_employee_api_payload(user), safe=False)
 
+
+def _can_manage_employment_status(request):
+    """Doar administratorii sau utilizatorii cu acces la paginile de personal."""
+    if getattr(request, "dmx_role", None) == "admin" or request_has_admin(request):
+        return True
+    app_user = get_app_user_from_request(request)
+    if not app_user:
+        return False
+    return any(
+        app_user_has_route(app_user, route)
+        for route in ("/angajati", "/pontaj/fisa-angajat")
+    )
+
+
+@csrf_exempt
+def employee_reactivate(request, id):
+    """Readuce un angajat demis in lista de angajati activi (reangajare)."""
+    if request.method not in ("POST", "PATCH"):
+        return JsonResponse({"error": "Only POST or PATCH allowed"}, status=405)
+
+    if not _can_manage_employment_status(request):
+        return JsonResponse(
+            {"error": "Nu ai dreptul sa reactivezi angajati."},
+            status=403,
+        )
+
+    try:
+        user = Users.objects.get(UserId=id)
+    except Users.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+
+    if user.employment_status != Users.EmploymentStatus.DISMISSED:
+        return JsonResponse(
+            {
+                "error": "Angajatul este deja activ.",
+                "error_code": "EMPLOYEE_ALREADY_ACTIVE",
+            },
+            status=409,
+        )
+
+    with transaction.atomic():
+        user.employment_status = Users.EmploymentStatus.ACTIVE
+        user.dismissed_at = None
+        user.active = True
+        user.save(update_fields=("employment_status", "dismissed_at", "active"))
+        # Contul de aplicatie a fost dezactivat la demitere; il redeschidem.
+        AppUser.objects.filter(employee=user, is_active=False).update(is_active=True)
+
+    return JsonResponse(_employee_api_payload(user), safe=False)
+
 # --- BULK USERS: import JSON sau CSV ---
 @csrf_exempt
 def users_bulk(request):
@@ -4595,28 +4645,50 @@ def app_auth_login(request):
 
     username = str(data.get("username") or "").strip().lower()
     pin = str(data.get("pin") or "").strip()
-    if not username or not pin:
-        return JsonResponse({"error": "Username si PIN sunt obligatorii."}, status=400)
+    if not pin:
+        return JsonResponse({"error": "PIN-ul este obligatoriu."}, status=400)
+    blocked, retry_after = _pin_is_blocked(request, uid="app-login")
+    if blocked:
+        response = JsonResponse({"error": "Prea multe încercări. Încearcă din nou mai târziu."}, status=429)
+        response["Retry-After"] = str(max(1, retry_after))
+        return response
 
-    try:
-        app_user = AppUser.objects.select_related("employee").prefetch_related("page_permissions").get(
-            username__iexact=username,
-            is_active=True,
-            employee__active=True,
-            employee__person_type=Users.PersonType.EMPLOYEE,
-            employee__employment_status=Users.EmploymentStatus.ACTIVE,
-        )
-    except AppUser.DoesNotExist:
-        return JsonResponse({"error": "Cont invalid sau inactiv."}, status=401)
+    accounts = AppUser.objects.select_related("employee").prefetch_related("page_permissions").filter(
+        is_active=True,
+        employee__active=True,
+        employee__person_type=Users.PersonType.EMPLOYEE,
+        employee__employment_status=Users.EmploymentStatus.ACTIVE,
+    )
+    app_user = None
+    if username:
+        # Compatibilitate cu clienții existenți care încă trimit username + PIN.
+        app_user = accounts.filter(username__iexact=username).first()
+        if app_user and not app_user.check_pin(pin):
+            if not app_user.employee.check_pin(pin):
+                app_user = None
+            else:
+                app_user.set_pin(pin)
+                app_user.save(update_fields=("pin_hash", "updated_at"))
+    else:
+        # PIN-ul angajatului identifică direct contul, fără scanarea hashurilor.
+        # Refuzăm PIN-urile ambigue în loc să autentificăm primul angajat găsit.
+        employees = list(Users.objects.filter(
+            UserPin=pin,
+            active=True,
+            person_type=Users.PersonType.EMPLOYEE,
+            employment_status=Users.EmploymentStatus.ACTIVE,
+        )[:2])
+        if len(employees) == 1:
+            employee = employees[0]
+            app_user = accounts.filter(employee=employee).first()
+            if app_user is None and not AppUser.objects.filter(employee=employee).exists():
+                from ToolApp.app_accounts import sync_employee_app_user
+                app_user, _ = sync_employee_app_user(employee, sync_pin=False)
 
-    if not app_user.check_pin(pin):
-        # Conturile create prin migrare/sincronizare bulk folosesc temporar o
-        # parolă inutilizabilă. Validăm PIN-ul legacy o singură dată prin
-        # angajat, apoi salvăm hashul AppUser pentru autentificările viitoare.
-        if not app_user.employee.check_pin(pin):
-            return JsonResponse({"error": "PIN invalid."}, status=401)
-        app_user.set_pin(pin)
-        app_user.save(update_fields=("pin_hash", "updated_at"))
+    if app_user is None:
+        _log_pin_attempt(request, success=False, reason="invalid_app_login", uid="app-login")
+        return JsonResponse({"error": "PIN invalid sau cont inactiv."}, status=401)
+    _log_pin_attempt(request, success=True, reason="app_login", uid="app-login")
 
     serialized_app_user = _serialize_app_user(app_user)
     resp = JsonResponse({

@@ -97,6 +97,14 @@ Frontend-ul din `FE/newface` oferă:
 - modul legacy de unelte păstrat standalone pe `/unelte`, `/unelte/adauga-unealta`, `/predare-unealta` și `/history`, în afara shell-ului global;
 - documentația tehnică detaliată a rutelor, permisiunilor și limitărilor backend pentru echipe/program/concedii se află în `Inventory-and-bill-proccesor-main/FE/newface/README.md`.
 
+### Login cu PIN și performanță Team Management
+
+- Ecranul `/login` deschide implicit autentificarea angajaților numai cu PIN-ul existent din fișa angajatului; după login se deschide `/team-dashboard`. Fila „Administrator” folosește parola generală configurată deja prin `PONTAJ_PASSWORD` și deschide `/dashboard`.
+- `POST /api/app-auth/login/` acceptă `{ "pin": "0123" }`; clienții existenți cu `username` și `pin` rămân compatibili. Loginul fără username refuză PIN-urile comune mai multor angajați activi și conturile inactive, păstrează zerourile inițiale și limitează încercările greșite. PIN-urile trebuie să identifice un singur angajat activ. Un cont lipsă se creează la prima autentificare validă.
+- În `team-portal.component.ts/html`, grupurile de personal sunt păstrate între actualizările interfeței și urmărite după ID-ul echipei, pentru ca deschiderea acordeoanelor și selectarea echipei destinație să nu recreeze continuu formularele. Paginile de detaliu încarcă propriile date fără să aștepte dashboardul; reîncărcările duplicate de la intrare sunt eliminate, iar cererile de încărcare sunt anulate la ieșire.
+- În `ToolApp/team_portal_views.py`, marcajele de absență sunt încărcate împreună pentru membrii echipelor și personal; numărul de interogări nu mai crește pentru fiecare angajat absent. Dashboardul citește doar identitatea echipelor și încarcă împreună relațiile cererilor de transfer.
+- Nu sunt necesare migrații noi. Pentru publicare sunt necesare buildul Angular (`npm run build`) și actualizarea/restartarea backendului. Testele specifice sunt `ToolApp.test_portal_login_performance`, `login.component.spec.ts` și `team-portal.component.spec.ts`; acesta din urmă deschide un acordeon cu 250 de angajați în Chrome Headless.
+
 ### Modele principale din baza de date
 
 Backend-ul folosește modele pentru:

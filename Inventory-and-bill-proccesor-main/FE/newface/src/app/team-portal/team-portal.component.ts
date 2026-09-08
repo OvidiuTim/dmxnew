@@ -3,7 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { ActivatedRoute } from '@angular/router';
 import { Location } from '@angular/common';
-import { forkJoin, of } from 'rxjs';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 import { AuthService } from '../auth/auth.service';
 
@@ -247,6 +248,13 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   notice = '';
   private refreshPoll: ReturnType<typeof setInterval> | null = null;
   private handledRefreshes = new Set<string>();
+  private readonly destroyed = new Subject<void>();
+  private personnelGroupCache: {
+    personnel: any[]; search: string; language: PortalLanguage;
+    groups: Array<{ id: number; name: string; employees: any[] }>;
+  } | null = null;
+
+  trackById(_index: number, item: { id: number }): number { return item.id; }
   focusRequestId: number | null = null;
 
   constructor(
@@ -260,12 +268,24 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.view = (this.route.snapshot.data['portalView'] || 'home') as PortalView;
     this.focusRequestId = Number(this.route.snapshot.queryParamMap.get('request')) || null;
+    if (this.view !== 'home') {
+      // AuthGuard already verified the current roles; detail pages only need the badge.
+      const session = this.auth.currentSession();
+      this.dashboard = {
+        alert_level_1: session?.roles?.includes('alert_level_1'),
+        alert_level_2: session?.roles?.includes('alert_level_2'),
+        unread_notifications: 0,
+      };
+      if (this.view !== 'notifications') this.loadNotificationSummary();
+    }
     this.loadCurrentView();
     this.startTimedRefreshPolling();
   }
 
   ngOnDestroy(): void {
     if (this.refreshPoll) clearInterval(this.refreshPoll);
+    this.destroyed.next();
+    this.destroyed.complete();
   }
   get t(): PortalCopy { return this.copy[this.language]; }
 
@@ -429,14 +449,9 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
       leave: 'leave-requests', supervised: 'supervised-teams', requests: 'requests/summary',
       leaveApprovals: 'requests/leaves', transferApprovals: 'requests/transfers', personnel: 'personnel',
     };
-    // Cardurile globale au nevoie și de dashboard, pentru rolurile din header.
-    const needsDashboard = !this.dashboard;
-    forkJoin({
-      data: this.http.get<any>(`${this.api}/${endpoints[this.view as Exclude<PortalView, 'home'>]}/`),
-      dashboard: needsDashboard ? this.http.get<any>(`${this.api}/dashboard/`) : of(this.dashboard),
-    }).subscribe({
-      next: ({ data, dashboard }) => {
-        if (dashboard) this.dashboard = dashboard;
+    this.http.get<any>(`${this.api}/${endpoints[this.view as Exclude<PortalView, 'home'>]}/`)
+      .pipe(takeUntil(this.destroyed)).subscribe({
+      next: data => {
         if (this.view === 'salary') this.salary = data;
         if (this.view === 'team') {
           this.teams = data.teams || [];
@@ -472,13 +487,9 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   loadHome(): void {
     this.loading = true;
     this.error = '';
-    forkJoin({
-      dashboard: this.http.get<any>(`${this.api}/dashboard/`),
-      summary: this.http.get<any>(`${this.api}/notifications/summary/`),
-    }).subscribe({
-      next: result => {
-        this.dashboard = result.dashboard;
-        this.dashboard.unread_notifications = Number(result.summary?.unread_count || 0);
+    this.http.get<any>(`${this.api}/dashboard/`).pipe(takeUntil(this.destroyed)).subscribe({
+      next: dashboard => {
+        this.dashboard = dashboard;
         this.notifications = [];
         this.loading = false;
       },
@@ -505,13 +516,25 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     ].join(' ')).includes(needle));
   }
 
-  get personnelGroups(): Array<{ name: string; employees: any[] }> {
-    const groups = new Map<string, any[]>();
+  get personnelGroups(): Array<{ id: number; name: string; employees: any[] }> {
+    const cached = this.personnelGroupCache;
+    if (cached && cached.personnel === this.personnel && cached.search === this.personnelSearch
+      && cached.language === this.language) return cached.groups;
+    const groups = new Map<number, { id: number; name: string; employees: any[] }>();
     for (const person of this.filteredPersonnel) {
-      const name = person.team?.name || this.t.noTeam;
-      groups.set(name, [...(groups.get(name) || []), person]);
+      const id = person.team?.id ?? 0;
+      let group = groups.get(id);
+      if (!group) {
+        group = { id, name: person.team?.name || this.t.noTeam, employees: [] };
+        groups.set(id, group);
+      }
+      group.employees.push(person);
     }
-    return Array.from(groups.entries()).map(([name, employees]) => ({ name, employees }));
+    const result = Array.from(groups.values());
+    this.personnelGroupCache = {
+      personnel: this.personnel, search: this.personnelSearch, language: this.language, groups: result,
+    };
+    return result;
   }
 
   startAddMember(team: any): void {
@@ -710,12 +733,13 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
 
   /** Polling ușor: compară ora Europe/Bucharest și reîncarcă numai datele API. */
   private startTimedRefreshPolling(): void {
-    this.checkTimedRefresh();
+    this.checkTimedRefresh(true);
     this.refreshPoll = setInterval(() => this.checkTimedRefresh(), 15000);
   }
 
-  private checkTimedRefresh(): void {
-    this.loadNotificationSummary();
+  private checkTimedRefresh(initial = false): void {
+    if (!initial && this.loading) return;
+    if (!initial) this.loadNotificationSummary();
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Europe/Bucharest', year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
@@ -728,21 +752,23 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
       { key: '0755', minute: 7 * 60 + 55, active: this.isLevel1 && ['home', 'missing', 'notifications'].includes(this.view) },
       { key: '0810', minute: 8 * 60 + 10, active: this.isLevel2 && ['home', 'absent', 'notifications'].includes(this.view) },
     ];
+    let refreshNeeded = false;
     for (const threshold of thresholds) {
       const key = `${dateKey}-${threshold.key}`;
-      if (threshold.active && minutes >= threshold.minute && !this.handledRefreshes.has(key)) {
+      if (minutes >= threshold.minute && !this.handledRefreshes.has(key)) {
         this.handledRefreshes.add(key);
-        this.loadCurrentView();
+        refreshNeeded = refreshNeeded || (!initial && threshold.active);
       }
     }
+    if (refreshNeeded) this.loadCurrentView();
   }
 
   private loadNotificationSummary(): void {
-    this.http.get<any>(`${this.api}/notifications/summary/`).subscribe({
+    this.http.get<any>(`${this.api}/notifications/summary/`).pipe(takeUntil(this.destroyed)).subscribe({
       next: data => {
-        if (!this.dashboard) this.dashboard = {};
-        this.dashboard.unread_notifications = Number(data.unread_count || 0);
+        if (this.dashboard) this.dashboard.unread_notifications = Number(data.unread_count || 0);
       },
+      error: () => {},
     });
   }
 

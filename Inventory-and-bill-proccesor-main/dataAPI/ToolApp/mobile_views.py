@@ -15,6 +15,7 @@ from ToolApp.mobile_services import (
     build_monthly_attendance,
     build_salary_payments,
     build_team,
+    build_team_leader_bonus,
     build_ticket_benefit,
     calculate_payroll,
     dashboard_salary_period,
@@ -289,7 +290,9 @@ def employee_dashboard(request):
         else []
     )
     equipment, tools = build_inventory(employee)
-    ticket_benefit = build_ticket_benefit(employee, today)
+    leave_summary = build_leave_summary(employee, today)
+    ticket_benefit = build_ticket_benefit(employee, today, leave_summary=leave_summary)
+    team_leader_bonus = build_team_leader_bonus(employee, today)
     payload = {
         "success": True,
         "profile": {
@@ -311,12 +314,13 @@ def employee_dashboard(request):
         "attendance": build_monthly_attendance(employee, today.year, today.month),
         "payroll": payroll,
         "salary_payments": salary_payments,
-        "leave_summary": build_leave_summary(employee, today),
+        "leave_summary": leave_summary,
         "equipment": equipment,
         "tools": tools,
         "team": build_team(employee),
         "access": mobile_access_context(employee),
         "ticket_benefit": ticket_benefit,
+        "team_leader_bonus": team_leader_bonus,
     }
     payload.update(ticket_benefit)
     first_date = first_payment_date(effective_hire_date)

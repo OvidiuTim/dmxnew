@@ -38,6 +38,9 @@ export class SharedService {
   setAttendanceExempt(id: number, attendanceExempt: boolean) {
     return this.http.post<any>(`${this.API}/user/${id}/attendance-exempt/`, { attendance_exempt: attendanceExempt });
   }
+  reactivateUser(id: number) {
+    return this.http.post<any>(`${this.API}/user/${id}/reactivate/`, {});
+  }
   deleteUser(id: any, force = false)   { return this.http.delete(`${this.API}/user/${id}${force ? '?force=1' : ''}`); }
   exportEmployees(fields: string[]) {
     return this.http.post(`${this.API}/employee-reports/export/`, { fields }, {

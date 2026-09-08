@@ -42,6 +42,33 @@ class EmployeeDismissalTests(TestCase):
         self.assertIsNone(_find_user_by_pin("7744"))
         self.assertTrue(Users.objects.filter(pk=self.employee.pk).exists())
 
+    def test_dismissed_employee_can_be_reactivated(self):
+        self.employee.employment_status = Users.EmploymentStatus.DISMISSED
+        self.employee.dismissed_at = date(2026, 8, 10)
+        self.employee.active = False
+        self.employee.save(update_fields=("employment_status", "dismissed_at", "active"))
+
+        response = self.admin.post(
+            reverse("employee_reactivate", args=[self.employee.pk]),
+            data="{}",
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.employee.refresh_from_db()
+        self.assertEqual(self.employee.employment_status, Users.EmploymentStatus.ACTIVE)
+        self.assertIsNone(self.employee.dismissed_at)
+        self.assertTrue(self.employee.active)
+        self.assertIsNotNone(_find_user_by_pin("7744"))
+
+    def test_reactivate_rejects_active_employee(self):
+        response = self.admin.post(
+            reverse("employee_reactivate", args=[self.employee.pk]),
+            data="{}",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 409, response.content)
+
     def test_reports_ignore_activity_after_dismissal_but_keep_history_before_it(self):
         self.employee.employment_status = Users.EmploymentStatus.DISMISSED
         self.employee.dismissed_at = date(2026, 8, 10)

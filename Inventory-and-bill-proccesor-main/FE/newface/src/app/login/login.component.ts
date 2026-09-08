@@ -10,7 +10,6 @@ import { AuthService } from '../auth/auth.service';
 export class LoginComponent {
   mode: 'default' | 'account' = 'account';
   password = '';
-  username = '';
   pin = '';
   loading = false;
   error: string | null = null;
@@ -22,7 +21,7 @@ export class LoginComponent {
       this.submitAccount();
       return;
     }
-    if (!this.password) return;
+    if (this.loading || !this.password) return;
     this.loading = true; this.error = null;
     this.auth.login(this.password).subscribe({
       next: () => { this.loading = false; this.router.navigate(['/dashboard']); },
@@ -31,22 +30,23 @@ export class LoginComponent {
   }
 
   submitAccount(): void {
-    if (!this.username || !this.pin) return;
+    if (this.loading || !this.pin.trim()) return;
     this.loading = true;
     this.error = null;
-    this.auth.appLogin(this.username, this.pin).subscribe({
-      next: (session) => {
+    this.auth.pinLogin(this.pin.trim()).subscribe({
+      next: () => {
         this.loading = false;
-        const target = this.auth.firstAvailableModuleRoute(session);
-        this.router.navigateByUrl(target || '/no-access?reason=no-modules');
+        this.router.navigateByUrl('/team-dashboard');
       },
-      error: (e) => { this.loading = false; this.error = 'Username sau PIN invalid'; console.error(e); }
+      error: (e) => { this.loading = false; this.error = e.status === 429 ? 'Prea multe încercări. Încearcă din nou mai târziu.' : 'PIN invalid sau cont inactiv'; console.error(e); }
     });
   }
 
   setMode(mode: 'default' | 'account'): void {
     this.mode = mode;
     this.error = null;
+    this.password = '';
+    this.pin = '';
   }
 
 }
