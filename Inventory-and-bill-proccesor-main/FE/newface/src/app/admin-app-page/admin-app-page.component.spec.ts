@@ -49,4 +49,18 @@ describe('AdminAppPageComponent modules', () => {
     component.saveModule(modules[0]);
     expect(auth.saveAdminModuleAccess).toHaveBeenCalledWith('attendance', [2]);
   });
+
+  it('rulează opțiunea nucleară numai după confirmare', () => {
+    const auth: any = {
+      normalizeAdminAttendance: jasmine.createSpy('normalizeAdminAttendance').and.returnValue(of({ changed_days: 3 }))
+    };
+    const component = new AdminAppPageComponent(auth);
+    spyOn(window, 'confirm').and.returnValue(true);
+
+    component.runNuclearOption();
+
+    expect(auth.normalizeAdminAttendance).toHaveBeenCalled();
+    expect(component.success).toContain('3');
+    expect(component.nuclearRunning).toBeFalse();
+  });
 });
