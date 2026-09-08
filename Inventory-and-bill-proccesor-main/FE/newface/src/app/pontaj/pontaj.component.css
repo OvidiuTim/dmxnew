@@ -15,4 +15,4 @@
 @media (min-width: 981px) and (max-width: 1180px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 620px) { .header-actions { display: grid; grid-template-columns: 1fr 1fr; }.stats-grid { grid-template-columns: 1fr 1fr; }.filter-bar { grid-template-columns: 1fr; }.search-control { grid-column: auto; }.icon-button { width: 100%; }.stat-card { padding: 14px; }.stat-card strong { font-size: 21px; } }
 
-@media (min-width: 981px) { .filter-bar { grid-template-columns: minmax(240px, 1fr) 170px 180px 160px 44px; } }
+@media (min-width: 981px) { .filter-bar { grid-template-columns: minmax(230px, 1fr) 150px 165px 165px 150px 44px; } }

@@ -1,20 +1,25 @@
 <div class="employee-directory" *ngIf="!userId">
   <header class="directory-header"><div><span>Personal</span><h1>Fișe angajați</h1><p>Selectează un angajat pentru profil, date generale și echipamentele alocate.</p></div><div class="directory-actions"><button *ngIf="canExportEmployees" class="export-employees-button" type="button" (click)="openEmployeeExport()"><span class="material-symbols-rounded" aria-hidden="true">download</span>Exportă angajații</button><button class="add-employee-button" type="button" (click)="addEmployee()"><span class="material-symbols-rounded" aria-hidden="true">person_add</span>Adaugă angajat</button><button type="button" (click)="goBack()">Înapoi la pontaj</button></div></header>
   <div class="state error" *ngIf="error">{{ error }}</div>
-  <div class="state" *ngIf="loading">Se încarcă angajații…</div>
-  <label class="directory-search" *ngIf="!loading && !error">
-    <span class="material-symbols-rounded" aria-hidden="true">search</span>
-    <input type="search" [ngModel]="directorySearch" (ngModelChange)="onDirectorySearch($event)" placeholder="Caută după nume, prenume, serie, PIN sau firmă" aria-label="Caută angajat">
-  </label>
-  <div class="directory-empty" *ngIf="!loading && !error && !activeEmployeeDirectory.length"><strong>Nu există angajați activi</strong><span>Adaugă primul angajat din pagina de pontaj.</span></div>
-  <section class="directory-grid" *ngIf="!loading && activeEmployeeDirectory.length">
+  <section class="directory-filter-bar" *ngIf="!error">
+    <label class="directory-search">
+      <span class="material-symbols-rounded" aria-hidden="true">search</span>
+      <input type="search" [ngModel]="directorySearch" (ngModelChange)="onDirectorySearch($event)" placeholder="Caută după nume, prenume, serie, PIN sau firmă" aria-label="Caută angajat" autocomplete="off">
+      <span class="directory-search-spinner" *ngIf="directoryLoading" aria-label="Se caută"></span>
+    </label>
+    <label class="directory-select"><span>Firmă</span><select [(ngModel)]="directoryCompany"><option value="ALL">Toate firmele</option><option *ngFor="let company of directoryCompanyOptions" [value]="company">{{ company }}</option></select></label>
+    <label class="directory-select"><span>Meserie</span><select [(ngModel)]="directoryTrade"><option value="ALL">Toate meseriile</option><option *ngFor="let trade of directoryTradeOptions" [value]="trade">{{ trade }}</option></select></label>
+    <label class="directory-select"><span>Echipă</span><select [(ngModel)]="directoryTeam"><option value="ALL">Toate echipele</option><option value="NONE">Fără echipă</option><option *ngFor="let team of directoryTeamOptions" [value]="team.id">{{ team.name }}</option></select></label>
+  </section>
+  <div class="directory-empty" *ngIf="!directoryLoading && !error && !activeEmployeeDirectory.length"><strong>Nu există angajați activi</strong><span>Schimbă căutarea sau filtrele selectate.</span></div>
+  <section class="directory-grid" *ngIf="activeEmployeeDirectory.length">
     <button type="button" *ngFor="let person of activeEmployeeDirectory" (click)="openEmployeeSheet(person)">
       <span class="directory-avatar">{{ (person.UserName || '?').charAt(0) }}</span>
       <span class="directory-copy"><strong>{{ displayText(person.UserName) }}</strong><small>{{ displayText(person.trade) }} · {{ displayText(person.Company) }}</small></span>
       <i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i>
     </button>
   </section>
-  <section class="dismissed-directory" *ngIf="!loading && dismissedEmployeeDirectory.length">
+  <section class="dismissed-directory" *ngIf="dismissedEmployeeDirectory.length">
     <div class="dismissed-heading"><div><span>Arhivă personal</span><h2>Demiși</h2><p>Datele sunt disponibile numai pentru consultarea istoricului de pontaj.</p></div><strong>{{ dismissedEmployeeDirectory.length }}</strong></div>
     <div class="dismissed-table-scroll">
       <table class="dismissed-table">

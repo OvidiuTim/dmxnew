@@ -26,6 +26,7 @@ export class AdminAppPageComponent implements OnInit {
   moduleSelections: Record<string, Set<number>> = {};
   searches: Record<string, string> = {};
   savingModule: string | null = null;
+  nuclearRunning = false;
 
   constructor(private auth: AuthService) {}
 
@@ -163,6 +164,26 @@ export class AdminAppPageComponent implements OnInit {
       error: () => {
         user.is_active = previous;
         this.error = 'Nu pot salva statusul contului.';
+      }
+    });
+  }
+
+  runNuclearOption(): void {
+    const confirmed = window.confirm(
+      'Această acțiune modifică definitiv toate zilele cu peste 10 ore și le reduce la 8 ore. Continui?'
+    );
+    if (!confirmed) return;
+
+    this.nuclearRunning = true;
+    this.clearMessages();
+    this.auth.normalizeAdminAttendance().subscribe({
+      next: (response) => {
+        this.nuclearRunning = false;
+        this.success = `Operațiunea s-a încheiat. Zile modificate: ${response.changed_days}.`;
+      },
+      error: (response) => {
+        this.nuclearRunning = false;
+        this.error = response?.error?.error || 'Operațiunea nu a putut fi executată.';
       }
     });
   }

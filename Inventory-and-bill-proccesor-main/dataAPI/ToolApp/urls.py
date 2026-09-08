@@ -201,6 +201,7 @@ urlpatterns = [
     path('api/app-admin/users/', views.app_admin_users),
     path('api/app-admin/modules/', views.app_admin_modules),
     path('api/app-admin/modules/<str:module_code>/access/', views.app_admin_module_access),
+    path('api/app-admin/attendance/normalize/', views.app_admin_normalize_attendance),
     path('api/warehouse/storekeepers/', views.warehouse_storekeepers, name='warehouse_storekeepers'),
 
     # Cazări și documentele din fișa angajatului

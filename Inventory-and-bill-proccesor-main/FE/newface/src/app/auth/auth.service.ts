@@ -124,6 +124,20 @@ export class AuthService {
     );
   }
 
+  normalizeAdminAttendance() {
+    return this.http.post<{
+      ok: boolean;
+      changed_days: number;
+      updated_sessions: number;
+      deleted_sessions: number;
+      target_hours: number;
+    }>(
+      `${this.API}/app-admin/attendance/normalize/`,
+      { confirmation: 'NUCLEAR BUTTON DO NOT PRESS' },
+      { withCredentials: true }
+    );
+  }
+
   hasModule(moduleCode: string, session = this.session): boolean {
     return !!session && (session.role === 'admin' || session.auth_type === 'legacy' || !!session.modules?.includes(moduleCode));
   }

@@ -25,6 +25,7 @@ class UserSerializer(serializers.ModelSerializer):
     )
     accommodation = serializers.SerializerMethodField(read_only=True)
     is_team_leader = serializers.SerializerMethodField(read_only=True)
+    teams = serializers.SerializerMethodField(read_only=True)
     accommodation_room_id = serializers.PrimaryKeyRelatedField(
         source="accommodation_room",
         queryset=AccommodationRoom.objects.all(),
@@ -65,6 +66,7 @@ class UserSerializer(serializers.ModelSerializer):
             "data_start_sef_echipa",
             "data_ultimei_plati_bonus_sef",
             "is_team_leader",
+            "teams",
             "prior_paid_leave_days",
             "prior_paid_leave_year",
             "leave_remaining_override_days",
@@ -121,6 +123,26 @@ class UserSerializer(serializers.ModelSerializer):
     def get_is_team_leader(self, obj):
         """Sef de echipa = are cel putin o echipa activa; nu exista flag pe angajat."""
         return any(team.active for team in obj.led_employee_teams.all())
+
+    def get_teams(self, obj):
+        """Echipele active relevante pentru filtrele administrative.
+
+        Include apartenența permanentă, plus echipele conduse sau supervizate.
+        """
+        teams = {}
+        for membership in obj.team_memberships.all():
+            if membership.active and membership.team.active:
+                teams[membership.team_id] = membership.team
+        for team in obj.led_employee_teams.all():
+            if team.active:
+                teams[team.pk] = team
+        for team in obj.supervised_employee_teams.all():
+            if team.active:
+                teams[team.pk] = team
+        return [
+            {"id": team.pk, "name": team.name}
+            for team in sorted(teams.values(), key=lambda item: item.name.casefold())
+        ]
 
     def get_accommodation(self, obj):
         if not obj.accommodation_id:

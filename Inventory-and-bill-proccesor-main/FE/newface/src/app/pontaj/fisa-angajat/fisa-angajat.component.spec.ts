@@ -16,6 +16,25 @@ describe('FisaAngajatComponent documents', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/user', 2]);
   });
 
+  it('filtrează angajații după firmă, meserie și echipă', () => {
+    const component = new FisaAngajatComponent({} as any, {} as any, {} as any, {} as any);
+    component.employeeDirectory = [
+      { UserId: 1, UserName: 'Ion', Company: 'DMX', trade: 'Dulgher', teams: [{ id: 10, name: 'Dulgheri' }] },
+      { UserId: 2, UserName: 'Vasile', Company: 'RNX', trade: 'Fierar', teams: [{ id: 20, name: 'Fierari' }] },
+      { UserId: 3, UserName: 'Mihai', Company: 'DMX', trade: 'Fierar', teams: [] },
+    ];
+    component.directoryFacetSource = component.employeeDirectory.slice();
+
+    component.directoryCompany = 'DMX';
+    component.directoryTrade = 'Dulgher';
+    component.directoryTeam = '10';
+
+    expect(component.activeEmployeeDirectory.map(item => item.UserId)).toEqual([1]);
+    expect(component.directoryCompanyOptions).toEqual(['DMX', 'RNX']);
+    expect(component.directoryTradeOptions).toEqual(['Dulgher', 'Fierar']);
+    expect(component.directoryTeamOptions.map(item => item.name)).toEqual(['Dulgheri', 'Fierari']);
+  });
+
   it('separă documentele personale de cele de angajare', () => {
     const component = new FisaAngajatComponent({} as any, {} as any, {} as any, {} as any);
     component.documents = [

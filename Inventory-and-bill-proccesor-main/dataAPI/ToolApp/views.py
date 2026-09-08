@@ -4,6 +4,7 @@ import binascii
 import csv, io, re
 import json, logging, math
 import hashlib
+import os
 import uuid
 from threading import Lock
 from queue import Queue, Empty
@@ -485,7 +486,11 @@ def userApi(request,id=0):
 
             return JsonResponse(_employee_api_payload(user), safe=False)
 
-        users = Users.objects.all()
+        users = Users.objects.prefetch_related(
+            "team_memberships__team",
+            "led_employee_teams",
+            "supervised_employee_teams",
+        ).all()
         person_type = str(request.GET.get("person_type") or "").strip()
         if person_type in dict(Users.PersonType.choices):
             users = users.filter(person_type=person_type)
@@ -3942,22 +3947,7 @@ def leave_upsert(request):
     if reason not in LeaveDay.Reason.values:
         return JsonResponse({"error": "reason must be CO|CM|UNPAID|UNEXCUSED|ALT"}, status=400)
 
-    def _snap_leave(x):
-        if not x:
-            return None
-        return {
-            "id": x.id,
-            "date": str(x.work_date),
-            "reason": x.reason,
-            "hours": str(x.hours),
-            "multiplier": str(x.multiplier),
-            "hourly_rate_snapshot": str(x.hourly_rate_snapshot),
-            "pay_amount": str(x.pay_amount),
-            "note": x.note or "",
-        }
-
     existing = LeaveDay.objects.select_for_update().filter(user_fk=user, work_date=d).first()
-    before = _snap_leave(existing)
 
     from decimal import Decimal, ROUND_HALF_UP
     hours = Decimal(str(data.get("hours") or "8.00"))
@@ -3981,16 +3971,6 @@ def leave_upsert(request):
     obj.save()
 
     snap = recompute_daily_pay(user, d)
-
-    after = _snap_leave(obj)
-
-    # AUDIT
-    try:
-        msg = (f"s-a modificat lipsa (leave) la angajatul {user.UserName} pe data {d}: "
-               f"{after['reason']} {after['hours']}h ×{after['multiplier']}")
-        _audit_line(request, msg, {"user_id": user.UserId, "user_name": user.UserName, "before": before, "after": after})
-    except Exception:
-        pass
 
     return JsonResponse({
         "ok": True,
@@ -4099,14 +4079,6 @@ def leave_mark_range(request):
 
     from ToolApp.mobile_services import build_leave_summary
 
-    try:
-        _audit_line(request, f"s-a marcat {leave_label} pentru {user.UserName}: {start_date} - {end_date}", {
-            "user_id": user.pk,
-            "marked_dates": marked_dates,
-            "leave_type": leave_type,
-        })
-    except Exception:
-        pass
     return JsonResponse({
         "ok": True,
         "user_id": user.pk,
@@ -4210,28 +4182,8 @@ def leave_delete(request):
     except Exception:
         return JsonResponse({"error": "Bad 'date'"}, status=400)
 
-    existing = LeaveDay.objects.filter(user_fk=user, work_date=d).first()
-    before = None
-    if existing:
-        before = {
-            "id": existing.id,
-            "date": str(existing.work_date),
-            "reason": existing.reason,
-            "hours": str(existing.hours),
-            "multiplier": str(existing.multiplier),
-            "pay_amount": str(existing.pay_amount),
-            "note": existing.note or "",
-        }
-
     LeaveDay.objects.filter(user_fk=user, work_date=d).delete()
     snap = recompute_daily_pay(user, d)
-
-    # AUDIT
-    try:
-        msg = f"s-a șters lipsa (leave) la angajatul {user.UserName} pe data {d}"
-        _audit_line(request, msg, {"user_id": user.UserId, "user_name": user.UserName, "before": before})
-    except Exception:
-        pass
 
     return JsonResponse({"ok": True, "date": str(d), "pay_snapshot": {"total_seconds": snap.total_seconds, "day_pay": str(snap.day_pay)}})
 
@@ -4966,6 +4918,84 @@ def app_admin_module_access(request, module_code):
     })
 
 
+NUCLEAR_ATTENDANCE_THRESHOLD_SECONDS = 10 * 60 * 60
+NUCLEAR_ATTENDANCE_TARGET_SECONDS = 8 * 60 * 60
+NUCLEAR_ATTENDANCE_CONFIRMATION = "NUCLEAR BUTTON DO NOT PRESS"
+
+
+@csrf_exempt
+def app_admin_normalize_attendance(request):
+    if not _request_has_admin_app(request):
+        return JsonResponse({"error": "Admin app page authentication required"}, status=401)
+    if request.method != "POST":
+        return JsonResponse({"error": "Only POST allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except Exception:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    if data.get("confirmation") != NUCLEAR_ATTENDANCE_CONFIRMATION:
+        return JsonResponse({"error": "Confirmation required"}, status=400)
+
+    target_days = list(
+        AttendanceSession.objects.filter(out_time__isnull=False)
+        .values("user_fk_id", "work_date")
+        .annotate(total=Sum("duration_seconds"))
+        .filter(total__gt=NUCLEAR_ATTENDANCE_THRESHOLD_SECONDS)
+        .order_by("user_fk_id", "work_date")
+    )
+
+    changed_days = 0
+    updated_sessions = 0
+    deleted_sessions = 0
+    with transaction.atomic():
+        for target in target_days:
+            sessions = list(
+                AttendanceSession.objects.select_for_update()
+                .filter(
+                    user_fk_id=target["user_fk_id"],
+                    work_date=target["work_date"],
+                    out_time__isnull=False,
+                )
+                .order_by("in_time", "id")
+            )
+            total_seconds = sum(max(0, int(item.duration_seconds or 0)) for item in sessions)
+            if total_seconds <= NUCLEAR_ATTENDANCE_THRESHOLD_SECONDS:
+                continue
+
+            remaining_seconds = NUCLEAR_ATTENDANCE_TARGET_SECONDS
+            remove_ids = []
+            for session in sessions:
+                duration_seconds = max(0, int(session.duration_seconds or 0))
+                if remaining_seconds <= 0:
+                    remove_ids.append(session.pk)
+                    continue
+                if duration_seconds <= remaining_seconds:
+                    remaining_seconds -= duration_seconds
+                    continue
+
+                session.duration_seconds = remaining_seconds
+                session.out_time = session.in_time + timedelta(seconds=remaining_seconds)
+                session.save(update_fields=("out_time", "duration_seconds"))
+                updated_sessions += 1
+                remaining_seconds = 0
+
+            if remove_ids:
+                deleted_sessions += AttendanceSession.objects.filter(pk__in=remove_ids).delete()[0]
+
+            user = Users.objects.get(pk=target["user_fk_id"])
+            recompute_daily_pay(user, target["work_date"])
+            changed_days += 1
+
+    return JsonResponse({
+        "ok": True,
+        "changed_days": changed_days,
+        "updated_sessions": updated_sessions,
+        "deleted_sessions": deleted_sessions,
+        "target_hours": 8,
+    })
+
+
 
 
 
@@ -5190,27 +5220,6 @@ def attendance_edit_day(request):
         if new_items[i][0] < new_items[i - 1][1]:
             return HttpResponseBadRequest("Overlapping sessions")
 
-    def _snap_sessions(qs):
-        out = []
-        for ss in qs:
-            out.append({
-                "id": ss.id,
-                "in": localtime(ss.in_time).strftime("%H:%M") if ss.in_time else None,
-                "out": localtime(ss.out_time).strftime("%H:%M") if ss.out_time else None,
-                "worksite": ss.worksite,
-                "source": ss.source,
-            })
-        return out
-
-    # BEFORE snapshot
-    try:
-        before_qs = (AttendanceSession.objects
-                     .filter(user_fk=user, work_date=day)
-                     .order_by("in_time"))
-        before_list = _snap_sessions(before_qs)
-    except Exception:
-        before_list = []
-
     # commit
     with transaction.atomic():
         if replace:
@@ -5241,32 +5250,6 @@ def attendance_edit_day(request):
                 )
 
         recompute_daily_pay(user, day)
-
-    # AFTER snapshot
-    try:
-        after_qs = (AttendanceSession.objects
-                    .filter(user_fk=user, work_date=day)
-                    .order_by("in_time"))
-        after_list = _snap_sessions(after_qs)
-    except Exception:
-        after_list = []
-
-    # AUDIT log (fișier)
-    try:
-        summary = "; ".join(
-            [f"{x.get('in')}-{x.get('out')}" + (f" ({x.get('worksite')})" if x.get("worksite") else "")
-             for x in after_list]
-        )
-        msg = f"s-a modificat la angajatul {user.UserName} pontajul pe data {day}: {summary}"
-        _audit_line(request, msg, {
-            "user_id": user.UserId,
-            "user_name": user.UserName,
-            "date": str(day),
-            "before": before_list,
-            "after": after_list,
-        })
-    except Exception:
-        pass
 
     first_in = min(c.in_time for c in created)
     last_out = max(c.out_time for c in created)
@@ -5318,15 +5301,6 @@ def attendance_session_delete(request):
             day = s.work_date
             in_t = s.in_time
             out_t = s.out_time
-            ws = s.worksite
-
-            before = {
-                "id": s.id,
-                "in": localtime(in_t).strftime("%H:%M") if in_t else None,
-                "out": localtime(out_t).strftime("%H:%M") if out_t else None,
-                "worksite": ws,
-                "date": str(day),
-            }
 
             s.delete()
 
@@ -5337,14 +5311,6 @@ def attendance_session_delete(request):
                     PresenceEvent.objects.filter(user_fk=user, timestamp=out_t).delete()
 
             recompute_daily_pay(user, day)
-
-        # AUDIT
-        try:
-            msg = (f"s-a șters sesiunea #{before['id']} la angajatul {user.UserName} "
-                   f"pe data {day}: {before['in']}-{before['out']}" + (f" ({ws})" if ws else ""))
-            _audit_line(request, msg, {"user_id": user.UserId, "user_name": user.UserName, "before": before})
-        except Exception:
-            pass
 
         return JsonResponse({"ok": True, "deleted_session_id": sid, "date": str(day)})
     except AttendanceSession.DoesNotExist:
@@ -5391,22 +5357,6 @@ def attendance_day_delete(request):
     except Exception:
         return JsonResponse({"error": "Invalid 'date' (YYYY-MM-DD)"}, status=400)
 
-    # BEFORE snapshot
-    before_list = []
-    try:
-        qs0 = (AttendanceSession.objects
-               .filter(user_fk=user, work_date=day)
-               .order_by("in_time"))
-        for s in qs0:
-            before_list.append({
-                "id": s.id,
-                "in": localtime(s.in_time).strftime("%H:%M") if s.in_time else None,
-                "out": localtime(s.out_time).strftime("%H:%M") if s.out_time else None,
-                "worksite": s.worksite,
-            })
-    except Exception:
-        pass
-
     with transaction.atomic():
         qs = AttendanceSession.objects.select_for_update().filter(user_fk=user, work_date=day)
         deleted = qs.count()
@@ -5420,19 +5370,6 @@ def attendance_day_delete(request):
             obj.delete()
         except DailyPay.DoesNotExist:
             pass
-
-    # AUDIT
-    try:
-        msg = f"s-a șters pontajul COMPLET la angajatul {user.UserName} pe data {day} (sesiuni={deleted})"
-        _audit_line(request, msg, {
-            "user_id": user.UserId,
-            "user_name": user.UserName,
-            "date": str(day),
-            "deleted_sessions": deleted,
-            "before": before_list
-        })
-    except Exception:
-        pass
 
     return JsonResponse({"ok": True, "date": str(day), "deleted_sessions": deleted})
 
@@ -6043,37 +5980,3 @@ def generate_excel(request):
     )
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
-
-
-import os
-from threading import Lock
-from django.utils import timezone
-from django.utils.timezone import localtime
-
-_PONTAJ_AUDIT_LOCK = Lock()
-_PONTAJ_AUDIT_PATH = os.path.join(os.path.dirname(__file__), "pontaj_audit.log")
-
-def _client_ip(request):
-    xff = request.META.get("HTTP_X_FORWARDED_FOR")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "")
-
-def _audit_line(request, msg: str, extra: Optional[dict] = None):
-    ts = localtime(timezone.now()).strftime("%Y-%m-%d %H:%M:%S")
-    ip = _client_ip(request)
-    ua = (request.META.get("HTTP_USER_AGENT") or "")[:120]
-    line = f"[{ts}] ip={ip} ua={ua} | {msg}"
-    if extra:
-        try:
-            line += " | " + json.dumps(extra, ensure_ascii=False)
-        except Exception:
-            pass
-
-    # scriere safe (best-effort)
-    try:
-        with _PONTAJ_AUDIT_LOCK:
-            with open(_PONTAJ_AUDIT_PATH, "a", encoding="utf-8") as f:
-                f.write(line + "\n")
-    except Exception:
-        logger.exception("Cannot write pontaj audit log")

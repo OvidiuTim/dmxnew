@@ -19,6 +19,7 @@ interface DayUserRow {
   photo?: string | null;
   Company?: string | null;
   trade?: string | null;
+  teams?: Array<{ id: number; name: string }>;
   first_in: string | null;    // ISO local time sau null
   last_out: string | null;    // ISO local time sau null
   total_hms: string;          // "HH:MM:SS"
@@ -47,9 +48,11 @@ export class PontajComponent implements OnInit {
   selectedCompany = 'ALL';
   selectedStatus: DayUserRow['status'] | 'ALL' = 'ALL';
   selectedWorksite = 'ALL';
+  selectedTeam = 'ALL';
   searchTerm = '';
   companyOptions: string[] = [];
   worksiteOptions: string[] = [];
+  teamOptions: Array<{ id: number; name: string }> = [];
   failedPhotos = new Set<number>();
 
   constructor(private api: SharedService, private router: Router) {}
@@ -99,6 +102,7 @@ seeFisaAngajat(id: number): void {
               photo: u.photo ?? null,
               Company: u.Company ?? null,
               trade: u.trade ?? null,
+              teams: u.teams ?? [],
             };
           }
           // Fără pontaj — nu are sesiuni și nici o absență marcată în ziua aleasă.
@@ -108,6 +112,7 @@ seeFisaAngajat(id: number): void {
             photo: u.photo ?? null,
             Company: u.Company ?? null,
             trade: u.trade ?? null,
+            teams: u.teams ?? [],
             first_in: null,
             last_out: null,
             total_hms: '00:00:00',
@@ -131,6 +136,17 @@ seeFisaAngajat(id: number): void {
 
         if (this.selectedCompany !== 'ALL' && !this.companyOptions.includes(this.selectedCompany)) {
           this.selectedCompany = 'ALL';
+        }
+        const teams = new Map<number, string>();
+        merged.forEach(row => (row.teams ?? []).forEach(team => teams.set(team.id, team.name)));
+        this.teamOptions = Array.from(teams, ([id, name]) => ({ id, name }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'ro'));
+        if (
+          this.selectedTeam !== 'ALL'
+          && this.selectedTeam !== 'NONE'
+          && !this.teamOptions.some(team => String(team.id) === this.selectedTeam)
+        ) {
+          this.selectedTeam = 'ALL';
         }
         this.worksiteOptions = worksites?.worksites ?? [];
         if (this.selectedWorksite !== 'ALL' && !this.worksiteOptions.includes(this.selectedWorksite)) {
@@ -184,8 +200,12 @@ seeFisaAngajat(id: number): void {
       const matchesCompany = this.selectedCompany === 'ALL' || (row.Company ?? '') === this.selectedCompany;
       const matchesStatus = this.selectedStatus === 'ALL' || row.status === this.selectedStatus;
       const matchesWorksite = this.selectedWorksite === 'ALL' || (row.day_worksite ?? '') === this.selectedWorksite;
+      const matchesTeam = this.selectedTeam === 'ALL'
+        || (this.selectedTeam === 'NONE'
+          ? !(row.teams ?? []).length
+          : (row.teams ?? []).some(team => String(team.id) === this.selectedTeam));
       const matchesSearch = !search || this.normalizeText(`${row.UserName} ${row.trade || ''}`).includes(search);
-      return matchesCompany && matchesStatus && matchesWorksite && matchesSearch;
+      return matchesCompany && matchesStatus && matchesWorksite && matchesTeam && matchesSearch;
     });
   }
 
@@ -206,6 +226,10 @@ seeFisaAngajat(id: number): void {
 
   onWorksiteChange(event: Event): void {
     this.selectedWorksite = (event.target as HTMLSelectElement).value || 'ALL';
+  }
+
+  onTeamChange(event: Event): void {
+    this.selectedTeam = (event.target as HTMLSelectElement).value || 'ALL';
   }
 
   onSearchChange(event: Event): void {

@@ -19,6 +19,8 @@ from ToolApp.models import (
     AttendanceSession,
     EmployeeDocument,
     EmployeeDocumentType,
+    EmployeeTeam,
+    EmployeeTeamMember,
     LeaveDay,
     Users,
 )
@@ -98,6 +100,34 @@ class EmployeeRecordsApiTests(TestCase):
         self.assertEqual(employee.salary_advance_ron, Decimal("1200.00"))
         self.assertEqual(employee.salary_remainder_ron, Decimal("3550.50"))
         self.assertEqual(employee.meal_vouchers_ron, Decimal("600.00"))
+
+    def test_selected_company_is_preserved_when_employee_is_created(self):
+        response = self.admin.post(
+            "/api/user/",
+            data=json.dumps({
+                "UserName": "Programator DMX",
+                "UserSerie": "EMP-DMX-COMPANY",
+                "UserPin": "7744",
+                "Company": "DMX",
+                "trade": "Programator",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json()["Company"], "DMX")
+        self.assertEqual(Users.objects.get(UserSerie="EMP-DMX-COMPANY").Company, "DMX")
+
+    def test_employee_directory_exposes_active_team_for_filters(self):
+        leader = Users.objects.create(UserName="Șef Filtru", UserSerie="TEAM-FILTER-LEADER")
+        team = EmployeeTeam.objects.create(name="Echipa Filtru", leader=leader)
+        EmployeeTeamMember.objects.create(team=team, employee=self.employee)
+
+        response = self.admin.get("/api/user/", {"person_type": "employee"})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        employee = next(item for item in response.json() if item["UserId"] == self.employee.pk)
+        self.assertEqual(employee["teams"], [{"id": team.pk, "name": "Echipa Filtru"}])
 
     def test_employee_total_salary_can_be_edited_and_loaded_again(self):
         response = self.admin.put(

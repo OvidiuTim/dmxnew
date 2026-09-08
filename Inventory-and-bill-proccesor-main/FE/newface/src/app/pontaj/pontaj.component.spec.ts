@@ -71,4 +71,28 @@ describe('PontajComponent', () => {
     expect(component.worksiteOptions).toEqual(['The Lake Home Bloc A', 'The Lake Home Bloc B2']);
     expect(component.filteredRows.length).toBe(1);
   });
+
+  it('încarcă echipele și filtrează registrul zilei după echipă', () => {
+    const api: any = {
+      getAttendanceDay: () => of({ rows: [
+        { UserId: 1, UserName: 'Ion', status: 'IN', sessions: [], total_hms: '01:00:00' },
+        { UserId: 2, UserName: 'Vasile', status: 'OUT', sessions: [], total_hms: '08:00:00' },
+      ] }),
+      getUsrList: () => of([
+        { UserId: 1, UserName: 'Ion', teams: [{ id: 7, name: 'Echipa A' }] },
+        { UserId: 2, UserName: 'Vasile', teams: [{ id: 8, name: 'Echipa B' }] },
+      ]),
+      getAttendanceWorksites: () => of({ worksites: [] }),
+    };
+    const component = new PontajComponent(api, {} as any);
+
+    component.loadDay();
+    component.selectedTeam = '7';
+
+    expect(component.teamOptions).toEqual([
+      { id: 7, name: 'Echipa A' },
+      { id: 8, name: 'Echipa B' },
+    ]);
+    expect(component.filteredRows.map(row => row.UserName)).toEqual(['Ion']);
+  });
 });

@@ -19,7 +19,7 @@ export class EmployeeFormComponent implements OnInit {
   photoFileName = '';
   generatedPinPreview: string | null = null;
   companyOptions: string[] = [];
-  selectedCompanyOption = 'RNX';
+  selectedCompanyOption = '';
   isAddingNewCompany = false;
   accommodationOptions: Array<{
     id: number;
@@ -46,7 +46,7 @@ export class EmployeeFormComponent implements OnInit {
     salary_advance_ron: ['', [Validators.min(0)]],
     salary_remainder_ron: ['', [Validators.min(0)]],
     meal_vouchers_ron: ['', [Validators.min(0)]],
-    Company: ['RNX', [Validators.maxLength(100)]],
+    Company: ['', [Validators.maxLength(100)]],
     equipment_size: ['', [Validators.maxLength(100)]],
     received_equipment: [null as boolean | null],
     phone_number: ['', [Validators.maxLength(50)]],
@@ -84,7 +84,6 @@ export class EmployeeFormComponent implements OnInit {
         this.onPersonTypeChange('collaborator');
         return;
       }
-      this.syncCompanySelection(this.form.value.Company ?? 'RNX');
       return;
     }
 
@@ -347,7 +346,7 @@ export class EmployeeFormComponent implements OnInit {
           salary_advance_ron: user?.salary_advance_ron != null ? String(user.salary_advance_ron) : '',
           salary_remainder_ron: user?.salary_remainder_ron != null ? String(user.salary_remainder_ron) : '',
           meal_vouchers_ron: user?.meal_vouchers_ron != null ? String(user.meal_vouchers_ron) : '',
-          Company: user?.Company ?? 'RNX',
+          Company: user?.Company ?? '',
           equipment_size: user?.equipment_size ?? '',
           received_equipment: user?.received_equipment ?? null,
           phone_number: user?.phone_number ?? '',
@@ -374,7 +373,7 @@ export class EmployeeFormComponent implements OnInit {
         this.initialLeaveRemaining = this.normalizeRate(String(user?.leave_balance?.remaining_days ?? '0.00'));
         this.photoPreview = user?.photo ?? null;
         this.generatedPinPreview = null;
-        this.syncCompanySelection(user?.Company ?? 'RNX');
+        this.syncCompanySelection(user?.Company ?? '');
       },
       error: () => {
         this.loading = false;
@@ -492,15 +491,11 @@ export class EmployeeFormComponent implements OnInit {
           )
         ).sort((a, b) => a.localeCompare(b, 'ro'));
 
-        if (!this.companyOptions.length) {
-          this.companyOptions = ['RNX'];
-        }
-
-        this.syncCompanySelection(this.form.value.Company ?? 'RNX');
+        this.syncCompanySelection(this.form.value.Company ?? '');
       },
       error: () => {
-        this.companyOptions = ['RNX'];
-        this.syncCompanySelection(this.form.value.Company ?? 'RNX');
+        this.companyOptions = [];
+        this.syncCompanySelection(this.form.value.Company ?? '');
       }
     });
   }
@@ -518,8 +513,8 @@ export class EmployeeFormComponent implements OnInit {
     const normalized = (company ?? '').trim();
     if (!normalized) {
       this.isAddingNewCompany = false;
-      this.selectedCompanyOption = this.companyOptions[0] ?? 'RNX';
-      this.form.patchValue({ Company: this.selectedCompanyOption }, { emitEvent: false });
+      this.selectedCompanyOption = '';
+      this.form.patchValue({ Company: null }, { emitEvent: false });
       return;
     }
 

@@ -68,5 +68,12 @@
         </article>
       </div>
     </details>
+
+    <footer class="nuclear-zone" *ngIf="!loading">
+      <button type="button" class="nuclear-button" (click)="runNuclearOption()" [disabled]="nuclearRunning">
+        <span class="material-symbols-rounded" aria-hidden="true">warning</span>
+        {{ nuclearRunning ? 'Running…' : 'Nuclear button do not press' }}
+      </button>
+    </footer>
   </section>
 </main>

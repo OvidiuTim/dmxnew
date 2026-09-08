@@ -46,6 +46,7 @@ interface EmployeeProfile {
   } | null;
   housing_location?: string | null;
   accommodation?: { id: number; name: string; address?: string } | null;
+  teams?: Array<{ id: number; name: string }>;
 }
 
 interface EmployeeDocumentType {
@@ -156,7 +157,12 @@ export class FisaAngajatComponent implements OnInit {
   readonly exportGroups = EMPLOYEE_EXPORT_GROUPS;
   userId: number | null = null;
   employeeDirectory: EmployeeProfile[] = [];
+  directoryFacetSource: EmployeeProfile[] = [];
   directorySearch = '';
+  directoryCompany = 'ALL';
+  directoryTrade = 'ALL';
+  directoryTeam = 'ALL';
+  directoryLoading = false;
   private directorySearchTimer: ReturnType<typeof setTimeout> | null = null;
   private directoryRequestId = 0;
   employee: EmployeeProfile | null = null;
@@ -265,7 +271,7 @@ export class FisaAngajatComponent implements OnInit {
 
   loadEmployeeDirectory(query = this.directorySearch): void {
     const requestId = ++this.directoryRequestId;
-    this.loading = true;
+    this.directoryLoading = true;
     this.error = null;
     this.api.getUsrList({ q: query, person_type: 'employee' }).subscribe({
       next: users => {
@@ -275,11 +281,14 @@ export class FisaAngajatComponent implements OnInit {
           .slice().sort((a: EmployeeProfile, b: EmployeeProfile) =>
           String(a.UserName || '').localeCompare(String(b.UserName || ''), 'ro')
         );
-        this.loading = false;
+        if (!query.trim()) {
+          this.directoryFacetSource = this.employeeDirectory.slice();
+        }
+        this.directoryLoading = false;
       },
       error: () => {
         if (requestId !== this.directoryRequestId) return;
-        this.loading = false;
+        this.directoryLoading = false;
         this.error = 'Nu pot încărca lista angajaților.';
       }
     });
@@ -288,7 +297,7 @@ export class FisaAngajatComponent implements OnInit {
   onDirectorySearch(value: string): void {
     this.directorySearch = value;
     if (this.directorySearchTimer) clearTimeout(this.directorySearchTimer);
-    this.directorySearchTimer = setTimeout(() => this.loadEmployeeDirectory(value), 180);
+    this.directorySearchTimer = setTimeout(() => this.loadEmployeeDirectory(value), 400);
   }
 
   openEmployeeSheet(employee: EmployeeProfile): void {
@@ -300,11 +309,51 @@ export class FisaAngajatComponent implements OnInit {
   }
 
   get activeEmployeeDirectory(): EmployeeProfile[] {
-    return this.employeeDirectory.filter(employee => employee.employment_status !== 'dismissed');
+    return this.filteredEmployeeDirectory.filter(employee => employee.employment_status !== 'dismissed');
   }
 
   get dismissedEmployeeDirectory(): EmployeeProfile[] {
-    return this.employeeDirectory.filter(employee => employee.employment_status === 'dismissed');
+    return this.filteredEmployeeDirectory.filter(employee => employee.employment_status === 'dismissed');
+  }
+
+  get directoryCompanyOptions(): string[] {
+    return this.uniqueSorted(this.directoryOptionsSource.map(employee => employee.Company));
+  }
+
+  get directoryTradeOptions(): string[] {
+    return this.uniqueSorted(this.directoryOptionsSource.map(employee => employee.trade));
+  }
+
+  get directoryTeamOptions(): Array<{ id: number; name: string }> {
+    const teams = new Map<number, string>();
+    this.directoryOptionsSource.forEach(employee =>
+      (employee.teams ?? []).forEach(team => teams.set(team.id, team.name))
+    );
+    return Array.from(teams, ([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ro'));
+  }
+
+  private get filteredEmployeeDirectory(): EmployeeProfile[] {
+    return this.employeeDirectory.filter(employee => {
+      const companyMatches = this.directoryCompany === 'ALL'
+        || (employee.Company ?? '') === this.directoryCompany;
+      const tradeMatches = this.directoryTrade === 'ALL'
+        || (employee.trade ?? '') === this.directoryTrade;
+      const teamMatches = this.directoryTeam === 'ALL'
+        || (this.directoryTeam === 'NONE'
+          ? !(employee.teams ?? []).length
+          : (employee.teams ?? []).some(team => String(team.id) === this.directoryTeam));
+      return companyMatches && tradeMatches && teamMatches;
+    });
+  }
+
+  private uniqueSorted(values: Array<string | null | undefined>): string[] {
+    return Array.from(new Set(values.map(value => String(value ?? '').trim()).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'ro'));
+  }
+
+  private get directoryOptionsSource(): EmployeeProfile[] {
+    return this.directoryFacetSource.length ? this.directoryFacetSource : this.employeeDirectory;
   }
 
   get isEmployeeDismissed(): boolean {

@@ -105,4 +105,24 @@ describe('EmployeeFormComponent numeric fields', () => {
     expect(payload.phone_number).toBe('0712 345 678');
     expect(payload.UserSerie).toBeUndefined();
   });
+
+  it('trimite exact compania selectată și nu o înlocuiește cu RNX', () => {
+    const component = new EmployeeFormComponent(
+      new FormBuilder(),
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    component.form.patchValue({
+      UserName: 'Programator DMX',
+      UserSerie: '1219',
+      UserPin: '4321',
+    });
+
+    component.onCompanySelectionChange('DMX');
+    const payload = (component as any).buildPayload();
+
+    expect(component.form.value.Company).toBe('DMX');
+    expect(payload.Company).toBe('DMX');
+  });
 });

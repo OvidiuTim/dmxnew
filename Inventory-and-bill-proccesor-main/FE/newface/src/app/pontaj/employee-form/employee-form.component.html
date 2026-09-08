@@ -72,7 +72,7 @@
             <div class="field">
               <label for="user-company">Companie</label>
               <select id="user-company" [value]="selectedCompanyOption" (change)="onCompanySelectionChange($any($event.target).value)">
-                <option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option><option [value]="addCompanyOptionValue">Adaugă companie nouă</option>
+                <option value="">Selectează compania</option><option *ngFor="let company of companyOptions" [value]="company">{{ company }}</option><option [value]="addCompanyOptionValue">Adaugă companie nouă</option>
               </select>
               <input *ngIf="isAddingNewCompany" id="user-company-new" type="text" [value]="form.value.Company ?? ''" placeholder="Scrie numele companiei" (input)="onNewCompanyInput($any($event.target).value)">
             </div>
