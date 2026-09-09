@@ -30,6 +30,7 @@ PUBLIC_API_PREFIXES = (
 )
 
 API_ROUTE_REQUIREMENTS = (
+    ("/api/construction-sites/", ("/santiere",)),
     ("/api/employee-reports/", ("/pontaj/fisa-angajat", "/pontaj/concedii")),
     ("/api/warehouse/storekeepers/", ("/magazie",)),
     ("/api/attendance-alerts/", ("/pontaj/alerte",)),
@@ -68,6 +69,7 @@ API_ROUTE_REQUIREMENTS = (
 )
 
 API_MODULE_REQUIREMENTS = (
+    ("/api/construction-sites/", ("construction_sites",)),
     ("/api/employee-reports/", ("attendance", "teams_schedule")),
     ("/api/warehouse/storekeepers/", ("warehouse",)),
     ("/api/organization/", ("attendance",)),

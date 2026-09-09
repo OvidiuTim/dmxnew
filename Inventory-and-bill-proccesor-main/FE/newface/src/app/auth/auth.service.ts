@@ -24,6 +24,7 @@ export class AuthService {
   readonly moduleRoutes: Record<string, string> = {
     attendance: '/dashboard',
     team_dashboard: '/team-dashboard',
+    construction_sites: '/santiere',
     teams_schedule: '/pontaj/echipe',
     warehouse: '/magazie',
     tools: '/unelte'

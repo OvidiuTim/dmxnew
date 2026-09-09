@@ -46,6 +46,10 @@ describe('NavbarComponent module filtering', () => {
     ]);
   });
 
+  it('afișează Șantiere numai cu acces la modul', () => {
+    expect(visibleGroups(componentFor(['construction_sites'])).map(group => group.label)).toEqual(['Șantiere']);
+  });
+
   it('nu mai afișează vechiul modul Resurse umane', () => {
     const component = componentFor(['human_resources']);
     expect(visibleGroups(component)).toEqual([]);
@@ -66,9 +70,9 @@ describe('NavbarComponent module filtering', () => {
     const component = componentFor([], true);
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual([
-      'Pontaj', 'Echipe și program', 'Magazie', 'Unelte'
+      'Pontaj', 'Șantiere', 'Echipe și program', 'Magazie', 'Unelte'
     ]);
-    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(17);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(18);
   });
 
   it('marchează o singură rută de echipe ca activă', () => {
@@ -76,6 +80,6 @@ describe('NavbarComponent module filtering', () => {
     const auth: any = { currentSession: () => ({ role: 'admin', auth_type: 'legacy' }), logout: jasmine.createSpy() };
     const teamsApi: any = { getNotificationSummary: () => of({ attention_count: 0 }) };
     const component = new NavbarComponent(router, auth, teamsApi);
-    expect(component.groups[1].links.filter(link => link.active).map(link => link.path)).toEqual(['/pontaj/echipe-azi']);
+    expect(component.groups.find(group => group.moduleCode === 'teams_schedule')!.links.filter(link => link.active).map(link => link.path)).toEqual(['/pontaj/echipe-azi']);
   });
 });

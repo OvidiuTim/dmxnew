@@ -159,3 +159,57 @@ Dacă vezi mesajul acesta și adaugi funcționalități noi în proiect, actuali
 - ce pași de setup, migrare, build, deploy sau testare s-au schimbat.
 
 Nu șterge descrierea existentă decât dacă funcționalitatea chiar nu mai există. Adaugă informația nouă sub secțiunile potrivite, ca următorul agent sau dezvoltator să poată înțelege rapid starea reală a programului.
+
+## Șantiere ca centre de cost
+
+Modulul **Șantiere**, între **Pontaj** și **Echipe și program**, se deschide la `/santiere`; fiecare fișă are ruta `/santiere/:id`. Este separat de punctele GPS, pentru a păstra compatibilitatea pontajului public și a aplicațiilor Android.
+
+### Utilizare
+
+- **Importă punctele principale** creează câte un centru de cost pentru cele 15 puncte GPS principale încă neasociate, cu denumirile și coordonatele existente. Repetarea importului nu dublează centrele sau pontajele.
+- **Șantier nou** permite alegerea unuia sau mai multor puncte existente. Primul punct completează denumirea și coordonatele, iar previzualizarea arată orele și costul din întregul istoric. Un punct poate aparține unui singur centru de cost; punctele deja folosite arată șantierul proprietar.
+- Asocierea este valabilă pentru **întregul istoric și viitor**. Nu copiază și nu modifică sesiunile de pontaj. Schimbarea asocierii realocă întregul istoric; nu există încă împărțire pe intervale de valabilitate. Datele planificate ale șantierului sunt informative.
+- Fișa include cod unic, beneficiar, responsabil, adresă, coordonate, date planificate, note, buget în RON fără TVA și status: planificat, activ, suspendat, finalizat, arhivat. Coordonatele fișei nu modifică perimetrele GPS de pontaj.
+- Centralizatorul are filtre de perioadă, căutare, status, costuri pe șantier, ore și costuri pe angajat, plus pontaje nealocate. **Tot istoricul** elimină ambele limite de dată. Bugetul disponibil se calculează întotdeauna față de costurile cumulative, indiferent de perioada raportului.
+- Registrul de cheltuieli acceptă materiale, utilaje/închirieri, transport, subcontractori, cazare, cheltuieli indirecte și alte costuri, cu dată, sumă RON fără TVA, furnizor, document și note. Corecturile se fac prin anulare cu motiv și o înregistrare nouă. Cheltuielile anulate rămân vizibile, dar sunt excluse din totaluri.
+- Arhivarea păstrează toate costurile și legăturile istorice și blochează cheltuielile noi până la reactivare. Nu oprește pontajul GPS și nu ascunde pontajele viitoare. Nu există ștergere definitivă prin modul.
+- Exportul CSV include centralizarea vizibilă și manopera nealocată, angajații filtrați din fișă sau întregul registru de cheltuieli din perioada selectată (inclusiv paginile neafișate și înregistrările anulate, marcate explicit). Exporturile includ BOM UTF-8 și protecție împotriva formulelor din câmpurile text.
+
+### Calculul costurilor și limitele acoperirii
+
+Manopera este calculată din `AttendanceSession.duration_seconds` pentru sesiunile închise, la `DailyPay.hourly_rate_snapshot` pentru angajat/zi. Dacă snapshotul lipsește, se folosește tariful curent și se marchează numărul de ore estimate. Tariful zero/lipsă este semnalat separat. Sesiunile deschise se numără, dar nu generează cost până la închidere. Rotunjirea cumulativă pe angajat/zi păstrează totalul în bani când orele sunt împărțite între puncte. Aliasurile istorice sunt rezolvate prin `worksites.match_worksite`.
+
+Raportul citește pontajele și snapshoturile existente, fără recalcularea sau rescrierea lor. Corectarea pontajului sau a snapshotului în modulul existent se reflectă în raport; acesta nu este un registru contabil închis/înghețat. Costurile calculate nu includ automat concedii, bonusuri, beneficii, taxe salariale, facturi sau consumuri de magazie. Costurile suplimentare trebuie înregistrate explicit în registrul șantierului. Aceste integrări și alocările cu valabilitate pe perioade sunt extensii viitoare, nu funcționalități deja automate.
+
+### Structură tehnică și acces
+
+- Modele în `dataAPI/ToolApp/models.py`: `ConstructionSite`, `SiteAttendancePoint`, `SiteExpense`, `SiteAuditLog`; migrarea `0084_construction_site_cost_centres` adaugă tabelele, constrângerile, indexul șantier/dată pentru cheltuieli și modulul `construction_sites`.
+- `site_costs.py`: raport agregat pe angajat/zi/punct, citirea tarifului salvat prin subquery indexat; numărul interogărilor nu crește cu numărul de angajați sau șantiere. Totalurile istorice necesită în continuare agregarea întregului istoric; pentru volume foarte mari poate fi adăugată o proiecție materializată.
+- `site_views.py` și `site_serializers.py`: validare, tranzacții, exclusivitatea punctelor, audit, protecție la modificări concurente prin `version` și idempotenta cheltuielilor prin UUID `request_id`.
+- Frontend: `FE/newface/src/app/construction-sites/`, componentă standalone încărcată separat la accesarea modulului; formulare cu dialog nativ, paginare la 50 pentru cheltuieli și audit, interfață adaptată pentru telefon.
+- Administratorul are acces complet. Utilizatorii aplicației au nevoie de modulul **Șantiere** (`construction_sites`) pentru citire; pentru scriere au nevoie suplimentar de permisiunea granulară `/santiere`. Ambele se gestionează prin mecanismul existent din pagina de administrare. Accesul la Pontaj sau Echipe nu acordă automat acces la aceste costuri.
+
+Endpointuri (toate sub `/api/construction-sites/`):
+
+| Metodă | Rută relativă | Funcție |
+| --- | --- | --- |
+| GET | rădăcina | Centre, raport, puncte disponibile; `start`, `end` opționale |
+| POST | rădăcina | Creare șantier; `points` conține denumirile punctelor existente |
+| PATCH | `<site_id>/` | Actualizare șantier; `version` curentă obligatorie |
+| POST | `import/` | Import idempotent al celor 15 puncte principale neasociate |
+| GET / POST | `<site_id>/expenses/` | Listare / înregistrare cheltuieli; POST cere `request_id` UUID |
+| GET | `<site_id>/expenses/?format=csv` | Export complet pentru `start` / `end`, fără limitarea paginării |
+| POST | `<site_id>/expenses/<expense_id>/cancel/` | Anulare cu `reason` obligatoriu |
+| GET | `<site_id>/audit/` | Istoric paginat, cu valorile înainte/după și autor |
+
+### Instalare și verificare
+
+1. Backend: în `Inventory-and-bill-proccesor-main/dataAPI`, rulează `../.venv/bin/python manage.py migrate` și repornește serviciul backend la publicare.
+2. Frontend: în `Inventory-and-bill-proccesor-main/FE/newface`, rulează `npm run build` și publică buildul prin fluxul existent.
+3. Pe o bază nouă, folosește **Importă punctele principale** sau **Șantier nou**. Migrarea creează schema, fără a face import de date pe server în mod implicit. Cele 15 centre au fost inițializate în baza locală de dezvoltare; backupul anterior migrării este în directorul local ignorat `_backups/`.
+4. Backend: `../.venv/bin/python manage.py test ToolApp.test_construction_sites ToolApp.test_module_access_api ToolApp.test_worksite_standardization --noinput`.
+5. Frontend: `npm test -- --watch=false --browsers=ChromeHeadless --include='src/app/construction-sites/*.spec.ts' --include='src/app/navbar/navbar.component.spec.ts' --include='src/app/auth/module-routes.spec.ts' --include='src/app/auth/auth.guard.spec.ts'` (setează `CHROME_BIN` dacă Chrome nu este detectat automat).
+
+Testele acoperă atribuirea istorică, aliasuri, tarife salvate/estimate/zero, sesiuni deschise, rotunjire, buget cumulativ, conflicte, import repetat, autorizare, anulare, export complet și număr constant de interogări. Verificarea manuală în browser s-a făcut pe o copie izolată a bazei locale pentru creare, import de ore, cheltuieli, anulare, audit și aspect pe telefon.
+
+Rezultat verificare locală: build Angular reușit și 36 teste backend reușite. Cele 27 de teste frontend raportează succes, însă procesul Karma/Chrome Headless 152 se încheie cu mesajul `Some of your tests did a full page reload!`; problema se reproduce și la rularea separată a testelor existente de navbar. Prin urmare, comanda frontend nu are încă un exit code curat în acest mediu, deși aserțiunile trec și fluxurile principale au fost verificate în browser. Buildul păstrează avertismentele existente de dimensiune bundle și dependențe CommonJS.

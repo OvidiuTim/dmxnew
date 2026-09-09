@@ -1,0 +1,124 @@
+<section class="sites-page">
+  <a *ngIf="selectedId !== null" class="back-link" routerLink="/santiere">← Toate șantierele</a>
+  <header class="page-header">
+    <div><span class="eyebrow">CONTROLUL COSTURILOR · RON</span><h1>{{ selected ? selected.name : 'Șantiere' }}</h1>
+      <p>{{ selected ? selected.code + ' · ' + statusLabel(selected.status) : 'Toate lucrările. Orele oamenilor și fiecare cost, în același loc.' }}</p>
+    </div>
+    <div class="actions" *ngIf="data">
+      <button class="button" (click)="exportCsv()" [disabled]="loading || (selectedId !== null && !selected)"><span class="material-symbols-rounded" aria-hidden="true">download</span>{{ selected ? (tab === 'expenses' ? 'Export cheltuieli' : 'Export angajați') : 'Export costuri' }}</button>
+      <button *ngIf="data.can_manage" class="button primary" (click)="edit(selected)" [disabled]="loading || saving"><span class="material-symbols-rounded" aria-hidden="true">{{ selected ? 'edit' : 'add' }}</span>{{ selected ? 'Editează șantierul' : 'Șantier nou' }}</button>
+    </div>
+  </header>
+  <p *ngIf="notice" class="notice success" role="status">{{ notice }}</p>
+  <p *ngIf="error" class="notice error" role="alert">{{ error }}</p>
+  <form class="period-bar" (ngSubmit)="applyPeriod()">
+    <label>De la<input type="date" name="start" [(ngModel)]="start"></label>
+    <label>Până la<input type="date" name="end" [(ngModel)]="end"></label>
+    <button class="button" type="submit" [disabled]="loading">Aplică perioada</button>
+    <button class="text-button" type="button" (click)="allHistory()" [disabled]="loading">Tot istoricul</button>
+    <span class="period-caption">{{ appliedStart || 'De la început' }} → {{ appliedEnd || 'Până în prezent' }}</span>
+  </form>
+  <div *ngIf="loading" class="loading" role="status">Se calculează costurile…</div>
+  <ng-container *ngIf="data && !loading && (selectedId === null || selected)">
+    <div class="stats-grid" *ngIf="currentCosts as costs">
+      <article class="featured"><span>Total în perioadă</span><strong>{{ amount(costs.total_cost) }} <small>RON</small></strong><small>{{ selected ? 'Manoperă + cheltuieli înregistrate' : 'Include și manopera nealocată' }}</small></article>
+      <article><span>Manoperă din pontaj</span><strong>{{ amount(costs.labor_cost) }} <small>RON</small></strong><small>{{ costs.employee_count }} angajați în perioadă</small></article>
+      <article><span>Ore închise</span><strong>{{ amount(costs.hours) }} <small>ore</small></strong><small>{{ costs.open_sessions }} sesiuni deschise, excluse din cost</small></article>
+      <article><span>Alte cheltuieli</span><strong>{{ amount(costs.expense_cost) }} <small>RON</small></strong><small>Materiale, utilaje, transport și altele</small></article>
+    </div>
+    <p class="notice warning" *ngIf="currentCosts && (currentCosts.estimated_seconds || currentCosts.missing_rate_seconds)">
+      {{ amount(currentCosts.estimated_seconds / 3600) }} ore sunt evaluate la tariful actual, deoarece lipsește tariful salvat al zilei.
+      {{ amount(currentCosts.missing_rate_seconds / 3600) }} ore au tarif zero sau lipsă. Totalurile pot fi incomplete.
+    </p>
+    <ng-container *ngIf="selectedId === null">
+      <section class="import-banner" *ngIf="data.can_manage && availablePointCount">
+        <span class="material-symbols-rounded banner-icon" aria-hidden="true">add_location_alt</span>
+        <div><h2>Pornește de la pontajele existente</h2><p>Creează automat câte un șantier pentru fiecare punct GPS principal disponibil. Coordonatele și întregul istoric se asociază imediat.</p></div>
+        <button class="button" (click)="importPoints()" [disabled]="saving">{{ saving ? 'Se importă…' : 'Importă punctele principale' }}</button>
+      </section>
+      <div class="list-toolbar">
+        <label class="search"><span class="sr-only">Caută șantier</span><input type="search" [(ngModel)]="search" placeholder="Caută șantier, cod, beneficiar sau responsabil…"></label>
+        <label><span class="sr-only">Status șantier</span><select [(ngModel)]="status"><option value="">Toate statusurile</option><option *ngFor="let item of statuses" [value]="item.value">{{ item.label }}</option></select></label>
+        <span class="muted">{{ filteredSites.length }} șantiere</span>
+      </div>
+      <div class="table-card" *ngIf="filteredSites.length; else emptySites">
+        <div class="table-scroll"><table>
+          <thead><tr><th>Șantier / centru de cost</th><th>Status</th><th class="numeric">Ore</th><th class="numeric">Manoperă</th><th class="numeric">Alte costuri</th><th class="numeric">Total perioadă</th><th>Buget · tot istoricul</th></tr></thead>
+          <tbody><tr *ngFor="let site of filteredSites">
+            <td><a class="site-name" [routerLink]="['/santiere', site.id]">{{ site.name }} <span aria-hidden="true">↗</span></a><small>{{ site.code }} · {{ site.client || 'Beneficiar nespecificat' }}</small><small>{{ site.points.length }} puncte de pontaj asociate</small></td>
+            <td><span class="status-badge" [attr.data-status]="site.status">{{ statusLabel(site.status) }}</span></td>
+            <td class="numeric">{{ amount(site.costs.hours) }}</td><td class="numeric">{{ amount(site.costs.labor_cost) }}</td><td class="numeric">{{ amount(site.costs.expense_cost) }}</td><td class="numeric strong">{{ amount(site.costs.total_cost) }}</td>
+            <td class="budget-cell"><ng-container *ngIf="site.budget !== null; else noBudget"><strong [class.danger]="overBudget(site)">{{ amount(site.lifetime_cost) }} / {{ amount(site.budget) }}</strong><progress [value]="budgetPercent(site)" max="100" [attr.aria-label]="'Buget consumat pentru ' + site.name"></progress><small [class.danger]="overBudget(site)">{{ overBudget(site) ? 'Buget depășit' : 'Disponibil: ' + amount(site.budget_remaining) + ' RON' }}</small></ng-container><ng-template #noBudget><span class="muted">Buget nesetat</span><small>{{ amount(site.lifetime_cost) }} RON cumulat</small></ng-template></td>
+          </tr></tbody>
+        </table></div>
+      </div>
+      <ng-template #emptySites><div class="empty-state"><span class="material-symbols-rounded" aria-hidden="true">construction</span><h2>{{ data.sites.length ? 'Niciun șantier pentru aceste filtre' : 'Primul pas: organizează șantierele' }}</h2><p>{{ data.sites.length ? 'Schimbă denumirea căutată sau statusul.' : (data.can_manage ? 'Importă punctele principale sau creează un șantier și alege punctele de pontaj care îi aparțin.' : 'Administratorul poate crea șantiere și asocia punctele de pontaj.') }}</p><button class="button primary" *ngIf="data.can_manage && !data.sites.length" (click)="edit()">Creează un șantier</button></div></ng-template>
+      <details class="panel unallocated" [open]="!data.sites.length">
+        <summary><span>Manoperă nealocată</span><strong>{{ amount(data.unallocated.labor_cost) }} RON <small>· {{ amount(data.unallocated.hours) }} ore</small></strong></summary>
+        <p class="muted">Pontaje care nu aparțin încă unui centru de cost. Asociază punctele existente din formularul unui șantier; pontajele fără punct sau cu denumiri necunoscute se corectează în Pontaj.</p>
+        <div class="table-scroll"><table><thead><tr><th>Punct de pontaj</th><th class="numeric">Ore în perioadă</th><th class="numeric">Cost RON</th><th class="numeric">Sesiuni deschise</th></tr></thead><tbody><tr *ngFor="let point of data.unallocated.points"><td>{{ point.name }}</td><td class="numeric">{{ amount(point.hours) }}</td><td class="numeric">{{ amount(point.cost) }}</td><td class="numeric">{{ point.open_sessions }}</td></tr></tbody></table></div>
+        <p *ngIf="!data.unallocated.points.length" class="muted">Toate pontajele din această perioadă sunt alocate.</p>
+      </details>
+    </ng-container>
+    <ng-container *ngIf="selected as site">
+      <section class="budget-strip panel" [class.over-budget]="overBudget(site)">
+        <div><span class="eyebrow">DE LA ÎNCEPUTUL ȘANTIERULUI</span><h2>{{ amount(site.lifetime_cost) }} <small>RON cost cumulat</small></h2></div>
+        <div><span class="muted">Buget total</span><strong>{{ site.budget !== null ? amount(site.budget) + ' RON' : 'Nesetat' }}</strong></div>
+        <div><span class="muted">{{ overBudget(site) ? 'Depășire buget' : 'Buget disponibil' }}</span><strong [class.danger]="overBudget(site)">{{ site.budget_remaining !== null ? amount(site.budget_remaining) + ' RON' : '—' }}</strong></div>
+      </section>
+      <nav class="tabs" aria-label="Detalii șantier"><button *ngFor="let item of [['employees', 'Manoperă și angajați'], ['expenses', 'Cheltuieli'], ['details', 'Date și puncte de pontaj'], ['audit', 'Istoric modificări']]" [class.active]="tab === item[0]" [attr.aria-current]="tab === item[0] ? 'page' : null" (click)="setTab($any(item[0]))">{{ item[1] }}</button></nav>
+      <section class="panel" *ngIf="tab === 'employees'">
+        <div class="section-header"><div><h2>Costul angajaților</h2><p>Orele închise, alocate după punctul la care s-a făcut pontajul.</p></div><input type="search" aria-label="Caută angajat" placeholder="Nume, serie sau firmă…" [(ngModel)]="employeeSearch"></div>
+        <div class="table-scroll"><table><thead><tr><th>Angajat</th><th>Firmă</th><th class="numeric">Ore</th><th class="numeric">Cost RON</th><th>Calitatea datelor</th></tr></thead><tbody><tr *ngFor="let employee of filteredEmployees"><td><strong>{{ employee.name }}</strong><small>{{ employee.serie }}</small></td><td>{{ employee.company || '—' }}</td><td class="numeric">{{ amount(employee.hours) }}</td><td class="numeric strong">{{ amount(employee.cost) }}</td><td><small *ngIf="employee.estimated_seconds" class="warning-text">{{ amount(employee.estimated_seconds / 3600) }} ore estimate</small><small *ngIf="employee.missing_rate_seconds" class="danger">{{ amount(employee.missing_rate_seconds / 3600) }} ore fără tarif</small><small *ngIf="employee.open_sessions">{{ employee.open_sessions }} sesiuni deschise</small><small *ngIf="!employee.estimated_seconds && !employee.missing_rate_seconds && !employee.open_sessions">Tarif salvat în pontaj</small></td></tr></tbody></table></div>
+        <p class="empty-inline" *ngIf="!filteredEmployees.length">Nu există pontaje pentru perioada și căutarea selectate.</p>
+      </section>
+      <section class="panel" *ngIf="tab === 'expenses'">
+        <div class="section-header"><div><h2>Registru de cheltuieli</h2><p>Sume în RON, fără TVA. Folosește aceeași bază pentru buget.</p></div><button class="button primary" *ngIf="data.can_manage" [disabled]="site.status === 'archived'" (click)="newExpense()">+ Adaugă cheltuială</button></div>
+        <div class="category-chips"><span *ngFor="let category of site.costs.categories">{{ categoryLabel(category.category) }} <strong>{{ amount(category.amount) }} RON</strong></span></div>
+        <p class="loading" *ngIf="detailLoading">Se încarcă registrul…</p>
+        <div class="table-scroll" *ngIf="!detailLoading"><table><thead><tr><th>Dată / document</th><th>Cheltuială</th><th>Categorie</th><th class="numeric">Sumă RON</th><th>Status</th><th></th></tr></thead><tbody><tr *ngFor="let expense of expenses" [class.cancelled]="expense.cancelled_at"><td>{{ expense.date }}<small>{{ expense.reference || 'Fără document' }}</small></td><td><strong>{{ expense.description }}</strong><small>{{ expense.supplier || 'Furnizor nespecificat' }}</small><small *ngIf="expense.notes">{{ expense.notes }}</small><small *ngIf="expense.cancelled_at">Motiv: {{ expense.cancellation_reason }}</small></td><td>{{ categoryLabel(expense.category) }}</td><td class="numeric strong">{{ amount(expense.amount) }}</td><td>{{ expense.cancelled_at ? 'Anulată' : 'Înregistrată' }}</td><td><button class="text-button danger" *ngIf="data.can_manage && !expense.cancelled_at" (click)="askCancel(expense)">Anulează</button></td></tr></tbody></table></div>
+        <p class="empty-inline" *ngIf="!detailLoading && !expenses.length">Nicio cheltuială în perioada selectată.</p>
+        <div class="pagination" *ngIf="expenseCount > 50"><button class="button" [disabled]="expensePage === 1 || detailLoading" (click)="expensePage = expensePage - 1; loadDetail()">Înapoi</button><span>Pagina {{ expensePage }} · {{ expenseCount }} înregistrări</span><button class="button" [disabled]="expensePage * 50 >= expenseCount || detailLoading" (click)="expensePage = expensePage + 1; loadDetail()">Înainte</button></div>
+      </section>
+      <section *ngIf="tab === 'details'" class="details-grid">
+        <div class="panel"><h2>Datele șantierului</h2><dl><dt>Beneficiar</dt><dd>{{ site.client || 'Nespecificat' }}</dd><dt>Responsabil</dt><dd>{{ site.manager || 'Nespecificat' }}</dd><dt>Adresă</dt><dd>{{ site.address || 'Nespecificată' }}</dd><dt>Perioadă planificată</dt><dd>{{ site.start_date || 'Nesetată' }} → {{ site.end_date || 'Nesetată' }}</dd><dt>Coordonate</dt><dd><a *ngIf="site.latitude !== null && site.longitude !== null; else noLocation" [href]="mapUrl(site)" target="_blank" rel="noopener noreferrer">{{ site.latitude }}, {{ site.longitude }} ↗</a><ng-template #noLocation>Nesetate</ng-template></dd><dt>Note</dt><dd class="preserve-lines">{{ site.notes || 'Fără note.' }}</dd></dl></div>
+        <div class="panel"><h2>Puncte de pontaj asociate</h2><p class="muted">Asocierea include întregul istoric și pontajele viitoare. Datele planificate ale șantierului nu limitează importul.</p><div class="point-row" *ngFor="let point of site.points"><span class="material-symbols-rounded" aria-hidden="true">location_on</span><strong>{{ point }}</strong></div><p *ngIf="!site.points.length" class="warning-text">Niciun punct asociat. Editează șantierul pentru a aduce costurile din pontaj.</p><h3>Cost pe punct în perioada selectată</h3><div class="point-row" *ngFor="let point of site.costs.points"><span>{{ point.name }}<small>{{ amount(point.hours) }} ore</small></span><strong>{{ amount(point.cost) }} RON</strong></div></div>
+      </section>
+      <section class="panel" *ngIf="tab === 'audit'"><h2>Istoric modificări</h2><p class="muted">Toate datele, indiferent de perioada raportului. Modificările pontajelor se urmăresc în modulul Pontaj.</p><p *ngIf="detailLoading" class="loading">Se încarcă istoricul…</p><article class="audit-entry" *ngFor="let event of events"><span class="audit-dot"></span><div><strong>{{ auditLabel(event.action) }}</strong><small>{{ event.created_at | date:'dd.MM.yyyy HH:mm' }} · {{ event.actor }}</small><pre>{{ auditChanges(event) }}</pre></div></article><p *ngIf="!detailLoading && !events.length" class="empty-inline">Nu există modificări înregistrate.</p><div class="pagination" *ngIf="auditCount > 50"><button class="button" [disabled]="auditPage === 1 || detailLoading" (click)="auditPage = auditPage - 1; loadDetail()">Înapoi</button><span>Pagina {{ auditPage }}</span><button class="button" [disabled]="auditPage * 50 >= auditCount || detailLoading" (click)="auditPage = auditPage + 1; loadDetail()">Înainte</button></div></section>
+    </ng-container>
+    <footer class="method-note"><strong>Cum se calculează:</strong> ore închise × tariful salvat al zilei; în lipsa lui, tariful actual (estimat). Cheltuielile anulate sunt excluse. Concediile, bonusurile, taxele salariale și mișcările de magazie nu sunt alocate automat. Adaugă separat costurile suplimentare relevante.</footer>
+  </ng-container>
+</section>
+
+<dialog #siteDialog class="editor-dialog" aria-labelledby="site-dialog-title" (cancel)="saving ? $event.preventDefault() : null">
+  <form #siteNgForm="ngForm" (ngSubmit)="saveSite()">
+    <header class="dialog-header"><div><span class="eyebrow">CENTRU DE COST</span><h2 id="site-dialog-title">{{ editingId ? 'Editează șantierul' : 'Șantier nou' }}</h2></div><button type="button" class="close-button" aria-label="Închide" [disabled]="saving" (click)="closeDialog(siteDialog)">×</button></header>
+    <div class="dialog-body">
+      <p *ngIf="formError" class="notice error" role="alert">{{ formError }}</p>
+      <h3>Importă din punctele existente</h3><p class="muted">Alege unul sau mai multe puncte. Orele și costurile istorice se vor vedea imediat; pontajele viitoare se adaugă automat.</p>
+      <div class="point-picker"><label *ngFor="let point of data?.points" [class.unavailable]="point.site_id && point.site_id !== editingId"><input type="checkbox" [checked]="form.points.includes(point.name)" [disabled]="!!point.site_id && point.site_id !== editingId" (change)="togglePoint(point, $any($event.target).checked)"><span>{{ point.name }}<small *ngIf="point.site_id && point.site_id !== editingId">Asociat: {{ point.site_name }}</small><small *ngIf="!point.site_id || point.site_id === editingId">{{ point.latitude }}, {{ point.longitude }}</small></span></label></div>
+      <div class="import-preview" *ngIf="form.points.length"><strong>{{ form.points.length }} puncte · {{ amount(importedHours) }} ore · {{ amount(importedCost) }} RON</strong><small>Previzualizare pentru tot istoricul; poate include costuri estimate. Schimbarea punctelor realocă întregul lor istoric.</small></div>
+      <div class="form-grid">
+        <label>Cod unic *<input name="code" [(ngModel)]="form.code" required maxlength="40"></label>
+        <label>Status<select name="status" [(ngModel)]="form.status"><option *ngFor="let item of statuses" [value]="item.value">{{ item.label }}</option></select></label>
+        <label class="full">Denumire șantier *<input name="name" [(ngModel)]="form.name" required maxlength="160"></label>
+        <label>Beneficiar<input name="client" [(ngModel)]="form.client" maxlength="160"></label><label>Responsabil<input name="manager" [(ngModel)]="form.manager" maxlength="160"></label>
+        <label class="full">Adresă<input name="address" [(ngModel)]="form.address" maxlength="300"></label>
+        <label>Latitudine<input type="number" name="latitude" [(ngModel)]="form.latitude" min="-90" max="90" step="any"></label><label>Longitudine<input type="number" name="longitude" [(ngModel)]="form.longitude" min="-180" max="180" step="any"></label>
+        <label>Dată început planificată<input type="date" name="start_date" [(ngModel)]="form.start_date"></label><label>Dată finalizare planificată<input type="date" name="end_date" [(ngModel)]="form.end_date"></label>
+        <label class="full">Buget total RON, fără TVA<input type="number" name="budget" [(ngModel)]="form.budget" min="0" max="999999999999.99" step="0.01" placeholder="Lasă gol dacă nu este stabilit"></label>
+        <label class="full">Note<textarea name="notes" [(ngModel)]="form.notes" rows="3" maxlength="10000"></textarea></label>
+      </div><p class="muted">Coordonatele descriu șantierul. Perimetrele GPS ale punctelor de pontaj se păstrează în configurația existentă.</p>
+    </div>
+    <footer class="dialog-footer"><button type="button" class="button" (click)="closeDialog(siteDialog)" [disabled]="saving">Renunță</button><button class="button primary" type="submit" [disabled]="saving || siteNgForm.invalid">{{ saving ? 'Se salvează…' : 'Salvează șantierul' }}</button></footer>
+  </form>
+</dialog>
+<dialog #expenseDialog class="editor-dialog compact-dialog" aria-labelledby="expense-dialog-title" (cancel)="saving ? $event.preventDefault() : null">
+  <form #expenseNgForm="ngForm" (ngSubmit)="saveExpense()"><header class="dialog-header"><div><span class="eyebrow">{{ selected?.name }}</span><h2 id="expense-dialog-title">Adaugă cheltuială</h2></div><button type="button" class="close-button" aria-label="Închide" [disabled]="saving" (click)="closeDialog(expenseDialog)">×</button></header>
+    <div class="dialog-body"><p class="notice error" *ngIf="formError" role="alert">{{ formError }}</p><div class="form-grid"><label>Dată *<input type="date" name="date" [(ngModel)]="expenseForm.date" required></label><label>Categorie *<select name="category" [(ngModel)]="expenseForm.category" required><option *ngFor="let category of data?.categories" [value]="category.value">{{ category.label }}</option></select></label><label class="full">Descriere *<input name="description" [(ngModel)]="expenseForm.description" maxlength="300" required placeholder="Ex. Beton fundație, factura 128"></label><label>Furnizor<input name="supplier" [(ngModel)]="expenseForm.supplier" maxlength="160"></label><label>Număr document<input name="reference" [(ngModel)]="expenseForm.reference" maxlength="120"></label><label class="full">Sumă RON, fără TVA *<input type="number" name="amount" [(ngModel)]="expenseForm.amount" min="0.01" max="999999999999.99" step="0.01" required></label><label class="full">Note<textarea name="notes" [(ngModel)]="expenseForm.notes" rows="3" maxlength="10000"></textarea></label></div><p class="muted">Pentru corecturi, anulează înregistrarea cu un motiv și adaugă valoarea corectă. Istoricul se păstrează.</p></div>
+    <footer class="dialog-footer"><button type="button" class="button" (click)="closeDialog(expenseDialog)" [disabled]="saving">Renunță</button><button type="submit" class="button primary" [disabled]="saving || expenseNgForm.invalid">{{ saving ? 'Se salvează…' : 'Înregistrează cheltuiala' }}</button></footer>
+  </form>
+</dialog>
+<dialog #cancelDialog class="editor-dialog compact-dialog" aria-labelledby="cancel-dialog-title" (cancel)="saving ? $event.preventDefault() : null">
+  <form (ngSubmit)="cancelExpense()"><header class="dialog-header"><h2 id="cancel-dialog-title">Anulează cheltuiala</h2><button type="button" class="close-button" aria-label="Închide" [disabled]="saving" (click)="closeDialog(cancelDialog)">×</button></header><div class="dialog-body"><p><strong>{{ cancelling?.description }} · {{ amount(cancelling?.amount) }} RON</strong></p><p class="muted">Înregistrarea rămâne în istoric, dar suma este eliminată din totaluri.</p><p class="notice error" *ngIf="formError" role="alert">{{ formError }}</p><label>Motivul anulării *<textarea name="reason" [(ngModel)]="cancelReason" rows="3" required maxlength="300"></textarea></label></div><footer class="dialog-footer"><button type="button" class="button" [disabled]="saving" (click)="closeDialog(cancelDialog)">Renunță</button><button type="submit" class="button" [disabled]="saving || !cancelReason.trim()">{{ saving ? 'Se anulează…' : 'Confirmă anularea' }}</button></footer></form>
+</dialog>

@@ -2,6 +2,7 @@ from django.urls import path, re_path as url
 from ToolApp import views
 from ToolApp import mobile_views
 from ToolApp import team_views, team_portal_views, attendance_alert_views
+from ToolApp import site_views
 from ToolApp import employee_views
 from ToolApp import leave_views
 from ToolApp import organization_views
@@ -37,6 +38,12 @@ from .views import (
 )
 
 urlpatterns = [
+    path('api/construction-sites/', site_views.sites_collection, name='sites_collection'),
+    path('api/construction-sites/import/', site_views.sites_import, name='sites_import'),
+    path('api/construction-sites/<int:site_id>/', site_views.site_detail, name='site_detail'),
+    path('api/construction-sites/<int:site_id>/expenses/', site_views.site_expenses, name='site_expenses'),
+    path('api/construction-sites/<int:site_id>/expenses/<int:expense_id>/cancel/', site_views.expense_cancel, name='site_expense_cancel'),
+    path('api/construction-sites/<int:site_id>/audit/', site_views.site_audit, name='site_audit'),
     # --- Legacy (existente) ---
     url(r'^user/$', views.userApi),                         url(r'^user/([0-9]+)$', views.userApi),
     url(r'^tool/$', views.toolApi),                         url(r'^tool/([0-9]+)$', views.toolApi),

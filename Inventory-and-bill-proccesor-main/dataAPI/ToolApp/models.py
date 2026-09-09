@@ -324,6 +324,7 @@ class AppPagePermission(models.Model):
 class AppModuleAccess(models.Model):
     class ModuleCode(models.TextChoices):
         ATTENDANCE = "attendance", "Pontaj"
+        CONSTRUCTION_SITES = "construction_sites", "Șantiere"
         TEAMS_SCHEDULE = "teams_schedule", "Echipe și program"
         TEAM_DASHBOARD = "team_dashboard", "Team Dashboard"
         WAREHOUSE = "warehouse", "Magazie"
@@ -1478,3 +1479,88 @@ class OrganizationMember(models.Model):
 
     def __str__(self):
         return f"{self.name} · {self.role}" if self.role else self.name
+
+
+class ConstructionSite(models.Model):
+    """Cost centre, independent of the legacy GPS attendance contract."""
+    class Status(models.TextChoices):
+        PLANNED = "planned", "Planificat"
+        ACTIVE = "active", "Activ"
+        PAUSED = "paused", "Suspendat"
+        COMPLETED = "completed", "Finalizat"
+        ARCHIVED = "archived", "Arhivat"
+
+    code = models.CharField(max_length=40, unique=True)
+    name = models.CharField(max_length=160)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    client = models.CharField(max_length=160, blank=True)
+    manager = models.CharField(max_length=160, blank=True)
+    address = models.CharField(max_length=300, blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    budget = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    notes = models.TextField(blank=True)
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        constraints = [
+            models.CheckConstraint(check=models.Q(budget__gte=0) | models.Q(budget__isnull=True), name="site_budget_nonnegative"),
+            models.CheckConstraint(check=models.Q(end_date__gte=models.F("start_date")) | models.Q(start_date__isnull=True) | models.Q(end_date__isnull=True), name="site_dates_ordered"),
+        ]
+
+    def __str__(self):
+        return f"{self.code} · {self.name}"
+
+
+class SiteAttendancePoint(models.Model):
+    # One canonical point can belong to only one cost centre: no double counting.
+    name = models.CharField(max_length=100, unique=True)
+    site = models.ForeignKey(ConstructionSite, on_delete=models.PROTECT, related_name="attendance_points")
+
+
+class SiteExpense(models.Model):
+    class Category(models.TextChoices):
+        MATERIALS = "materials", "Materiale"
+        EQUIPMENT = "equipment", "Utilaje și închirieri"
+        TRANSPORT = "transport", "Transport"
+        SUBCONTRACTORS = "subcontractors", "Subcontractori"
+        ACCOMMODATION = "accommodation", "Cazare"
+        OVERHEAD = "overhead", "Cheltuieli indirecte"
+        OTHER = "other", "Alte costuri"
+
+    site = models.ForeignKey(ConstructionSite, on_delete=models.PROTECT, related_name="expenses")
+    date = models.DateField(db_index=True)
+    category = models.CharField(max_length=24, choices=Category.choices)
+    description = models.CharField(max_length=300)
+    supplier = models.CharField(max_length=160, blank=True)
+    reference = models.CharField(max_length=120, blank=True)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    notes = models.TextField(blank=True)
+    # Client-generated UUID makes retries safe after a network timeout.
+    request_id = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.CharField(max_length=300, blank=True)
+    created_by = models.CharField(max_length=180)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [models.Index(fields=["site", "date"], name="site_expense_date_idx")]
+        constraints = [models.CheckConstraint(check=models.Q(amount__gt=0), name="site_expense_positive")]
+
+
+class SiteAuditLog(models.Model):
+    site = models.ForeignKey(ConstructionSite, on_delete=models.PROTECT, related_name="audit_logs")
+    action = models.CharField(max_length=40)
+    actor = models.CharField(max_length=180)
+    before = models.JSONField(default=dict)
+    after = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-id"]

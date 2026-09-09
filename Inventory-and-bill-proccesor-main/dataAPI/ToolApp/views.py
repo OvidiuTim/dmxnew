@@ -4304,6 +4304,7 @@ APP_PERMISSION_ROUTES = [
     "/pontaj/rapoarte",
     "/pontaj/fisa-angajat",
     "/pontaj/cazari",
+    "/santiere",
     "/pontaj/echipe",
     "/pontaj/echipa-mea",
     "/pontaj/concedii",

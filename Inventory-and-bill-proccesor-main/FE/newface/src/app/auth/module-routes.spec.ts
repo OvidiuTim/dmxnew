@@ -18,12 +18,14 @@ describe('Module route mapping', () => {
   it('mapează rutele principale în ordinea stabilă a modulelor', () => {
     const expected = [
       ['dashboard', 'attendance'],
+      ['santiere', 'construction_sites'],
+      ['santiere/:id', 'construction_sites'],
       ['pontaj/echipe', 'teams_schedule'],
       ['magazie', 'warehouse'],
       ['unelte', 'tools']
     ];
     expect(expected.map(([path, code]) => routes.find(item => item.path === path)?.data?.['moduleCode'] === code))
-      .toEqual([true, true, true, true]);
+      .toEqual([true, true, true, true, true, true]);
     expect(routes.some(item => item.path === 'hr/documente')).toBeFalse();
   });
 });

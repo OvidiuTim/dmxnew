@@ -278,11 +278,11 @@ class ModuleAccessApiTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(
             [module["code"] for module in response.json()["modules"]],
-            ["attendance", "teams_schedule", "team_dashboard", "warehouse", "tools"],
+            ["attendance", "construction_sites", "teams_schedule", "team_dashboard", "warehouse", "tools"],
         )
         current = self.admin_client.get("/api/app-auth/modules/")
         self.assertEqual(current.status_code, 200)
         self.assertEqual(
             current.json()["granted_modules"],
-            ["attendance", "teams_schedule", "team_dashboard", "warehouse", "tools"],
+            ["attendance", "construction_sites", "teams_schedule", "team_dashboard", "warehouse", "tools"],
         )

@@ -30,6 +30,11 @@ export class NavbarComponent implements OnDestroy {
       ]
     },
     {
+      label: 'Șantiere',
+      moduleCode: 'construction_sites',
+      links: [{ label: 'Șantiere și costuri', path: '/santiere', icon: 'construction', permissionRoute: '/santiere' }]
+    },
+    {
       label: 'Echipe și program',
       moduleCode: 'teams_schedule',
       links: [
@@ -69,7 +74,7 @@ export class NavbarComponent implements OnDestroy {
       .subscribe((e: any) => {
         this.markActive(e.urlAfterRedirects);
       });
-    if (this.visibleLinks(this.groups[1]).length) {
+    if (this.visibleLinks(this.groups.find(group => group.moduleCode === 'teams_schedule')!).length) {
       this.notificationSubscription = timer(0, 30000).pipe(
         switchMap(() => this.teamsApi.getNotificationSummary().pipe(catchError(() => of({ attention_count: 0 }))))
       ).subscribe(response => this.setNotificationCount(Number(response?.attention_count || 0)));
@@ -128,14 +133,14 @@ export class NavbarComponent implements OnDestroy {
   }
 
   @HostListener('window:team-notifications-changed') refreshNotifications(): void {
-    if (!this.visibleLinks(this.groups[1]).length) return;
+    if (!this.visibleLinks(this.groups.find(group => group.moduleCode === 'teams_schedule')!).length) return;
     this.teamsApi.getNotificationSummary().pipe(catchError(() => of({ attention_count: 0 }))).subscribe(
       response => this.setNotificationCount(Number(response?.attention_count || 0))
     );
   }
 
   private setNotificationCount(count: number): void {
-    const link = this.groups[1].links.find(item => item.path === '/pontaj/notificari');
+    const link = this.groups.find(group => group.moduleCode === 'teams_schedule')!.links.find(item => item.path === '/pontaj/notificari');
     if (link) link.attentionCount = count;
   }
 

@@ -16,6 +16,13 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/pontaj/cazari", "label": "Cazări", "icon": "apartment"},
         ],
     }),
+    ("construction_sites", {
+        "label": "Șantiere",
+        "description": "Centre de cost, pontaje asociate, bugete și cheltuieli pe șantier.",
+        "icon": "construction",
+        "main_route": "/santiere",
+        "routes": [{"path": "/santiere", "label": "Șantiere și costuri", "icon": "construction"}],
+    }),
     ("teams_schedule", {
         "label": "Echipe și program",
         "description": "Echipe permanente, situația zilei și personal disponibil.",

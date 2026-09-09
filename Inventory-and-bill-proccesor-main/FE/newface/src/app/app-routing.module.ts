@@ -46,6 +46,9 @@ export const routes: Routes = [
   // Pontaj protejat (fallback dacă ai linkuri către /pontaj/pontaj)
   { path: 'pontaj', component: PontajComponent, canActivate: [AuthGuard], data: { permissionRoute: '/pontaj', moduleCode: 'attendance', moduleEntry: true } },
 
+  { path: 'santiere', loadComponent: () => import('./construction-sites/construction-sites.component').then(m => m.ConstructionSitesComponent), canActivate: [AuthGuard], data: { permissionRoute: '/santiere', moduleCode: 'construction_sites' } },
+  { path: 'santiere/:id', loadComponent: () => import('./construction-sites/construction-sites.component').then(m => m.ConstructionSitesComponent), canActivate: [AuthGuard], data: { permissionRoute: '/santiere', moduleCode: 'construction_sites' } },
+
   // Pontaj manual separat
   { path: 'clockinandout', component: ClockinandoutComponent },
   { path: 'clockinandoutdriver', component: ClockinandoutdriverComponent },
