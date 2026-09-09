@@ -78,6 +78,7 @@ class UserSerializer(serializers.ModelSerializer):
             "accommodation",
             "accommodation_room_id",
             "attendance_exempt",
+            "is_tesa",
             "active",
         )
         extra_kwargs = {
@@ -114,6 +115,7 @@ class UserSerializer(serializers.ModelSerializer):
             "leave_remaining_override_accrued_days": {"read_only": True},
             "housing_location": {"required": False, "allow_blank": True},
             "attendance_exempt": {"required": False},
+            "is_tesa": {"required": False},
             "active": {"required": False},
         }
 
@@ -161,6 +163,7 @@ class UserSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
         person_type = attrs.get("person_type", getattr(self.instance, "person_type", Users.PersonType.EMPLOYEE))
         if person_type == Users.PersonType.COLLABORATOR:
+            attrs["is_tesa"] = False
             if not str(attrs.get("Company", getattr(self.instance, "Company", "")) or "").strip():
                 raise serializers.ValidationError({"Company": "Numele companiei este obligatoriu."})
             if not str(attrs.get("phone_number", getattr(self.instance, "phone_number", "")) or "").strip():

@@ -2,6 +2,17 @@ import { firstValueFrom, of } from 'rxjs';
 import { AuthGuard } from './auth.guard';
 
 describe('AuthGuard module access', () => {
+  it('permite pagina TESA numai când sesiunea verificată are bifa activă', async () => {
+    for (const isTesa of [false, true]) {
+      const { guard } = setup({ role: 'app_user', auth_type: 'app_user', modules: ['team_dashboard'], app_user: { employee: { is_tesa: isTesa } } });
+      const result: any = await firstValueFrom(guard.canActivate({ data: { moduleCode: 'team_dashboard', tesaOnly: true } } as any));
+      if (isTesa) expect(result).toBeTrue();
+      else expect(result.redirectedTo).toBe('/team-dashboard');
+    }
+    const { guard } = setup({ role: 'admin', auth_type: 'legacy' });
+    const denied: any = await firstValueFrom(guard.canActivate({ data: { tesaOnly: true } } as any));
+    expect(denied.redirectedTo).toBe('/team-dashboard');
+  });
   function setup(session: any) {
     const auth: any = {
       verifySession: jasmine.createSpy('verifySession').and.returnValue(of(session)),

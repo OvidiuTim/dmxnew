@@ -5,6 +5,15 @@ import { EmployeeFormComponent } from './employee-form.component';
 
 
 describe('EmployeeFormComponent numeric fields', () => {
+  it('încarcă, salvează și poate debifa Personal TESA', () => {
+    const component = new EmployeeFormComponent(new FormBuilder(), {} as any, {} as any,
+      { getUser: () => of({ UserName: 'TESA', UserSerie: 'T-1', is_tesa: true }) } as any);
+    (component as any).loadUser(1);
+    expect(component.form.value.is_tesa).toBeTrue();
+    expect((component as any).buildPayload().is_tesa).toBeTrue();
+    component.form.controls.is_tesa.setValue(false);
+    expect((component as any).buildPayload().is_tesa).toBeFalse();
+  });
   it('salvează salariul total și zilele de concediu când inputurile furnizează numere', () => {
     const component = new EmployeeFormComponent(
       new FormBuilder(),

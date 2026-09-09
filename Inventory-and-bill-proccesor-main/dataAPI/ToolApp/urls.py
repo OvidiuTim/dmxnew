@@ -7,6 +7,7 @@ from ToolApp import employee_views
 from ToolApp import leave_views
 from ToolApp import organization_views
 from ToolApp import employee_reports
+from ToolApp import tesa_views
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -256,6 +257,7 @@ urlpatterns = [
     path('api/team-portal/absent-today/', team_portal_views.portal_absent_today, name='team_portal_absent_today'),
     path('api/team-portal/worksites/', team_portal_views.portal_worksites, name='team_portal_worksites'),
     path('api/team-portal/attendance/', team_portal_views.portal_attendance, name='team_portal_attendance'),
+    path('api/team-portal/tesa-presence/', tesa_views.tesa_presence, name='team_portal_tesa_presence'),
     path('api/organization/departments/<int:department_id>/team/', organization_views.organization_department_team, name='organization_department_team'),
 
     # Cereri de concediu primite de șefii de echipă și administratori

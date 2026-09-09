@@ -36,6 +36,19 @@ describe('TeamPortalComponent performance regressions', () => {
     return { id, name: `Angajat ${id}`, serie: `S-${id}`, company: 'DMX', team: teamId === null ? null : { id: teamId, name: 'Echipa' } };
   }
 
+  it('afișează confirmarea prezenței numai personalului TESA', () => {
+    route.snapshot.data.portalView = 'home';
+    fixture.detectChanges();
+    http.expectOne(`${api}/dashboard/`).flush({ employee: { name: 'TESA', is_tesa: true }, unread_notifications: 0 });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.tesa-card')).not.toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.attendance-card').length).toBe(1);
+    component.dashboard.employee.is_tesa = false;
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.tesa-card')).toBeNull();
+    expect(fixture.nativeElement.querySelectorAll('.attendance-card').length).toBe(1);
+  });
+
   it('opens a large personnel accordion and settles ngModel without rebuilding its DOM', fakeAsync(() => {
     fixture.detectChanges();
     http.expectOne(`${api}/personnel/`).flush({

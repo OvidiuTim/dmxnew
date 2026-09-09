@@ -498,6 +498,10 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     });
   }
 
+  openTesaPresence(): void {
+    void this.router.navigateByUrl('/team-dashboard/confirma-prezenta');
+  }
+
   openTools(): void {
     void this.router.navigateByUrl('/unelte');
   }

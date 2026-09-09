@@ -51,6 +51,7 @@ import { LeaveRequestsComponent } from './pontaj/leave-requests/leave-requests.c
 import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
 import { OrganizationComponent } from './organization/organization.component';
 import { TeamPortalComponent } from './team-portal/team-portal.component';
+import { TesaPresenceComponent } from './tesa-presence/tesa-presence.component';
 import { AttendanceAlertsComponent } from './pontaj/attendance-alerts/attendance-alerts.component';
 
 @NgModule({
@@ -93,6 +94,7 @@ import { AttendanceAlertsComponent } from './pontaj/attendance-alerts/attendance
     TermeniIgdprComponent,
     OrganizationComponent,
     TeamPortalComponent,
+    TesaPresenceComponent,
     AttendanceAlertsComponent,
   ],
   imports: [

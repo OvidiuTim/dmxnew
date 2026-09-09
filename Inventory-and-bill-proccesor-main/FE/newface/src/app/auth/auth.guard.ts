@@ -16,6 +16,9 @@ export class AuthGuard implements CanActivate {
 
     return this.auth.verifySession(permissionRoute, moduleCode || undefined).pipe(
       map(session => {
+        if (route.data?.['tesaOnly'] && session.app_user?.employee?.is_tesa !== true) {
+          return this.router.parseUrl('/team-dashboard');
+        }
         if (session.role === 'admin' || session.auth_type === 'legacy') return true;
         const hasModule = !moduleCode || !!(session.can_access_module ?? session.modules?.includes(moduleCode));
         if (!hasModule && isModuleEntry) {

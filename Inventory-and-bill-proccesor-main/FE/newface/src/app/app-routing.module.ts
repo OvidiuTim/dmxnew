@@ -57,6 +57,7 @@ export const routes: Routes = [
   { path: 'team-dashboard/echipa-mea', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/echipa-mea', moduleCode: 'team_dashboard', portalView: 'team' } },
   { path: 'team-dashboard/pontaj', component: ClockinandoutComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/pontaj', moduleCode: 'team_dashboard', portalMode: true } },
   { path: 'team-dashboard/attendance', redirectTo: 'team-dashboard/pontaj', pathMatch: 'full' },
+  { path: 'team-dashboard/confirma-prezenta', component: TesaPresenceComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/confirma-prezenta', moduleCode: 'team_dashboard', tesaOnly: true } },
   { path: 'team-dashboard/fisa-angajat', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/fisa-angajat', moduleCode: 'team_dashboard', portalView: 'salary' } },
   { path: 'team-dashboard/cerere-concediu', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/cerere-concediu', moduleCode: 'team_dashboard', portalView: 'leave' } },
   { path: 'team-dashboard/notificari', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/notificari', moduleCode: 'team_dashboard', portalView: 'notifications' } },
@@ -119,3 +120,4 @@ export const routes: Routes = [
   exports: [RouterModule],
 })
 export class AppRoutingModule {}
+import { TesaPresenceComponent } from './tesa-presence/tesa-presence.component';

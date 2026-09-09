@@ -2413,6 +2413,14 @@ def nfc_scan(request):
     today = localdate(when)
 
     with transaction.atomic():
+        # Share the employee lock with TESA confirmation so two attendance
+        # channels cannot simultaneously add hours for the same person/day.
+        Users.objects.select_for_update().get(pk=user.pk)
+        if AttendanceSession.objects.filter(user_fk=user, work_date=today, source='tesa').exists():
+            return JsonResponse({
+                "error": "Prezența TESA este deja confirmată pentru această zi (08:00–16:00).",
+                "error_code": "TESA_ALREADY_CONFIRMED",
+            }, status=409)
         open_sess = (AttendanceSession.objects
                      .select_for_update()
                      .filter(user_fk=user, out_time__isnull=True)
@@ -4401,6 +4409,7 @@ def _serialize_app_user(app_user):
             "name": app_user.employee.UserName,
             "serie": app_user.employee.UserSerie,
             "pin": app_user.employee.UserPin,
+            "is_tesa": app_user.employee.is_tesa,
         },
         "permissions": {
             route: route in permissions

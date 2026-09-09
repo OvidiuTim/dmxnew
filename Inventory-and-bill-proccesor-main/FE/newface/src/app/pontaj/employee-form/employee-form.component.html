@@ -77,6 +77,13 @@
               <input *ngIf="isAddingNewCompany" id="user-company-new" type="text" [value]="form.value.Company ?? ''" placeholder="Scrie numele companiei" (input)="onNewCompanyInput($any($event.target).value)">
             </div>
             <div class="field"><label for="user-trade">Meserie</label><input id="user-trade" type="text" formControlName="trade" placeholder="Ex: Dulgher"></div>
+            <div class="field" *ngIf="!isCollaborator">
+              <label class="tesa-option" for="user-is-tesa">
+                <input id="user-is-tesa" type="checkbox" formControlName="is_tesa">
+                <span>Personal TESA</span>
+              </label>
+              <small>Poate confirma prezența din Team Dashboard cu locația GPS: 8 ore, între 08:00 și 16:00, pe șantierul ales.</small>
+            </div>
           </div>
         </section>
 

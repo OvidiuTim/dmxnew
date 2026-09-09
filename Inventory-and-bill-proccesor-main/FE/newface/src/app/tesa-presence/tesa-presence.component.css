@@ -1,0 +1,37 @@
+:host { display: block; min-height: 100vh; color: #17243a; background: #f3f6fb; }
+.tesa-page { padding: 24px 18px 48px; }
+.tesa-shell { width: 100%; max-width: 580px; margin: 0 auto; }
+button, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+button:focus-visible, select:focus-visible { outline: 3px solid #82afff; outline-offset: 3px; }
+.back-button { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: #375170; padding: 8px 0; margin-bottom: 26px; }
+.eyebrow { color: #2563a8; letter-spacing: .12em; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+h1 { margin: 0; font-size: clamp(27px, 6vw, 36px); font-weight: 750; letter-spacing: -.03em; }
+.subtitle { color: #60718a; margin: 12px 0 26px; line-height: 1.6; }
+.presence-card { padding: 26px; border: 1px solid #e0e7f1; border-radius: 22px; background: #fff; box-shadow: 0 10px 35px #17365708; }
+.person-row { display: flex; align-items: center; gap: 10px; padding-bottom: 20px; }
+.person-row .material-symbols-rounded { color: #426eaa; }
+.schedule { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 18px; background: #f2f6fc; border-radius: 14px; }
+.schedule div { display: grid; gap: 6px; }
+.schedule div > span { color: #63758d; font-size: 13px; }
+.schedule strong { font-size: 22px; }
+.hours { color: #245db4; background: #e1ebfa; border-radius: 9px; padding: 8px 12px; white-space: nowrap; font-weight: 700; }
+.explanation, .success-card p { color: #60718a; line-height: 1.6; font-size: 14px; margin: 18px 0 22px; }
+label { display: block; font-weight: 650; margin-bottom: 9px; }
+select { width: 100%; min-height: 50px; border: 1px solid #cbd6e6; border-radius: 10px; background: white; color: #17243a; padding: 10px 12px; }
+.location-card { display: flex; align-items: flex-start; gap: 10px; margin-top: 20px; color: #506985; }
+.location-card strong { color: #304f73; font-size: 14px; }
+.location-card p { margin: 5px 0 0; font-size: 13px; line-height: 1.6; }
+.location-button { border: 0; padding: 12px 0; color: #245db4; background: transparent; font-weight: 650; }
+.confirm-button { width: 100%; min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px; background: #245db4; color: #fff; border: 0; border-radius: 12px; font-weight: 700; margin-top: 10px; }
+.privacy-note { color: #708199; font-size: 12px; text-align: center; line-height: 1.6; margin: 14px 0 0; }
+.state { background: #fff; padding: 16px; border-radius: 12px; margin-bottom: 18px; line-height: 1.5; }
+.error { color: #9d2637; background: #fff0f2; }
+.blocked { color: #79531b; background: #fff7e7; }
+.success-card { text-align: center; }
+.success-icon { font-size: 54px; color: #20855d; }
+.success-card h2 { margin: 12px 0; font-size: 26px; }
+.confirmed-site { display: block; margin: 20px 0; }
+.success-card .schedule { text-align: left; }
+@media (max-width: 420px) { .presence-card { padding: 20px 16px; } .schedule { padding: 14px; } .schedule strong { font-size: 20px; } }

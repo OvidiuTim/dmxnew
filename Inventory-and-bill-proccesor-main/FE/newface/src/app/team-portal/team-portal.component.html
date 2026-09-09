@@ -35,9 +35,14 @@
           <span><strong>{{ t.myTeam }}</strong><small>{{ t.teamHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
-        <button type="button" class="action-card attendance-card" (click)="openAttendance()">
+        <button *ngIf="!dashboard.employee.is_tesa" type="button" class="action-card attendance-card" (click)="openAttendance()">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">schedule</span>
           <span><strong>{{ t.attendance }}</strong><small>{{ t.clockHint }}</small></span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </button>
+        <button *ngIf="dashboard.employee.is_tesa" type="button" class="action-card attendance-card tesa-card" (click)="openTesaPresence()">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">location_on</span>
+          <span><strong>{{ language === 'ro' ? 'Confirmă prezența' : 'Confirm presence' }}</strong><small>{{ language === 'ro' ? 'Personal TESA · 08:00–16:00 · Cu locația GPS' : 'TESA staff · 08:00–16:00 · GPS location' }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
         <button type="button" class="action-card" (click)="open('salary')">

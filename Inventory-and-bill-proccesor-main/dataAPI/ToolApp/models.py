@@ -187,6 +187,7 @@ class Users(models.Model):
         related_name="employees",
     )
     attendance_exempt = models.BooleanField(default=False, db_index=True)
+    is_tesa = models.BooleanField(default=False, db_index=True)
     active = models.BooleanField(default=True, db_index=True)
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"
@@ -569,6 +570,7 @@ class AttendanceSession(models.Model):
     # Fotografii WebP/JPEG reduse și confirmate explicit pentru fiecare acțiune manuală.
     checkin_photo = models.TextField(blank=True, default="")
     checkout_photo = models.TextField(blank=True, default="")
+    tesa_confirmed_at = models.DateTimeField(null=True, blank=True)
 
     def clean(self):
         super().clean()
@@ -580,6 +582,12 @@ class AttendanceSession(models.Model):
 
     class Meta:
         ordering = ['-in_time']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user_fk', 'work_date'], condition=models.Q(source='tesa'),
+                name='unique_tesa_confirmation_per_day',
+            ),
+        ]
         indexes = [
             models.Index(fields=['work_date', 'user_fk']),
             models.Index(fields=['user_fk', 'out_time']),

@@ -431,3 +431,5 @@
     width: 100%;
   }
 }
+.tesa-option { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.tesa-option input[type="checkbox"] { width: 20px; height: 20px; min-height: 20px; margin: 0; flex: 0 0 auto; accent-color: #2563eb; }

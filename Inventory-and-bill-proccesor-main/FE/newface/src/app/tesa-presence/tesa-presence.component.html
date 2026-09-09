@@ -1,0 +1,51 @@
+<main class="tesa-page">
+  <div class="tesa-shell">
+    <button type="button" class="back-button" (click)="back()"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>Team Dashboard</button>
+    <header>
+      <p class="eyebrow">PERSONAL TESA</p>
+      <h1>Confirmă prezența</h1>
+      <p class="subtitle">Alege șantierul și confirmă prezența cu locația GPS.</p>
+    </header>
+
+    <p *ngIf="loading" class="state" role="status">Se încarcă prezența…</p>
+    <div *ngIf="error" class="state error" role="alert">{{ error }} <button *ngIf="!status" type="button" (click)="load()">Reîncearcă</button></div>
+
+    <ng-container *ngIf="status && !loading">
+      <section class="presence-card" *ngIf="!status.session">
+        <div class="person-row"><span class="material-symbols-rounded" aria-hidden="true">badge</span><strong>{{ status.employee.name }}</strong></div>
+        <div class="schedule"><div><span>{{ status.work_date | date:'dd.MM.yyyy' }}</span><strong>08:00 – 16:00</strong></div><span class="hours">8 ore</span></div>
+        <p class="explanation">O singură confirmare înregistrează programul complet de astăzi pe șantierul ales. Nu este necesar check-out.</p>
+        <p *ngIf="status.blocked_reason" class="state blocked" role="status">{{ status.blocked_reason }}</p>
+        <ng-container *ngIf="status.can_confirm">
+          <label for="tesa-worksite">Șantier</label>
+          <select id="tesa-worksite" [(ngModel)]="worksite" (ngModelChange)="worksiteChanged()" [disabled]="locating || saving">
+            <option value="">Selectează șantierul</option>
+            <option *ngFor="let site of status.worksites" [value]="site.name">{{ site.name }}</option>
+          </select>
+          <div class="location-card" aria-live="polite">
+            <span class="material-symbols-rounded" aria-hidden="true">location_on</span>
+            <div><strong>{{ position ? 'Locație obținută' : 'Locația este necesară' }}</strong>
+              <p *ngIf="!position">Permite accesul la locație și asigură-te că ești în perimetrul șantierului.</p>
+              <p *ngIf="position">Precizie GPS: {{ position.accuracy | number:'1.0-0' }} m<span *ngIf="distanceMeters !== null"> · Distanță față de șantier: {{ distanceMeters | number:'1.0-0' }} m</span></p>
+            </div>
+          </div>
+          <button type="button" class="location-button" (click)="locate()" [disabled]="!worksite || locating || saving">{{ locating ? 'Se obține locația…' : 'Verifică locația' }}</button>
+          <button type="button" class="confirm-button" (click)="confirm()" [disabled]="!worksite || locating || saving">
+            <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>{{ saving ? 'Se salvează…' : locating ? 'Se obține locația…' : 'Confirmă prezența' }}
+          </button>
+          <p class="privacy-note">Se salvează locația din momentul confirmării. Nu se solicită fotografie.</p>
+        </ng-container>
+      </section>
+
+      <section *ngIf="status.session" class="presence-card success-card" role="status">
+        <span class="success-icon material-symbols-rounded" aria-hidden="true">check_circle</span>
+        <h2>Prezență confirmată</h2>
+        <p>{{ status.employee.name }}</p>
+        <strong class="confirmed-site">{{ status.session.worksite }}</strong>
+        <div class="schedule"><div><span>{{ status.session.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ status.session.in_time.slice(11, 16) }} – {{ status.session.out_time.slice(11, 16) }}</strong></div><span class="hours">{{ status.session.hours }} ore</span></div>
+        <p>Programul este înregistrat. Nu mai trebuie să faci check-out.</p>
+        <button type="button" class="confirm-button" (click)="back()">Înapoi la Team Dashboard</button>
+      </section>
+    </ng-container>
+  </div>
+</main>

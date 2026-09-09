@@ -133,7 +133,7 @@ def get_token_from_request(request):
             body = json.loads(request.body or "{}")
         except Exception:
             body = {}
-        return body.get("token")
+        return body.get("token") if isinstance(body, dict) else None
 
     return None
 

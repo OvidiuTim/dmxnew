@@ -355,6 +355,7 @@ def portal_dashboard(request):
             "id": app_user.employee_id,
             "name": app_user.employee.UserName,
             "photo": app_user.employee.photo or None,
+            "is_tesa": app_user.employee.is_tesa,
         },
         "roles": roles,
         "role_labels": {str(level): label for level, label in labels.items()},
@@ -1210,8 +1211,8 @@ def _absent_today_rows(day=None):
             "marked_at": timezone.localtime(mark.marked_at).isoformat(),
             "locked": bool(mark.locked_at),
             "checked_in_after_mark": AttendanceSession.objects.filter(
-                user_fk_id=mark.employee_id, work_date=day, in_time__gt=mark.marked_at
-            ).exists(),
+                user_fk_id=mark.employee_id, work_date=day,
+            ).filter(Q(in_time__gt=mark.marked_at) | Q(tesa_confirmed_at__gt=mark.marked_at)).exists(),
         }
     if absence_marking_locked():
         for employee, team in company_missing_employees(day):
