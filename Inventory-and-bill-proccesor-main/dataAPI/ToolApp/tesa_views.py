@@ -23,6 +23,10 @@ def _allowed(employee):
 
 
 def _session_payload(session):
+    distance = inside = None
+    if session.in_gps_latitude is not None and session.in_gps_longitude is not None:
+        distance, inside = _worksite_distance(
+            session.in_gps_latitude, session.in_gps_longitude, session.worksite)
     return {
         'id': session.pk, 'worksite': session.worksite,
         'work_date': session.work_date.isoformat(),
@@ -30,6 +34,8 @@ def _session_payload(session):
         'out_time': timezone.localtime(session.out_time).isoformat() if session.out_time else None,
         'hours': session.duration_seconds / 3600,
         'confirmed_at': session.tesa_confirmed_at.isoformat() if session.tesa_confirmed_at else None,
+        'distance_m': round(distance) if distance is not None else None,
+        'inside_perimeter': inside,
     }
 
 
@@ -59,6 +65,25 @@ def _automatic_absence(employee, day):
     return leaves
 
 
+def _worksite_distance(lat, lng, worksite):
+    """Distanța până la cel mai apropiat perimetru acceptat și dacă e înăuntru.
+
+    TESA se poate ponta și din afara perimetrului (birou, deplasare, alt punct
+    de lucru), spre deosebire de pontajul obișnuit. Distanța se calculează
+    oricum, se salvează în GPS-ul sesiunii și se întoarce clientului, ca
+    verificarea ulterioară să fie posibilă.
+    """
+    best_distance = None
+    inside = False
+    for perimeter in worksite_perimeters(worksite):
+        distance = _gps_distance_meters(lat, lng, perimeter['latitude'], perimeter['longitude'])
+        if best_distance is None or distance < best_distance:
+            best_distance = distance
+        if distance <= perimeter['radius_meters']:
+            inside = True
+    return best_distance, inside
+
+
 def _gps(data, now, worksite):
     gps = data.get('gps')
     if not isinstance(gps, dict):
@@ -79,10 +104,8 @@ def _gps(data, now, worksite):
         raise ValueError('Locația GPS este invalidă. Actualizează poziția și încearcă din nou.') from None
     if not -60 <= (now - captured).total_seconds() <= 600:
         raise ValueError('Locația GPS a expirat. Actualizează poziția și încearcă din nou.')
-    perimeters = worksite_perimeters(worksite)
-    if not any(_gps_distance_meters(lat, lng, p['latitude'], p['longitude']) <= p['radius_meters']
-               for p in perimeters):
-        raise ValueError('Poziția curentă este în afara perimetrului șantierului ales.')
+    # Fără verificare de perimetru: personalul TESA confirmă și din afara
+    # șantierului. Locația rămâne obligatorie și se înregistrează ca atare.
     return lat, lng, accuracy
 
 

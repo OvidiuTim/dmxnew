@@ -1,11 +1,15 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import * as L from 'leaflet';
 
 interface Worksite { name: string; latitude: number; longitude: number; radius_meters: number; }
-interface PresenceSession { work_date: string; worksite: string; in_time: string; out_time: string; hours: number; }
+interface PresenceSession {
+  work_date: string; worksite: string; in_time: string; out_time: string; hours: number;
+  distance_m?: number | null; inside_perimeter?: boolean | null;
+}
 interface PresenceStatus {
   employee: { name: string }; work_date: string; worksites: Worksite[];
   session: PresenceSession | null; can_confirm: boolean; blocked_reason: string | null;
@@ -16,7 +20,7 @@ interface PresenceStatus {
   templateUrl: './tesa-presence.component.html',
   styleUrls: ['./tesa-presence.component.css'],
 })
-export class TesaPresenceComponent implements OnInit, OnDestroy {
+export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly api = `${window.location.origin}/api/team-portal/tesa-presence/`;
   private readonly destroyed$ = new Subject<void>();
   private destroyed = false;
@@ -28,13 +32,34 @@ export class TesaPresenceComponent implements OnInit, OnDestroy {
   error = '';
   position: { lat: number; lng: number; accuracy: number; captured_at: string } | null = null;
 
+  // Harta este identică ca rol cu cea din pontajul obișnuit: zona șantierului,
+  // poziția proprie și distanța. Diferența e că personalul TESA poate confirma
+  // și din afara perimetrului, deci harta informează, nu blochează.
+  @ViewChild('mapEl') set mapElement(element: ElementRef<HTMLElement> | undefined) {
+    if (element && !this.map) {
+      this.initMap(element.nativeElement);
+    } else if (!element && this.map) {
+      this.map.remove();
+      this.map = null;
+      this.zoneShape = this.zoneCenter = this.userMarker = this.accuracyCircle = null;
+    }
+  }
+  private map: L.Map | null = null;
+  private zoneShape: L.Circle | null = null;
+  private zoneCenter: L.CircleMarker | null = null;
+  private userMarker: L.CircleMarker | null = null;
+  private accuracyCircle: L.Circle | null = null;
+
   constructor(private http: HttpClient, private router: Router) {}
 
   ngOnInit(): void { this.load(); }
+  ngAfterViewInit(): void { setTimeout(() => this.map?.invalidateSize(), 0); }
   ngOnDestroy(): void {
     this.destroyed = true;
     this.destroyed$.next();
     this.destroyed$.complete();
+    this.map?.remove();
+    this.map = null;
   }
 
   load(): void {
@@ -45,6 +70,7 @@ export class TesaPresenceComponent implements OnInit, OnDestroy {
         this.status = status;
         this.loading = false;
         if (status.session) this.worksite = status.session.worksite;
+        setTimeout(() => this.drawWorksite(), 0);
       },
       error: err => {
         this.loading = false;
@@ -59,14 +85,30 @@ export class TesaPresenceComponent implements OnInit, OnDestroy {
   get distanceMeters(): number | null {
     const site = this.selectedSite;
     if (!site || !this.position) return null;
+    return this.metersBetween(this.position.lat, this.position.lng, site.latitude, site.longitude);
+  }
+  get insidePerimeter(): boolean | null {
+    const site = this.selectedSite;
+    const distance = this.distanceMeters;
+    return site && distance !== null ? distance <= site.radius_meters : null;
+  }
+
+  private metersBetween(latA: number, lngA: number, latB: number, lngB: number): number {
     const rad = (value: number) => value * Math.PI / 180;
-    const dLat = rad(site.latitude - this.position.lat);
-    const dLng = rad(site.longitude - this.position.lng);
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(this.position.lat)) * Math.cos(rad(site.latitude)) * Math.sin(dLng / 2) ** 2;
+    const dLat = rad(latB - latA);
+    const dLng = rad(lngB - lngA);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(latA)) * Math.cos(rad(latB)) * Math.sin(dLng / 2) ** 2;
     return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 
-  worksiteChanged(): void { this.position = null; this.error = ''; }
+  worksiteChanged(): void {
+    this.position = null;
+    this.error = '';
+    this.drawWorksite();
+    // Alegerea șantierului cere automat locația, ca harta să arate imediat
+    // unde ești față de perimetru.
+    if (this.worksite) this.readLocation(false);
+  }
 
   locate(): void { this.readLocation(false); }
 
@@ -80,6 +122,7 @@ export class TesaPresenceComponent implements OnInit, OnDestroy {
     if (this.locating || this.saving || !this.worksite) return;
     this.error = '';
     this.position = null;
+    this.drawPosition();
     if (!navigator.geolocation) {
       this.error = 'Acest browser nu oferă acces la locație.';
       return;
@@ -92,6 +135,7 @@ export class TesaPresenceComponent implements OnInit, OnDestroy {
         lat: position.coords.latitude, lng: position.coords.longitude,
         accuracy: position.coords.accuracy, captured_at: new Date(position.timestamp).toISOString(),
       };
+      this.drawPosition();
       if (submit) this.save();
     }, error => {
       if (this.destroyed) return;
@@ -113,11 +157,69 @@ export class TesaPresenceComponent implements OnInit, OnDestroy {
       error: err => {
         this.saving = false;
         this.error = err.error?.error || 'Confirmarea nu a putut fi salvată. Încearcă din nou.';
-        if (err.status === 403 && !this.error.includes('perimetr')) {
-          void this.router.navigateByUrl('/team-dashboard');
-        }
+        if (err.status === 403) void this.router.navigateByUrl('/team-dashboard');
       },
     });
+  }
+
+  private initMap(container: HTMLElement): void {
+    try {
+      this.map = L.map(container, { zoomControl: true, attributionControl: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(this.map);
+      this.map.setView([45.7983, 24.1256], 7);
+      setTimeout(() => this.map?.invalidateSize(), 0);
+      this.drawWorksite();
+    } catch {
+      this.map = null;
+    }
+  }
+
+  private drawWorksite(): void {
+    if (!this.map) return;
+    for (const layer of [this.zoneShape, this.zoneCenter]) if (layer) this.map.removeLayer(layer);
+    this.zoneShape = this.zoneCenter = null;
+    const site = this.selectedSite;
+    if (!site) {
+      this.map.setView([45.7983, 24.1256], 7);
+      return;
+    }
+    this.zoneShape = L.circle([site.latitude, site.longitude], {
+      radius: site.radius_meters, color: '#0f766e', weight: 2, fillColor: '#0f766e', fillOpacity: 0.14,
+    }).addTo(this.map);
+    this.zoneCenter = L.circleMarker([site.latitude, site.longitude], {
+      radius: 7, color: '#0f766e', weight: 2, fillColor: '#f8fafc', fillOpacity: 1,
+    }).addTo(this.map);
+    this.map.setView([site.latitude, site.longitude], 17, { animate: false });
+    setTimeout(() => this.map?.invalidateSize(), 0);
+    this.drawPosition();
+  }
+
+  private drawPosition(): void {
+    if (!this.map) return;
+    if (!this.position || !this.selectedSite) {
+      for (const layer of [this.userMarker, this.accuracyCircle]) if (layer) this.map.removeLayer(layer);
+      this.userMarker = this.accuracyCircle = null;
+      return;
+    }
+    const color = this.insidePerimeter ? '#0f766e' : '#d97706';
+    const latLng = L.latLng(this.position.lat, this.position.lng);
+    if (!this.userMarker) {
+      this.userMarker = L.circleMarker(latLng, { radius: 9, color, weight: 3, fillColor: color, fillOpacity: 0.95 }).addTo(this.map);
+    } else {
+      this.userMarker.setLatLng(latLng).setStyle({ color, fillColor: color });
+    }
+    if (!this.accuracyCircle) {
+      this.accuracyCircle = L.circle(latLng, { radius: this.position.accuracy, color, weight: 1, fillColor: color, fillOpacity: 0.08 }).addTo(this.map);
+    } else {
+      this.accuracyCircle.setLatLng(latLng).setRadius(this.position.accuracy).setStyle({ color, fillColor: color });
+    }
+    // Încadrează șantierul și poziția, ca distanța să fie vizibilă și când ești departe.
+    const site = this.selectedSite;
+    const bounds = L.latLngBounds([latLng, L.latLng(site.latitude, site.longitude)]).pad(0.35);
+    this.map.fitBounds(bounds, { maxZoom: 17, animate: false });
+    setTimeout(() => this.map?.invalidateSize(), 0);
   }
 
   back(): void { void this.router.navigateByUrl('/team-dashboard'); }

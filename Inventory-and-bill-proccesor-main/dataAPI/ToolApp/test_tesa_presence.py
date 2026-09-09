@@ -107,9 +107,9 @@ class TesaPresenceTests(TestCase):
         self.assertEqual(DailyPay.objects.count(), 1)
         self.assertEqual(PresenceEvent.objects.count(), 2)
 
-    def test_gps_missing_invalid_stale_future_and_outside_are_rejected(self):
+    def test_gps_missing_invalid_stale_or_future_is_rejected(self):
         invalid = [None, {}, {'lat': float('nan')}, {'lat': 91}, {'lng': float('inf')},
-                   {'accuracy': -1}, {'lat': True}, {'lat': 0, 'lng': 0},
+                   {'accuracy': -1}, {'lat': True},
                    {'captured_at': (self.now - timedelta(minutes=11)).isoformat()},
                    {'captured_at': (self.now + timedelta(minutes=2)).isoformat()},
                    {'captured_at': '2026-09-09T07:15:00'}]
@@ -121,6 +121,24 @@ class TesaPresenceTests(TestCase):
         for payload in ([], {'worksite': 'Nu există'}, self.payload(worksite='')):
             self.assertEqual(self.post(payload).status_code, 400)
         self.assertFalse(AttendanceSession.objects.exists())
+
+    def test_confirmation_is_accepted_outside_the_perimeter_with_the_distance_recorded(self):
+        # Spre deosebire de pontajul obisnuit, TESA se poate ponta si din afara
+        # santierului; distanta pana la perimetru se salveaza si se raporteaza.
+        far = self.payload()
+        far['gps'] = {**far['gps'], 'lat': self.site['latitude'] + 0.05, 'lng': self.site['longitude'] + 0.05}
+        response = self.post(far)
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertFalse(body['session']['inside_perimeter'])
+        self.assertGreater(body['session']['distance_m'], self.site['radius_meters'])
+        session = AttendanceSession.objects.get()
+        self.assertEqual(session.duration_seconds, 8 * 3600)
+        self.assertAlmostEqual(session.in_gps_latitude, self.site['latitude'] + 0.05, places=6)
+        with patch('ToolApp.tesa_views.timezone.now', return_value=self.now):
+            state = self.client.get(self.url).json()
+        self.assertFalse(state['session']['inside_perimeter'])
+        self.assertEqual(state['session']['distance_m'], body['session']['distance_m'])
 
     def test_existing_session_or_leave_prevents_extra_eight_hours(self):
         session = AttendanceSession.objects.create(user_fk=self.employee, work_date=self.now.date(),

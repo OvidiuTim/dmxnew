@@ -35,3 +35,20 @@ select { width: 100%; min-height: 50px; border: 1px solid #cbd6e6; border-radius
 .confirmed-site { display: block; margin: 20px 0; }
 .success-card .schedule { text-align: left; }
 @media (max-width: 420px) { .presence-card { padding: 20px 16px; } .schedule { padding: 14px; } .schedule strong { font-size: 20px; } }
+
+/* Harta șantierului: aceleași culori ca pe pagina de pontaj (zona verde,
+   poziția proprie verde în perimetru / portocalie în afara lui). */
+.map-card { margin-top: 20px; display: grid; gap: 12px; }
+.map-container { height: 300px; border-radius: 16px; overflow: hidden; border: 1px solid #cbd6e6; background: #eef2f8; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.legend-item, .meta-pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px; border-radius: 999px; background: #f2f6fc; border: 1px solid #e0e7f1; font-size: 13px; color: #506985; }
+.legend-dot { width: 11px; height: 11px; border-radius: 999px; }
+.legend-dot.zone { background: #0f766e; }
+.legend-dot.you { background: #0f766e; }
+.legend-dot.you.outside { background: #d97706; }
+.map-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.meta-pill.strong { font-weight: 700; color: #14614f; background: #e6f4ef; border-color: #cbe6dc; }
+.meta-pill.strong.outside { color: #79531b; background: #fff7e7; border-color: #f0dfbd; }
+.outside-note { margin: 0; font-size: 13px; line-height: 1.6; color: #79531b; background: #fff7e7; border-radius: 12px; padding: 12px 14px; }
+.location-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.confirmed-distance { margin: 12px 0 0; font-size: 14px; color: #60718a; }

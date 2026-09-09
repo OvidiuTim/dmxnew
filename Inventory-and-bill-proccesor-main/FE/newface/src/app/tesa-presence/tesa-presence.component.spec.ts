@@ -48,6 +48,25 @@ describe('TesaPresenceComponent', () => {
     http.expectNone(api);
   });
 
+  it('arată distanța față de șantier și permite confirmarea din afara perimetrului', () => {
+    http.expectOne(api).flush(state);
+    spyOn(navigator.geolocation, 'getCurrentPosition').and.callFake(callback =>
+      callback({ coords: { latitude: 45.81, longitude: 24.2, accuracy: 12 }, timestamp: Date.now() } as GeolocationPosition));
+    component.worksite = site.name;
+    component.worksiteChanged();
+    fixture.detectChanges();
+    expect(component.insidePerimeter).toBeFalse();
+    expect(component.distanceMeters).toBeGreaterThan(site.radius_meters);
+    expect(fixture.nativeElement.textContent).toContain('În afara perimetrului');
+    expect(fixture.nativeElement.querySelector('.confirm-button').disabled).toBeFalse();
+    component.confirm();
+    const post = http.expectOne(api);
+    expect(post.request.body.gps.lat).toBe(45.81);
+    post.flush({ session: { ...session, distance_m: 5400, inside_perimeter: false } });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('în afara perimetrului');
+  });
+
   it('nu salvează pontajul când locația este refuzată', () => {
     http.expectOne(api).flush(state);
     component.worksite = site.name;

@@ -22,14 +22,37 @@
             <option value="">Selectează șantierul</option>
             <option *ngFor="let site of status.worksites" [value]="site.name">{{ site.name }}</option>
           </select>
-          <div class="location-card" aria-live="polite">
+
+          <section class="map-card" *ngIf="worksite">
+            <div class="legend">
+              <span class="legend-item"><span class="legend-dot zone"></span>Zona șantier</span>
+              <span class="legend-item"><span class="legend-dot you" [class.outside]="insidePerimeter === false"></span>Poziția mea</span>
+            </div>
+            <div #mapEl class="map-container"></div>
+            <div class="map-meta" aria-live="polite">
+              <span class="meta-pill" *ngIf="selectedSite as site">Rază perimetru: {{ site.radius_meters }} m</span>
+              <span class="meta-pill" *ngIf="position">Precizie GPS: {{ position.accuracy | number:'1.0-0' }} m</span>
+              <span class="meta-pill strong" *ngIf="distanceMeters !== null" [class.outside]="insidePerimeter === false">
+                {{ insidePerimeter ? 'În perimetru' : 'În afara perimetrului' }} · {{ distanceMeters | number:'1.0-0' }} m față de șantier
+              </span>
+              <span class="meta-pill" *ngIf="!position && !locating">Locația nu este încă obținută</span>
+              <span class="meta-pill" *ngIf="locating">Se obține locația…</span>
+            </div>
+            <p class="outside-note" *ngIf="insidePerimeter === false">
+              Ești în afara perimetrului, dar personalul TESA poate confirma prezența oricum. Distanța de mai sus se salvează odată cu pontajul.
+            </p>
+            <button type="button" class="location-button" (click)="locate()" [disabled]="locating || saving">
+              <span class="material-symbols-rounded" aria-hidden="true">my_location</span>{{ locating ? 'Se obține locația…' : 'Actualizează locația' }}
+            </button>
+          </section>
+
+          <div class="location-card" *ngIf="!worksite">
             <span class="material-symbols-rounded" aria-hidden="true">location_on</span>
-            <div><strong>{{ position ? 'Locație obținută' : 'Locația este necesară' }}</strong>
-              <p *ngIf="!position">Permite accesul la locație și asigură-te că ești în perimetrul șantierului.</p>
-              <p *ngIf="position">Precizie GPS: {{ position.accuracy | number:'1.0-0' }} m<span *ngIf="distanceMeters !== null"> · Distanță față de șantier: {{ distanceMeters | number:'1.0-0' }} m</span></p>
+            <div><strong>Alege întâi șantierul</strong>
+              <p>După selecție apare harta cu zona șantierului și distanța până la ea.</p>
             </div>
           </div>
-          <button type="button" class="location-button" (click)="locate()" [disabled]="!worksite || locating || saving">{{ locating ? 'Se obține locația…' : 'Verifică locația' }}</button>
+
           <button type="button" class="confirm-button" (click)="confirm()" [disabled]="!worksite || locating || saving">
             <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>{{ saving ? 'Se salvează…' : locating ? 'Se obține locația…' : 'Confirmă prezența' }}
           </button>
@@ -43,6 +66,9 @@
         <p>{{ status.employee.name }}</p>
         <strong class="confirmed-site">{{ status.session.worksite }}</strong>
         <div class="schedule"><div><span>{{ status.session.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ status.session.in_time.slice(11, 16) }} – {{ status.session.out_time.slice(11, 16) }}</strong></div><span class="hours">{{ status.session.hours }} ore</span></div>
+        <p class="confirmed-distance" *ngIf="status.session.distance_m !== null && status.session.distance_m !== undefined">
+          Confirmat la {{ status.session.distance_m | number:'1.0-0' }} m față de șantier<span *ngIf="status.session.inside_perimeter === false"> (în afara perimetrului)</span>.
+        </p>
         <p>Programul este înregistrat. Nu mai trebuie să faci check-out.</p>
         <button type="button" class="confirm-button" (click)="back()">Înapoi la Team Dashboard</button>
       </section>
