@@ -1,0 +1,915 @@
+{
+  "version": 1,
+  "source": "Workers_List_teams_EN.xlsx",
+  "source_sha256": "f159019b07fb81a12b36d1da6719dcd49d8fa9587f33f55b1fd36834ce70c0b1",
+  "excluded_names": [
+    "Sukhwnat Singh",
+    "Loverpreet Singh"
+  ],
+  "employees": [
+    {
+      "identity_sha256": "47066a6b4cc96763cd795775dc726391715bb6413c39db27196532eaf6311529",
+      "name": "Madan Lal",
+      "sheet": "FINISHES",
+      "row": 3,
+      "previous_trade": "Painter",
+      "trade": "Painter"
+    },
+    {
+      "identity_sha256": "a9a1355e9db4edc1be989a542999bc1427257225b375655a359c9437147efd30",
+      "name": "Mohinder Pal",
+      "sheet": "FINISHES",
+      "row": 4,
+      "previous_trade": "Painter",
+      "trade": "Painter"
+    },
+    {
+      "identity_sha256": "70c1c801a0ebfa43ae6574e1710d24c1ae88dfb7ba6c7b8e0f02cee35504d30d",
+      "name": "Om Parkash",
+      "sheet": "FINISHES",
+      "row": 5,
+      "previous_trade": "Painter",
+      "trade": "Painter"
+    },
+    {
+      "identity_sha256": "28f95d95a26e56787ffbd836a8688ff22838d09c4cffaff3f07f48dab522f6c4",
+      "name": "Singh Jasdeep",
+      "sheet": "FINISHES",
+      "row": 6,
+      "previous_trade": "Plumber & helper",
+      "trade": "Painter | +Plumber"
+    },
+    {
+      "identity_sha256": "ad9bafeaa2c692b7f2520213060a7f4ecc6b1115ba1cb60fe9065d03e22f89ab",
+      "name": "Amritpal Singh",
+      "sheet": "FINISHES",
+      "row": 7,
+      "previous_trade": "Plumber",
+      "trade": "Plumber"
+    },
+    {
+      "identity_sha256": "ce784b5c94c77d4a032c51714bf37651dbae45080bc624eea7663909b570e98f",
+      "name": "Neeraj Kumar",
+      "sheet": "FINISHES",
+      "row": 8,
+      "previous_trade": "Plumber",
+      "trade": "Plumber"
+    },
+    {
+      "identity_sha256": "d4c318161c5eee66c74182c09ece5433cd80d5606e4ff4868e102a9a70eb499e",
+      "name": "Kamaljit",
+      "sheet": "FINISHES",
+      "row": 9,
+      "previous_trade": "Helper",
+      "trade": "Helper"
+    },
+    {
+      "identity_sha256": "27cbe81ba62949da6c5766cec7af5f57b80a278650538172227b99ccc7e92b51",
+      "name": "Dhenga Dipak",
+      "sheet": "FINISHES",
+      "row": 10,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "56e922f7264ba3ea4158075d50514be914afcc568f693b8d686008248299be24",
+      "name": "Harmeet",
+      "sheet": "FINISHES",
+      "row": 11,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "0a2a235d5643628f9797e23992fe0cd31c4a62d6afecb8639e1ca115a00f4d37",
+      "name": "Kumar Amit",
+      "sheet": "FINISHES",
+      "row": 12,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "c439c7aad69e0472823e53741ae21e8ccc4f89ec7b794b30930c667f33de4fbb",
+      "name": "Kumar Sadanand",
+      "sheet": "FINISHES",
+      "row": 13,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "c942c5d38c983dcd4a5652111089f1028bdf912306cf86dabca541cf855fe253",
+      "name": "Lakhvir Singh",
+      "sheet": "FINISHES",
+      "row": 14,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "c7b414b7ee44508984c8e34f237caefb73574186eb2d153524819bcb4df60b9b",
+      "name": "Paramjit Ram",
+      "sheet": "FINISHES",
+      "row": 15,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "59314f541967a9212c2c5c6f534ebe3a2b0337032b5ba69f6eae0ac7c67117c0",
+      "name": "Rajwinder Pal",
+      "sheet": "FINISHES",
+      "row": 16,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "ea5234e5f971e3b80a809cdc748422dbd015e878a8d661db81a179b06c6d39c9",
+      "name": "Raman Kumar",
+      "sheet": "FINISHES",
+      "row": 17,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "d21fce2a5b146b9971b24ea2e29ff3005a5928cf6705300c94a440b8b17b18be",
+      "name": "Amandeep",
+      "sheet": "FINISHES",
+      "row": 18,
+      "previous_trade": "Painter",
+      "trade": "Painter"
+    },
+    {
+      "identity_sha256": "8658b9bb502c575891025c7e38981ab2d32080cf8b3ef302a708631549ec1de7",
+      "name": "Gopal Ram",
+      "sheet": "FINISHES",
+      "row": 19,
+      "previous_trade": "Painter",
+      "trade": "Painter"
+    },
+    {
+      "identity_sha256": "65c629b64df6af1ac6a526ef89b2d592b13043b490859a23cb1050fbef987d71",
+      "name": "Mattu Amarjit",
+      "sheet": "FINISHES",
+      "row": 20,
+      "previous_trade": "Painter",
+      "trade": "Painter"
+    },
+    {
+      "identity_sha256": "a6e328bf6507116fcc9a87a449c318f11811803d568245b237fcb90419e0c5c4",
+      "name": "Naresh Kumar",
+      "sheet": "FINISHES",
+      "row": 21,
+      "previous_trade": "Painter",
+      "trade": "Painter"
+    },
+    {
+      "identity_sha256": "8ee91eac491ed4e49e2504e6d84870c7750208857efea940cbafdd2fd6f6634c",
+      "name": "Neeraj Kumar",
+      "sheet": "FINISHES",
+      "row": 22,
+      "previous_trade": "Drywall",
+      "trade": "Drywaller | +Painter"
+    },
+    {
+      "identity_sha256": "7d78c8ebef3317e22f2698fb39b2b34db529e93112e42579335550a0dbe3b949",
+      "name": "Paul Sushil",
+      "sheet": "FINISHES",
+      "row": 23,
+      "previous_trade": "Painter",
+      "trade": "Painter"
+    },
+    {
+      "identity_sha256": "2247a8e8bd24c84ca07217764a6673b31df7f4a8e64f126673b6a78ecd713928",
+      "name": "Vijay Kumar",
+      "sheet": "FINISHES",
+      "row": 24,
+      "previous_trade": "Painter & helper",
+      "trade": "Painter"
+    },
+    {
+      "identity_sha256": "6ac499d7181bd02eec41ca729eea7abe26248f3b6a4b12a8560f1b931f4979ef",
+      "name": "Harjinder Ram",
+      "sheet": "Tiling",
+      "row": 3,
+      "previous_trade": "Tile maison",
+      "trade": "Foreman / Tiler / Paver"
+    },
+    {
+      "identity_sha256": "6b6ded221cca3c1ab93db0db2afa45aa37ad9cdd21cbafbc0a489788dfcffa5c",
+      "name": "Dalvinder Kumar",
+      "sheet": "Tiling",
+      "row": 4,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "d7bb8cac62f735c84c1df4f7d9d79ffae2e65e6005e462cf30b3d132ff502615",
+      "name": "Manoj Kumar",
+      "sheet": "Tiling",
+      "row": 5,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "10d39c346bc13d95846ae50b161911c75fdd9c0081cc81a2e78dcec42b074048",
+      "name": "Balu Mandeep",
+      "sheet": "Tiling",
+      "row": 6,
+      "previous_trade": "Tile maison",
+      "trade": "Helper"
+    },
+    {
+      "identity_sha256": "623ddac76b34f45b47870a4102560e5865b002ed733caf700bb8f5e47b4822d8",
+      "name": "Jassi Vishal",
+      "sheet": "Tiling",
+      "row": 7,
+      "previous_trade": "Helper",
+      "trade": "Helper"
+    },
+    {
+      "identity_sha256": "48afd069a699898b17e0b737f9ac541e2960427e292ba496d355a8b3c6814c3d",
+      "name": "Kulbir Singh",
+      "sheet": "Tiling",
+      "row": 8,
+      "previous_trade": "Tile maison",
+      "trade": "Helper"
+    },
+    {
+      "identity_sha256": "01fce8298c152eac9bc04c3fe13fc7bc0f148059a5897f2c6aa359e969ae7684",
+      "name": "Manjinder Kumar",
+      "sheet": "Tiling",
+      "row": 9,
+      "previous_trade": "Plumber",
+      "trade": "Helper"
+    },
+    {
+      "identity_sha256": "727b6045eb525dfd716b0cbf89ef20b585fb9773c7313041c178fa6c2a8fd3c4",
+      "name": "Sidhu Harjeet Singh",
+      "sheet": "CARPENTERS",
+      "row": 3,
+      "previous_trade": "Carpenter",
+      "trade": "Foreman / Team leader | Carpenter"
+    },
+    {
+      "identity_sha256": "d381864803ceca79933869512f7a4aad33714f81eae1dfb180f2c3f2773d88a7",
+      "name": "Matin Md Abdul",
+      "sheet": "CARPENTERS",
+      "row": 4,
+      "previous_trade": "Tile maison",
+      "trade": "Carpenter / SNAGGING"
+    },
+    {
+      "identity_sha256": "9d66f8cfcff44220f539d9e837f18fd522a4c4321d56e590d4c112675ce49c25",
+      "name": "Jasvir Singh",
+      "sheet": "CARPENTERS",
+      "row": 5,
+      "previous_trade": "Painter",
+      "trade": "Formwork carpenter | +Painter"
+    },
+    {
+      "identity_sha256": "b871a97aa5876156472f9c72dd32da1f3faddd6df064ef16a7614d61c76b5928",
+      "name": "Bhattarai Damber Bahadur",
+      "sheet": "CARPENTERS",
+      "row": 6,
+      "previous_trade": "Carpenter",
+      "trade": "Formwork carpenter"
+    },
+    {
+      "identity_sha256": "b11c1402774c5f58c04d5bfe0e9044b2e33533899856b3e2437ac20d45eb188a",
+      "name": "Jasvir Kumar",
+      "sheet": "CARPENTERS",
+      "row": 7,
+      "previous_trade": "Carpenter",
+      "trade": "Formwork carpenter"
+    },
+    {
+      "identity_sha256": "fcdb53401b773d6a2732385fb919e369e523c6e1f59cb54942125ad7d37ef1e6",
+      "name": "Raj Kumar",
+      "sheet": "CARPENTERS",
+      "row": 8,
+      "previous_trade": "Carpenter",
+      "trade": "Formwork carpenter"
+    },
+    {
+      "identity_sha256": "aea1ea746a378cc2aec17c437b76b6c5a0ac380291af1b9940859830ecc77b0a",
+      "name": "Shamsher Singh",
+      "sheet": "CARPENTERS",
+      "row": 9,
+      "previous_trade": "Carpenter",
+      "trade": "Formwork carpenter"
+    },
+    {
+      "identity_sha256": "9a9a97c3bfb94bbf521bccdd5f729bde99211e6350c440e57422452c161f1d51",
+      "name": "Surinder Pal",
+      "sheet": "CARPENTERS",
+      "row": 10,
+      "previous_trade": "Carpenter",
+      "trade": "Formwork carpenter"
+    },
+    {
+      "identity_sha256": "f0d5a3149bc2275df86701965b3486fdf3d4bcdf7e4e0a3217fc04a119c9e344",
+      "name": "Gagandeep",
+      "sheet": "CARPENTERS",
+      "row": 11,
+      "previous_trade": "Carpenter",
+      "trade": "Carpenter | +Helper"
+    },
+    {
+      "identity_sha256": "13d460e749a841330e8c294495bba36ecb397cf568e720b0b3d452fb4638aba6",
+      "name": "Singh Jasvindra",
+      "sheet": "CARPENTERS",
+      "row": 12,
+      "previous_trade": "Carpenter",
+      "trade": "Carpenter | +Helper"
+    },
+    {
+      "identity_sha256": "5c453a39405aeb795dbf359d50f0738a61328ec5d2354b54f04b261507bb7470",
+      "name": "Kuldip Singh",
+      "sheet": "CARPENTERS",
+      "row": 13,
+      "previous_trade": "Carpenter",
+      "trade": "Carpenter"
+    },
+    {
+      "identity_sha256": "5d5ad61f2ebff4459d353e5bd0422fbd746379b267b340c886566ea53d99d193",
+      "name": "Pawan Kumar",
+      "sheet": "CARPENTERS",
+      "row": 14,
+      "previous_trade": "Carpenter",
+      "trade": "Carpenter"
+    },
+    {
+      "identity_sha256": "c2a7aceeb11c361fa0ebd99e447293c4ee19ac1789d993bb468681c24394841b",
+      "name": "Baljinder Paul Singh",
+      "sheet": "CARPENTERS",
+      "row": 15,
+      "previous_trade": "Carpenter",
+      "trade": ".UNSKILLED"
+    },
+    {
+      "identity_sha256": "fecb0c144f9a82c0f8a4c2999cccd1d5e06936b1c4c75dd3dcb956bc2b1bec0c",
+      "name": "Shany Kumar",
+      "sheet": "STEEL FIXERS",
+      "row": 4,
+      "previous_trade": "Foreman",
+      "trade": "Civil Foreman / Steel fixer"
+    },
+    {
+      "identity_sha256": "0a99a8487405bba71eb02d73f0b899af13c79d5666901051e41751b4760346fd",
+      "name": "Mohamad Ajmer",
+      "sheet": "STEEL FIXERS",
+      "row": 5,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer | +Tower crane operator"
+    },
+    {
+      "identity_sha256": "f45bb9e2cba194b17f14fe33803254aeab0eb14a84d4749116d6d506ef288e27",
+      "name": "Sarwan Kumar",
+      "sheet": "STEEL FIXERS",
+      "row": 6,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer | +Plumber"
+    },
+    {
+      "identity_sha256": "3336f2060414335b419cfc1773ba8e1e400e6e8ef77c9c374fbfbeb8d1c2c8d6",
+      "name": "Lakhvir Kumar",
+      "sheet": "STEEL FIXERS",
+      "row": 7,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer | +Helper"
+    },
+    {
+      "identity_sha256": "54c8dfacfc32e891134ab0743a248ea8ca627a7e114b508b8c95a5242488aa31",
+      "name": "Akashdeep",
+      "sheet": "STEEL FIXERS",
+      "row": 8,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "5fdd88fb7e007becca766492045811c2a23d9d5d34ede0739ffc783b6b2bf80b",
+      "name": "Budha Magar Sagar",
+      "sheet": "STEEL FIXERS",
+      "row": 9,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "2042c33c24901895f991387eaeeded91b00d792bc9b83bf7236bcd3b3319b081",
+      "name": "Dangi Kamal",
+      "sheet": "STEEL FIXERS",
+      "row": 10,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "cf66844a4e4b4cdeecedcd9f2a82871dfb76de4405630cc8e99275ff93a7caa6",
+      "name": "Gautam Prakash",
+      "sheet": "STEEL FIXERS",
+      "row": 11,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "6e7793e0167f60f9ceecb942ea943dd968748350788c017d2598615059e4257d",
+      "name": "Gurmeet Singh",
+      "sheet": "STEEL FIXERS",
+      "row": 12,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "a9e976732cc31d2125660a17737794119ab43d1ebb9889325bf6f9067393d6a1",
+      "name": "Jasbir Singh",
+      "sheet": "STEEL FIXERS",
+      "row": 13,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "8091091c8f02853cc3abdb233099f515cba1000f93d335f1c851cd0a9f28bc9a",
+      "name": "Mahesh",
+      "sheet": "STEEL FIXERS",
+      "row": 14,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "dc6832f979fee3c1142743285fdb7b10525e68bdd704f7c9d04bd81fe58ed06a",
+      "name": "Manjinder Singh",
+      "sheet": "STEEL FIXERS",
+      "row": 15,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "a89dc75a79aebbef7338513a78e163434b576ffeccc25ba1b7f4450162d93537",
+      "name": "Niraj Kumar",
+      "sheet": "STEEL FIXERS",
+      "row": 16,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "3985fde7173e8612004456f6e1f179c0a94c8a230ed7c45349332ef84a0b332c",
+      "name": "Ravinder Kumar",
+      "sheet": "STEEL FIXERS",
+      "row": 17,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "0bc652fdf46d044dbb418f67efdfa535cb1efa56884c82fd34598631f632dfee",
+      "name": "Sandeep Singh",
+      "sheet": "STEEL FIXERS",
+      "row": 18,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "5027ba5b0183cfed0df2ad8e36f9d4b1860477b9c691f9d9afed4b935fe523d0",
+      "name": "Sodhi Ram",
+      "sheet": "STEEL FIXERS",
+      "row": 19,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "5eba7c44ac382ab1505d8396a47fa2f4498d443a1ec590a2021fbdbb26ba07db",
+      "name": "Suresh Kumar",
+      "sheet": "STEEL FIXERS",
+      "row": 20,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "c8b785055905079372e898267e89f7fca299599dc41b9652819a3690687cedef",
+      "name": "Thapa Magar Chet Badadur",
+      "sheet": "STEEL FIXERS",
+      "row": 21,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "06acd762d0d2572319afe1684abff1b071c7fb61db51b326dbcb0a559562fc28",
+      "name": "Virdas",
+      "sheet": "STEEL FIXERS",
+      "row": 22,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "0b480bd5ae3f07d41690d8d0a9ad217606cfa7221d5c2fe554705a9a0b13e191",
+      "name": "Mulakh Raj",
+      "sheet": "STEEL FIXERS",
+      "row": 23,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "cc0a15b621df9a5bd497749c0fef282f16e850074c95843d124a8c295b65c750",
+      "name": "Balwinder Singh",
+      "sheet": "METALWORK",
+      "row": 3,
+      "previous_trade": "Welder",
+      "trade": "Foreman / Welder"
+    },
+    {
+      "identity_sha256": "011ac1468508300d369b76f639e292f3345a054c4bc632fc0cca23faf82334e4",
+      "name": "Baljinder Singh",
+      "sheet": "METALWORK",
+      "row": 4,
+      "previous_trade": "Welder",
+      "trade": "Welder"
+    },
+    {
+      "identity_sha256": "7d6ecc0985494e50902b4a75ea49cb8cb232e984c9c167ecd2182263bcc03e3a",
+      "name": "Gurwinder",
+      "sheet": "METALWORK",
+      "row": 5,
+      "previous_trade": "Welder",
+      "trade": "Welder"
+    },
+    {
+      "identity_sha256": "e078b23370dd4d16a0159f25f546726f0bda0e9cc5f0b2ec77b959f1335662d4",
+      "name": "Hardeep Singh",
+      "sheet": "METALWORK",
+      "row": 6,
+      "previous_trade": "Welder",
+      "trade": "Welder"
+    },
+    {
+      "identity_sha256": "d82917b807ef6712032d95f5386e80dba36061748393d4fc08a62f952c325587",
+      "name": "Kaler Manjinder",
+      "sheet": "METALWORK",
+      "row": 7,
+      "previous_trade": "Welder",
+      "trade": "Welder"
+    },
+    {
+      "identity_sha256": "6ca784c02ca5c9c693659fe6026ae251a0f3131c2880a7d5bd99e36dc1532c35",
+      "name": "Kumar Rakesh",
+      "sheet": "METALWORK",
+      "row": 8,
+      "previous_trade": "Welder",
+      "trade": "Welder"
+    },
+    {
+      "identity_sha256": "5a465637e41fcb98c7a49684cadf267b89d4553aaa491a4b39dcff6057edaacf",
+      "name": "Suwan Salwan",
+      "sheet": "METALWORK",
+      "row": 9,
+      "previous_trade": "Welder",
+      "trade": "Welder"
+    },
+    {
+      "identity_sha256": "5594917915b1e8fc9f80d3f73bc5cfe5e7e8f8bf2b263c94a4ffa115e39a9e63",
+      "name": "Ajay Kumar",
+      "sheet": "METALWORK",
+      "row": 10,
+      "previous_trade": "Electrician",
+      "trade": "Metal worker"
+    },
+    {
+      "identity_sha256": "f5df05611d8629e59942c75ee19164e5f7b94eb5e2aecb7955d55740bdaeae4f",
+      "name": "Prem Singh",
+      "sheet": "ELECTRICIANS",
+      "row": 4,
+      "previous_trade": "Electrician",
+      "trade": "Electrical team leader | Foreign workers coordinator"
+    },
+    {
+      "identity_sha256": "e52cec20101683eee0a3435bb64d4243d9b2165493bfb361a6eacbb7117343c6",
+      "name": "Gagandeep Singh",
+      "sheet": "ELECTRICIANS",
+      "row": 5,
+      "previous_trade": "Electrician",
+      "trade": "Team leader | Electrician"
+    },
+    {
+      "identity_sha256": "d2a84299ae3a76a55b98397a4914d07ccdf8c5fd7401e19af817b3af7ce2248f",
+      "name": "Nepali Suraj",
+      "sheet": "ELECTRICIANS",
+      "row": 6,
+      "previous_trade": "Electrician",
+      "trade": "Electrician / INJECTIONS"
+    },
+    {
+      "identity_sha256": "c654b4e13e7471423a0c2254cb8fa427661fcd076d8c12a2cca1752f6dc9c51c",
+      "name": "Davinder Kumar",
+      "sheet": "ELECTRICIANS",
+      "row": 7,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    },
+    {
+      "identity_sha256": "778adeccbf473791807ff7b866f67984588efd4aaca0a3149d44213f5fa709df",
+      "name": "Jaswinder Lal",
+      "sheet": "ELECTRICIANS",
+      "row": 8,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    },
+    {
+      "identity_sha256": "6014ed93eaa5c2532cb41b6dcf816a8ea11e2f396bd2818368a898605d7febfd",
+      "name": "Kuldeep Kumar",
+      "sheet": "ELECTRICIANS",
+      "row": 9,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    },
+    {
+      "identity_sha256": "37a79f17965b1c0c9dd91e5a8e9969d94bdc2b0f0c2d00e4ed326c9ffc379d89",
+      "name": "Kumar Sahil",
+      "sheet": "ELECTRICIANS",
+      "row": 10,
+      "previous_trade": "Electrician",
+      "trade": "Electrician / INJECTIONS"
+    },
+    {
+      "identity_sha256": "a98087b0eb10ae78e606ab0d1949729f6fffe243e8d4cd896132b2c9c1e30add",
+      "name": "Manpreet",
+      "sheet": "ELECTRICIANS",
+      "row": 11,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    },
+    {
+      "identity_sha256": "cf51d4917cf32068db11334d26c03df27ca1e7463153162f60816be3c9061fe5",
+      "name": "Ravinder Kumar",
+      "sheet": "ELECTRICIANS",
+      "row": 12,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    },
+    {
+      "identity_sha256": "4a1fa19fab81743946dfea59c5602aaf0eaf837d65c65ec276150f3941ae313f",
+      "name": "Sukhdeep Singh",
+      "sheet": "ELECTRICIANS",
+      "row": 13,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    },
+    {
+      "identity_sha256": "7009405e50129e0efcda13a78bb59f6c3a036ff4cb4eccd4405b89fe918a479c",
+      "name": "Sunny Kumar",
+      "sheet": "ELECTRICIANS",
+      "row": 14,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    },
+    {
+      "identity_sha256": "eb43dfc6f0bfe074a6b76599012fa0ec3db8820747a4464002f1cc5cefb31830",
+      "name": "Vinod Kumar",
+      "sheet": "ELECTRICIANS",
+      "row": 15,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    },
+    {
+      "identity_sha256": "881229356840e2df6fc0c334ef1a7bc1f1c15a963003dc20c885a3a3a93fb3c2",
+      "name": "Kamal",
+      "sheet": "ELECTRICIANS",
+      "row": 16,
+      "previous_trade": "Electrician , Dulgher",
+      "trade": "Electrician | +Formwork carpenter"
+    },
+    {
+      "identity_sha256": "960195f49db48df3a66189d624148a7d104ab2301cedff33148e88793f9939ce",
+      "name": "Narinderjit Kumar",
+      "sheet": "Plumbers",
+      "row": 4,
+      "previous_trade": "Plumber",
+      "trade": "Plumbing foreman | Plumber"
+    },
+    {
+      "identity_sha256": "18c51556c12ff62a72e057384171ff8a8aab01b290fb78458ba5f79fea116cf6",
+      "name": "Amrik Lal",
+      "sheet": "Plumbers",
+      "row": 5,
+      "previous_trade": "Plumber",
+      "trade": "Plumber"
+    },
+    {
+      "identity_sha256": "ad63bf3eaf3f6c57c2090b03b29d3eb07a7d5f8002a64ad4aeb3f4260fe95e1d",
+      "name": "Harjinder Kumar",
+      "sheet": "Plumbers",
+      "row": 6,
+      "previous_trade": "Plumber",
+      "trade": "Plumber"
+    },
+    {
+      "identity_sha256": "108705044686c0e6f3fe84a9fd164853e3e53f73575fa64c9706d17e7527b53a",
+      "name": "Naresh Kumar",
+      "sheet": "Plumbers",
+      "row": 7,
+      "previous_trade": "Plumber",
+      "trade": "Plumber"
+    },
+    {
+      "identity_sha256": "c1dc6cd7082d4269375637b279c9e644b5886a499aad8d1335d1b12fb94e3be1",
+      "name": "Parveen Kumar",
+      "sheet": "Plumbers",
+      "row": 8,
+      "previous_trade": "Plumber",
+      "trade": "Plumber"
+    },
+    {
+      "identity_sha256": "126a8742c5081915f9f336e97186c535388354259b8119c6f6824e6a1dec54db",
+      "name": "Rana Dil Bahadur",
+      "sheet": "Plumbers",
+      "row": 9,
+      "previous_trade": "Plumber",
+      "trade": "Plumber"
+    },
+    {
+      "identity_sha256": "eb02258b88f4a250e7adeec8e122b7a202a7874163207495c3880ab7dd8d4130",
+      "name": "Davinder Singh",
+      "sheet": "Plumbers",
+      "row": 10,
+      "previous_trade": "Plumber",
+      "trade": ".Unskilled plumber"
+    },
+    {
+      "identity_sha256": "3ef58c2f0bc845cb99db6c4320192aec5da1322488b973741fe26b284f8e28b9",
+      "name": "Sonu",
+      "sheet": "Plumbers",
+      "row": 11,
+      "previous_trade": "Plumber",
+      "trade": ".Unskilled plumber"
+    },
+    {
+      "identity_sha256": "4af4fb38a326d8a07e6d110bd8d3abd982bc0fd2752e4d6ec86b01a8be46d34d",
+      "name": "Lal Kishori",
+      "sheet": "MACHINERY",
+      "row": 3,
+      "previous_trade": "JCB operator",
+      "trade": "JCB operator"
+    },
+    {
+      "identity_sha256": "d55f72ca0a4eb2d0cf833afe418842dcfc0c2eb2d00995c46c0920acc798b4f0",
+      "name": "Amandeep",
+      "sheet": "MACHINERY",
+      "row": 4,
+      "previous_trade": "JCB operator",
+      "trade": "MEWP operator"
+    },
+    {
+      "identity_sha256": "05bd0849f8c6c01414cfffd452a66f4f1cda26013a4e3a05aabb3abb9c97bbb5",
+      "name": "Lakhwinder Singh",
+      "sheet": "MACHINERY",
+      "row": 5,
+      "previous_trade": "JCB operator",
+      "trade": "JCB operator | +Bobcat operator, Forklift operator"
+    },
+    {
+      "identity_sha256": "c6947437786181a8d411abfdd738ba11a07c56691886d9859e50d4e72d974882",
+      "name": "Dinesh Kumar",
+      "sheet": "MACHINERY",
+      "row": 6,
+      "previous_trade": "JCB operator",
+      "trade": "Excavator operator | +MEWP operator, Forklift operator"
+    },
+    {
+      "identity_sha256": "0a079d9006d50d22a9cf6ebf3112065ef640574d26d4696f1fba7d58e0880d19",
+      "name": "Mandeep Singh",
+      "sheet": "MACHINERY",
+      "row": 7,
+      "previous_trade": "JCB operator",
+      "trade": "Dumper operator | +MEWP operator"
+    },
+    {
+      "identity_sha256": "bbbb45357f8a2879a3eb12cf44849a1dcf0b9505dec009e628270a6a5b146acd",
+      "name": "Sachin Kumar",
+      "sheet": "MACHINERY",
+      "row": 8,
+      "previous_trade": "JCB operator",
+      "trade": "JCB operator | +MEWP operator"
+    },
+    {
+      "identity_sha256": "f4b0b49ead9ccb5faa59fcbc21b50c3171df4782c8fea8643bba31c4d8263e8a",
+      "name": "Surjit Kumar",
+      "sheet": "MACHINERY",
+      "row": 9,
+      "previous_trade": "JCB operator",
+      "trade": "JCB operator"
+    },
+    {
+      "identity_sha256": "86011d433bece03bcac8238fc31a75d1ab696389b76fc53d86bd0ccbad1718a4",
+      "name": "Gharti Sukur Lal",
+      "sheet": "SCAFFOLDING",
+      "row": 3,
+      "previous_trade": "Steel fixer",
+      "trade": "Scaffolder"
+    },
+    {
+      "identity_sha256": "88e155ef4dfe33596e779c4f3aba4bcb93d2fec01b35b27c5620f16e3fdbb066",
+      "name": "Tota Ram",
+      "sheet": "JOINERY",
+      "row": 3,
+      "previous_trade": "Carpenter",
+      "trade": "Joiner"
+    },
+    {
+      "identity_sha256": "8d774dee9ff1139c06552cc03c8fb1c8894f95ad029f7ccbc6bd7137c584a363",
+      "name": "Kulwinder Singh",
+      "sheet": "ADMINISTRATION",
+      "row": 3,
+      "previous_trade": "Cook",
+      "trade": "Cook"
+    },
+    {
+      "identity_sha256": "f2a41b9c370ced367bf91eae9fc75c529323830c338a50783cb2f164ac70a15e",
+      "name": "Parwinder Singh",
+      "sheet": "ADMINISTRATION",
+      "row": 5,
+      "previous_trade": "Plumber",
+      "trade": "Gardener"
+    },
+    {
+      "identity_sha256": "f0d1049514e3feb5d0c157deb461a747d74052c5f1513c5271c3ddfc5c6d9127",
+      "name": "Sapaiya Sunil",
+      "sheet": "UNSKILLED",
+      "row": 3,
+      "previous_trade": "Steel fixer",
+      "trade": "Unskilled / cleaning team leader"
+    },
+    {
+      "identity_sha256": "92de16acbcad3214d1e3a4e034c2f5d67ed4e953ccf0e79b15a706cd2c3fab70",
+      "name": "Hem Raj",
+      "sheet": "UNSKILLED",
+      "row": 4,
+      "previous_trade": "Steel fixer",
+      "trade": "Steel fixer"
+    },
+    {
+      "identity_sha256": "d66d627f68fbdf7179767cb776ba352d943ceff898333b4bc2fe495d2a999f52",
+      "name": "Mandeep Singh",
+      "sheet": "UNSKILLED",
+      "row": 5,
+      "previous_trade": "Painter",
+      "trade": "Painter | +Helper"
+    },
+    {
+      "identity_sha256": "315c3d66766bc275551d1c69dd5eef2b7b3d96e4f69137c9c594751ccf9ac4ee",
+      "name": "Prasad Guru",
+      "sheet": "UNSKILLED",
+      "row": 6,
+      "previous_trade": "Helper",
+      "trade": "Helper"
+    },
+    {
+      "identity_sha256": "6e5acec5d0ca819c7619f4011cc974adfc9795e3718a7e1b7b88f77f198198fc",
+      "name": "Sagar Singh",
+      "sheet": "UNSKILLED",
+      "row": 7,
+      "previous_trade": "Painter & helper",
+      "trade": "Helper | +Painter"
+    },
+    {
+      "identity_sha256": "199fa3a67dcd027870a38c3a6301f2b4a53e7e5533d96d44eb2b69ccadab8b75",
+      "name": "Singh Manjeet",
+      "sheet": "UNSKILLED",
+      "row": 8,
+      "previous_trade": "Steel fixer & helper",
+      "trade": "Helper | +Steel fixer"
+    },
+    {
+      "identity_sha256": "032b394bd156f22369f77c75e6aa94ef9e26a7e1181d1d7dbd3a951d1af831d4",
+      "name": "Kamaljeet",
+      "sheet": "Left the company",
+      "row": 4,
+      "previous_trade": "Tile maison",
+      "trade": "Tiler / Paver"
+    },
+    {
+      "identity_sha256": "31b115f5d2fcfb77aed17d7217010d0db5caaabf4aeef4c54bcb025473e46b7c",
+      "name": "Harwinder Kumar",
+      "sheet": "Left the company",
+      "row": 5,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    },
+    {
+      "identity_sha256": "f1db7fc12e6f8e6c4f925448257778299f94b5cf0d1403f3fa8b96e2487181d2",
+      "name": "Rakesh Kumar",
+      "sheet": "Left the company",
+      "row": 6,
+      "previous_trade": "Painter",
+      "trade": "Painter | +Helper"
+    },
+    {
+      "identity_sha256": "40ad4c8368775080bf9e0b8b6cd86cdf1083f4b8cc0ac53b1d322b73da0b120a",
+      "name": "Parwinder Singh",
+      "sheet": "Left the company",
+      "row": 7,
+      "previous_trade": "Helper",
+      "trade": "Helper"
+    },
+    {
+      "identity_sha256": "f83b39a174a1e5d28f61035ecfbc433389f393f4c62e4b9a924786f325a5e691",
+      "name": "Jatinder Singh",
+      "sheet": "Left the company",
+      "row": 8,
+      "previous_trade": "Electrician",
+      "trade": "Electrician"
+    }
+  ]
+}
