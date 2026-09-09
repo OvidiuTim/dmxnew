@@ -11,6 +11,8 @@
     <label class="directory-select"><span>Meserie</span><select [(ngModel)]="directoryTrade"><option value="ALL">Toate meseriile</option><option *ngFor="let trade of directoryTradeOptions" [value]="trade">{{ trade }}</option></select></label>
     <label class="directory-select"><span>Echipă</span><select [(ngModel)]="directoryTeam"><option value="ALL">Toate echipele</option><option value="NONE">Fără echipă</option><option *ngFor="let team of directoryTeamOptions" [value]="team.id">{{ team.name }}</option></select></label>
   </section>
+  <div class="directory-action-message success" *ngIf="directoryActionNotice" role="status">{{ directoryActionNotice }}</div>
+  <div class="directory-action-message error" *ngIf="directoryActionError" role="alert">{{ directoryActionError }}</div>
   <div class="directory-empty" *ngIf="!directoryLoading && !error && !activeEmployeeDirectory.length"><strong>Nu există angajați activi</strong><span>Schimbă căutarea sau filtrele selectate.</span></div>
   <section class="directory-grid" *ngIf="activeEmployeeDirectory.length">
     <button type="button" *ngFor="let person of activeEmployeeDirectory" (click)="openEmployeeSheet(person)">
@@ -27,7 +29,7 @@
         <tbody><tr *ngFor="let person of dismissedEmployeeDirectory">
           <td><div class="dismissed-person"><span class="directory-avatar">{{ (person.UserName || '?').charAt(0) }}</span><span><strong>{{ displayText(person.UserName) }}</strong><small>{{ displayText(person.UserSerie) }}</small></span></div></td>
           <td>{{ displayText(person.trade) }}</td><td>{{ displayText(person.Company) }}</td><td>{{ person.dismissed_at ? (person.dismissed_at | date:'dd.MM.yyyy') : '—' }}</td>
-          <td><button class="history-button" type="button" (click)="openAttendanceHistory(person)"><span class="material-symbols-rounded" aria-hidden="true">history</span>Istoric pontaj</button></td>
+          <td><div class="dismissed-actions"><button class="history-button" type="button" (click)="openAttendanceHistory(person)"><span class="material-symbols-rounded" aria-hidden="true">history</span>Istoric pontaj</button><button class="reactivate-button" type="button" (click)="reactivateEmployee(person)" [disabled]="reactivatingEmployeeId !== null" [attr.aria-label]="'Reactivează ' + displayText(person.UserName)"><span class="material-symbols-rounded" aria-hidden="true">person_check</span>{{ reactivatingEmployeeId === person.UserId ? 'Se reactivează…' : 'Reactivează' }}</button></div></td>
         </tr></tbody>
       </table>
     </div>

@@ -16,6 +16,30 @@ describe('FisaAngajatComponent documents', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/user', 2]);
   });
 
+  it('reactivează un angajat din listă și îl mută imediat între secțiuni', () => {
+    const api: any = {
+      reactivateUser: jasmine.createSpy().and.returnValue(of({
+        UserId: 2,
+        UserName: 'Demis',
+        employment_status: 'active',
+        dismissed_at: null,
+      })),
+    };
+    const component = new FisaAngajatComponent({} as any, {} as any, api, {} as any);
+    component.employeeDirectory = [
+      { UserId: 2, UserName: 'Demis', employment_status: 'dismissed', dismissed_at: '2026-08-17' },
+    ];
+    component.directoryFacetSource = component.employeeDirectory.slice();
+    spyOn(window, 'confirm').and.returnValue(true);
+
+    component.reactivateEmployee(component.employeeDirectory[0]);
+
+    expect(api.reactivateUser).toHaveBeenCalledWith(2);
+    expect(component.dismissedEmployeeDirectory).toEqual([]);
+    expect(component.activeEmployeeDirectory.map(item => item.UserId)).toEqual([2]);
+    expect(component.directoryActionNotice).toContain('a fost reactivat');
+  });
+
   it('filtrează angajații după firmă, meserie și echipă', () => {
     const component = new FisaAngajatComponent({} as any, {} as any, {} as any, {} as any);
     component.employeeDirectory = [

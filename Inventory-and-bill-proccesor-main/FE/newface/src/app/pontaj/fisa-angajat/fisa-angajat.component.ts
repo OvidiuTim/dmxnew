@@ -163,6 +163,9 @@ export class FisaAngajatComponent implements OnInit {
   directoryTrade = 'ALL';
   directoryTeam = 'ALL';
   directoryLoading = false;
+  reactivatingEmployeeId: number | null = null;
+  directoryActionNotice = '';
+  directoryActionError = '';
   private directorySearchTimer: ReturnType<typeof setTimeout> | null = null;
   private directoryRequestId = 0;
   employee: EmployeeProfile | null = null;
@@ -306,6 +309,31 @@ export class FisaAngajatComponent implements OnInit {
 
   openAttendanceHistory(employee: EmployeeProfile): void {
     if (employee.UserId) this.router.navigate(['/user', employee.UserId]);
+  }
+
+  reactivateEmployee(employee: EmployeeProfile): void {
+    const employeeId = employee.UserId;
+    if (!employeeId || this.reactivatingEmployeeId !== null) return;
+    const employeeName = String(employee.UserName || 'angajatul').trim() || 'angajatul';
+    if (!window.confirm(`Reactivezi angajatul ${employeeName}?`)) return;
+
+    this.reactivatingEmployeeId = employeeId;
+    this.directoryActionNotice = '';
+    this.directoryActionError = '';
+    this.api.reactivateUser(employeeId).subscribe({
+      next: (reactivated: EmployeeProfile) => {
+        const replaceEmployee = (item: EmployeeProfile) =>
+          item.UserId === employeeId ? { ...item, ...reactivated } : item;
+        this.employeeDirectory = this.employeeDirectory.map(replaceEmployee);
+        this.directoryFacetSource = this.directoryFacetSource.map(replaceEmployee);
+        this.reactivatingEmployeeId = null;
+        this.directoryActionNotice = `${employeeName} a fost reactivat și apare din nou în lista angajaților activi.`;
+      },
+      error: error => {
+        this.reactivatingEmployeeId = null;
+        this.directoryActionError = error?.error?.error || 'Angajatul nu a putut fi reactivat.';
+      },
+    });
   }
 
   get activeEmployeeDirectory(): EmployeeProfile[] {
