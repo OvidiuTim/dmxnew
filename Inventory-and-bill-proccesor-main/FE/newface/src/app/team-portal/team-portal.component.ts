@@ -1,3 +1,5 @@
+import { readEmployeeLanguage, saveEmployeeLanguage } from '../i18n/employee-language';
+import { employeeCopy } from '../i18n/employee-copy';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -298,6 +300,8 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     this.destroyed.next();
     this.destroyed.complete();
   }
+  get ui() { return employeeCopy[this.language]; }
+
   get t(): PortalCopy { return this.copy[this.language]; }
 
   /** Nivel 1 și Nivel 2 văd cardurile globale de lipsă. */
@@ -456,8 +460,8 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     if (this.dashboard.is_supervisor) labels.push(this.t.supervisorRole);
     if (this.dashboard.is_storekeeper) labels.push(this.storekeeperCopy[this.language].role);
     const configured = this.dashboard.role_labels || {};
-    if (this.dashboard.alert_level_1) labels.push(configured['1'] || 'Nivel 1');
-    if (this.dashboard.alert_level_2) labels.push(configured['2'] || 'Nivel 2');
+    if (this.dashboard.alert_level_1) labels.push(this.language === 'ro' ? (configured['1'] || this.ui.level1) : this.ui.level1);
+    if (this.dashboard.alert_level_2) labels.push(this.language === 'ro' ? (configured['2'] || this.ui.level2) : this.ui.level2);
     return labels;
   }
 
@@ -469,8 +473,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
 
   setLanguage(value: PortalLanguage): void {
     this.language = value;
-    localStorage.setItem('team-portal-language', value);
-    localStorage.setItem('clockinandout-language', value);
+    saveEmployeeLanguage(value);
   }
 
   open(view: PortalView): void {
@@ -790,6 +793,10 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     return notification?.kind === 'personal_leave' ? this.t.leaveRequest : (notification?.team?.name || this.t.notifications);
   }
 
+  approvalLabels(labels: string[] | undefined): string {
+    return labels?.map(label => label.replace(/ · Supervisor$/, ' · ' + this.t.supervisorRole)).join(', ') || '—';
+  }
+
   notificationEmployeeLabel(notification: any, employee: any): string {
     if (notification?.kind !== 'personal_leave') return employee.name;
     return this.leaveTypeLabel(notification.leave_type);
@@ -855,7 +862,6 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   }
 
   private readLanguage(): PortalLanguage {
-    const saved = localStorage.getItem('team-portal-language');
-    return saved === 'ro' || saved === 'pa' || saved === 'hi' || saved === 'ne' ? saved : 'en';
+    return readEmployeeLanguage();
   }
 }

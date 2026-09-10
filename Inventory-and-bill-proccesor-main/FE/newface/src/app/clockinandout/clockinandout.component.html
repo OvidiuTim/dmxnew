@@ -1,8 +1,8 @@
 <div class="manual-page">
   <div class="manual-shell">
-    <nav *ngIf="portalMode" class="portal-mini-header" aria-label="Team dashboard navigation">
+    <nav *ngIf="portalMode" class="portal-mini-header" [attr.aria-label]="ui.dashboard">
       <span class="portal-mini-brand"><span class="portal-mini-mark">B</span></span>
-      <button type="button" class="portal-bell-button" (click)="openPortalNotifications()" aria-label="Notifications">
+      <button type="button" class="portal-bell-button" (click)="openPortalNotifications()" [attr.aria-label]="ui.notifications">
         <span class="material-symbols-rounded" aria-hidden="true">notifications</span>
         <span *ngIf="portalUnreadNotifications" class="portal-bell-badge">{{ portalUnreadNotifications > 99 ? '99+' : portalUnreadNotifications }}</span>
       </button>
@@ -11,8 +11,8 @@
       <header class="hero-card">
         <div class="hero-copy">
           <div *ngIf="!portalMode" class="step-chip">1. {{ t.stepLanguage }}</div>
-          <h1>{{ portalMode ? portalIdentityTitle : (chefMode ? 'Pontaj Chef' : t.headline) }}</h1>
-          <p *ngIf="!portalMode">{{ chefMode ? 'Pontaj disponibil exclusiv pentru PIN-ul autorizat, în raza de 100 m.' : t.subtitle }}</p>
+          <h1>{{ portalMode ? portalIdentityTitle : (chefMode ? ui.chefTitle : t.headline) }}</h1>
+          <p *ngIf="!portalMode">{{ chefMode ? ui.chefHint : t.subtitle }}</p>
         </div>
 
         <div class="clock-card">
@@ -40,7 +40,7 @@
             [ngModel]="selectedLanguage"
             (ngModelChange)="setLanguage($event)"
             name="mobile-language"
-            aria-label="Language"
+            [attr.aria-label]="t.stepLanguage"
           >
             <option *ngFor="let language of languages" [ngValue]="language.code">
               {{ language.nativeLabel }} - {{ language.secondaryLabel }}
@@ -64,8 +64,8 @@
         <div class="chef-site-summary" *ngIf="chefMode">
           <span class="material-symbols-rounded" aria-hidden="true">location_on</span>
           <div>
-            <strong>Locație Chef</strong>
-            <small>Rază permisă: maximum 100 m</small>
+            <strong>{{ ui.worksite }}</strong>
+            <small>{{ ui.radius }}: 100 m</small>
           </div>
         </div>
       </section>
@@ -152,7 +152,7 @@
 
             <div class="selfie-stage" [class.has-content]="cameraOpen || capturedSelfie">
               <video #cameraPreview class="camera-preview" [class.visible]="cameraOpen" autoplay muted playsinline></video>
-              <img *ngIf="capturedSelfie && !cameraOpen" [src]="capturedSelfie" alt="Selfie realizat pentru pontaj" />
+              <img *ngIf="capturedSelfie && !cameraOpen" [src]="capturedSelfie" [alt]="t.selfieTitle" />
               <span class="selfie-confirmed" *ngIf="confirmedSelfie">
                 <span class="material-symbols-rounded" aria-hidden="true">check_circle</span> {{ t.selfieConfirmed }}
               </span>

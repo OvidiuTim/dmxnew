@@ -1,3 +1,5 @@
+import { readEmployeeLanguage } from '../i18n/employee-language';
+import { employeeCopy } from '../i18n/employee-copy';
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
@@ -12,7 +14,7 @@ interface PresenceSession {
 }
 interface PresenceStatus {
   employee: { name: string }; work_date: string; worksites: Worksite[];
-  session: PresenceSession | null; can_confirm: boolean; blocked_reason: string | null;
+  session: PresenceSession | null; can_confirm: boolean; blocked_reason: string | null; blocked_reason_code?: string | null;
 }
 
 @Component({
@@ -21,6 +23,14 @@ interface PresenceStatus {
   styleUrls: ['./tesa-presence.component.css'],
 })
 export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
+  readonly language = readEmployeeLanguage();
+  readonly t = employeeCopy[this.language];
+  get blockedReason(): string {
+    if (this.status?.blocked_reason_code === 'ATTENDANCE_CONFLICT') return this.t.attendanceConflict;
+    if (this.status?.blocked_reason_code === 'LEAVE_CONFLICT') return this.t.leaveConflict;
+    return this.language === 'ro' ? (this.status?.blocked_reason || '') : this.t.error;
+  }
+
   private readonly api = `${window.location.origin}/api/team-portal/tesa-presence/`;
   private readonly destroyed$ = new Subject<void>();
   private destroyed = false;
@@ -76,7 +86,7 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
         this.loading = false;
         if (err.status === 403 || err.status === 401) {
           void this.router.navigateByUrl('/team-dashboard');
-        } else this.error = 'Nu am putut încărca prezența. Încearcă din nou.';
+        } else this.error = this.t.loadError;
       },
     });
   }
@@ -124,7 +134,7 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
     this.position = null;
     this.drawPosition();
     if (!navigator.geolocation) {
-      this.error = 'Acest browser nu oferă acces la locație.';
+      this.error = this.t.locationUnsupported;
       return;
     }
     this.locating = true;
@@ -141,8 +151,8 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
       if (this.destroyed) return;
       this.locating = false;
       this.error = error.code === 1
-        ? 'Accesul la locație a fost refuzat. Permite locația în browser și încearcă din nou.'
-        : 'Nu am putut obține locația. Activează GPS-ul și încearcă din nou.';
+        ? this.t.locationDenied
+        : this.t.locationError;
     }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   }
 
@@ -156,7 +166,7 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: err => {
         this.saving = false;
-        this.error = err.error?.error || 'Confirmarea nu a putut fi salvată. Încearcă din nou.';
+        this.error = this.language === 'ro' ? (err.error?.error || this.t.error) : this.t.error;
         if (err.status === 403) void this.router.navigateByUrl('/team-dashboard');
       },
     });

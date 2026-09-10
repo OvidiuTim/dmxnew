@@ -16,6 +16,14 @@ from ToolApp.views import _gps_distance_meters, recompute_daily_pay
 from ToolApp.worksites import ATTENDANCE_WORKSITES, InvalidWorksite, normalize_worksite, worksite_perimeters
 
 
+ATTENDANCE_CONFLICT = 'Ai deja pontaj în această zi sau o sesiune deschisă. Solicită verificarea pontajului înainte de confirmare.'
+LEAVE_CONFLICT = 'Ai concediu sau absență înregistrată astăzi. Solicită corectarea înregistrării înainte de confirmare.'
+
+
+def _blocked_reason_code(reason):
+    return {ATTENDANCE_CONFLICT: 'ATTENDANCE_CONFLICT', LEAVE_CONFLICT: 'LEAVE_CONFLICT'}.get(reason)
+
+
 def _allowed(employee):
     return (employee.is_tesa and employee.active
             and employee.person_type == Users.PersonType.EMPLOYEE
@@ -48,9 +56,9 @@ def _day_status(employee, day):
     if not confirmed:
         if sessions.filter(Q(work_date=day) | Q(out_time__isnull=True)
                            | Q(in_time__lt=end, out_time__gt=start)).exists():
-            reason = 'Ai deja pontaj în această zi sau o sesiune deschisă. Solicită verificarea pontajului înainte de confirmare.'
+            reason = ATTENDANCE_CONFLICT
         elif LeaveDay.objects.filter(user_fk=employee, work_date=day).exclude(pk__in=_automatic_absence(employee, day)).exists():
-            reason = 'Ai concediu sau absență înregistrată astăzi. Solicită corectarea înregistrării înainte de confirmare.'
+            reason = LEAVE_CONFLICT
     return confirmed, reason, start, end
 
 
@@ -126,6 +134,7 @@ def tesa_presence(request):
             'work_date': day.isoformat(), 'worksites': list(ATTENDANCE_WORKSITES),
             'session': _session_payload(confirmed) if confirmed else None,
             'can_confirm': not confirmed and not reason, 'blocked_reason': reason,
+            'blocked_reason_code': _blocked_reason_code(reason),
         })
     try:
         data = json.loads(request.body or '{}')
@@ -147,7 +156,7 @@ def tesa_presence(request):
                 return JsonResponse({'error': 'Prezența este deja confirmată pe alt șantier astăzi.'}, status=409)
             return JsonResponse({'ok': True, 'already_confirmed': True, 'session': _session_payload(confirmed)})
         if reason:
-            return JsonResponse({'error': reason}, status=409)
+            return JsonResponse({'error': reason, 'error_code': _blocked_reason_code(reason)}, status=409)
         session = AttendanceSession.objects.create(
             user_fk=employee, work_date=day, in_time=start, out_time=end,
             duration_seconds=8 * 3600, source='tesa', worksite=worksite,

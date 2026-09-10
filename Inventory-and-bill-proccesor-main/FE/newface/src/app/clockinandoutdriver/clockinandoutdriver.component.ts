@@ -1,3 +1,6 @@
+import { readEmployeeLanguage } from '../i18n/employee-language';
+import { attendanceCopy } from '../i18n/attendance-copy';
+import { employeeCopy } from '../i18n/employee-copy';
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import * as L from 'leaflet';
 import { SharedService } from '../shared.service';
@@ -27,6 +30,11 @@ interface CurrentPosition {
 export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapContainer') mapContainer?: ElementRef<HTMLDivElement>;
   @ViewChild('cameraPreview') cameraPreview?: ElementRef<HTMLVideoElement>;
+
+  readonly language = readEmployeeLanguage();
+  readonly t = attendanceCopy[this.language];
+  readonly ui = employeeCopy[this.language];
+  readonly locale = { ro: 'ro-RO', en: 'en-GB', pa: 'pa-IN', hi: 'hi-IN', ne: 'ne-NP' }[this.language];
 
   pin = '';
   submitting = false;
@@ -75,7 +83,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   }
 
   get formattedDate(): string {
-    return new Intl.DateTimeFormat('ro-RO', {
+    return new Intl.DateTimeFormat(this.locale, {
       weekday: 'long',
       day: '2-digit',
       month: 'long',
@@ -84,7 +92,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   }
 
   get formattedTime(): string {
-    return new Intl.DateTimeFormat('ro-RO', {
+    return new Intl.DateTimeFormat(this.locale, {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
@@ -123,37 +131,37 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
 
   get locationBadge(): string {
     return {
-      idle: 'Locatie necesara',
-      loading: 'GPS se conecteaza',
-      ready: 'Locatie gata',
-      expired: 'Locatie expirata',
-      denied: 'GPS blocat',
-      unsupported: 'GPS indisponibil',
-      error: 'GPS instabil'
+      idle: this.ui.locationMissing,
+      loading: this.t.gpsLoadingBadge,
+      ready: this.ui.locationReady,
+      expired: this.ui.locationExpired,
+      denied: this.t.gpsDeniedBadge,
+      unsupported: this.t.gpsUnsupportedBadge,
+      error: this.t.gpsErrorBadge
     }[this.effectiveLocationState];
   }
 
   get locationTitle(): string {
     return {
-      idle: 'Ia mai intai locatia curenta a telefonului.',
-      loading: 'Cerem locatia curenta a telefonului.',
-      ready: 'Locatia ta actuala este gata pentru pontaj.',
-      expired: 'Locatia GPS salvata a expirat.',
-      denied: 'Nu avem acces la localizarea telefonului.',
-      unsupported: 'Browserul nu suporta localizarea.',
-      error: 'Nu am reusit sa citim locatia curenta.'
+      idle: this.ui.locationMissing,
+      loading: this.t.gpsLoadingTitle,
+      ready: this.ui.locationReady,
+      expired: this.ui.locationExpired,
+      denied: this.t.gpsDeniedTitle,
+      unsupported: this.t.gpsUnsupportedTitle,
+      error: this.t.gpsErrorTitle
     }[this.effectiveLocationState];
   }
 
   get locationDetail(): string {
     return {
-      idle: 'Apasa pe Ia-mi locatia mea live. Dupa ce locatia este capturata, ai 10 minute sa introduci PIN-ul.',
-      loading: 'Soferii pot face check-in de oriunde, dar locatia GPS este obligatorie si va fi salvata impreuna cu pontajul.',
-      ready: 'Locatia este afisata pe harta si va fi salvata la check-in sau check-out.',
-      expired: 'Apasa din nou pe Ia-mi locatia mea live. Pozitia salvata poate fi folosita pentru pontaj doar 10 minute.',
-      denied: 'Permite accesul la locatie in browser si apasa din nou pe Ia-mi locatia mea live.',
-      unsupported: 'Deschide pagina intr-un browser modern de pe telefonul soferului.',
-      error: 'Verifica semnalul GPS si incearca din nou.'
+      idle: this.ui.refreshLocation,
+      loading: this.ui.driverHint,
+      ready: this.ui.driverHint,
+      expired: this.ui.locationExpired,
+      denied: this.t.gpsDeniedDetail,
+      unsupported: this.t.gpsUnsupportedDetail,
+      error: this.t.gpsErrorDetail
     }[this.effectiveLocationState];
   }
 
@@ -163,43 +171,43 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     }
 
     const remainingMs = Math.max(0, this.locationValidityMs - (this.currentTime.getTime() - this.locationCapturedAt.getTime()));
-    return `Locatia este valabila inca ${this.formatRemainingTime(remainingMs)}.`;
+    return `${this.ui.locationValidity} ${this.formatRemainingTime(remainingMs)}.`;
   }
 
   get locationReadyHint(): string {
     if (!this.currentPosition) {
-      return 'Pontajul este blocat pana cand pozitia curenta este disponibila.';
+      return this.ui.locationMissing;
     }
 
     if (this.effectiveLocationState === 'expired') {
-      return 'Locatia salvata a expirat. Apasa din nou pe Ia-mi locatia mea live inainte sa introduci PIN-ul.';
+      return this.ui.locationExpired;
     }
 
-    return `Pozitie curenta: ${this.formatCoordinates(this.currentPosition.lat, this.currentPosition.lng)}. Acuratete aproximativa: ${Math.round(this.currentPosition.accuracy)} m.`;
+    return `${this.ui.myPosition}: ${this.formatCoordinates(this.currentPosition.lat, this.currentPosition.lng)}. ${this.t.accuracyLabel(this.currentPosition.accuracy)}`;
   }
 
   get gateMessage(): string {
     if (!this.currentPosition) {
-      return 'Pontajul este permis doar dupa ce vezi locatia ta curenta pe harta.';
+      return this.ui.locationMissing;
     }
 
     if (this.effectiveLocationState === 'expired') {
-      return 'Locatia a expirat. Apasa din nou pe Ia-mi locatia mea live si introdu PIN-ul in maximum 10 minute.';
+      return this.ui.locationExpired;
     }
 
     if (!this.dataProcessingConsent) {
-      return 'Bifeaza acordul pentru prelucrarea datelor pentru a activa pontajul.';
+      return this.t.consentRequired;
     }
 
     if (!this.confirmedSelfie) {
-      return 'Realizeaza si confirma selfie-ul pentru a activa pontajul.';
+      return this.t.selfieRequired;
     }
 
     if (this.effectiveLocationState === 'ready') {
-      return 'Locatia este gata si poate fi salvata impreuna cu pontajul.';
+      return this.ui.locationReady;
     }
 
-    return 'Pontajul este permis doar dupa ce vezi locatia ta curenta pe harta.';
+    return this.ui.locationMissing;
   }
 
   updatePin(value: string): void {
@@ -219,27 +227,27 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
 
   submitPin(): void {
     if (!this.currentPosition) {
-      this.showError('Locatia GPS este obligatorie pentru pontajul soferilor.');
+      this.showError(this.ui.driverHint);
       return;
     }
 
     if (this.effectiveLocationState === 'expired') {
-      this.showError('Locatia GPS salvata a expirat. Apasa din nou pe Ia-mi locatia mea live si introdu PIN-ul in maximum 10 minute.');
+      this.showError(this.ui.locationExpired);
       return;
     }
 
     if (this.effectiveLocationState !== 'ready') {
-      this.showError('Locatia GPS este obligatorie pentru pontajul soferilor.');
+      this.showError(this.ui.driverHint);
       return;
     }
 
     if (!this.dataProcessingConsent) {
-      this.showError('Bifeaza acordul pentru prelucrarea datelor inainte de pontaj.');
+      this.showError(this.t.consentRequired);
       return;
     }
 
     if (!this.confirmedSelfie) {
-      this.showError('Realizeaza si confirma selfie-ul inainte de pontaj.');
+      this.showError(this.t.selfieRequired);
       return;
     }
 
@@ -251,7 +259,7 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
         this.submitting = false;
         if (response?.debounced) return;
         if (!response?.user?.name || !response?.state) {
-          this.showError('Nu am gasit niciun angajat cu acest PIN.');
+          this.showError(this.t.invalidPin);
           return;
         }
         this.showAttendanceFeedback(response.state, response.user.name);
@@ -271,21 +279,21 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
 
   private showAttendanceFeedback(state: AttendanceState, userName: string): void {
     const locationText = this.currentPosition
-      ? ` Locatie salvata: ${this.formatCoordinates(this.currentPosition.lat, this.currentPosition.lng)}.`
+      ? ` ${this.ui.myPosition}: ${this.formatCoordinates(this.currentPosition.lat, this.currentPosition.lng)}.`
       : '';
 
     this.feedback = state === 'ENTER'
       ? {
           kind: 'enter',
-          title: 'Check-in salvat',
-          message: `${userName}, te-ai pontat cu succes ca sofer.${locationText}`,
-          stamp: `Inregistrat la ${this.formattedTime}`
+          title: this.t.enterTitle,
+          message: `${this.t.successEnter(userName)}${locationText}`,
+          stamp: this.t.processedAt(this.formattedTime)
         }
       : {
           kind: 'exit',
-          title: 'Check-out salvat',
-          message: `${userName}, te-ai depontat cu succes ca sofer.${locationText}`,
-          stamp: `Inregistrat la ${this.formattedTime}`
+          title: this.t.exitTitle,
+          message: `${this.t.successExit(userName)}${locationText}`,
+          stamp: this.t.processedAt(this.formattedTime)
         };
 
     this.scheduleFeedbackReset();
@@ -294,9 +302,9 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   private showError(message: string): void {
     this.feedback = {
       kind: 'error',
-      title: 'Pontaj nefinalizat',
+      title: this.t.unfinishedTitle,
       message,
-      stamp: `Inregistrat la ${this.formattedTime}`
+      stamp: this.t.processedAt(this.formattedTime)
     };
 
     this.scheduleFeedbackReset();
@@ -305,16 +313,16 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   private resolveAttendanceError(error: any): string {
     const code = typeof error?.error?.error_code === 'string' ? error.error.error_code : '';
     if (code === 'GPS_REQUIRED_FOR_DRIVER') {
-      return 'Locatia GPS este obligatorie pentru pontajul soferilor.';
+      return this.ui.driverHint;
     }
 
     if (code === 'GPS_CAPTURE_EXPIRED') {
-      return 'Locatia GPS salvata a expirat. Apasa din nou pe Ia-mi locatia mea live si introdu PIN-ul in maximum 10 minute.';
+      return this.ui.locationExpired;
     }
 
-    return typeof error?.error?.error === 'string'
+    return this.language === 'ro' && typeof error?.error?.error === 'string'
       ? error.error.error
-      : 'Nu am putut inregistra pontajul acum. Incearca din nou.';
+      : this.t.genericError;
   }
 
   private submitAttendanceRequest(pin: string, attendancePhoto: string) {
@@ -336,13 +344,13 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     this.capturedSelfie = null;
     this.confirmedSelfie = null;
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-      this.cameraError = 'Camera telefonului nu este disponibila in acest browser.';
+      this.cameraError = this.t.cameraUnavailable;
       return;
     }
 
     const video = this.cameraPreview?.nativeElement;
     if (!video) {
-      this.cameraError = 'Camera nu este pregatita. Reincarca pagina si incearca din nou.';
+      this.cameraError = this.t.cameraNotReady;
       return;
     }
 
@@ -357,15 +365,15 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     } catch (error: any) {
       this.stopCamera();
       this.cameraError = error?.name === 'NotAllowedError'
-        ? 'Accesul la camera a fost refuzat. Permite camera din setarile browserului.'
-        : 'Nu am gasit o camera disponibila pe acest dispozitiv.';
+        ? this.t.cameraDenied
+        : this.t.cameraMissing;
     }
   }
 
   captureSelfie(): void {
     const video = this.cameraPreview?.nativeElement;
     if (!video?.videoWidth || !video.videoHeight) {
-      this.cameraError = 'Camera nu este pregatita. Incearca din nou.';
+      this.cameraError = this.t.cameraNotReady;
       return;
     }
     const side = Math.min(video.videoWidth, video.videoHeight);

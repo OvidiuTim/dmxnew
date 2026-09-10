@@ -1,0 +1,538 @@
+{
+  "back": [
+    "Înapoi",
+    "Back",
+    "ਵਾਪਸ",
+    "वापस",
+    "पछाडि",
+    "ফিরে যান"
+  ],
+  "dashboard": [
+    "Dashboard echipă",
+    "Team dashboard",
+    "ਟੀਮ ਡੈਸ਼ਬੋਰਡ",
+    "टीम डैशबोर्ड",
+    "टोली ड्यासबोर्ड",
+    "দলের ড্যাশবোর্ড"
+  ],
+  "retry": [
+    "Reîncearcă",
+    "Try again",
+    "ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ",
+    "फिर कोशिश करें",
+    "फेरि प्रयास गर्नुहोस्",
+    "আবার চেষ্টা করুন"
+  ],
+  "error": [
+    "Acțiunea nu a putut fi finalizată. Încearcă din nou.",
+    "The action could not be completed. Please try again.",
+    "ਕਾਰਵਾਈ ਪੂਰੀ ਨਹੀਂ ਹੋ ਸਕੀ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "कार्रवाई पूरी नहीं हो सकी। फिर कोशिश करें।",
+    "कार्य पूरा हुन सकेन। फेरि प्रयास गर्नुहोस्।",
+    "কাজটি সম্পন্ন হয়নি। আবার চেষ্টা করুন।"
+  ],
+  "loadError": [
+    "Nu am putut încărca datele. Încearcă din nou.",
+    "Could not load the data. Please try again.",
+    "ਡਾਟਾ ਲੋਡ ਨਹੀਂ ਹੋ ਸਕਿਆ। ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "डेटा लोड नहीं हुआ। फिर कोशिश करें।",
+    "डाटा लोड हुन सकेन। फेरि प्रयास गर्नुहोस्।",
+    "তথ্য লোড করা যায়নি। আবার চেষ্টা করুন।"
+  ],
+  "sent": [
+    "Cererea a fost trimisă.",
+    "The request was sent.",
+    "ਬੇਨਤੀ ਭੇਜ ਦਿੱਤੀ ਗਈ ਹੈ।",
+    "अनुरोध भेज दिया गया।",
+    "अनुरोध पठाइयो।",
+    "অনুরোধ পাঠানো হয়েছে।"
+  ],
+  "level1": [
+    "Nivel 1",
+    "Level 1",
+    "ਪੱਧਰ 1",
+    "स्तर 1",
+    "तह 1",
+    "স্তর 1"
+  ],
+  "level2": [
+    "Nivel 2",
+    "Level 2",
+    "ਪੱਧਰ 2",
+    "स्तर 2",
+    "तह 2",
+    "স্তর 2"
+  ],
+  "cameraPermission": [
+    "Permite accesul la cameră pentru selfie-ul de pontaj.",
+    "Allow camera access for the attendance selfie.",
+    "ਹਾਜ਼ਰੀ ਸੈਲਫੀ ਲਈ ਕੈਮਰੇ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ।",
+    "उपस्थिति सेल्फी के लिए कैमरे की अनुमति दें।",
+    "हाजिरी सेल्फीका लागि क्यामेराको अनुमति दिनुहोस्।",
+    "উপস্থিতির সেলফির জন্য ক্যামেরার অনুমতি দিন।"
+  ],
+  "deviceLocked": [
+    "Telefonul are deja un pontaj activ pentru alt angajat.",
+    "This phone already has active attendance for another employee.",
+    "ਇਸ ਫੋਨ ਉੱਤੇ ਕਿਸੇ ਹੋਰ ਕਰਮਚਾਰੀ ਦੀ ਹਾਜ਼ਰੀ ਪਹਿਲਾਂ ਹੀ ਚੱਲ ਰਹੀ ਹੈ।",
+    "इस फोन पर दूसरे कर्मचारी की उपस्थिति पहले से चालू है।",
+    "यस फोनमा अर्को कर्मचारीको हाजिरी पहिले नै चालु छ।",
+    "এই ফোনে অন্য কর্মীর উপস্থিতি ইতিমধ্যে চালু আছে।"
+  ],
+  "sameDevice": [
+    "Ieșirea trebuie pontată de pe telefonul folosit la intrare.",
+    "Clock out using the same phone used to clock in.",
+    "ਜਿਸ ਫੋਨ ਨਾਲ ਹਾਜ਼ਰੀ ਲਗਾਈ ਸੀ ਉਸੇ ਨਾਲ ਬਾਹਰ ਜਾਣ ਦਾ ਸਮਾਂ ਦਰਜ ਕਰੋ।",
+    "जिस फोन से प्रवेश दर्ज किया था उसी से निकास दर्ज करें।",
+    "प्रवेश दर्ता गरेको फोनबाटै निकास दर्ता गर्नुहोस्।",
+    "যে ফোনে প্রবেশ নথিভুক্ত করেছেন সেই ফোনে প্রস্থান নথিভুক্ত করুন।"
+  ],
+  "termsAccept": [
+    "Am citit și accept termenii, condițiile și acordul de prelucrare a datelor.",
+    "I have read and accept the terms, conditions and data processing agreement.",
+    "ਮੈਂ ਨਿਯਮ, ਸ਼ਰਤਾਂ ਅਤੇ ਡਾਟਾ ਪ੍ਰਕਿਰਿਆ ਸਮਝੌਤਾ ਪੜ੍ਹ ਲਿਆ ਹੈ ਅਤੇ ਸਵੀਕਾਰ ਕਰਦਾ ਹਾਂ।",
+    "मैंने नियम, शर्तें और डेटा प्रसंस्करण समझौता पढ़ लिया है और स्वीकार करता हूँ।",
+    "मैले नियम, सर्त र डाटा प्रशोधन सम्झौता पढेको छु र स्वीकार गर्छु।",
+    "আমি শর্তাবলি এবং তথ্য প্রক্রিয়াকরণ চুক্তি পড়েছি ও গ্রহণ করছি।"
+  ],
+  "termsRead": [
+    "Vezi documentele",
+    "View documents",
+    "ਦਸਤਾਵੇਜ਼ ਵੇਖੋ",
+    "दस्तावेज़ देखें",
+    "कागजात हेर्नुहोस्",
+    "নথি দেখুন"
+  ],
+  "termsRequired": [
+    "Acceptă termenii și condițiile înainte de autentificare.",
+    "Accept the terms and conditions before logging in.",
+    "ਲੌਗ ਇਨ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਨਿਯਮ ਅਤੇ ਸ਼ਰਤਾਂ ਸਵੀਕਾਰ ਕਰੋ।",
+    "लॉग इन करने से पहले नियम और शर्तें स्वीकार करें।",
+    "लग इन गर्नु अघि नियम र सर्तहरू स्वीकार गर्नुहोस्।",
+    "লগ ইন করার আগে শর্তাবলি গ্রহণ করুন।"
+  ],
+  "newVersion": [
+    "Versiune nouă disponibilă",
+    "New version available",
+    "ਨਵਾਂ ਵਰਜਨ ਉਪਲਬਧ ਹੈ",
+    "नया संस्करण उपलब्ध है",
+    "नयाँ संस्करण उपलब्ध छ",
+    "নতুন সংস্করণ উপলব্ধ"
+  ],
+  "downloadUpdate": [
+    "Descarcă versiunea nouă",
+    "Download new version",
+    "ਨਵਾਂ ਵਰਜਨ ਡਾਊਨਲੋਡ ਕਰੋ",
+    "नया संस्करण डाउनलोड करें",
+    "नयाँ संस्करण डाउनलोड गर्नुहोस्",
+    "নতুন সংস্করণ ডাউনলোড করুন"
+  ],
+  "updateRequired": [
+    "Actualizare obligatorie",
+    "Update required",
+    "ਅੱਪਡੇਟ ਲਾਜ਼ਮੀ ਹੈ",
+    "अपडेट आवश्यक है",
+    "अद्यावधिक आवश्यक छ",
+    "আপডেট আবশ্যক"
+  ],
+  "updateBlocked": [
+    "Pentru a te ponta, descarcă ultima versiune a aplicației.",
+    "Download the latest app version to record attendance.",
+    "ਹਾਜ਼ਰੀ ਦਰਜ ਕਰਨ ਲਈ ਐਪ ਦਾ ਨਵਾਂ ਵਰਜਨ ਡਾਊਨਲੋਡ ਕਰੋ।",
+    "उपस्थिति दर्ज करने के लिए ऐप का नवीनतम संस्करण डाउनलोड करें।",
+    "हाजिरी दर्ता गर्न एपको नयाँ संस्करण डाउनलोड गर्नुहोस्।",
+    "উপস্থিতি নথিভুক্ত করতে অ্যাপের সর্বশেষ সংস্করণ ডাউনলোড করুন।"
+  ],
+  "checkingVersion": [
+    "Se verifică versiunea aplicației…",
+    "Checking app version…",
+    "ਐਪ ਦਾ ਵਰਜਨ ਜਾਂਚਿਆ ਜਾ ਰਿਹਾ ਹੈ…",
+    "ऐप का संस्करण जाँचा जा रहा है…",
+    "एपको संस्करण जाँचिँदै छ…",
+    "অ্যাপের সংস্করণ পরীক্ষা করা হচ্ছে…"
+  ],
+  "installedVersion": [
+    "Versiune instalată",
+    "Installed version",
+    "ਇੰਸਟਾਲ ਕੀਤਾ ਵਰਜਨ",
+    "स्थापित संस्करण",
+    "स्थापित संस्करण",
+    "ইনস্টল করা সংস্করণ"
+  ],
+  "areaRule": [
+    "Te poți ponta numai în zona verde a șantierului ales. În afara cercului verde, pontajul este blocat.",
+    "You can record attendance only inside the selected worksite's green area. Outside the green circle, attendance is blocked.",
+    "ਹਾਜ਼ਰੀ ਸਿਰਫ਼ ਚੁਣੀ ਸਾਈਟ ਦੇ ਹਰੇ ਖੇਤਰ ਵਿੱਚ ਦਰਜ ਹੋ ਸਕਦੀ ਹੈ। ਹਰੇ ਘੇਰੇ ਤੋਂ ਬਾਹਰ ਹਾਜ਼ਰੀ ਰੁਕੀ ਰਹੇਗੀ।",
+    "उपस्थिति केवल चुनी गई साइट के हरे क्षेत्र में दर्ज हो सकती है। हरे घेरे के बाहर उपस्थिति अवरुद्ध है।",
+    "छानिएको साइटको हरियो क्षेत्रभित्र मात्र हाजिरी दर्ता गर्न सकिन्छ। हरियो घेराबाहिर हाजिरी रोकिन्छ।",
+    "শুধু নির্বাচিত সাইটের সবুজ এলাকার মধ্যে উপস্থিতি নথিভুক্ত করা যায়। সবুজ বৃত্তের বাইরে তা বন্ধ থাকবে।"
+  ],
+  "siteMarker": [
+    "Marcaj șantier: verde, pătrat.",
+    "Worksite marker: green square.",
+    "ਸਾਈਟ ਦਾ ਨਿਸ਼ਾਨ: ਹਰਾ ਵਰਗ।",
+    "साइट का चिह्न: हरा वर्ग।",
+    "साइटको चिन्ह: हरियो वर्ग।",
+    "সাইটের চিহ্ন: সবুজ বর্গ।"
+  ],
+  "userMarker": [
+    "Marcaj utilizator: cerc albastru, cu numele utilizatorului.",
+    "User marker: blue circle with the user's name.",
+    "ਵਰਤੋਂਕਾਰ ਦਾ ਨਿਸ਼ਾਨ: ਨਾਮ ਵਾਲਾ ਨੀਲਾ ਚੱਕਰ।",
+    "उपयोगकर्ता का चिह्न: नाम वाला नीला वृत्त।",
+    "प्रयोगकर्ताको चिन्ह: नामसहितको नीलो घेरा।",
+    "ব্যবহারকারীর চিহ্ন: নামসহ নীল বৃত্ত।"
+  ],
+  "confirmPresence": [
+    "Confirmă prezența",
+    "Confirm presence",
+    "ਹਾਜ਼ਰੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ",
+    "उपस्थिति की पुष्टि करें",
+    "हाजिरी पुष्टि गर्नुहोस्",
+    "উপস্থিতি নিশ্চিত করুন"
+  ],
+  "tesaHint": [
+    "Personal TESA · 08:00–16:00 · Locație GPS",
+    "TESA staff · 08:00–16:00 · GPS location",
+    "TESA ਸਟਾਫ · 08:00–16:00 · GPS ਟਿਕਾਣਾ",
+    "TESA कर्मचारी · 08:00–16:00 · GPS स्थान",
+    "TESA कर्मचारी · 08:00–16:00 · GPS स्थान",
+    "TESA কর্মী · 08:00–16:00 · GPS অবস্থান"
+  ],
+  "tesaStaff": [
+    "Personal TESA",
+    "TESA staff",
+    "TESA ਸਟਾਫ",
+    "TESA कर्मचारी",
+    "TESA कर्मचारी",
+    "TESA কর্মী"
+  ],
+  "presenceSubtitle": [
+    "Alege șantierul și confirmă prezența cu locația GPS.",
+    "Choose the worksite and confirm presence using GPS location.",
+    "ਸਾਈਟ ਚੁਣੋ ਅਤੇ GPS ਟਿਕਾਣੇ ਨਾਲ ਹਾਜ਼ਰੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ।",
+    "साइट चुनें और GPS स्थान से उपस्थिति की पुष्टि करें।",
+    "साइट छान्नुहोस् र GPS स्थानसहित हाजिरी पुष्टि गर्नुहोस्।",
+    "সাইট বেছে GPS অবস্থান দিয়ে উপস্থিতি নিশ্চিত করুন।"
+  ],
+  "loading": [
+    "Se încarcă…",
+    "Loading…",
+    "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+    "लोड हो रहा है…",
+    "लोड हुँदैछ…",
+    "লোড হচ্ছে…"
+  ],
+  "hours": [
+    "ore",
+    "hours",
+    "ਘੰਟੇ",
+    "घंटे",
+    "घण्टा",
+    "ঘণ্টা"
+  ],
+  "fullDay": [
+    "O confirmare înregistrează programul complet de astăzi pe șantierul ales. Nu este necesar să pontezi ieșirea.",
+    "One confirmation records today's full schedule at the chosen worksite. No clock-out is needed.",
+    "ਇੱਕ ਪੁਸ਼ਟੀ ਨਾਲ ਚੁਣੀ ਸਾਈਟ ਉੱਤੇ ਅੱਜ ਦਾ ਪੂਰਾ ਕੰਮ ਸਮਾਂ ਦਰਜ ਹੁੰਦਾ ਹੈ। ਬਾਹਰ ਜਾਣ ਦਾ ਸਮਾਂ ਦਰਜ ਕਰਨ ਦੀ ਲੋੜ ਨਹੀਂ।",
+    "एक पुष्टि से चुनी साइट पर आज का पूरा कार्य समय दर्ज होता है। निकास दर्ज करना आवश्यक नहीं है।",
+    "एउटा पुष्टिले छानिएको साइटमा आजको पूरा कार्यसमय दर्ता गर्छ। निकास दर्ता गर्नुपर्दैन।",
+    "একবার নিশ্চিত করলে নির্বাচিত সাইটে আজকের পুরো কাজের সময় নথিভুক্ত হয়। প্রস্থান নথিভুক্ত করতে হবে না।"
+  ],
+  "worksite": [
+    "Șantier",
+    "Worksite",
+    "ਸਾਈਟ",
+    "साइट",
+    "साइट",
+    "সাইট"
+  ],
+  "chooseSite": [
+    "Selectează șantierul",
+    "Choose worksite",
+    "ਸਾਈਟ ਚੁਣੋ",
+    "साइट चुनें",
+    "साइट छान्नुहोस्",
+    "সাইট বেছে নিন"
+  ],
+  "zone": [
+    "Zona șantierului",
+    "Worksite area",
+    "ਸਾਈਟ ਦਾ ਖੇਤਰ",
+    "साइट का क्षेत्र",
+    "साइटको क्षेत्र",
+    "সাইটের এলাকা"
+  ],
+  "myPosition": [
+    "Poziția mea",
+    "My position",
+    "ਮੇਰਾ ਟਿਕਾਣਾ",
+    "मेरा स्थान",
+    "मेरो स्थान",
+    "আমার অবস্থান"
+  ],
+  "radius": [
+    "Rază perimetru",
+    "Perimeter radius",
+    "ਘੇਰੇ ਦਾ ਅਰਧ-ਵਿਆਸ",
+    "परिधि की त्रिज्या",
+    "परिधिको अर्धव्यास",
+    "এলাকার ব্যাসার্ধ"
+  ],
+  "accuracy": [
+    "Precizie GPS",
+    "GPS accuracy",
+    "GPS ਸਟੀਕਤਾ",
+    "GPS सटीकता",
+    "GPS सटीकता",
+    "GPS নির্ভুলতা"
+  ],
+  "inside": [
+    "În perimetru",
+    "Inside the perimeter",
+    "ਘੇਰੇ ਅੰਦਰ",
+    "परिधि के अंदर",
+    "परिधिभित्र",
+    "এলাকার ভিতরে"
+  ],
+  "outside": [
+    "În afara perimetrului",
+    "Outside the perimeter",
+    "ਘੇਰੇ ਤੋਂ ਬਾਹਰ",
+    "परिधि के बाहर",
+    "परिधिबाहिर",
+    "এলাকার বাইরে"
+  ],
+  "distance": [
+    "Distanță până la șantier",
+    "Distance to worksite",
+    "ਸਾਈਟ ਤੱਕ ਦੂਰੀ",
+    "साइट की दूरी",
+    "साइटसम्म दूरी",
+    "সাইটের দূরত্ব"
+  ],
+  "locationMissing": [
+    "Locația nu este încă obținută",
+    "Location has not been captured yet",
+    "ਟਿਕਾਣਾ ਅਜੇ ਪ੍ਰਾਪਤ ਨਹੀਂ ਹੋਇਆ",
+    "स्थान अभी प्राप्त नहीं हुआ",
+    "स्थान अझै प्राप्त भएको छैन",
+    "অবস্থান এখনও পাওয়া যায়নি"
+  ],
+  "locating": [
+    "Se obține locația…",
+    "Getting location…",
+    "ਟਿਕਾਣਾ ਪ੍ਰਾਪਤ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ…",
+    "स्थान प्राप्त हो रहा है…",
+    "स्थान प्राप्त हुँदैछ…",
+    "অবস্থান নেওয়া হচ্ছে…"
+  ],
+  "refreshLocation": [
+    "Actualizează locația",
+    "Refresh location",
+    "ਟਿਕਾਣਾ ਤਾਜ਼ਾ ਕਰੋ",
+    "स्थान रीफ्रेश करें",
+    "स्थान ताजा गर्नुहोस्",
+    "অবস্থান হালনাগাদ করুন"
+  ],
+  "tesaOutside": [
+    "Personalul TESA poate confirma și din afara perimetrului. Distanța se salvează împreună cu pontajul.",
+    "TESA staff can also confirm outside the perimeter. The distance is saved with attendance.",
+    "TESA ਸਟਾਫ ਘੇਰੇ ਤੋਂ ਬਾਹਰ ਵੀ ਪੁਸ਼ਟੀ ਕਰ ਸਕਦਾ ਹੈ। ਦੂਰੀ ਹਾਜ਼ਰੀ ਨਾਲ ਸੰਭਾਲੀ ਜਾਂਦੀ ਹੈ।",
+    "TESA कर्मचारी परिधि के बाहर भी पुष्टि कर सकते हैं। दूरी उपस्थिति के साथ सहेजी जाती है।",
+    "TESA कर्मचारीले परिधिबाहिरबाट पनि पुष्टि गर्न सक्छन्। दूरी हाजिरीसँग सुरक्षित हुन्छ।",
+    "TESA কর্মীরা এলাকার বাইরে থেকেও নিশ্চিত করতে পারেন। দূরত্ব উপস্থিতির সঙ্গে সংরক্ষিত হয়।"
+  ],
+  "mapHint": [
+    "După selecție apare harta cu zona șantierului și distanța până la ea.",
+    "After selection, the map shows the worksite area and your distance from it.",
+    "ਚੋਣ ਤੋਂ ਬਾਅਦ ਨਕਸ਼ਾ ਸਾਈਟ ਦਾ ਖੇਤਰ ਅਤੇ ਉਸ ਤੱਕ ਦੂਰੀ ਦਿਖਾਉਂਦਾ ਹੈ।",
+    "चयन के बाद नक्शा साइट का क्षेत्र और उससे आपकी दूरी दिखाता है।",
+    "छानेपछि नक्सामा साइटको क्षेत्र र त्यहाँसम्मको दूरी देखिन्छ।",
+    "নির্বাচনের পরে মানচিত্রে সাইটের এলাকা ও তার দূরত্ব দেখা যাবে।"
+  ],
+  "saving": [
+    "Se salvează…",
+    "Saving…",
+    "ਸੰਭਾਲਿਆ ਜਾ ਰਿਹਾ ਹੈ…",
+    "सहेजा जा रहा है…",
+    "सुरक्षित हुँदैछ…",
+    "সংরক্ষণ হচ্ছে…"
+  ],
+  "presencePrivacy": [
+    "Se salvează locația din momentul confirmării. Nu se solicită fotografie.",
+    "The location at confirmation is saved. No photo is requested.",
+    "ਪੁਸ਼ਟੀ ਸਮੇਂ ਦਾ ਟਿਕਾਣਾ ਸੰਭਾਲਿਆ ਜਾਂਦਾ ਹੈ। ਫੋਟੋ ਨਹੀਂ ਮੰਗੀ ਜਾਂਦੀ।",
+    "पुष्टि के समय का स्थान सहेजा जाता है। फोटो नहीं माँगी जाती।",
+    "पुष्टि गर्दाको स्थान सुरक्षित हुन्छ। फोटो मागिँदैन।",
+    "নিশ্চিত করার সময়ের অবস্থান সংরক্ষিত হয়। ছবি চাওয়া হয় না।"
+  ],
+  "presenceConfirmed": [
+    "Prezență confirmată",
+    "Presence confirmed",
+    "ਹਾਜ਼ਰੀ ਦੀ ਪੁਸ਼ਟੀ ਹੋ ਗਈ",
+    "उपस्थिति की पुष्टि हुई",
+    "हाजिरी पुष्टि भयो",
+    "উপস্থিতি নিশ্চিত হয়েছে"
+  ],
+  "noCheckout": [
+    "Programul este înregistrat. Nu mai trebuie să pontezi ieșirea.",
+    "The schedule is recorded. You do not need to clock out.",
+    "ਕੰਮ ਸਮਾਂ ਦਰਜ ਹੋ ਗਿਆ ਹੈ। ਬਾਹਰ ਜਾਣ ਦਾ ਸਮਾਂ ਦਰਜ ਕਰਨ ਦੀ ਲੋੜ ਨਹੀਂ।",
+    "कार्य समय दर्ज हो गया है। निकास दर्ज करने की आवश्यकता नहीं है।",
+    "कार्यसमय दर्ता भयो। निकास दर्ता गर्नुपर्दैन।",
+    "কাজের সময় নথিভুক্ত হয়েছে। প্রস্থান নথিভুক্ত করতে হবে না।"
+  ],
+  "locationUnsupported": [
+    "Acest browser nu oferă acces la locație.",
+    "This browser does not support location access.",
+    "ਇਹ ਬ੍ਰਾਊਜ਼ਰ ਟਿਕਾਣੇ ਤੱਕ ਪਹੁੰਚ ਨਹੀਂ ਦਿੰਦਾ।",
+    "यह ब्राउज़र स्थान तक पहुँच नहीं देता।",
+    "यो ब्राउजरले स्थान पहुँच समर्थन गर्दैन।",
+    "এই ব্রাউজারে অবস্থান পাওয়ার সুবিধা নেই।"
+  ],
+  "locationDenied": [
+    "Accesul la locație a fost refuzat. Permite locația și încearcă din nou.",
+    "Location access was denied. Allow location and try again.",
+    "ਟਿਕਾਣੇ ਦੀ ਇਜਾਜ਼ਤ ਨਹੀਂ ਮਿਲੀ। ਇਜਾਜ਼ਤ ਦੇ ਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "स्थान की अनुमति नहीं मिली। अनुमति देकर फिर कोशिश करें।",
+    "स्थानको अनुमति अस्वीकार भयो। अनुमति दिएर फेरि प्रयास गर्नुहोस्।",
+    "অবস্থানের অনুমতি দেওয়া হয়নি। অনুমতি দিয়ে আবার চেষ্টা করুন।"
+  ],
+  "locationError": [
+    "Nu am putut obține locația. Activează GPS-ul și încearcă din nou.",
+    "Could not get location. Enable GPS and try again.",
+    "ਟਿਕਾਣਾ ਨਹੀਂ ਮਿਲਿਆ। GPS ਚਾਲੂ ਕਰਕੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "स्थान नहीं मिला। GPS चालू करके फिर कोशिश करें।",
+    "स्थान प्राप्त भएन। GPS खोलेर फेरि प्रयास गर्नुहोस्।",
+    "অবস্থান পাওয়া যায়নি। GPS চালু করে আবার চেষ্টা করুন।"
+  ],
+  "attendanceConflict": [
+    "Ai deja pontaj în această zi sau o sesiune deschisă. Solicită verificarea pontajului înainte de confirmare.",
+    "You already have attendance today or an open session. Ask for an attendance review before confirming.",
+    "ਅੱਜ ਦੀ ਹਾਜ਼ਰੀ ਜਾਂ ਖੁੱਲ੍ਹਾ ਸੈਸ਼ਨ ਪਹਿਲਾਂ ਹੀ ਹੈ। ਪੁਸ਼ਟੀ ਤੋਂ ਪਹਿਲਾਂ ਹਾਜ਼ਰੀ ਦੀ ਜਾਂਚ ਕਰਵਾਓ।",
+    "आज की उपस्थिति या खुला सत्र पहले से है। पुष्टि से पहले उपस्थिति की जाँच करवाएँ।",
+    "आजको हाजिरी वा खुला सत्र पहिले नै छ। पुष्टि अघि हाजिरी जाँच गराउनुहोस्।",
+    "আজকের উপস্থিতি বা খোলা সেশন ইতিমধ্যে আছে। নিশ্চিত করার আগে উপস্থিতি যাচাই করান।"
+  ],
+  "leaveConflict": [
+    "Ai concediu sau absență înregistrată astăzi. Solicită corectarea înregistrării înainte de confirmare.",
+    "You have leave or absence recorded today. Ask for the record to be corrected before confirming.",
+    "ਅੱਜ ਛੁੱਟੀ ਜਾਂ ਗੈਰਹਾਜ਼ਰੀ ਦਰਜ ਹੈ। ਪੁਸ਼ਟੀ ਤੋਂ ਪਹਿਲਾਂ ਰਿਕਾਰਡ ਠੀਕ ਕਰਵਾਓ।",
+    "आज छुट्टी या अनुपस्थिति दर्ज है। पुष्टि से पहले रिकॉर्ड ठीक करवाएँ।",
+    "आज बिदा वा अनुपस्थिति दर्ता छ। पुष्टि अघि अभिलेख सच्याउन अनुरोध गर्नुहोस्।",
+    "আজ ছুটি বা অনুপস্থিতি নথিভুক্ত আছে। নিশ্চিত করার আগে রেকর্ড সংশোধন করান।"
+  ],
+  "chefTitle": [
+    "Pontaj Chef",
+    "Chef attendance",
+    "ਸ਼ੈੱਫ ਦੀ ਹਾਜ਼ਰੀ",
+    "शेफ की उपस्थिति",
+    "सेफको हाजिरी",
+    "শেফের উপস্থিতি"
+  ],
+  "chefHint": [
+    "Pontaj disponibil exclusiv pentru PIN-ul autorizat, în raza de 100 m.",
+    "Attendance is available only for the authorized PIN within 100 m.",
+    "ਹਾਜ਼ਰੀ ਸਿਰਫ਼ ਅਧਿਕਾਰਤ PIN ਲਈ 100 ਮੀਟਰ ਅੰਦਰ ਉਪਲਬਧ ਹੈ।",
+    "उपस्थिति केवल अधिकृत PIN के लिए 100 मीटर के अंदर उपलब्ध है।",
+    "हाजिरी अधिकृत PIN का लागि 100 मिटरभित्र मात्र उपलब्ध छ।",
+    "শুধু অনুমোদিত PIN দিয়ে ১০০ মিটারের মধ্যে উপস্থিতি দেওয়া যায়।"
+  ],
+  "chefPin": [
+    "Pe această pagină este permis exclusiv PIN-ul 1165.",
+    "Only PIN 1165 is allowed on this page.",
+    "ਇਸ ਪੰਨੇ ਉੱਤੇ ਸਿਰਫ਼ PIN 1165 ਦੀ ਇਜਾਜ਼ਤ ਹੈ।",
+    "इस पृष्ठ पर केवल PIN 1165 की अनुमति है।",
+    "यस पृष्ठमा PIN 1165 मात्र अनुमति छ।",
+    "এই পৃষ্ঠায় শুধু PIN 1165 অনুমোদিত।"
+  ],
+  "driverTitle": [
+    "Pontaj șoferi",
+    "Driver attendance",
+    "ਡਰਾਈਵਰ ਹਾਜ਼ਰੀ",
+    "ड्राइवर उपस्थिति",
+    "चालक हाजिरी",
+    "চালকের উপস্থিতি"
+  ],
+  "driverHint": [
+    "Șoferii se pot ponta din orice locație. Locația GPS este obligatorie și se salvează la fiecare intrare și ieșire.",
+    "Drivers can record attendance from any location. GPS is required and saved at each clock-in and clock-out.",
+    "ਡਰਾਈਵਰ ਕਿਸੇ ਵੀ ਥਾਂ ਤੋਂ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰ ਸਕਦੇ ਹਨ। ਹਰ ਵਾਰ ਆਉਣ ਅਤੇ ਜਾਣ ਵੇਲੇ GPS ਲਾਜ਼ਮੀ ਹੈ ਅਤੇ ਸੰਭਾਲਿਆ ਜਾਂਦਾ ਹੈ।",
+    "ड्राइवर कहीं से भी उपस्थिति दर्ज कर सकते हैं। हर प्रवेश और निकास पर GPS आवश्यक है और सहेजा जाता है।",
+    "चालकले जुनसुकै स्थानबाट हाजिरी दर्ता गर्न सक्छन्। हरेक प्रवेश र निकासमा GPS आवश्यक छ र सुरक्षित हुन्छ।",
+    "চালকেরা যেকোনো স্থান থেকে উপস্থিতি নথিভুক্ত করতে পারেন। প্রতিবার প্রবেশ ও প্রস্থানে GPS আবশ্যক ও সংরক্ষিত হয়।"
+  ],
+  "locationReady": [
+    "Locația este gata pentru pontaj.",
+    "Location is ready for attendance.",
+    "ਟਿਕਾਣਾ ਹਾਜ਼ਰੀ ਲਈ ਤਿਆਰ ਹੈ।",
+    "स्थान उपस्थिति के लिए तैयार है।",
+    "स्थान हाजिरीका लागि तयार छ।",
+    "অবস্থান উপস্থিতির জন্য প্রস্তুত।"
+  ],
+  "locationExpired": [
+    "Locația a expirat. Actualizează GPS-ul; locația poate fi folosită timp de 10 minute.",
+    "Location expired. Refresh GPS; the location can be used for 10 minutes.",
+    "ਟਿਕਾਣੇ ਦੀ ਮਿਆਦ ਮੁੱਕ ਗਈ। GPS ਤਾਜ਼ਾ ਕਰੋ; ਟਿਕਾਣਾ 10 ਮਿੰਟ ਲਈ ਵਰਤਿਆ ਜਾ ਸਕਦਾ ਹੈ।",
+    "स्थान की अवधि समाप्त हुई। GPS रीफ्रेश करें; स्थान 10 मिनट तक उपयोग किया जा सकता है।",
+    "स्थानको म्याद सकियो। GPS ताजा गर्नुहोस्; स्थान 10 मिनेटसम्म प्रयोग गर्न सकिन्छ।",
+    "অবস্থানের মেয়াদ শেষ। GPS হালনাগাদ করুন; অবস্থান ১০ মিনিট ব্যবহার করা যায়।"
+  ],
+  "locationValidity": [
+    "Locație valabilă încă",
+    "Location valid for",
+    "ਟਿਕਾਣਾ ਇੰਨੇ ਸਮੇਂ ਲਈ ਵੈਧ ਹੈ",
+    "स्थान इतने समय तक मान्य है",
+    "स्थान यति समयसम्म मान्य छ",
+    "অবস্থান বৈধ থাকবে"
+  ],
+  "approved": [
+    "Aprobat",
+    "Approved",
+    "ਮਨਜ਼ੂਰ",
+    "स्वीकृत",
+    "स्वीकृत",
+    "অনুমোদিত"
+  ],
+  "rejected": [
+    "Respins",
+    "Rejected",
+    "ਅਸਵੀਕਾਰ",
+    "अस्वीकृत",
+    "अस्वीकृत",
+    "প্রত্যাখ্যাত"
+  ],
+  "cancelled": [
+    "Anulat",
+    "Cancelled",
+    "ਰੱਦ",
+    "रद्द",
+    "रद्द",
+    "বাতিল"
+  ],
+  "paidLeave": [
+    "Concediu de odihnă",
+    "Paid leave",
+    "ਤਨਖਾਹ ਸਮੇਤ ਛੁੱਟੀ",
+    "सवेतन छुट्टी",
+    "तलबी बिदा",
+    "বেতনসহ ছুটি"
+  ],
+  "unpaidLeave": [
+    "Concediu fără plată",
+    "Unpaid leave",
+    "ਬਿਨਾਂ ਤਨਖਾਹ ਛੁੱਟੀ",
+    "अवैतनिक छुट्टी",
+    "बेतलबी बिदा",
+    "বেতনহীন ছুটি"
+  ],
+  "notifications": [
+    "Notificări",
+    "Notifications",
+    "ਸੂਚਨਾਵਾਂ",
+    "सूचनाएँ",
+    "सूचनाहरू",
+    "বিজ্ঞপ্তি"
+  ]
+}

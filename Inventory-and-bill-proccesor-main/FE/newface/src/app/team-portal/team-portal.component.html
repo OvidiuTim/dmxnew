@@ -6,7 +6,7 @@
     <div class="header-actions">
       <label *ngIf="view === 'home'" class="language-field">
         <span>{{ t.language }}</span>
-        <select [ngModel]="language" (ngModelChange)="setLanguage($event)" aria-label="Language">
+        <select [ngModel]="language" (ngModelChange)="setLanguage($event)" [attr.aria-label]="t.language">
           <option *ngFor="let item of languages" [ngValue]="item.code">{{ item.label }}</option>
         </select>
       </label>
@@ -29,7 +29,7 @@
         <p class="welcome-roles" *ngIf="roleLabel">{{ roleLabel }}</p>
       </div>
 
-      <section class="action-grid" aria-label="Dashboard">
+      <section class="action-grid" [attr.aria-label]="t.dashboard">
         <button *ngIf="dashboard.is_team_leader" type="button" class="action-card" (click)="open('team')">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">groups</span>
           <span><strong>{{ t.myTeam }}</strong><small>{{ t.teamHint }}</small></span>
@@ -42,7 +42,7 @@
         </button>
         <button *ngIf="dashboard.employee.is_tesa" type="button" class="action-card attendance-card tesa-card" (click)="openTesaPresence()">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">location_on</span>
-          <span><strong>{{ language === 'ro' ? 'Confirmă prezența' : 'Confirm presence' }}</strong><small>{{ language === 'ro' ? 'Personal TESA · 08:00–16:00 · Cu locația GPS' : 'TESA staff · 08:00–16:00 · GPS location' }}</small></span>
+          <span><strong>{{ ui.confirmPresence }}</strong><small>{{ ui.tesaHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
         <button type="button" class="action-card" (click)="open('salary')">
@@ -261,8 +261,8 @@
           <span><b>{{ t.destinationTeam }}:</b> {{ item.destination_team.name }}</span>
           <span><b>{{ t.submittedAt }}:</b> {{ item.created_at | date:'dd.MM.yyyy, HH:mm' }}</span>
           <span *ngIf="item.reason"><b>{{ t.reasonOptional }}:</b> {{ item.reason }}</span>
-          <span><b>{{ t.approvalsReceived }}:</b> {{ item.approvals_received?.join(', ') || '—' }}</span>
-          <span><b>{{ t.approvalsMissing }}:</b> {{ item.approvals_missing?.join(', ') || '—' }}</span>
+          <span><b>{{ t.approvalsReceived }}:</b> {{ approvalLabels(item.approvals_received) }}</span>
+          <span><b>{{ t.approvalsMissing }}:</b> {{ approvalLabels(item.approvals_missing) }}</span>
         </div>
         <div *ngIf="item.can_approve || item.can_reject" class="decision-actions"><button type="button" class="approve" (click)="decideRequest(item, 'approve')" [disabled]="submitting">{{ t.approve }}</button><button type="button" class="reject" (click)="decideRequest(item, 'reject')" [disabled]="submitting">{{ t.reject }}</button></div>
       </article>
