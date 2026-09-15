@@ -27,7 +27,8 @@ export class AuthService {
     construction_sites: '/santiere',
     teams_schedule: '/pontaj/echipe',
     warehouse: '/magazie',
-    tools: '/unelte'
+    tools: '/unelte',
+    flota: '/utilaje'
   };
   private readonly API = (typeof window !== 'undefined' ? window.location.origin : '') + '/api';
   private authenticated = false;

@@ -24,6 +24,16 @@ from ToolApp.models import (
     MobileDevice,
     Tools,
     Users,
+    Utilaj,
+    TipDocumentUtilaj,
+    DocumentUtilaj,
+    DocumentUtilajVersiune,
+    SesizareDefectUtilaj,
+    IncercareUtilajBlocata,
+    FleetAuditLog,
+    AlimentareUtilaj,
+    RevizieUtilaj,
+    SesiuneUtilaj,
 )
 
 
@@ -120,6 +130,94 @@ class ToolsAdmin(admin.ModelAdmin):
         "Category",
         "Detail",
     )
+
+
+class DocumentUtilajInline(admin.TabularInline):
+    model = DocumentUtilaj
+    extra = 0
+
+
+class RevizieUtilajInline(admin.TabularInline):
+    model = RevizieUtilaj
+    extra = 0
+
+
+@admin.register(Utilaj)
+class UtilajAdmin(admin.ModelAdmin):
+    list_display = ("cod_intern", "denumire", "nr_inmatriculare", "categorie", "stare", "contor_curent", "santier_curent", "activ")
+    list_filter = ("categorie", "stare", "activ", "santier_curent")
+    search_fields = ("cod_intern", "denumire", "nr_inmatriculare")
+    filter_horizontal = ("tipuri_document_necesare",)
+    readonly_fields = ("token_qr",)
+    inlines = (DocumentUtilajInline, RevizieUtilajInline)
+
+
+@admin.register(TipDocumentUtilaj)
+class TipDocumentUtilajAdmin(admin.ModelAdmin):
+    list_display = ("nume", "blocheaza_utilizarea", "zile_avertizare", "activ")
+    list_filter = ("blocheaza_utilizarea", "activ")
+    filter_horizontal = ("documente_angajat_necesare",)
+
+
+@admin.register(DocumentUtilaj)
+class DocumentUtilajAdmin(admin.ModelAdmin):
+    list_display = ("utilaj", "tip", "data_expirare", "expiry_notification_sent_at", "updated_at")
+    list_filter = ("tip", "data_expirare")
+    search_fields = ("utilaj__cod_intern", "utilaj__denumire", "utilaj__nr_inmatriculare", "tip__nume")
+    readonly_fields = ("expiry_notification_sent_for", "expiry_notification_sent_at")
+
+
+@admin.register(SesiuneUtilaj)
+class SesiuneUtilajAdmin(admin.ModelAdmin):
+    list_display = ("utilaj", "angajat", "inceput", "sfarsit", "motiv_inchidere", "contor_inceput", "contor_sfarsit", "santier")
+    list_filter = ("motiv_inchidere", "inceput", "utilaj__categorie")
+    search_fields = ("utilaj__cod_intern", "utilaj__nr_inmatriculare", "angajat__UserName")
+    readonly_fields = ("inceput",)
+
+
+@admin.register(DocumentUtilajVersiune)
+class DocumentUtilajVersiuneAdmin(admin.ModelAdmin):
+    list_display = ("document", "data_expirare", "nume_fisier_original", "incarcat_de", "created_at")
+    list_filter = ("data_expirare", "document__tip")
+    search_fields = ("document__utilaj__cod_intern", "document__tip__nume", "nume_fisier_original")
+    readonly_fields = ("created_at",)
+
+
+@admin.register(SesizareDefectUtilaj)
+class SesizareDefectUtilajAdmin(admin.ModelAdmin):
+    list_display = ("utilaj", "gravitate", "status", "raportat_de", "responsabil", "cost_reparatie", "created_at")
+    list_filter = ("status", "gravitate", "created_at")
+    search_fields = ("utilaj__cod_intern", "descriere", "raportat_de__UserName", "responsabil")
+
+
+@admin.register(IncercareUtilajBlocata)
+class IncercareUtilajBlocataAdmin(admin.ModelAdmin):
+    list_display = ("utilaj", "angajat", "cod", "created_at")
+    list_filter = ("cod", "created_at")
+    search_fields = ("utilaj__cod_intern", "angajat__UserName", "motiv")
+    readonly_fields = ("created_at",)
+
+
+@admin.register(FleetAuditLog)
+class FleetAuditLogAdmin(admin.ModelAdmin):
+    list_display = ("utilaj", "actiune", "actor", "created_at")
+    list_filter = ("actiune", "created_at")
+    search_fields = ("utilaj__cod_intern", "actor", "actiune")
+    readonly_fields = ("utilaj", "actiune", "actor", "detalii", "created_at")
+
+
+@admin.register(AlimentareUtilaj)
+class AlimentareUtilajAdmin(admin.ModelAdmin):
+    list_display = ("utilaj", "data", "litri", "cost", "contor", "angajat")
+    list_filter = ("data", "utilaj")
+    search_fields = ("utilaj__cod_intern", "angajat__UserName")
+
+
+@admin.register(RevizieUtilaj)
+class RevizieUtilajAdmin(admin.ModelAdmin):
+    list_display = ("utilaj", "denumire", "data_scadenta", "contor_scadenta", "status", "cost")
+    list_filter = ("status", "data_scadenta")
+    search_fields = ("utilaj__cod_intern", "denumire", "observatii")
 
 
 class EmployeeSalaryProfileInline(admin.StackedInline):

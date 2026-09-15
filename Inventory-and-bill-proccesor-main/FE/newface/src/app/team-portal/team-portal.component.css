@@ -81,6 +81,7 @@ button, select, input, textarea, a { font: inherit; }
 .portal-ticket-benefit p { margin: 14px 0 0; color: #adbbcc; line-height: 1.55; }
 .portal-ticket-benefit .ticket-explanation { margin-top: 12px; font-size: 12px; }
 .tools-card .card-icon { background: rgba(43,211,148,.14); color: #2bd394; }
+.fleet-card .card-icon { background: rgba(80,163,255,.14); color: #67b3ff; }
 .team-card, .notification-card { border: 1px solid #21324a; border-radius: 18px; background: #0c1829; overflow: hidden; margin-top: 16px; }
 .team-card h2 { margin: 0; padding: 18px 20px; border-bottom: 1px solid #1c2d43; font-size: 19px; }
 .member-row + .member-row { border-top: 1px solid #18283c; }

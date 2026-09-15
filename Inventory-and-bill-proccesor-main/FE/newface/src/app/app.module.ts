@@ -53,6 +53,8 @@ import { OrganizationComponent } from './organization/organization.component';
 import { TeamPortalComponent } from './team-portal/team-portal.component';
 import { TesaPresenceComponent } from './tesa-presence/tesa-presence.component';
 import { AttendanceAlertsComponent } from './pontaj/attendance-alerts/attendance-alerts.component';
+import { FleetComponent } from './fleet/fleet.component';
+import { FleetAdminComponent } from './fleet/fleet-admin.component';
 
 @NgModule({
   declarations: [
@@ -96,6 +98,8 @@ import { AttendanceAlertsComponent } from './pontaj/attendance-alerts/attendance
     TeamPortalComponent,
     TesaPresenceComponent,
     AttendanceAlertsComponent,
+    FleetComponent,
+    FleetAdminComponent,
   ],
   imports: [
     CommonModule,

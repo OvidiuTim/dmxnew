@@ -1,0 +1,60 @@
+<main class="fleet-page">
+  <header class="fleet-header">
+    <div>
+      <span class="eyebrow">{{ ui.fleetEyebrow }}</span>
+      <h1>{{ ui.fleetTitle }}</h1>
+      <p>{{ ui.fleetSubtitle }}</p>
+    </div>
+    <button type="button" class="back-link" (click)="back()"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>{{ ui.back }}</button>
+  </header>
+
+  <form class="search-card" (ngSubmit)="search()">
+    <label for="fleet-search">{{ ui.fleetSearchHint }}</label>
+    <div><input id="fleet-search" name="query" [(ngModel)]="query" [placeholder]="ui.fleetSearchPlaceholder" />
+      <button type="submit" [disabled]="loading">{{ ui.fleetSearch }}</button><button type="button" class="scan-button" (click)="scannerOpen = !scannerOpen"><span class="material-symbols-rounded" aria-hidden="true">qr_code_scanner</span>{{ ui.fleetScanQr }}</button></div>
+  </form>
+
+  <section class="scanner-card" *ngIf="scannerOpen">
+    <header><strong>{{ ui.fleetScanHeading }}</strong><button type="button" (click)="scannerOpen = false" [attr.aria-label]="ui.fleetCloseCamera"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></header>
+    <zxing-scanner [enable]="scannerOpen" (scanSuccess)="scanSuccess($event)"></zxing-scanner>
+  </section>
+
+  <p class="message error" *ngIf="error">{{ error }}</p>
+  <p class="message success" *ngIf="success">{{ success }}</p>
+  <div class="loading" *ngIf="loading">{{ ui.fleetLoading }}</div>
+
+  <article class="detail-card" *ngIf="equipment">
+    <div class="identity">
+      <div><span class="eyebrow">{{ equipment.category_label }}</span><h2>{{ equipment.code }} · {{ equipment.name }}</h2>
+        <p>{{ equipment.registration_number || equipment.site?.name || '' }}</p></div>
+      <span class="state large" [attr.data-state]="equipment.state">{{ equipment.state_label }}</span>
+    </div>
+
+    <section class="documents">
+      <h3>{{ ui.fleetDocuments }}</h3>
+      <div class="document" *ngFor="let document of equipment.documents" [attr.data-status]="document.status">
+        <i></i><div><strong>{{ document.type }}</strong><span>{{ documentLabel(document) }}</span></div>
+        <a *ngIf="document.file_url" [href]="document.file_url" target="_blank" rel="noopener">{{ ui.fleetOpenDocument }}</a>
+      </div>
+      <p *ngIf="!equipment.documents.length" class="empty">{{ ui.fleetNoDocuments }}</p>
+    </section>
+
+    <section class="operator" *ngIf="equipment.active_session">
+      <span>{{ ui.fleetCurrentOperator }}</span><strong>{{ equipment.active_session.employee.name }}</strong>
+      <small>{{ equipment.active_session.started_at | date:'short' }}</small>
+    </section>
+
+    <section class="action-card">
+      <label>{{ ui.fleetPinLabel }}<input type="password" inputmode="numeric" [(ngModel)]="pin" [ngModelOptions]="{standalone: true}" /></label>
+      <label *ngIf="equipment.counter_type !== 'fara'">{{ equipment.counter_type === 'km' ? ui.fleetCounterKm : ui.fleetCounterHours }}
+        <input type="number" min="0" step="0.01" [(ngModel)]="counter" [ngModelOptions]="{standalone: true}" /></label>
+      <button *ngIf="!equipment.active_session" class="take" type="button" (click)="take()" [disabled]="submitting || equipment.state !== 'disponibil'">
+        {{ submitting ? ui.fleetProcessing : ui.fleetTake }}
+      </button>
+      <button *ngIf="equipment.active_session" class="return" type="button" (click)="giveBack()" [disabled]="submitting">
+        {{ submitting ? ui.fleetProcessing : ui.fleetReturn }}
+      </button>
+      <small>{{ ui.fleetPinHint }}</small>
+    </section>
+  </article>
+</main>

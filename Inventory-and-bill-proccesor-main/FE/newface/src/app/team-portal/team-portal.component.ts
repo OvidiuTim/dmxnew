@@ -509,6 +509,10 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     void this.router.navigateByUrl('/unelte');
   }
 
+  openFleet(): void {
+    void this.router.navigateByUrl('/team-dashboard/utilaje');
+  }
+
   loadCurrentView(): void {
     if (this.view === 'home') {
       this.loadHome();

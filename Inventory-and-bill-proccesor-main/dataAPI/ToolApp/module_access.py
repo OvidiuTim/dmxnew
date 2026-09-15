@@ -81,6 +81,15 @@ MODULE_DEFINITIONS = OrderedDict([
             {"path": "/predare-unealta", "label": "Predare unealtă", "icon": "swap_horiz"},
         ],
     }),
+    ("flota", {
+        "label": "Flotă",
+        "description": "Actele utilajelor și sesiunile Iau / Predau.",
+        "icon": "local_shipping",
+        "main_route": "/utilaje",
+        "routes": [
+            {"path": "/utilaje", "label": "Utilaje", "icon": "local_shipping"},
+        ],
+    }),
 ])
 
 MODULE_ORDER = tuple(MODULE_DEFINITIONS.keys())

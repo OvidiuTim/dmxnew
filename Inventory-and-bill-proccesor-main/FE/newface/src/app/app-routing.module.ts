@@ -31,6 +31,8 @@ import { TermeniIgdprComponent } from './termeni-igdpr/termeni-igdpr.component';
 import { OrganizationComponent } from './organization/organization.component';
 import { TeamPortalComponent } from './team-portal/team-portal.component';
 import { AttendanceAlertsComponent } from './pontaj/attendance-alerts/attendance-alerts.component';
+import { FleetComponent } from './fleet/fleet.component';
+import { FleetAdminComponent } from './fleet/fleet-admin.component';
 
 import { AuthGuard } from './auth/auth.guard';
 
@@ -54,6 +56,10 @@ export const routes: Routes = [
   { path: 'clockinandoutdriver', component: ClockinandoutdriverComponent },
   { path: 'chef', component: ClockinandoutComponent, data: { chefMode: true } },
   { path: 'termeniigdpr', component: TermeniIgdprComponent },
+  { path: 'pontaj/utilaj/:token', component: FleetComponent },
+  { path: 'utilaje', component: FleetAdminComponent, canActivate: [AuthGuard], data: { permissionRoute: '/utilaje', moduleCode: 'flota', moduleEntry: true } },
+  { path: 'team-dashboard/utilaje', component: FleetComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/utilaje', moduleCode: 'team_dashboard' } },
+  { path: 'team-dashboard/utilaje/:token', component: FleetComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/utilaje', moduleCode: 'team_dashboard' } },
   { path: 'team-dashboard/echipa-mea', component: TeamPortalComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/echipa-mea', moduleCode: 'team_dashboard', portalView: 'team' } },
   { path: 'team-dashboard/pontaj', component: ClockinandoutComponent, canActivate: [AuthGuard], data: { permissionRoute: '/team-dashboard/pontaj', moduleCode: 'team_dashboard', portalMode: true } },
   { path: 'team-dashboard/attendance', redirectTo: 'team-dashboard/pontaj', pathMatch: 'full' },

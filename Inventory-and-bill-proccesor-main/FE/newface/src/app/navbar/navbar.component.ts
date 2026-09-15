@@ -60,6 +60,11 @@ export class NavbarComponent implements OnDestroy {
       label: 'Unelte',
       moduleCode: 'tools',
       links: [{ label: 'Registru unelte', path: '/unelte', icon: 'construction', permissionRoute: '/unelte' }]
+    },
+    {
+      label: 'Flotă',
+      moduleCode: 'flota',
+      links: [{ label: 'Utilaje', path: '/utilaje', icon: 'local_shipping', permissionRoute: '/utilaje' }]
     }
   ];
 

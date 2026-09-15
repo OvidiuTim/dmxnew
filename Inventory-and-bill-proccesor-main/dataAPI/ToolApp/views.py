@@ -2433,6 +2433,12 @@ def nfc_scan(request):
             if open_sess.work_date < today:
                 _mark_session_missing_exit(open_sess)
                 open_sess.save(update_fields=["out_time", "duration_seconds", "source"])
+                from ToolApp.fleet_services import close_open_utilaj_sessions
+                close_open_utilaj_sessions(
+                    user,
+                    closed_at=open_sess.out_time,
+                    reason="depontare",
+                )
 
                 _publish("auto_close", user, when, {
                     "closed_at_hm": None,
@@ -2510,6 +2516,12 @@ def nfc_scan(request):
                 open_sess.out_gps_accuracy_m = gps_payload["accuracy"]
             open_sess.duration_seconds = max(0, int((open_sess.out_time - open_sess.in_time).total_seconds()))
             open_sess.save()
+            from ToolApp.fleet_services import close_open_utilaj_sessions
+            close_open_utilaj_sessions(
+                user,
+                closed_at=open_sess.out_time,
+                reason="depontare",
+            )
             recompute_daily_pay(user, open_sess.work_date)
 
             _publish("exit", user, open_sess.out_time, {
@@ -3859,6 +3871,13 @@ def close_open_sessions_for_day_at_1730(target_day):
             s.duration_seconds = max(0, int((s.out_time - s.in_time).total_seconds()))
             s.source = (s.source or '') + AUTO_CLOSE_SOURCE_TAG
             s.save()
+
+            from ToolApp.fleet_services import close_open_utilaj_sessions
+            close_open_utilaj_sessions(
+                s.user_fk,
+                closed_at=out_dt,
+                reason="final_zi",
+            )
 
             # PresenceEvent EXIT
             PresenceEvent.objects.create(

@@ -8,6 +8,7 @@ from ToolApp import leave_views
 from ToolApp import organization_views
 from ToolApp import employee_reports
 from ToolApp import tesa_views
+from ToolApp import fleet_views
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -39,6 +40,26 @@ from .views import (
 )
 
 urlpatterns = [
+    path('api/fleet/lookup/', fleet_views.fleet_lookup, name='fleet_lookup'),
+    path('api/fleet/equipment/', fleet_views.fleet_equipment_collection, name='fleet_equipment_collection'),
+    path('api/fleet/equipment/dashboard/', fleet_views.fleet_dashboard, name='fleet_dashboard'),
+    path('api/fleet/equipment/expirations/', fleet_views.fleet_expirations, name='fleet_expirations'),
+    path('api/fleet/equipment/document-types/', fleet_views.fleet_document_types, name='fleet_document_types'),
+    path('api/fleet/equipment/documents/', fleet_views.fleet_documents, name='fleet_documents'),
+    path('api/fleet/equipment/document-versions/<int:version_id>/download/', fleet_views.fleet_document_version_download, name='fleet_document_version_download'),
+    path('api/fleet/equipment/sessions/', fleet_views.fleet_sessions, name='fleet_sessions'),
+    path('api/fleet/equipment/defects/', fleet_views.fleet_defects, name='fleet_defects'),
+    path('api/fleet/equipment/defects/<int:defect_id>/', fleet_views.fleet_defects, name='fleet_defect_detail'),
+    path('api/fleet/equipment/fuel/', fleet_views.fleet_fuel, name='fleet_fuel'),
+    path('api/fleet/equipment/maintenance/', fleet_views.fleet_maintenance, name='fleet_maintenance'),
+    path('api/fleet/equipment/maintenance/<int:maintenance_id>/', fleet_views.fleet_maintenance, name='fleet_maintenance_detail'),
+    path('api/fleet/equipment/reports/', fleet_views.fleet_reports, name='fleet_reports'),
+    path('api/fleet/equipment/<int:equipment_id>/', fleet_views.fleet_equipment_detail, name='fleet_equipment_detail'),
+    path('api/fleet/equipment/<int:equipment_id>/qr.png', fleet_views.fleet_equipment_qr, name='fleet_equipment_qr'),
+    path('api/fleet/qr/<uuid:token>/', fleet_views.fleet_qr_detail, name='fleet_qr_detail'),
+    path('api/fleet/qr/<uuid:token>/documents/<int:document_id>/', fleet_views.fleet_document_download, name='fleet_document_download'),
+    path('api/fleet/qr/<uuid:token>/take/', fleet_views.fleet_take, name='fleet_take'),
+    path('api/fleet/qr/<uuid:token>/return/', fleet_views.fleet_return, name='fleet_return'),
     path('api/construction-sites/', site_views.sites_collection, name='sites_collection'),
     path('api/construction-sites/import/', site_views.sites_import, name='sites_import'),
     path('api/construction-sites/<int:site_id>/', site_views.site_detail, name='site_detail'),

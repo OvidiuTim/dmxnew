@@ -60,6 +60,11 @@
           <span><strong>{{ toolsModuleLabel }}</strong><small>{{ toolsModuleHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
+        <button *ngIf="dashboard.can_access_fleet" type="button" class="action-card fleet-card" (click)="openFleet()">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">local_shipping</span>
+          <span><strong>{{ ui.fleetTitle }}</strong><small>{{ ui.fleetSubtitle }}</small></span>
+          <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
+        </button>
         <button *ngIf="dashboard.is_supervisor" type="button" class="action-card" (click)="open('supervised')">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">groups_2</span>
           <span><strong>{{ t.supervisedTeams }}</strong><small>{{ t.supervisedHint }}</small></span>

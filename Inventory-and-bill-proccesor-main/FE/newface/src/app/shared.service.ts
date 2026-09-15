@@ -234,6 +234,31 @@ export class SharedService {
     });
   }
 
+  getFleetEquipment() { return this.http.get<any>(`${this.API}/fleet/equipment/`); }
+  getFleetEquipmentFiltered(params: any = {}) { return this.http.get<any>(`${this.API}/fleet/equipment/`, { params: this.cleanParams(params) }); }
+  getFleetDashboard() { return this.http.get<any>(`${this.API}/fleet/equipment/dashboard/`); }
+  createFleetEquipment(payload: any) { return this.http.post<any>(`${this.API}/fleet/equipment/`, payload); }
+  getFleetEquipmentAdmin(id: number) { return this.http.get<any>(`${this.API}/fleet/equipment/${id}/`); }
+  updateFleetEquipment(id: number, payload: any) { return this.http.patch<any>(`${this.API}/fleet/equipment/${id}/`, payload); }
+  archiveFleetEquipment(id: number) { return this.http.delete<any>(`${this.API}/fleet/equipment/${id}/`); }
+  getFleetExpirations() { return this.http.get<any>(`${this.API}/fleet/equipment/expirations/`); }
+  getFleetDocumentTypes() { return this.http.get<any>(`${this.API}/fleet/equipment/document-types/`); }
+  createFleetDocumentType(payload: any) { return this.http.post<any>(`${this.API}/fleet/equipment/document-types/`, payload); }
+  saveFleetDocument(payload: FormData) { return this.http.post<any>(`${this.API}/fleet/equipment/documents/`, payload); }
+  getFleetSessions(params: any = {}) { return this.http.get<any>(`${this.API}/fleet/equipment/sessions/`, { params: this.cleanParams(params) }); }
+  getFleetDefects(params: any = {}) { return this.http.get<any>(`${this.API}/fleet/equipment/defects/`, { params: this.cleanParams(params) }); }
+  createFleetDefect(payload: FormData | any) { return this.http.post<any>(`${this.API}/fleet/equipment/defects/`, payload); }
+  updateFleetDefect(id: number, payload: any) { return this.http.patch<any>(`${this.API}/fleet/equipment/defects/${id}/`, payload); }
+  createFleetFuel(payload: any) { return this.http.post<any>(`${this.API}/fleet/equipment/fuel/`, payload); }
+  getFleetMaintenance(params: any = {}) { return this.http.get<any>(`${this.API}/fleet/equipment/maintenance/`, { params: this.cleanParams(params) }); }
+  createFleetMaintenance(payload: any) { return this.http.post<any>(`${this.API}/fleet/equipment/maintenance/`, payload); }
+  updateFleetMaintenance(id: number, payload: any) { return this.http.patch<any>(`${this.API}/fleet/equipment/maintenance/${id}/`, payload); }
+  getFleetReports(params: any = {}) { return this.http.get<any>(`${this.API}/fleet/equipment/reports/`, { params: this.cleanParams(params) }); }
+  lookupFleetEquipment(query: string) { return this.http.get<any>(`${this.API}/fleet/lookup/`, { params: { q: query } }); }
+  getFleetEquipmentByToken(token: string) { return this.http.get<any>(`${this.API}/fleet/qr/${token}/`); }
+  takeFleetEquipment(token: string, payload: any) { return this.http.post<any>(`${this.API}/fleet/qr/${token}/take/`, payload); }
+  returnFleetEquipment(token: string, payload: any) { return this.http.post<any>(`${this.API}/fleet/qr/${token}/return/`, payload); }
+
   teamPortalAttendance(options: ManualAttendanceOptions) {
     return this.http.post<any>(`${this.API}/team-portal/attendance/`, {
       timestamp: new Date().toISOString(),

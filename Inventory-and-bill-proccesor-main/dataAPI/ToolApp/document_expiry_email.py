@@ -7,7 +7,8 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.timezone import localdate
 
-from ToolApp.models import EmployeeDocument
+from ToolApp.models import DocumentUtilaj, EmployeeDocument
+from ToolApp.fleet_services import due_fleet_document_expiry_notifications
 
 
 logger = logging.getLogger(__name__)
@@ -114,4 +115,58 @@ def process_due_document_expiry_notifications(reference_date=None, recipients=No
             expiry_notification_sent_at=sent_at,
         )
     logger.info("Au fost trimise notificări pentru %s documente care expiră.", len(documents))
+    return documents
+
+
+def process_due_fleet_document_expiry_notifications(reference_date=None, recipients=None, dry_run=False):
+    documents = due_fleet_document_expiry_notifications(reference_date=reference_date)
+    if not documents or dry_run:
+        return documents
+
+    today = reference_date or localdate()
+    text_lines = ["Documente utilaje care expiră", ""]
+    rows = []
+    for item in documents:
+        expiry = item.data_expirare.strftime("%d.%m.%Y")
+        days = (item.data_expirare - today).days
+        registration = f" / {item.utilaj.nr_inmatriculare}" if item.utilaj.nr_inmatriculare else ""
+        text_lines.append(f"{item.utilaj.cod_intern}{registration}: {item.tip.nume} – {expiry} ({days} zile)")
+        rows.append(
+            "<tr>"
+            f'<td style="padding:10px;border:1px solid #d9dee7">{escape(item.utilaj.cod_intern)}</td>'
+            f'<td style="padding:10px;border:1px solid #d9dee7">{escape(item.utilaj.denumire)}</td>'
+            f'<td style="padding:10px;border:1px solid #d9dee7">{escape(item.tip.nume)}</td>'
+            f'<td style="padding:10px;border:1px solid #d9dee7">{escape(expiry)}</td>'
+            f'<td style="padding:10px;border:1px solid #d9dee7;text-align:center">{days}</td>'
+            "</tr>"
+        )
+    api_key = str(os.environ.get("SENDGRID_API_KEY") or getattr(settings, "SENDGRID_API_KEY", "") or "").strip()
+    from_email = str(os.environ.get("DEFAULT_FROM_EMAIL") or getattr(settings, "DEFAULT_FROM_EMAIL", "") or "no-reply@dmxconstruction.ro").strip()
+    if not api_key:
+        raise RuntimeError("SENDGRID_API_KEY lipsește din environment/settings.")
+    from sendgrid import SendGridAPIClient
+    from sendgrid.helpers.mail import Mail
+    html = (
+        '<div style="font-family:Arial,sans-serif;color:#142033;line-height:1.55">'
+        "<h2>Documente utilaje care expiră</h2>"
+        '<table style="border-collapse:collapse;width:100%;max-width:900px">'
+        "<thead><tr><th>Cod</th><th>Utilaj</th><th>Document</th><th>Expiră</th><th>Zile</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table></div>"
+    )
+    response = SendGridAPIClient(api_key).send(Mail(
+        from_email=from_email,
+        to_emails=list(recipients or DOCUMENT_EXPIRY_RECIPIENTS),
+        subject=f"Avertizare documente flotă – {len(documents)}",
+        plain_text_content="\n".join(text_lines),
+        html_content=html,
+    ))
+    status_code = int(getattr(response, "status_code", 0) or 0)
+    if not 200 <= status_code < 300:
+        raise RuntimeError(f"SendGrid a răspuns cu status {status_code}.")
+    sent_at = timezone.now()
+    for item in documents:
+        DocumentUtilaj.objects.filter(pk=item.pk).update(
+            expiry_notification_sent_for=item.data_expirare,
+            expiry_notification_sent_at=sent_at,
+        )
     return documents

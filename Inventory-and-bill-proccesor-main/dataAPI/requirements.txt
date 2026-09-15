@@ -8,3 +8,4 @@ whitenoise
 sendgrid
 firebase-admin>=6.5,<7
 psycopg[binary]>=3.2,<4
+qrcode[pil]>=7.4,<9

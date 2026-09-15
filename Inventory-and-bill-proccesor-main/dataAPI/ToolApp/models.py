@@ -330,6 +330,7 @@ class AppModuleAccess(models.Model):
         TEAM_DASHBOARD = "team_dashboard", "Team Dashboard"
         WAREHOUSE = "warehouse", "Magazie"
         TOOLS = "tools", "Unelte"
+        FLEET = "flota", "Flotă"
 
     AccessId = models.AutoField(primary_key=True)
     app_user = models.ForeignKey(
@@ -1523,6 +1524,268 @@ class ConstructionSite(models.Model):
 
     def __str__(self):
         return f"{self.code} · {self.name}"
+
+
+class Utilaj(models.Model):
+    """Vehicul sau utilaj mare urmărit separat de inventarul de scule."""
+
+    class Categorie(models.TextChoices):
+        AUTOTURISM = "autoturism", "Autoturism"
+        AUTOUTILITARA = "autoutilitara", "Autoutilitară"
+        EXCAVATOR = "excavator", "Excavator"
+        MACARA = "macara", "Macara"
+        STIVUITOR = "stivuitor", "Stivuitor"
+        GENERATOR = "generator", "Generator"
+        ALTELE = "altele", "Altele"
+
+    class TipContor(models.TextChoices):
+        KM = "km", "Kilometri"
+        ORE = "ore", "Ore motor"
+        FARA = "fara", "Fără contor"
+
+    class Stare(models.TextChoices):
+        DISPONIBIL = "disponibil", "Disponibil"
+        IN_LUCRU = "in_lucru", "În lucru"
+        DEFECT = "defect", "Defect"
+        SERVICE = "service", "Service"
+
+    cod_intern = models.CharField(max_length=40, unique=True, db_index=True)
+    denumire = models.CharField(max_length=160)
+    nr_inmatriculare = models.CharField(max_length=24, blank=True, default="", db_index=True)
+    serie_sasiu = models.CharField(max_length=80, blank=True, default="")
+    an_fabricatie = models.PositiveSmallIntegerField(null=True, blank=True)
+    proprietar = models.CharField(max_length=160, blank=True, default="")
+    tip_proprietate = models.CharField(max_length=40, blank=True, default="")
+    tarif_intern = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    categorie = models.CharField(max_length=24, choices=Categorie.choices, default=Categorie.ALTELE, db_index=True)
+    tip_contor = models.CharField(max_length=8, choices=TipContor.choices, default=TipContor.FARA)
+    contor_curent = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    stare = models.CharField(max_length=16, choices=Stare.choices, default=Stare.DISPONIBIL, db_index=True)
+    santier_curent = models.ForeignKey(
+        ConstructionSite,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="utilaje",
+    )
+    tipuri_document_necesare = models.ManyToManyField(
+        "TipDocumentUtilaj",
+        blank=True,
+        related_name="utilaje",
+    )
+    token_qr = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
+    activ = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("cod_intern",)
+
+    def __str__(self):
+        return f"{self.cod_intern} · {self.denumire}"
+
+
+class TipDocumentUtilaj(models.Model):
+    nume = models.CharField(max_length=120, unique=True)
+    blocheaza_utilizarea = models.BooleanField(default=False)
+    zile_avertizare = models.PositiveSmallIntegerField(default=30)
+    activ = models.BooleanField(default=True, db_index=True)
+    # De exemplu, un stivuitor poate cere autorizația ISCIR a angajatului.
+    documente_angajat_necesare = models.ManyToManyField(
+        EmployeeDocumentType,
+        blank=True,
+        related_name="tipuri_document_utilaj_autorizate",
+    )
+
+    class Meta:
+        ordering = ("nume",)
+
+    def __str__(self):
+        return self.nume
+
+
+class DocumentUtilaj(models.Model):
+    utilaj = models.ForeignKey(Utilaj, on_delete=models.CASCADE, related_name="documente")
+    tip = models.ForeignKey(TipDocumentUtilaj, on_delete=models.PROTECT, related_name="documente")
+    data_expirare = models.DateField(null=True, blank=True, db_index=True)
+    fisier = models.FileField(upload_to="utilaj_documents/%Y/%m/")
+    nume_fisier_original = models.CharField(max_length=255, blank=True, default="")
+    expiry_notification_sent_for = models.DateField(null=True, blank=True)
+    expiry_notification_sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("tip__nume", "-updated_at")
+        constraints = [
+            models.UniqueConstraint(fields=("utilaj", "tip"), name="unique_document_type_per_utilaj"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.fisier and not self.nume_fisier_original:
+            self.nume_fisier_original = str(self.fisier.name).rsplit("/", 1)[-1]
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {"nume_fisier_original"}
+        if self.expiry_notification_sent_for and self.expiry_notification_sent_for != self.data_expirare:
+            self.expiry_notification_sent_for = None
+            self.expiry_notification_sent_at = None
+            if kwargs.get("update_fields") is not None:
+                kwargs["update_fields"] = set(kwargs["update_fields"]) | {
+                    "expiry_notification_sent_for",
+                    "expiry_notification_sent_at",
+                }
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.utilaj}: {self.tip.nume}"
+
+
+class DocumentUtilajVersiune(models.Model):
+    """Snapshot păstrat la fiecare încărcare/reînnoire a unui document."""
+
+    document = models.ForeignKey(DocumentUtilaj, on_delete=models.CASCADE, related_name="versiuni")
+    data_expirare = models.DateField(null=True, blank=True, db_index=True)
+    fisier = models.FileField(upload_to="utilaj_document_history/%Y/%m/", blank=True)
+    nume_fisier_original = models.CharField(max_length=255, blank=True, default="")
+    incarcat_de = models.CharField(max_length=180, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+
+
+class SesiuneUtilaj(models.Model):
+    class MotivInchidere(models.TextChoices):
+        PREDARE = "predare", "Predare de către angajat"
+        DEPONTARE = "depontare", "Închis la depontare"
+        FINAL_ZI = "final_zi", "Închis automat la finalul zilei"
+
+    angajat = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="sesiuni_utilaj")
+    utilaj = models.ForeignKey(Utilaj, on_delete=models.PROTECT, related_name="sesiuni")
+    inceput = models.DateTimeField(default=timezone.now, db_index=True)
+    sfarsit = models.DateTimeField(null=True, blank=True, db_index=True)
+    contor_inceput = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    contor_sfarsit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    gps_latitudine = models.FloatField(null=True, blank=True)
+    gps_longitudine = models.FloatField(null=True, blank=True)
+    gps_precizie_m = models.FloatField(null=True, blank=True)
+    attendance_session = models.ForeignKey(
+        AttendanceSession,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sesiuni_utilaj",
+    )
+    santier = models.ForeignKey(
+        ConstructionSite,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sesiuni_utilaj",
+    )
+    motiv_inchidere = models.CharField(max_length=16, choices=MotivInchidere.choices, blank=True, default="")
+
+    class Meta:
+        ordering = ("-inceput",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("utilaj",), condition=models.Q(sfarsit__isnull=True), name="unique_open_session_per_utilaj"
+            ),
+            models.UniqueConstraint(
+                fields=("angajat",), condition=models.Q(sfarsit__isnull=True), name="unique_open_utilaj_per_employee"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("angajat", "sfarsit"), name="utilaj_session_employee_idx"),
+            models.Index(fields=("utilaj", "sfarsit"), name="utilaj_session_machine_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.angajat} · {self.utilaj} · {self.inceput:%Y-%m-%d %H:%M}"
+
+
+class SesizareDefectUtilaj(models.Model):
+    class Gravitate(models.TextChoices):
+        MICA = "mica", "Mică"
+        MEDIE = "medie", "Medie"
+        GRAVA = "grava", "Gravă"
+
+    class Status(models.TextChoices):
+        NOU = "nou", "Nou"
+        IN_LUCRU = "in_lucru", "În lucru"
+        REZOLVAT = "rezolvat", "Rezolvat"
+
+    utilaj = models.ForeignKey(Utilaj, on_delete=models.PROTECT, related_name="defecte")
+    raportat_de = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True, related_name="defecte_utilaj_raportate")
+    descriere = models.TextField()
+    fotografie = models.FileField(upload_to="utilaj_defects/%Y/%m/", null=True, blank=True)
+    gravitate = models.CharField(max_length=12, choices=Gravitate.choices, default=Gravitate.MEDIE, db_index=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.NOU, db_index=True)
+    responsabil = models.CharField(max_length=160, blank=True, default="")
+    cost_reparatie = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    observatii_rezolvare = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("status", "-created_at")
+
+
+class IncercareUtilajBlocata(models.Model):
+    utilaj = models.ForeignKey(Utilaj, on_delete=models.PROTECT, related_name="incercari_blocate")
+    angajat = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True, related_name="incercari_utilaj_blocate")
+    cod = models.CharField(max_length=64, db_index=True)
+    motiv = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+
+class FleetAuditLog(models.Model):
+    utilaj = models.ForeignKey(Utilaj, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_logs")
+    actiune = models.CharField(max_length=64, db_index=True)
+    actor = models.CharField(max_length=180)
+    detalii = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+
+class AlimentareUtilaj(models.Model):
+    utilaj = models.ForeignKey(Utilaj, on_delete=models.PROTECT, related_name="alimentari")
+    angajat = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True, related_name="alimentari_utilaj")
+    data = models.DateField(default=timezone.localdate, db_index=True)
+    litri = models.DecimalField(max_digits=10, decimal_places=2)
+    cost = models.DecimalField(max_digits=12, decimal_places=2)
+    contor = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-data", "-id")
+
+
+class RevizieUtilaj(models.Model):
+    class Status(models.TextChoices):
+        PLANIFICATA = "planificata", "Planificată"
+        FINALIZATA = "finalizata", "Finalizată"
+        ANULATA = "anulata", "Anulată"
+
+    utilaj = models.ForeignKey(Utilaj, on_delete=models.PROTECT, related_name="revizii")
+    denumire = models.CharField(max_length=180)
+    data_scadenta = models.DateField(null=True, blank=True, db_index=True)
+    contor_scadenta = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PLANIFICATA, db_index=True)
+    observatii = models.TextField(blank=True, default="")
+    cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    finalizata_la = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("status", "data_scadenta", "contor_scadenta", "id")
 
 
 class SiteAttendancePoint(models.Model):

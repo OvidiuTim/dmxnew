@@ -27,9 +27,12 @@ PUBLIC_API_PREFIXES = (
     "/api/pontaj/clock/",
     "/api/pontaj/stream/",
     "/api/mobile/",
+    "/api/fleet/lookup/",
+    "/api/fleet/qr/",
 )
 
 API_ROUTE_REQUIREMENTS = (
+    ("/api/fleet/equipment/", ("/utilaje",)),
     ("/api/construction-sites/", ("/santiere",)),
     ("/api/employee-reports/", ("/pontaj/fisa-angajat", "/pontaj/concedii")),
     ("/api/warehouse/storekeepers/", ("/magazie",)),
@@ -69,6 +72,7 @@ API_ROUTE_REQUIREMENTS = (
 )
 
 API_MODULE_REQUIREMENTS = (
+    ("/api/fleet/equipment/", ("flota",)),
     ("/api/construction-sites/", ("construction_sites",)),
     ("/api/employee-reports/", ("attendance", "teams_schedule")),
     ("/api/warehouse/storekeepers/", ("warehouse",)),
@@ -228,6 +232,7 @@ def app_user_can_access_api_path(app_user, path: str, method: str = "GET") -> bo
     if module_endpoint and (
         str(method or "GET").upper() in ("GET", "HEAD")
         or "teams_schedule" in module_codes
+        or "flota" in module_codes
     ):
         return True
     if normalized.startswith("/api/tool/") and str(method or "GET").upper() == "POST":

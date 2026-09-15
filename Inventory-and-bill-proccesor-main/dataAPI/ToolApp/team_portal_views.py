@@ -363,6 +363,9 @@ def portal_dashboard(request):
         "is_supervisor": "supervisor" in roles,
         "is_storekeeper": "storekeeper" in roles,
         "can_access_tools": app_user_has_module(app_user, "tools"),
+        # Iau/Predau este o funcție a portalului. Modulul `flota` controlează
+        # separat administrarea de la /utilaje.
+        "can_access_fleet": True,
         "alert_level_1": 1 in levels,
         "alert_level_2": 2 in levels,
         "status": own_status,
