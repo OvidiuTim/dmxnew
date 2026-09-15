@@ -30,6 +30,7 @@ export class FleetAdminComponent implements OnInit {
   reports: any = null;
   sites: any[] = [];
   documentTypes: any[] = [];
+  employeeDocumentTypes: any[] = [];
   selected: any = null;
   detailTab = 'details';
   loading = false;
@@ -40,6 +41,7 @@ export class FleetAdminComponent implements OnInit {
   formOpen = false;
   form: any = this.emptyEquipmentForm();
   documentForm: any = { type_id: '', expiry_date: '', file: null };
+  documentTypeForm: any = { id: null, name: '', blocking: false, warning_days: 30, required_employee_document_type_ids: [] };
   defectForm: any = { description: '', severity: 'medie', photo: null };
   fuelForm: any = { date: '', liters: '', cost: '', counter: '' };
   maintenanceForm: any = { name: '', due_date: '', due_counter: '', notes: '' };
@@ -88,7 +90,7 @@ export class FleetAdminComponent implements OnInit {
 
   loadExpirations(): void {
     this.loading = true;
-    this.api.getFleetExpirations().subscribe({ next: result => { this.expirations = result?.rows || []; this.authorizationExpirations = result?.authorizations || []; this.loading = false; }, error: error => this.fail(error) });
+    forkJoin({ expirations: this.api.getFleetExpirations(), types: this.api.getFleetDocumentTypes() }).subscribe({ next: result => { this.expirations = result.expirations?.rows || []; this.authorizationExpirations = result.expirations?.authorizations || []; this.documentTypes = result.types?.types || []; this.employeeDocumentTypes = result.types?.employee_document_types || []; this.loading = false; }, error: error => this.fail(error) });
   }
 
   loadSessions(): void {
@@ -162,6 +164,43 @@ export class FleetAdminComponent implements OnInit {
     data.append('equipment_id', String(row.equipment_id)); data.append('type_id', String(row.type_id));
     data.append('expiry_date', row.renewDate); data.append('file', row.renewFile);
     this.api.saveFleetDocument(data).subscribe({ next: () => { this.notice = 'Document reînnoit.'; this.loadExpirations(); }, error: error => this.error = this.message(error) });
+  }
+
+  saveDocumentType(): void {
+    if (!this.documentTypeForm.name.trim()) return;
+    this.api.createFleetDocumentType(this.documentTypeForm).subscribe({
+      next: result => {
+        const type = result?.type;
+        if (type) {
+          const index = this.documentTypes.findIndex(item => item.id === type.id);
+          if (index >= 0) this.documentTypes[index] = type; else this.documentTypes.push(type);
+        }
+        this.documentTypes.sort((a, b) => a.name.localeCompare(b.name, 'ro'));
+        this.cancelDocumentTypeEdit();
+        this.notice = 'Tipul de document a fost salvat.';
+      },
+      error: error => this.error = this.message(error),
+    });
+  }
+
+  editDocumentType(type: any): void {
+    this.documentTypeForm = {
+      id: type.id,
+      name: type.name,
+      blocking: !!type.blocking,
+      warning_days: type.warning_days,
+      required_employee_document_type_ids: [...(type.required_employee_document_type_ids || [])],
+    };
+  }
+
+  cancelDocumentTypeEdit(): void {
+    this.documentTypeForm = { id: null, name: '', blocking: false, warning_days: 30, required_employee_document_type_ids: [] };
+  }
+
+  toggleRequiredEmployeeDocument(typeId: number, checked: boolean): void {
+    const values = this.documentTypeForm.required_employee_document_type_ids as number[];
+    if (checked && !values.includes(typeId)) values.push(typeId);
+    if (!checked) this.documentTypeForm.required_employee_document_type_ids = values.filter(id => id !== typeId);
   }
 
   saveDefect(): void {

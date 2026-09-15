@@ -25,6 +25,7 @@ from ToolApp.models import (
     DocumentUtilaj,
     DocumentUtilajVersiune,
     EmployeeDocument,
+    EmployeeDocumentType,
     FleetAuditLog,
     IncercareUtilajBlocata,
     SesiuneUtilaj,
@@ -474,20 +475,47 @@ def fleet_expirations(request):
 @csrf_exempt
 def fleet_document_types(request):
     if request.method == "GET":
-        return JsonResponse({"ok": True, "types": [
-            {"id": item.pk, "name": item.nume, "blocking": item.blocheaza_utilizarea, "warning_days": item.zile_avertizare}
-            for item in TipDocumentUtilaj.objects.filter(activ=True)
-        ]})
+        return JsonResponse({
+            "ok": True,
+            "types": [{
+                "id": item.pk,
+                "name": item.nume,
+                "blocking": item.blocheaza_utilizarea,
+                "warning_days": item.zile_avertizare,
+                "required_employee_document_type_ids": list(item.documente_angajat_necesare.values_list("pk", flat=True)),
+            } for item in TipDocumentUtilaj.objects.filter(activ=True).prefetch_related("documente_angajat_necesare")],
+            "employee_document_types": [{"id": item.pk, "name": item.name}
+                                        for item in EmployeeDocumentType.objects.filter(active=True)],
+        })
     if request.method == "POST":
         data = _json_body(request)
         if data is None or not str(data.get("name") or "").strip():
             return _error("INVALID_INPUT", "Denumirea tipului este obligatorie.")
-        item, created = TipDocumentUtilaj.objects.get_or_create(
-            nume=str(data["name"]).strip(),
-            defaults={"blocheaza_utilizarea": bool(data.get("blocking")), "zile_avertizare": int(data.get("warning_days") or 30)},
-        )
-        return JsonResponse({"ok": True, "type": {"id": item.pk, "name": item.nume, "blocking": item.blocheaza_utilizarea,
-                                                      "warning_days": item.zile_avertizare}}, status=201 if created else 200)
+        try:
+            warning_days = max(0, int(data.get("warning_days") or 30))
+        except (TypeError, ValueError):
+            return _error("INVALID_INPUT", "Numărul zilelor de avertizare nu este valid.")
+        item = TipDocumentUtilaj.objects.filter(pk=data.get("id"), activ=True).first() if data.get("id") else None
+        created = item is None
+        if item is None:
+            item, created = TipDocumentUtilaj.objects.get_or_create(nume=str(data["name"]).strip())
+        item.nume = str(data["name"]).strip()
+        item.blocheaza_utilizarea = bool(data.get("blocking"))
+        item.zile_avertizare = warning_days
+        try:
+            item.save()
+        except IntegrityError:
+            return _error("DUPLICATE_DOCUMENT_TYPE", "Există deja un tip de document cu această denumire.", 409)
+        required_ids = data.get("required_employee_document_type_ids") or []
+        item.documente_angajat_necesare.set(EmployeeDocumentType.objects.filter(pk__in=required_ids, active=True))
+        _audit(request, "tip_document_configurat", document_type=item.nume)
+        return JsonResponse({"ok": True, "type": {
+            "id": item.pk,
+            "name": item.nume,
+            "blocking": item.blocheaza_utilizarea,
+            "warning_days": item.zile_avertizare,
+            "required_employee_document_type_ids": list(item.documente_angajat_necesare.values_list("pk", flat=True)),
+        }}, status=201 if created else 200)
     return _error("METHOD_NOT_ALLOWED", "Metodă neacceptată.", 405)
 
 

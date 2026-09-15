@@ -6,6 +6,22 @@ import uuid
 from django.db import migrations, models
 
 
+def seed_fleet_document_types(apps, schema_editor):
+    document_type = apps.get_model('ToolApp', 'TipDocumentUtilaj')
+    for name, blocking, warning_days in (
+        ('ITP', True, 30),
+        ('RCA', True, 30),
+        ('Rovinietă', True, 30),
+        ('CASCO', False, 30),
+        ('ISCIR', True, 30),
+        ('Revizie', False, 30),
+    ):
+        document_type.objects.get_or_create(
+            nume=name,
+            defaults={'blocheaza_utilizarea': blocking, 'zile_avertizare': warning_days},
+        )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -96,4 +112,5 @@ class Migration(migrations.Migration):
                 'constraints': [models.UniqueConstraint(fields=('utilaj', 'tip'), name='unique_document_type_per_utilaj')],
             },
         ),
+        migrations.RunPython(seed_fleet_document_types, migrations.RunPython.noop),
     ]

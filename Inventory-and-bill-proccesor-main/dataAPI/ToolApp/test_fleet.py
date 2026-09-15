@@ -1,4 +1,5 @@
 import json
+import tempfile
 from datetime import timedelta
 
 from django.test import Client, TestCase
@@ -7,6 +8,7 @@ from django.utils import timezone
 from django.utils.timezone import localdate
 
 from ToolApp import views
+from ToolApp.fleet_services import due_fleet_document_expiry_notifications
 from ToolApp.models import (
     AttendanceSession,
     AppModuleAccess,
@@ -28,6 +30,9 @@ from ToolApp.security import make_admin_token, make_app_user_token
 
 class FleetFlowTests(TestCase):
     def setUp(self):
+        self._media = tempfile.TemporaryDirectory()
+        self._settings = self.settings(MEDIA_ROOT=self._media.name)
+        self._settings.enable()
         self.client = Client()
         self.employee = Users.objects.create(UserName="Șofer Test", UserSerie="DRV-1", UserPin="4321")
         self.utilaj = Utilaj.objects.create(
@@ -38,10 +43,9 @@ class FleetFlowTests(TestCase):
             tip_contor=Utilaj.TipContor.KM,
             contor_curent="100.00",
         )
-        self.itp = TipDocumentUtilaj.objects.create(
+        self.itp, _ = TipDocumentUtilaj.objects.update_or_create(
             nume="ITP",
-            blocheaza_utilizarea=True,
-            zile_avertizare=30,
+            defaults={"blocheaza_utilizarea": True, "zile_avertizare": 30},
         )
         self.utilaj.tipuri_document_necesare.add(self.itp)
         self.document = DocumentUtilaj.objects.create(
@@ -52,6 +56,10 @@ class FleetFlowTests(TestCase):
         )
         self.admin_client = Client()
         self.admin_client.cookies["ptj"] = make_admin_token()
+
+    def tearDown(self):
+        self._settings.disable()
+        self._media.cleanup()
 
     @property
     def detail_url(self):
@@ -77,6 +85,19 @@ class FleetFlowTests(TestCase):
         self.assertEqual(payload["code"], "DMX-U-012")
         self.assertEqual(payload["documents"][0]["status"], "warning")
         self.assertEqual(payload["documents"][0]["days_remaining"], 9)
+
+    def test_fleet_expiry_notification_is_due_once_and_resets_after_renewal(self):
+        due = due_fleet_document_expiry_notifications()
+        self.assertEqual([item.pk for item in due], [self.document.pk])
+        self.document.expiry_notification_sent_for = self.document.data_expirare
+        self.document.expiry_notification_sent_at = timezone.now()
+        self.document.save()
+        self.assertEqual(due_fleet_document_expiry_notifications(), [])
+        self.document.data_expirare = localdate() + timedelta(days=20)
+        self.document.save()
+        self.document.refresh_from_db()
+        self.assertIsNone(self.document.expiry_notification_sent_for)
+        self.assertEqual([item.pk for item in due_fleet_document_expiry_notifications()], [self.document.pk])
 
     def test_registry_requires_fleet_module_but_qr_card_is_public(self):
         app_user = AppUser.objects.create(employee=self.employee, username="driver.test", pin_hash="unused")
@@ -141,6 +162,24 @@ class FleetFlowTests(TestCase):
         self.assertEqual(self.utilaj.contor_curent, 115)
 
     def test_admin_can_manage_equipment_documents_and_maintenance(self):
+        authorization = EmployeeDocumentType.objects.create(
+            name="Autorizație excavator",
+            category=EmployeeDocumentType.Category.PERSONAL,
+        )
+        configured_type = self.admin_client.post(
+            "/api/fleet/equipment/document-types/",
+            data=json.dumps({
+                "id": self.itp.pk,
+                "name": "ITP",
+                "blocking": True,
+                "warning_days": 45,
+                "required_employee_document_type_ids": [authorization.pk],
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(configured_type.status_code, 200, configured_type.content)
+        self.assertEqual(configured_type.json()["type"]["required_employee_document_type_ids"], [authorization.pk])
+
         created = self.admin_client.post(
             "/api/fleet/equipment/",
             data=json.dumps({"code": "EXC-02", "name": "Excavator 2", "category": "excavator"}),
