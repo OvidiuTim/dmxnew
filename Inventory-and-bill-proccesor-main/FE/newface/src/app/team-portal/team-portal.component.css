@@ -20,7 +20,12 @@ button, select, input, textarea, a { font: inherit; }
 .action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 30px; }
 .action-card { min-height: 142px; width: 100%; border: 1px solid #21324a; border-radius: 19px; background: #0c1829; color: #ecf3fb; display: grid; grid-template-columns: 54px minmax(0,1fr) auto; align-items: center; gap: 16px; padding: 22px; text-align: left; text-decoration: none; cursor: pointer; position: relative; box-shadow: 0 12px 32px rgba(0,0,0,.13); }
 .action-card:hover, .action-card:focus-visible { border-color: #2bd394; transform: translateY(-1px); }
-.attendance-card { background: linear-gradient(135deg, rgba(43,211,148,.16), #0c1829 62%); border-color: rgba(43,211,148,.42); }
+.attendance-card.clocked-in { background: linear-gradient(135deg, rgba(43,211,148,.18), #0c1829 62%); border-color: rgba(43,211,148,.58); box-shadow: inset 4px 0 #2bd394, 0 12px 32px rgba(0,0,0,.13); }
+.attendance-card.clocked-in .card-icon { background: rgba(43,211,148,.16); color: #39dfa3; }
+.attendance-card.clocked-in small { color: #63e6b5; font-weight: 750; }
+.attendance-card.clocked-out { background: linear-gradient(135deg, rgba(229,72,85,.17), #0c1829 62%); border-color: rgba(229,72,85,.55); box-shadow: inset 4px 0 #e54855, 0 12px 32px rgba(0,0,0,.13); }
+.attendance-card.clocked-out .card-icon { background: rgba(229,72,85,.15); color: #ff777f; }
+.attendance-card.clocked-out small { color: #ff9299; font-weight: 750; }
 .card-icon { width: 54px; height: 54px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center; background: #12283a; color: #2bd394; font-size: 29px; line-height: 1; }
 .action-card > span:nth-child(2) { display: grid; gap: 6px; min-width: 0; }
 .action-card strong { font-size: 20px; }
@@ -95,6 +100,7 @@ button, select, input, textarea, a { font: inherit; }
 .member-row[data-status="absent"] .member-status { color: #ff777f; background: rgba(216,47,64,.17); }
 .member-row[data-status="marked_absent"] .member-status { color: #ffb36b; background: rgba(196,102,34,.18); }
 .member-row[data-status="present"] .member-status { color: #39dfa3; background: rgba(31,151,111,.17); }
+.member-row[data-status="late"] .member-status { color: #ffc85a; background: rgba(220,154,34,.16); }
 .member-row[data-status="leave"] .member-status { color: #ffc85a; background: rgba(220,154,34,.16); }
 .member-row[data-status="not_required"] .member-status { color: #aebed1; background: rgba(115,137,164,.16); }
 .expand-icon { color: #71839b; }

@@ -9,12 +9,15 @@ import * as L from 'leaflet';
 
 interface Worksite { name: string; latitude: number; longitude: number; radius_meters: number; }
 interface PresenceSession {
-  work_date: string; worksite: string; in_time: string; out_time: string; hours: number;
+  work_date: string; worksite: string; in_time: string; out_time: string | null; hours: number; state: 'open' | 'closed';
   distance_m?: number | null; inside_perimeter?: boolean | null;
+  checkout_distance_m?: number | null; checkout_inside_perimeter?: boolean | null;
 }
 interface PresenceStatus {
   employee: { name: string }; work_date: string; worksites: Worksite[];
-  session: PresenceSession | null; can_confirm: boolean; blocked_reason: string | null; blocked_reason_code?: string | null;
+  session: PresenceSession | null; state: 'not_checked_in' | 'checked_in' | 'checked_out';
+  can_check_in: boolean; can_check_out: boolean; can_confirm: boolean;
+  blocked_reason: string | null; blocked_reason_code?: string | null;
 }
 
 @Component({
@@ -123,9 +126,17 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   locate(): void { this.readLocation(false); }
 
   confirm(): void {
-    if (!this.status?.can_confirm || this.saving || this.locating || !this.worksite) return;
-    // Always request a fresh GPS fix at confirmation, even after a preview.
+    if (!this.canSubmit || this.saving || this.locating || !this.worksite) return;
+    // La ambele acțiuni se cere o poziție proaspătă. Nu se cere fotografie.
     this.readLocation(true);
+  }
+
+  get action(): 'check_in' | 'check_out' {
+    return this.status?.session && !this.status.session.out_time ? 'check_out' : 'check_in';
+  }
+
+  get canSubmit(): boolean {
+    return this.action === 'check_out' ? !!this.status?.can_check_out : !!this.status?.can_check_in;
   }
 
   private readLocation(submit: boolean): void {
@@ -158,11 +169,22 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private save(): void {
     this.saving = true;
-    this.http.post<{ session: PresenceSession }>(this.api, { worksite: this.worksite, gps: this.position },
+    const action = this.action;
+    this.http.post<{ session: PresenceSession }>(this.api, { action, worksite: this.worksite, gps: this.position },
       { withCredentials: true }).pipe(takeUntil(this.destroyed$)).subscribe({
       next: result => {
         this.saving = false;
-        if (this.status) this.status = { ...this.status, session: result.session, can_confirm: false, blocked_reason: null };
+        if (this.status) this.status = {
+          ...this.status,
+          session: result.session,
+          state: result.session.out_time ? 'checked_out' : 'checked_in',
+          can_check_in: false,
+          can_check_out: !result.session.out_time,
+          can_confirm: !result.session.out_time,
+          blocked_reason: null,
+        };
+        this.position = null;
+        setTimeout(() => this.drawWorksite(), 0);
       },
       error: err => {
         this.saving = false;

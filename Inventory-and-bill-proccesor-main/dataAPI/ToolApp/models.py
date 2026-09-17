@@ -188,6 +188,7 @@ class Users(models.Model):
     )
     attendance_exempt = models.BooleanField(default=False, db_index=True)
     is_tesa = models.BooleanField(default=False, db_index=True)
+    is_driver = models.BooleanField(default=False, db_index=True)
     active = models.BooleanField(default=True, db_index=True)
     def __str__(self):
         return f"{self.UserName} ({self.UserSerie})"

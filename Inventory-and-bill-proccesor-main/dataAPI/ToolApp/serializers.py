@@ -79,6 +79,7 @@ class UserSerializer(serializers.ModelSerializer):
             "accommodation_room_id",
             "attendance_exempt",
             "is_tesa",
+            "is_driver",
             "active",
         )
         extra_kwargs = {
@@ -116,6 +117,7 @@ class UserSerializer(serializers.ModelSerializer):
             "housing_location": {"required": False, "allow_blank": True},
             "attendance_exempt": {"required": False},
             "is_tesa": {"required": False},
+            "is_driver": {"required": False},
             "active": {"required": False},
         }
 
@@ -164,6 +166,7 @@ class UserSerializer(serializers.ModelSerializer):
         person_type = attrs.get("person_type", getattr(self.instance, "person_type", Users.PersonType.EMPLOYEE))
         if person_type == Users.PersonType.COLLABORATOR:
             attrs["is_tesa"] = False
+            attrs["is_driver"] = False
             if not str(attrs.get("Company", getattr(self.instance, "Company", "")) or "").strip():
                 raise serializers.ValidationError({"Company": "Numele companiei este obligatoriu."})
             if not str(attrs.get("phone_number", getattr(self.instance, "phone_number", "")) or "").strip():

@@ -274,6 +274,10 @@ export class SharedService {
     });
   }
 
+  getTeamPortalDashboard() {
+    return this.http.get<any>(`${this.API}/team-portal/dashboard/`);
+  }
+
   getTeamPortalNotificationSummary() {
     return this.http.get<{ unread_count: number }>(`${this.API}/team-portal/notifications/summary/`);
   }

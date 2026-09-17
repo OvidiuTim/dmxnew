@@ -39,14 +39,41 @@ describe('TeamPortalComponent performance regressions', () => {
   it('afișează confirmarea prezenței numai personalului TESA', () => {
     route.snapshot.data.portalView = 'home';
     fixture.detectChanges();
-    http.expectOne(`${api}/dashboard/`).flush({ employee: { name: 'TESA', is_tesa: true }, unread_notifications: 0 });
+    http.expectOne(`${api}/dashboard/`).flush({
+      employee: { name: 'TESA', is_tesa: true },
+      attendance: { is_clocked_in: false, started_at: null },
+      unread_notifications: 0,
+    });
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.tesa-card')).not.toBeNull();
     expect(fixture.nativeElement.querySelectorAll('.attendance-card').length).toBe(1);
+    expect(fixture.nativeElement.querySelector('.attendance-card.clocked-out')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.attendance-card small').textContent).toContain('Nu ești pontat astăzi');
     component.dashboard.employee.is_tesa = false;
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.tesa-card')).toBeNull();
     expect(fixture.nativeElement.querySelectorAll('.attendance-card').length).toBe(1);
+  });
+
+  it('afișează verde timpul scurs de la check-in', () => {
+    route.snapshot.data.portalView = 'home';
+    spyOn(Date, 'now').and.returnValue(Date.parse('2026-09-17T12:15:00+03:00'));
+    fixture.detectChanges();
+    http.expectOne(`${api}/dashboard/`).flush({
+      employee: { name: 'Șofer', is_tesa: false, is_driver: true },
+      attendance: { is_clocked_in: true, started_at: '2026-09-17T10:10:00+03:00' },
+      unread_notifications: 0,
+    });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.attendance-card.clocked-in')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('.attendance-card small').textContent).toContain('Ești pontat de 2 ore 5 minute');
+  });
+
+  it('traduce statusul pontajului făcut după pragul de 08:10', () => {
+    component.language = 'ro';
+    expect(component.statusLabel('late')).toBe('Pontat după 08:10');
+    expect(component.statusIcon('late')).toBe('schedule');
   });
 
   it('opens a large personnel accordion and settles ngModel without rebuilding its DOM', fakeAsync(() => {

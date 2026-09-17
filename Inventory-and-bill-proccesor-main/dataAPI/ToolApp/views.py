@@ -2334,6 +2334,12 @@ def nfc_scan(request):
     if dismissed_response:
         return dismissed_response
 
+    if attendance_mode == "driver" and not user.is_driver:
+        return JsonResponse({
+            "error": "Pontajul din orice locație este disponibil numai angajaților marcați ca șoferi.",
+            "error_code": "DRIVER_ACCESS_REQUIRED",
+        }, status=403)
+
     try:
         ws = normalize_worksite(ws) if ws else _default_worksite_for_user(user)
     except InvalidWorksite as exc:
@@ -2416,9 +2422,9 @@ def nfc_scan(request):
         # Share the employee lock with TESA confirmation so two attendance
         # channels cannot simultaneously add hours for the same person/day.
         Users.objects.select_for_update().get(pk=user.pk)
-        if AttendanceSession.objects.filter(user_fk=user, work_date=today, source='tesa').exists():
+        if AttendanceSession.objects.filter(user_fk=user, work_date=today, source__startswith='tesa').exists():
             return JsonResponse({
-                "error": "Prezența TESA este deja confirmată pentru această zi (08:00–16:00).",
+                "error": "Pontajul TESA pentru această zi se gestionează din pagina dedicată de intrare/ieșire.",
                 "error_code": "TESA_ALREADY_CONFIRMED",
             }, status=409)
         open_sess = (AttendanceSession.objects
@@ -2477,6 +2483,9 @@ def nfc_scan(request):
                     user_fk=user, kind=PresenceEvent.Kind.ENTER,
                     timestamp=when, worksite=ws
                 )
+                from ToolApp.attendance_alert_escalation import resolve_absence_by_late_check_in
+                resolve_absence_by_late_check_in(user, today, new_sess.in_time)
+                recompute_daily_pay(user, today)
 
                 print(f"[NFC] AUTO-CLOSE + ENTER nou pentru {user.UserName} pe {today} la site='{ws}'")
 
@@ -2579,6 +2588,9 @@ def nfc_scan(request):
             user_fk=user, kind=PresenceEvent.Kind.ENTER,
             timestamp=when, worksite=ws
         )
+        from ToolApp.attendance_alert_escalation import resolve_absence_by_late_check_in
+        resolve_absence_by_late_check_in(user, today, sess.in_time)
+        recompute_daily_pay(user, today)
         _publish("enter", user, when, {"worksite": ws})
 
         print(f"[NFC] ENTER nou pentru {user.UserName} pe {today} la site='{ws}'")
@@ -2686,9 +2698,12 @@ def pontaj_login(request):
         }, status=404)
 
     _log_pin_attempt(request, success=True, reason="login_ok", device_key=device_key, uid=uid)
+    role_mode = "driver" if user.is_driver else "tesa" if user.is_tesa else "worker"
     return JsonResponse({
         "ok": True,
-        "mode": "worker",
+        "mode": role_mode,
+        "is_tesa": user.is_tesa,
+        "is_driver": user.is_driver,
         "user": {
             "id": user.UserId,
             "name": user.UserName,
@@ -2809,6 +2824,9 @@ def attendance_day(request):
         return JsonResponse({"error": "Only GET allowed"}, status=405)
 
     day = _parse_iso_date(request.GET.get("date") or str(localdate()))
+    from ToolApp.attendance_alert_escalation import level_alert_time
+    from ToolApp.models import AttendanceAlertCase
+    late_threshold = level_alert_time(AttendanceAlertCase.Level.LEVEL_2)
 
     # NEW: map pentru concedii pe zi
     leaves_map = {
@@ -2885,10 +2903,15 @@ def attendance_day(request):
     rows = []
     for _, row in rows_by_user.items():
         ld = leaves_map.get(row["UserId"])
+        first_in_local = datetime.fromisoformat(row["first_in"]) if row["first_in"] else None
+        late_check_in = bool(
+            first_in_local
+            and first_in_local.time().replace(tzinfo=None) >= late_threshold
+        )
         attendance_status = (
-            "ABSENT"
-            if ld and ld.reason == LeaveDay.Reason.UNEXCUSED
-            else "LEAVE" if ld else row["status"]
+            "LEAVE"
+            if ld and ld.reason != LeaveDay.Reason.UNEXCUSED
+            else row["status"]
         )
         rows.append({
             "UserId": row["UserId"],
@@ -2898,6 +2921,7 @@ def attendance_day(request):
             "last_out": row["last_out"],
             "total_hms": _fmt_hms(row["total_seconds"]),
             "status": attendance_status,
+            "late_check_in": late_check_in,
             "sessions": row["sessions"],
             "day_worksite": row["day_worksite"],
             "leave": (
@@ -2923,6 +2947,7 @@ def attendance_day(request):
                 if ld.reason == LeaveDay.Reason.UNEXCUSED
                 else "LEAVE"
             ),
+            "late_check_in": False,
             "sessions": [],
             "day_worksite": None,
             "leave": {
@@ -4429,6 +4454,7 @@ def _serialize_app_user(app_user):
             "serie": app_user.employee.UserSerie,
             "pin": app_user.employee.UserPin,
             "is_tesa": app_user.employee.is_tesa,
+            "is_driver": app_user.employee.is_driver,
         },
         "permissions": {
             route: route in permissions
@@ -5846,7 +5872,7 @@ def generate_excel(request):
             return None
 
         up = t.upper()
-        if up in ("CO", "CM", "UNPAID", "INDIA", "ALT"):
+        if up in ("CO", "CM", "UNPAID", "INDIA", "ALT", "UNEXCUSED"):
             return up
 
         low = t.lower()
@@ -6026,6 +6052,12 @@ def generate_excel(request):
             if leave_info:
                 leave_hours = leave_info.get("hours") or 0.0
                 leave_code  = leave_info.get("code")
+
+                # Absența nemotivată nu are ore: celula de ore rămâne goală,
+                # iar pe rândul de șantier scriem explicit motivul.
+                if leave_code == "UNEXCUSED":
+                    ws[f"{col_letter}{row_sites}"].value = "ABSENȚĂ NEMOTIVATĂ"
+                    continue
 
                 if leave_hours > 0:
                     ws[f"{col_letter}{row_hours}"].value = float(leave_hours)

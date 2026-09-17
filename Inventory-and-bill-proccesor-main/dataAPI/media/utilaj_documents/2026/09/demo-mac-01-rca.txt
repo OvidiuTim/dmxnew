@@ -1,0 +1,4 @@
+DOCUMENT DEMO
+Utilaj: DEMO-MAC-01 - Macara Liebherr LTM
+Tip: RCA
+Expira: 2027-02-22

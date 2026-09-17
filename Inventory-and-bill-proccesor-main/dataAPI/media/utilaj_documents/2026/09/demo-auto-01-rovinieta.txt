@@ -1,0 +1,4 @@
+DOCUMENT DEMO
+Utilaj: DEMO-AUTO-01 - Dacia Duster
+Tip: Rovinietă
+Expira: 2026-09-14

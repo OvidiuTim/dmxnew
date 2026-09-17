@@ -57,6 +57,20 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     hi: { role: 'स्टोरकीपर', tools: 'औज़ार', hint: 'औज़ार और वितरण रजिस्टर खोलें', hidden: 'फ़िलहाल उपलब्ध नहीं' },
     ne: { role: 'भण्डारपाल', tools: 'औजार', hint: 'औजार र वितरण रजिस्टर खोल्नुहोस्', hidden: 'हाल उपलब्ध छैन' },
   };
+  private readonly attendanceStateCopy: Record<PortalLanguage, { active: string; inactive: string }> = {
+    ro: { active: 'Ești pontat de {hours} ore {minutes} minute', inactive: 'Nu ești pontat astăzi' },
+    en: { active: 'Clocked in for {hours} hours {minutes} minutes', inactive: 'You are not clocked in today' },
+    pa: { active: 'ਤੁਸੀਂ {hours} ਘੰਟੇ {minutes} ਮਿੰਟ ਤੋਂ ਚੈੱਕ-ਇਨ ਹੋ', inactive: 'ਤੁਸੀਂ ਅੱਜ ਚੈੱਕ-ਇਨ ਨਹੀਂ ਹੋ' },
+    hi: { active: 'आप {hours} घंटे {minutes} मिनट से चेक-इन हैं', inactive: 'आपने आज चेक-इन नहीं किया है' },
+    ne: { active: 'तपाईं {hours} घण्टा {minutes} मिनेटदेखि चेक-इन हुनुहुन्छ', inactive: 'तपाईंले आज चेक-इन गर्नुभएको छैन' },
+  };
+  private readonly lateAttendanceCopy: Record<PortalLanguage, string> = {
+    ro: 'Pontat după 08:10',
+    en: 'Clocked in after 08:10',
+    pa: '08:10 ਤੋਂ ਬਾਅਦ ਚੈੱਕ-ਇਨ',
+    hi: '08:10 के बाद चेक-इन',
+    ne: '08:10 पछि चेक-इन',
+  };
   private readonly ticketBenefitCopy: Record<PortalLanguage, {
     title: string; eligible: string; notEligible: string;
     ticketFigure: string; leaderFigure: string; combinedFigure: string; ofMax: string; breakdown: string; afterYear: string;
@@ -471,6 +485,20 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   /** Backendul decide ce mai contează ca necitit; clientul doar afișează. */
   get unreadCount(): number { return Number(this.dashboard?.unread_notifications || 0); }
 
+  get isClockedIn(): boolean { return this.dashboard?.attendance?.is_clocked_in === true; }
+
+  get attendanceCardHint(): string {
+    const copy = this.attendanceStateCopy[this.language];
+    if (!this.isClockedIn) return copy.inactive;
+    const started = Date.parse(this.dashboard?.attendance?.started_at || '');
+    const totalMinutes = Number.isFinite(started)
+      ? Math.max(0, Math.floor((Date.now() - started) / 60000))
+      : 0;
+    return copy.active
+      .replace('{hours}', String(Math.floor(totalMinutes / 60)))
+      .replace('{minutes}', String(totalMinutes % 60));
+  }
+
   setLanguage(value: PortalLanguage): void {
     this.language = value;
     saveEmployeeLanguage(value);
@@ -764,12 +792,13 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
 
   statusLabel(status: string): string {
     if (status === 'present') return this.t.present;
+    if (status === 'late') return this.lateAttendanceCopy[this.language];
     if (status === 'leave') return this.t.leave;
     if (status === 'marked_absent') return this.t.markedAbsent;
     if (status === 'not_required') return this.t.notRequired;
     return this.t.absent;
   }
-  statusIcon(status: string): string { return status === 'present' ? 'check_circle' : status === 'leave' ? 'beach_access' : status === 'not_required' ? 'event_busy' : 'error'; }
+  statusIcon(status: string): string { return status === 'present' ? 'check_circle' : status === 'late' ? 'schedule' : status === 'leave' ? 'beach_access' : status === 'not_required' ? 'event_busy' : 'error'; }
 
   requestStatusLabel(status: string): string {
     if (status === 'approved') return this.t.requestApproved;

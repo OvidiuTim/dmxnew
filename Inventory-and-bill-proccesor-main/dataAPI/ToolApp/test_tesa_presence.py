@@ -25,14 +25,14 @@ class TesaPresenceTests(TestCase):
         self.now = datetime(2026, 9, 9, 7, 15, tzinfo=dt_timezone.utc)
         self.site = ATTENDANCE_WORKSITES[0]
 
-    def payload(self, **extra):
-        return {'worksite': self.site['name'], 'gps': {
+    def payload(self, captured_at=None, **extra):
+        return {'action': 'check_in', 'worksite': self.site['name'], 'gps': {
             'lat': self.site['latitude'], 'lng': self.site['longitude'],
-            'accuracy': 12, 'captured_at': self.now.isoformat(),
+            'accuracy': 12, 'captured_at': (captured_at or self.now).isoformat(),
         }, **extra}
 
-    def post(self, data=None):
-        with patch('ToolApp.tesa_views.timezone.now', return_value=self.now):
+    def post(self, data=None, now=None):
+        with patch('ToolApp.tesa_views.timezone.now', return_value=now or self.now):
             return self.client.post(self.url, json.dumps(self.payload() if data is None else data), content_type='application/json')
 
     def test_only_active_tesa_can_read_and_confirm(self):
@@ -70,17 +70,16 @@ class TesaPresenceTests(TestCase):
         response = self.client.post('/api/app-auth/verify/', '{}', content_type='application/json')
         self.assertFalse(response.json()['app_user']['employee']['is_tesa'])
 
-    def test_creates_exactly_eight_hours_without_photo_for_authenticated_employee(self):
+    def test_records_real_check_in_and_check_out_without_photo(self):
         response = self.post(self.payload(employee_id=self.other.pk, date='2020-01-01', hours=100,
                                            in_time='01:00', out_time='23:00', is_tesa=True))
         self.assertEqual(response.status_code, 201, response.content)
         session = AttendanceSession.objects.get()
         self.assertEqual(session.user_fk_id, self.employee.pk)
         self.assertEqual(str(session.work_date), '2026-09-09')
-        self.assertEqual(timezone.localtime(session.in_time).strftime('%H:%M'), '08:00')
-        self.assertEqual(timezone.localtime(session.out_time).strftime('%H:%M'), '16:00')
-        self.assertEqual(session.duration_seconds, 28800)
-        self.assertEqual(session.out_time - session.in_time, timedelta(hours=8))
+        self.assertEqual(session.in_time, self.now)
+        self.assertIsNone(session.out_time)
+        self.assertEqual(session.duration_seconds, 0)
         self.assertEqual(session.source, 'tesa')
         self.assertEqual(session.worksite, self.site['name'])
         self.assertEqual(session.checkin_photo, '')
@@ -89,20 +88,45 @@ class TesaPresenceTests(TestCase):
         self.assertEqual(session.tesa_confirmed_at, self.now)
         self.assertIsNone(session.out_gps_latitude)
         pay = DailyPay.objects.get()
-        self.assertEqual(pay.total_seconds, 28800)
-        self.assertEqual(pay.day_pay, Decimal('200.00'))
+        self.assertEqual(pay.total_seconds, 0)
+        self.assertEqual(pay.day_pay, Decimal('0.00'))
+        self.assertEqual(PresenceEvent.objects.count(), 1)
+
+        checkout_now = self.now + timedelta(hours=5, minutes=30)
+        checkout = self.post(
+            self.payload(captured_at=checkout_now, action='check_out'),
+            now=checkout_now,
+        )
+        self.assertEqual(checkout.status_code, 200, checkout.content)
+        session.refresh_from_db()
+        self.assertEqual(session.out_time, checkout_now)
+        self.assertEqual(session.duration_seconds, 19800)
+        self.assertEqual(session.checkout_photo, '')
+        self.assertEqual(session.out_gps_latitude, self.site['latitude'])
+        pay.refresh_from_db()
+        self.assertEqual(pay.total_seconds, 19800)
+        self.assertEqual(pay.day_pay, Decimal('137.50'))
         self.assertEqual(PresenceEvent.objects.count(), 2)
 
-    def test_repeated_confirmation_and_reload_do_not_duplicate_or_move_hours(self):
+    def test_repeated_check_in_and_check_out_are_idempotent(self):
         self.assertEqual(self.post().status_code, 201)
         retry = self.post()
         self.assertEqual(retry.status_code, 200)
-        self.assertTrue(retry.json()['already_confirmed'])
+        self.assertTrue(retry.json()['already_checked_in'])
         with patch('ToolApp.tesa_views.timezone.now', return_value=self.now):
             status = self.client.get(self.url).json()
-        self.assertFalse(status['can_confirm'])
-        self.assertEqual(status['session']['hours'], 8)
-        self.assertEqual(self.post(self.payload(worksite=ATTENDANCE_WORKSITES[1]['name'])).status_code, 409)
+        self.assertEqual(status['state'], 'checked_in')
+        self.assertFalse(status['can_check_in'])
+        self.assertTrue(status['can_check_out'])
+        self.assertEqual(status['session']['hours'], 0)
+        self.assertEqual(self.post(self.payload(action='check_out', worksite=ATTENDANCE_WORKSITES[1]['name'])).status_code, 409)
+
+        checkout_now = self.now + timedelta(hours=2)
+        checkout_data = self.payload(captured_at=checkout_now, action='check_out')
+        self.assertEqual(self.post(checkout_data, now=checkout_now).status_code, 200)
+        repeated_checkout = self.post(checkout_data, now=checkout_now)
+        self.assertEqual(repeated_checkout.status_code, 200)
+        self.assertTrue(repeated_checkout.json()['already_checked_out'])
         self.assertEqual(AttendanceSession.objects.count(), 1)
         self.assertEqual(DailyPay.objects.count(), 1)
         self.assertEqual(PresenceEvent.objects.count(), 2)
@@ -133,7 +157,7 @@ class TesaPresenceTests(TestCase):
         self.assertFalse(body['session']['inside_perimeter'])
         self.assertGreater(body['session']['distance_m'], self.site['radius_meters'])
         session = AttendanceSession.objects.get()
-        self.assertEqual(session.duration_seconds, 8 * 3600)
+        self.assertEqual(session.duration_seconds, 0)
         self.assertAlmostEqual(session.in_gps_latitude, self.site['latitude'] + 0.05, places=6)
         with patch('ToolApp.tesa_views.timezone.now', return_value=self.now):
             state = self.client.get(self.url).json()
@@ -151,11 +175,24 @@ class TesaPresenceTests(TestCase):
         self.assertEqual(self.post().status_code, 409)
         self.assertFalse(AttendanceSession.objects.exists())
 
-    def test_previous_open_session_prevents_confirmation(self):
-        AttendanceSession.objects.create(user_fk=self.employee, work_date=self.now.date() - timedelta(days=1),
-                                          in_time=self.now - timedelta(days=1))
-        self.assertEqual(self.post().status_code, 409)
-        self.assertEqual(AttendanceSession.objects.count(), 1)
+    def test_previous_open_session_is_marked_missing_exit_and_does_not_block_today(self):
+        stale = AttendanceSession.objects.create(
+            user_fk=self.employee,
+            work_date=self.now.date() - timedelta(days=1),
+            in_time=self.now - timedelta(days=1),
+            source='nfc',
+        )
+        self.assertEqual(self.post().status_code, 201)
+        stale.refresh_from_db()
+        self.assertIsNone(stale.out_time)
+        self.assertEqual(stale.duration_seconds, 0)
+        self.assertIn('|missing_exit', stale.source)
+        self.assertTrue(AttendanceSession.objects.filter(
+            user_fk=self.employee,
+            work_date=self.now.date(),
+            source='tesa',
+            out_time__isnull=True,
+        ).exists())
 
     def test_late_confirmation_resolves_automatic_absence_and_preserves_audit_mark(self):
         mark = AttendanceAbsenceMark.objects.create(employee=self.employee, work_date=self.now.date(),
@@ -172,13 +209,16 @@ class TesaPresenceTests(TestCase):
         own_row = next(row for row in rows if row['id'] == self.employee.pk)
         self.assertTrue(own_row['checked_in_after_mark'])
 
-    def test_manual_absence_cannot_be_overwritten(self):
+    def test_manual_absence_is_resolved_by_a_real_late_check_in(self):
         AttendanceAbsenceMark.objects.create(employee=self.employee, work_date=self.now.date(),
             source=AttendanceAbsenceMark.Source.TEAM_LEADER, marked_by=self.other_account)
         LeaveDay.objects.create(user_fk=self.employee, work_date=self.now.date(), reason=LeaveDay.Reason.UNEXCUSED)
-        self.assertEqual(self.post().status_code, 409)
-        self.assertTrue(LeaveDay.objects.exists())
-        self.assertFalse(AttendanceSession.objects.exists())
+        self.assertEqual(self.post().status_code, 201)
+        self.assertFalse(LeaveDay.objects.exists())
+        self.assertTrue(AttendanceSession.objects.exists())
+        self.assertTrue(AttendanceAbsenceMark.objects.filter(employee=self.employee).exists())
+        from ToolApp.team_portal_views import _presence_status
+        self.assertEqual(_presence_status([self.employee.pk], self.now.date())[self.employee.pk], 'late')
 
     def test_date_and_hours_use_bucharest_in_winter_and_after_local_midnight(self):
         for now, day in [(datetime(2026, 1, 10, 23, 30, tzinfo=dt_timezone.utc), '2026-01-11'),
@@ -188,8 +228,11 @@ class TesaPresenceTests(TestCase):
                 response = self.post()
                 self.assertEqual(response.status_code, 201, response.content)
                 self.assertEqual(response.json()['session']['work_date'], day)
-                self.assertEqual(response.json()['session']['in_time'][11:16], '08:00')
-                self.assertEqual(response.json()['session']['out_time'][11:16], '16:00')
+                self.assertEqual(response.json()['session']['in_time'], timezone.localtime(now).isoformat())
+                self.assertIsNone(response.json()['session']['out_time'])
+                AttendanceSession.objects.all().delete()
+                PresenceEvent.objects.all().delete()
+                DailyPay.objects.all().delete()
 
     def test_database_rejects_two_tesa_confirmations_for_the_same_day(self):
         self.assertEqual(self.post().status_code, 201)

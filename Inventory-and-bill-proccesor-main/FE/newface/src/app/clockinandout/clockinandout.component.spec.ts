@@ -62,4 +62,22 @@ describe('ClockinandoutComponent', () => {
       lng: 23.916721618503065,
     });
   });
+
+  it('accepts a captured GPS position outside the perimeter only for a portal driver', () => {
+    component.portalMode = true;
+    component.portalDriver = true;
+    component.selectedWorksite = component.worksites[0];
+    component.currentPosition = { lat: 46, lng: 25, accuracy: 8 };
+    component.locationState = 'outside';
+    component.locationCapturedAt = new Date();
+    component.dataProcessingConsent = true;
+    component.confirmedSelfie = 'data:image/webp;base64,MTIz';
+
+    expect(component.locationAccepted).toBeTrue();
+    expect(component.canSubmit).toBeTrue();
+
+    component.portalDriver = false;
+    expect(component.locationAccepted).toBeFalse();
+    expect(component.canSubmit).toBeFalse();
+  });
 });

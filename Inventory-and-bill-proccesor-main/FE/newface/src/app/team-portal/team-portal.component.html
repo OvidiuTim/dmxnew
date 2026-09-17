@@ -35,14 +35,14 @@
           <span><strong>{{ t.myTeam }}</strong><small>{{ t.teamHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
-        <button *ngIf="!dashboard.employee.is_tesa" type="button" class="action-card attendance-card" (click)="openAttendance()">
+        <button *ngIf="!dashboard.employee.is_tesa" type="button" class="action-card attendance-card" [class.clocked-in]="isClockedIn" [class.clocked-out]="!isClockedIn" (click)="openAttendance()">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">schedule</span>
-          <span><strong>{{ t.attendance }}</strong><small>{{ t.clockHint }}</small></span>
+          <span><strong>{{ t.attendance }}</strong><small>{{ attendanceCardHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
-        <button *ngIf="dashboard.employee.is_tesa" type="button" class="action-card attendance-card tesa-card" (click)="openTesaPresence()">
-          <span class="card-icon material-symbols-rounded" aria-hidden="true">location_on</span>
-          <span><strong>{{ ui.confirmPresence }}</strong><small>{{ ui.tesaHint }}</small></span>
+        <button *ngIf="dashboard.employee.is_tesa" type="button" class="action-card attendance-card tesa-card" [class.clocked-in]="isClockedIn" [class.clocked-out]="!isClockedIn" (click)="openTesaPresence()">
+          <span class="card-icon material-symbols-rounded" aria-hidden="true">schedule</span>
+          <span><strong>{{ t.attendance }}</strong><small>{{ attendanceCardHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
         </button>
         <button type="button" class="action-card" (click)="open('salary')">

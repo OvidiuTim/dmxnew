@@ -1,0 +1,4 @@
+DOCUMENT DEMO
+Utilaj: DEMO-GEN-01 - Generator Atlas Copco
+Tip: Revizie
+Expira: 2026-09-29

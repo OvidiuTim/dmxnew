@@ -1,0 +1,4 @@
+DOCUMENT DEMO
+Utilaj: DEMO-EXC-01 - Excavator Caterpillar 320
+Tip: Revizie
+Expira: 2026-10-25

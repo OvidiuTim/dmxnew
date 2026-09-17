@@ -1,18 +1,21 @@
-"""Own-day TESA presence, separate from the selfie/NFC attendance contract."""
+"""Pontajul propriu al personalului TESA, fără fotografie."""
 import json
 import math
-from datetime import datetime, time
 
 from django.db import transaction
-from django.db.models import Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 
-from ToolApp.models import AttendanceAbsenceMark, AttendanceAlertCase, AttendanceSession, LeaveDay, PresenceEvent, Users
+from ToolApp.models import AttendanceAbsenceMark, AttendanceSession, LeaveDay, PresenceEvent, Users
 from ToolApp.team_portal_views import _portal_actor
-from ToolApp.views import _gps_distance_meters, recompute_daily_pay
+from ToolApp.views import (
+    MISSING_EXIT_SOURCE_TAG,
+    _gps_distance_meters,
+    _mark_session_missing_exit,
+    recompute_daily_pay,
+)
 from ToolApp.worksites import ATTENDANCE_WORKSITES, InvalidWorksite, normalize_worksite, worksite_perimeters
 
 
@@ -31,44 +34,52 @@ def _allowed(employee):
 
 
 def _session_payload(session):
-    distance = inside = None
+    in_distance = in_inside = out_distance = out_inside = None
     if session.in_gps_latitude is not None and session.in_gps_longitude is not None:
-        distance, inside = _worksite_distance(
+        in_distance, in_inside = _worksite_distance(
             session.in_gps_latitude, session.in_gps_longitude, session.worksite)
+    if session.out_gps_latitude is not None and session.out_gps_longitude is not None:
+        out_distance, out_inside = _worksite_distance(
+            session.out_gps_latitude, session.out_gps_longitude, session.worksite)
+    duration_seconds = session.duration_seconds
+    if session.out_time is None:
+        duration_seconds = max(0, int((timezone.now() - session.in_time).total_seconds()))
     return {
         'id': session.pk, 'worksite': session.worksite,
         'work_date': session.work_date.isoformat(),
         'in_time': timezone.localtime(session.in_time).isoformat(),
         'out_time': timezone.localtime(session.out_time).isoformat() if session.out_time else None,
-        'hours': session.duration_seconds / 3600,
+        'hours': round(duration_seconds / 3600, 2),
+        'state': 'closed' if session.out_time else 'open',
         'confirmed_at': session.tesa_confirmed_at.isoformat() if session.tesa_confirmed_at else None,
-        'distance_m': round(distance) if distance is not None else None,
-        'inside_perimeter': inside,
+        'distance_m': round(in_distance) if in_distance is not None else None,
+        'inside_perimeter': in_inside,
+        'checkout_distance_m': round(out_distance) if out_distance is not None else None,
+        'checkout_inside_perimeter': out_inside,
     }
 
 
 def _day_status(employee, day):
-    start = timezone.make_aware(datetime.combine(day, time(8)))
-    end = timezone.make_aware(datetime.combine(day, time(16)))
     sessions = AttendanceSession.objects.filter(user_fk=employee)
-    confirmed = sessions.filter(work_date=day, source='tesa').first()
+    # Dacă angajatul TESA a început ziua prin vechiul flux de pontaj, preluăm
+    # sesiunea existentă și permitem check-out-ul, în loc să blocăm pagina.
+    confirmed = sessions.filter(work_date=day).order_by('-in_time').first()
     reason = None
     if not confirmed:
-        if sessions.filter(Q(work_date=day) | Q(out_time__isnull=True)
-                           | Q(in_time__lt=end, out_time__gt=start)).exists():
-            reason = ATTENDANCE_CONFLICT
-        elif LeaveDay.objects.filter(user_fk=employee, work_date=day).exclude(pk__in=_automatic_absence(employee, day)).exists():
+        if LeaveDay.objects.filter(user_fk=employee, work_date=day).exclude(pk__in=_attendance_absence(employee, day)).exists():
             reason = LEAVE_CONFLICT
-    return confirmed, reason, start, end
+    return confirmed, reason
 
 
-def _automatic_absence(employee, day):
-    """A late confirmation can resolve a system absence; manual leave stays protected."""
+def _attendance_absence(employee, day):
+    """Absența din escaladare poate fi înlocuită de un check-in real.
+
+    Marcajul de audit rămâne. Concediile și absențele introduse fără un marcaj
+    al fluxului de alerte rămân protejate și continuă să blocheze pontajul TESA.
+    """
     leaves = LeaveDay.objects.filter(user_fk=employee, work_date=day,
-        reason=LeaveDay.Reason.UNEXCUSED, source_leave_request__isnull=True,
-        note='Marcat automat absent la escaladarea Nivel 2')
-    if not AttendanceAbsenceMark.objects.filter(employee=employee, work_date=day,
-            source=AttendanceAbsenceMark.Source.AUTOMATIC_LEVEL_2, marked_by__isnull=True).exists():
+        reason=LeaveDay.Reason.UNEXCUSED, source_leave_request__isnull=True)
+    if not AttendanceAbsenceMark.objects.filter(employee=employee, work_date=day).exists():
         return leaves.none()
     return leaves
 
@@ -128,18 +139,28 @@ def tesa_presence(request):
     now = timezone.now()
     day = timezone.localdate(now)
     if request.method == 'GET':
-        confirmed, reason, _, _ = _day_status(actor.employee, day)
+        confirmed, reason = _day_status(actor.employee, day)
+        can_check_in = not confirmed and not reason
+        can_check_out = bool(confirmed and confirmed.out_time is None)
         return JsonResponse({
             'employee': {'id': actor.employee_id, 'name': actor.employee.UserName},
             'work_date': day.isoformat(), 'worksites': list(ATTENDANCE_WORKSITES),
             'session': _session_payload(confirmed) if confirmed else None,
-            'can_confirm': not confirmed and not reason, 'blocked_reason': reason,
+            'state': 'checked_out' if confirmed and confirmed.out_time else 'checked_in' if confirmed else 'not_checked_in',
+            'can_check_in': can_check_in,
+            'can_check_out': can_check_out,
+            # Păstrat temporar pentru clienții vechi; înseamnă acum că există o acțiune disponibilă.
+            'can_confirm': can_check_in or can_check_out,
+            'blocked_reason': reason,
             'blocked_reason_code': _blocked_reason_code(reason),
         })
     try:
         data = json.loads(request.body or '{}')
         if not isinstance(data, dict):
             raise ValueError('JSON invalid.')
+        action = str(data.get('action') or '').strip().lower()
+        if action not in {'check_in', 'check_out'}:
+            raise ValueError('Acțiunea de pontaj nu este validă.')
         worksite = normalize_worksite(data.get('worksite'))
         if worksite not in {site['name'] for site in ATTENDANCE_WORKSITES}:
             raise ValueError('Alege un șantier din lista de pontaj.')
@@ -150,25 +171,60 @@ def tesa_presence(request):
         employee = Users.objects.select_for_update().get(pk=actor.employee_id)
         if not _allowed(employee):
             return JsonResponse({'error': 'Nu mai ai acces la confirmarea TESA.'}, status=403)
-        confirmed, reason, start, end = _day_status(employee, day)
-        if confirmed:
-            if confirmed.worksite != worksite:
-                return JsonResponse({'error': 'Prezența este deja confirmată pe alt șantier astăzi.'}, status=409)
-            return JsonResponse({'ok': True, 'already_confirmed': True, 'session': _session_payload(confirmed)})
-        if reason:
-            return JsonResponse({'error': reason, 'error_code': _blocked_reason_code(reason)}, status=409)
-        session = AttendanceSession.objects.create(
-            user_fk=employee, work_date=day, in_time=start, out_time=end,
-            duration_seconds=8 * 3600, source='tesa', worksite=worksite,
-            in_gps_latitude=lat, in_gps_longitude=lng, in_gps_accuracy_m=accuracy,
-            tesa_confirmed_at=now,
-        )
-        PresenceEvent.objects.bulk_create([
-            PresenceEvent(user_fk=employee, timestamp=start, kind=PresenceEvent.Kind.ENTER, worksite=worksite),
-            PresenceEvent(user_fk=employee, timestamp=end, kind=PresenceEvent.Kind.EXIT, worksite=worksite),
-        ])
-        _automatic_absence(employee, day).delete()
-        AttendanceAlertCase.objects.filter(employee=employee, work_date=day, resolved_at__isnull=True).update(
-            resolved_at=now, resolution_method=AttendanceAlertCase.ResolutionMethod.CHECK_IN)
-        recompute_daily_pay(employee, day)
-    return JsonResponse({'ok': True, 'already_confirmed': False, 'session': _session_payload(session)}, status=201)
+        if action == 'check_in':
+            # O ieșire uitată într-o zi anterioară este o problemă de audit,
+            # nu un motiv să blocăm pontarea reală din ziua curentă.
+            stale_sessions = (
+                AttendanceSession.objects.select_for_update()
+                .filter(user_fk=employee, work_date__lt=day, out_time__isnull=True)
+                .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
+            )
+            for stale_session in stale_sessions:
+                _mark_session_missing_exit(stale_session)
+                stale_session.save(update_fields=('out_time', 'duration_seconds', 'source'))
+        session, reason = _day_status(employee, day)
+        if action == 'check_in':
+            if session and session.out_time is None:
+                return JsonResponse({'ok': True, 'already_checked_in': True, 'session': _session_payload(session)})
+            if session:
+                return JsonResponse({'error': 'Pontajul TESA pentru astăzi este deja încheiat.',
+                                     'error_code': 'TESA_DAY_COMPLETED'}, status=409)
+            if reason:
+                return JsonResponse({'error': reason, 'error_code': _blocked_reason_code(reason)}, status=409)
+            session = AttendanceSession.objects.create(
+                user_fk=employee, work_date=day, in_time=now, out_time=None,
+                duration_seconds=0, source='tesa', worksite=worksite,
+                in_gps_latitude=lat, in_gps_longitude=lng, in_gps_accuracy_m=accuracy,
+                checkin_photo='', checkout_photo='', tesa_confirmed_at=now,
+            )
+            PresenceEvent.objects.create(
+                user_fk=employee, timestamp=now, kind=PresenceEvent.Kind.ENTER, worksite=worksite)
+            from ToolApp.attendance_alert_escalation import resolve_absence_by_late_check_in
+            resolve_absence_by_late_check_in(employee, day, session.in_time)
+            recompute_daily_pay(employee, day)
+            response_status = 201
+        else:
+            if not session:
+                return JsonResponse({'error': 'Nu există un check-in TESA activ.',
+                                     'error_code': 'TESA_CHECK_IN_REQUIRED'}, status=409)
+            if session.out_time is not None:
+                return JsonResponse({'ok': True, 'already_checked_out': True, 'session': _session_payload(session)})
+            if session.worksite != worksite:
+                return JsonResponse({'error': 'Ieșirea trebuie înregistrată pentru același șantier ca intrarea.'}, status=409)
+            session.out_time = max(now, session.in_time)
+            session.duration_seconds = max(0, int((session.out_time - session.in_time).total_seconds()))
+            session.out_gps_latitude = lat
+            session.out_gps_longitude = lng
+            session.out_gps_accuracy_m = accuracy
+            session.checkout_photo = ''
+            session.save(update_fields=(
+                'out_time', 'duration_seconds', 'out_gps_latitude', 'out_gps_longitude',
+                'out_gps_accuracy_m', 'checkout_photo',
+            ))
+            PresenceEvent.objects.create(
+                user_fk=employee, timestamp=session.out_time, kind=PresenceEvent.Kind.EXIT, worksite=session.worksite)
+            from ToolApp.fleet_services import close_open_utilaj_sessions
+            close_open_utilaj_sessions(employee, closed_at=session.out_time, reason='depontare')
+            recompute_daily_pay(employee, day)
+            response_status = 200
+    return JsonResponse({'ok': True, 'action': action, 'session': _session_payload(session)}, status=response_status)

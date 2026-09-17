@@ -1,5 +1,5 @@
 import json
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import patch
 
 from django.http import JsonResponse
@@ -10,6 +10,7 @@ from ToolApp.leave_email import SUPERVISOR_PERSONAL_LEAVE_EMAIL, leave_request_r
 from ToolApp.mobile_services import build_leave_summary
 from ToolApp.models import (
     AppUser,
+    AttendanceSession,
     EmployeeTeam,
     EmployeeTeamMember,
     LeaveRequest,
@@ -178,6 +179,46 @@ class TeamPortalRoleSecurityTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(captured["content"], self.plain.UserPin)
         self.assertEqual(captured["device_key"], f"team-portal-{self.plain_account.pk}")
+        self.assertEqual(captured["mode"], "manual")
+
+    def test_driver_role_is_enforced_and_exposed_by_team_portal(self):
+        self.plain.is_driver = True
+        self.plain.save(update_fields=("is_driver",))
+        captured = {}
+
+        def fake_scan(request):
+            captured.update(json.loads(request.body))
+            return JsonResponse({"ok": True})
+
+        with patch("ToolApp.team_portal_views.nfc_scan", side_effect=fake_scan):
+            response = client_for(self.plain_account).post(
+                "/api/team-portal/attendance/",
+                data=json.dumps({
+                    "data_processing_consent": True,
+                    "attendance_photo": "data:image/jpeg;base64,AA==",
+                }),
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(captured["mode"], "driver")
+        dashboard = client_for(self.plain_account).get("/api/team-portal/dashboard/").json()
+        self.assertTrue(dashboard["employee"]["is_driver"])
+
+    def test_dashboard_exposes_current_open_attendance(self):
+        started = timezone.now() - timedelta(hours=2, minutes=7)
+        AttendanceSession.objects.create(
+            user_fk=self.plain,
+            work_date=timezone.localdate(started),
+            in_time=started,
+            source="manual-web",
+            worksite="diverse",
+        )
+
+        dashboard = client_for(self.plain_account).get("/api/team-portal/dashboard/").json()
+
+        self.assertTrue(dashboard["attendance"]["is_clocked_in"])
+        self.assertIsNotNone(dashboard["attendance"]["started_at"])
 
     def test_combined_leader_and_supervisor_roles_are_both_exposed(self):
         self.destination.supervisor = self.leader

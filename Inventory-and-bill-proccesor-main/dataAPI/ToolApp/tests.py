@@ -1,12 +1,13 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 import json
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
 from django.utils.timezone import localdate, localtime
 
-from ToolApp.models import AttendanceSession, Users
+from ToolApp.models import AttendanceAbsenceMark, AttendanceAlertCase, AttendanceSession, LeaveDay, Users
 from ToolApp.security import make_admin_token
 from ToolApp import views as tool_views
 from ToolApp.worksites import ACCEPTED_WORKSITES, worksite_perimeters
@@ -309,6 +310,56 @@ class ManualAttendanceSecurityTests(TestCase):
             AttendanceSession.objects.get(user_fk=user).worksite, "magazie/depozit"
         )
 
+    def test_late_check_in_replaces_absence_status_but_preserves_audit_mark(self):
+        user = Users(UserName="Angajat întârziat", UserSerie="LATE-001")
+        user.set_pin("1180")
+        user.save()
+        day = localdate()
+        late_moment = timezone.make_aware(
+            datetime.combine(day, time(9, 0)),
+            timezone.get_current_timezone(),
+        )
+        mark = AttendanceAbsenceMark.objects.create(
+            employee=user,
+            work_date=day,
+            source=AttendanceAbsenceMark.Source.AUTOMATIC_LEVEL_2,
+        )
+        LeaveDay.objects.create(
+            user_fk=user,
+            work_date=day,
+            reason=LeaveDay.Reason.UNEXCUSED,
+            note="Marcat automat absent la escaladarea Nivel 2",
+        )
+        case = AttendanceAlertCase.objects.create(
+            employee=user,
+            work_date=day,
+            level=AttendanceAlertCase.Level.LEVEL_2,
+            marked_absent_at=mark.marked_at,
+        )
+        with patch("ToolApp.views.timezone.now", return_value=late_moment):
+            payload = {
+                "pin": "1180",
+                "mode": "manual",
+                "device_key": "telefon-late",
+                "timestamp": late_moment.isoformat(),
+                **self.worker_location(),
+                "data_processing_consent": True,
+                "attendance_photo": "data:image/webp;base64,MTIz",
+            }
+            response = self.post_clock(payload)
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertFalse(LeaveDay.objects.filter(user_fk=user, work_date=day).exists())
+        self.assertTrue(AttendanceAbsenceMark.objects.filter(pk=mark.pk).exists())
+        case.refresh_from_db()
+        self.assertEqual(case.resolution_method, AttendanceAlertCase.ResolutionMethod.CHECK_IN)
+        day_row = self.client.get(
+            f"/api/pontaj/day/?date={day}",
+            HTTP_AUTHORIZATION=f"Bearer {make_admin_token()}",
+        ).json()["rows"][0]
+        self.assertEqual(day_row["status"], "IN")
+        self.assertTrue(day_row["late_check_in"])
+
     def test_every_accepted_worksite_has_gps_perimeter(self):
         """Regresie: nici un santier acceptat nu poate ramane fara perimetru."""
         for name in ACCEPTED_WORKSITES:
@@ -372,7 +423,10 @@ class ManualAttendanceSecurityTests(TestCase):
         for index, mode in enumerate(("manual", "driver"), start=1):
             with self.subTest(mode=mode):
                 pin = f"81{index}0"
-                user = Users(UserName=f"Muncitor checkout {mode}", UserSerie=f"SER-21{index}")
+                user = Users(
+                    UserName=f"Muncitor checkout {mode}", UserSerie=f"SER-21{index}",
+                    is_driver=mode == "driver",
+                )
                 user.set_pin(pin)
                 user.save()
                 session = AttendanceSession.objects.create(
@@ -587,7 +641,10 @@ class ManualAttendanceSecurityTests(TestCase):
     def test_android_payload_requires_and_saves_consent_and_selfie(self):
         for index, mode in enumerate(("manual", "driver"), start=1):
             with self.subTest(mode=mode):
-                user = Users(UserName=f"Android {mode}", UserSerie=f"ANDROID-{index}")
+                user = Users(
+                    UserName=f"Android {mode}", UserSerie=f"ANDROID-{index}",
+                    is_driver=mode == "driver",
+                )
                 user.set_pin(f"991{index}")
                 user.save()
                 payload = {
@@ -715,7 +772,7 @@ class ManualAttendanceSecurityTests(TestCase):
                 self.assertEqual(session.checkin_photo, "")
 
     def test_android_v1_driver_payload_without_worksite_or_proof_remains_compatible(self):
-        user = Users(UserName="Android v1 driver", UserSerie="ANDROID-V1-DRIVER")
+        user = Users(UserName="Android v1 driver", UserSerie="ANDROID-V1-DRIVER", is_driver=True)
         user.set_pin("9904")
         user.save()
         response = self.client.post(
@@ -742,6 +799,27 @@ class ManualAttendanceSecurityTests(TestCase):
         session = AttendanceSession.objects.get(user_fk=user)
         self.assertFalse(session.data_processing_consent)
         self.assertEqual(session.checkin_photo, "")
+
+    def test_driver_mode_is_rejected_for_an_employee_without_driver_flag(self):
+        user = Users(UserName="Nu este șofer", UserSerie="NOT-A-DRIVER")
+        user.set_pin("9905")
+        user.save()
+        response = self.client.post(
+            "/api/nfc/scan/",
+            data=json.dumps({
+                "uid": "MANUAL", "tag_type": "manual", "content": "9905",
+                "timestamp": timezone.now().isoformat(), "mode": "driver",
+                "gps": {
+                    "lat": 46.0, "lng": 25.0, "accuracy": 10,
+                    "captured_at": timezone.now().isoformat(),
+                },
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403, response.content)
+        self.assertEqual(response.json()["error_code"], "DRIVER_ACCESS_REQUIRED")
+        self.assertFalse(AttendanceSession.objects.filter(user_fk=user).exists())
 
     def test_chef_never_uses_legacy_android_proof_exception(self):
         self.create_chef_user()

@@ -24,6 +24,7 @@ interface DayUserRow {
   last_out: string | null;    // ISO local time sau null
   total_hms: string;          // "HH:MM:SS"
   status: 'IN' | 'OUT' | 'ABSENT' | 'NO_ATTENDANCE' | 'LEAVE';
+  late_check_in?: boolean;
   sessions: SessionRow[];
   day_worksite?: string | null;
   leave?: { reason: string; label?: string; hours: string; multiplier: string } | null;
@@ -266,7 +267,8 @@ seeFisaAngajat(id: number): void {
     return `${H}:${m} ore`;
   }
 
-  statusChipClass(status: DayUserRow['status']): string {
+  statusChipClass(status: DayUserRow['status'], lateCheckIn = false): string {
+    if (lateCheckIn) return 'chip late';
     return {
       'IN': 'chip in',
       'OUT': 'chip out',

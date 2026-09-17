@@ -1,0 +1,4 @@
+DOCUMENT DEMO
+Utilaj: DEMO-MAC-01 - Macara Liebherr LTM
+Tip: ITP
+Expira: 2026-12-14

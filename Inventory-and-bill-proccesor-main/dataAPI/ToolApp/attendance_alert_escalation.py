@@ -318,6 +318,43 @@ def mark_employee_absent(employee, team, actor, source, work_date=None):
     return mark, case
 
 
+@transaction.atomic
+def resolve_absence_by_late_check_in(employee, work_date, checked_in_at=None):
+    """Transformă absența zilei într-un pontaj întârziat, fără a pierde auditul.
+
+    `AttendanceAbsenceMark` rămâne intenționat în bază: este folosit pentru
+    jurnalul escaladării și raportul de la 18:00. Se elimină numai ziua
+    UNEXCUSED creată de același flux, astfel încât pontajul real să devină
+    sursa de adevăr pentru prezență și salarizare.
+    """
+    mark = AttendanceAbsenceMark.objects.filter(
+        employee=employee,
+        work_date=work_date,
+    ).first()
+    if not mark:
+        return False
+
+    LeaveDay.objects.filter(
+        user_fk=employee,
+        work_date=work_date,
+        reason=LeaveDay.Reason.UNEXCUSED,
+        source_leave_request__isnull=True,
+    ).delete()
+    resolved_at = checked_in_at or timezone.now()
+    AttendanceAlertCase.objects.filter(
+        employee=employee,
+        work_date=work_date,
+        resolved_at__isnull=True,
+    ).update(
+        resolved_at=resolved_at,
+        resolution_method=AttendanceAlertCase.ResolutionMethod.CHECK_IN,
+        resolved_by=None,
+    )
+    for alert in TeamAttendanceAlert.objects.filter(work_date=work_date, missing_employees=employee):
+        alert.missing_employees.remove(employee)
+    return True
+
+
 def escalation_levels_for_user(app_user):
     if not app_user:
         return []

@@ -82,7 +82,14 @@
                 <input id="user-is-tesa" type="checkbox" formControlName="is_tesa">
                 <span>Personal TESA</span>
               </label>
-              <small>Poate confirma prezența din Team Dashboard cu locația GPS: 8 ore, între 08:00 și 16:00, pe șantierul ales.</small>
+              <small>Poate înregistra intrarea și ieșirea din Team Dashboard, cu locație GPS și fără fotografie.</small>
+            </div>
+            <div class="field" *ngIf="!isCollaborator">
+              <label class="tesa-option" for="user-is-driver">
+                <input id="user-is-driver" type="checkbox" formControlName="is_driver">
+                <span>Șofer</span>
+              </label>
+              <small>Poate face check-in și check-out din orice locație. Poziția GPS rămâne obligatorie și este salvată.</small>
             </div>
           </div>
         </section>

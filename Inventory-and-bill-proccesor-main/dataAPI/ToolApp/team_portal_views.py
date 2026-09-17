@@ -3,7 +3,7 @@ from datetime import date, time
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Prefetch, Q
+from django.db.models import Min, Prefetch, Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -280,16 +280,23 @@ def _presence_status(employee_ids, day=None):
         work_date=day,
         user_fk_id__in=employee_ids,
     ).values_list("user_fk_id", "reason"))
-    attendance_ids = set(AttendanceSession.objects.filter(
-        work_date=day,
-        user_fk_id__in=employee_ids,
-        in_time__isnull=False,
-    ).values_list("user_fk_id", flat=True))
+    attendance_rows = {
+        row["user_fk_id"]: row["first_in"]
+        for row in AttendanceSession.objects.filter(
+            work_date=day,
+            user_fk_id__in=employee_ids,
+            in_time__isnull=False,
+        ).values("user_fk_id").annotate(first_in=Min("in_time"))
+    }
+    late_threshold = level_alert_time(AttendanceAlertCase.Level.LEVEL_2)
     return {
         employee_id: (
-            "marked_absent" if leave_rows.get(employee_id) == LeaveDay.Reason.UNEXCUSED
-            else "leave" if employee_id in leave_rows
-            else "present" if employee_id in attendance_ids
+            "leave" if leave_rows.get(employee_id) not in (None, LeaveDay.Reason.UNEXCUSED)
+            else "late" if employee_id in attendance_rows and timezone.localtime(
+                attendance_rows[employee_id]
+            ).time().replace(tzinfo=None) >= late_threshold
+            else "present" if employee_id in attendance_rows
+            else "marked_absent" if leave_rows.get(employee_id) == LeaveDay.Reason.UNEXCUSED
             else "not_required" if employee_id in not_required_ids
             else "absent"
         )
@@ -344,6 +351,11 @@ def portal_dashboard(request):
     levels = _escalation_levels(app_user)
     day = timezone.localdate()
     run_attendance_maintenance(day)
+    open_attendance = AttendanceSession.objects.filter(
+        user_fk_id=app_user.employee_id,
+        work_date=day,
+        out_time__isnull=True,
+    ).order_by("-in_time").first()
     own_reviewed = LeaveRequest.objects.filter(employee_id=app_user.employee_id).exclude(
         status=LeaveRequest.Status.PENDING
     ).filter(employee_seen_at__isnull=True).count()
@@ -356,6 +368,12 @@ def portal_dashboard(request):
             "name": app_user.employee.UserName,
             "photo": app_user.employee.photo or None,
             "is_tesa": app_user.employee.is_tesa,
+            "is_driver": app_user.employee.is_driver,
+        },
+        "attendance": {
+            "is_clocked_in": bool(open_attendance),
+            "started_at": timezone.localtime(open_attendance.in_time).isoformat() if open_attendance else None,
+            "server_time": timezone.localtime().isoformat(),
         },
         "roles": roles,
         "role_labels": {str(level): label for level, label in labels.items()},
@@ -1862,7 +1880,8 @@ def portal_attendance(request):
         "uid": "MANUAL",
         "tag_type": "manual",
         "content": str(app_user.employee.UserPin),
-        "mode": "manual",
+        # Rolul este decis exclusiv de profilul salvat, nu de payloadul browserului.
+        "mode": "driver" if app_user.employee.is_driver else "manual",
         "device_key": f"team-portal-{app_user.AppUserId}",
     })
     request._body = json.dumps(data).encode("utf-8")

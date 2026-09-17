@@ -14,6 +14,16 @@ describe('EmployeeFormComponent numeric fields', () => {
     component.form.controls.is_tesa.setValue(false);
     expect((component as any).buildPayload().is_tesa).toBeFalse();
   });
+
+  it('încarcă, salvează și poate debifa rolul de Șofer', () => {
+    const component = new EmployeeFormComponent(new FormBuilder(), {} as any, {} as any,
+      { getUser: () => of({ UserName: 'Șofer', UserSerie: 'DRV-1', is_driver: true }) } as any);
+    (component as any).loadUser(1);
+    expect(component.form.value.is_driver).toBeTrue();
+    expect((component as any).buildPayload().is_driver).toBeTrue();
+    component.form.controls.is_driver.setValue(false);
+    expect((component as any).buildPayload().is_driver).toBeFalse();
+  });
   it('salvează salariul total și zilele de concediu când inputurile furnizează numere', () => {
     const component = new EmployeeFormComponent(
       new FormBuilder(),

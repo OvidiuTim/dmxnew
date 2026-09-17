@@ -91,6 +91,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   selectedLanguage: LanguageCode = this.readSavedLanguage();
   chefMode = false;
   portalMode = false;
+  portalDriver = false;
   portalUnreadNotifications = 0;
   selectedWorksite: WorksiteDefinition | null = null;
   pin = '';
@@ -131,6 +132,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     this.portalMode = this.route.snapshot.data['portalMode'] === true;
     if (this.portalMode) {
       this.selectedLanguage = this.readPortalLanguage();
+      this.loadPortalAttendanceRole();
       this.loadPortalNotificationCount();
       this.portalNotificationTimer = setInterval(() => this.loadPortalNotificationCount(), 15000);
     }
@@ -215,14 +217,19 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     return (this.portalMode || !!this.pin.trim())
       && (!this.chefMode || this.pin.trim() === '1165')
       && !!this.selectedWorksite
-      && this.effectiveLocationState === 'inside'
+      && this.locationAccepted
       && this.dataProcessingConsent
       && !!this.confirmedSelfie
       && !this.submitting;
   }
 
   get gateReady(): boolean {
-    return !!this.selectedWorksite && this.effectiveLocationState === 'inside';
+    return !!this.selectedWorksite && this.locationAccepted;
+  }
+
+  get locationAccepted(): boolean {
+    return this.effectiveLocationState === 'inside'
+      || (this.portalMode && this.portalDriver && this.effectiveLocationState === 'outside');
   }
 
   get effectiveLocationState(): LocationState {
@@ -289,7 +296,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     if (state === 'outside') {
-      return this.t.zoneRestriction;
+      return this.portalMode && this.portalDriver ? this.ui.driverHint : this.t.zoneRestriction;
     }
 
     return this.locationDetail;
@@ -544,6 +551,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       case 'ATTENDANCE_PHOTO_REQUIRED': return this.t.selfieRequired;
       case 'MANUAL_DEVICE_LOCKED': return this.ui.deviceLocked;
       case 'MANUAL_CHECKOUT_DEVICE_MISMATCH': return this.ui.sameDevice;
+      case 'DRIVER_ACCESS_REQUIRED': return this.ui.driverHint;
       case 'INVALID_PIN': case 'EMPLOYEE_NOT_FOUND': return this.t.invalidPin;
       default: return this.selectedLanguage === 'ro' && typeof error?.error?.error === 'string'
         ? error.error.error : this.t.genericError;
@@ -566,6 +574,13 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     return this.portalMode
       ? this.api.teamPortalAttendance(options)
       : this.api.manualAttendanceByPin(pin, options);
+  }
+
+  private loadPortalAttendanceRole(): void {
+    this.api.getTeamPortalDashboard().subscribe({
+      next: dashboard => { this.portalDriver = dashboard?.employee?.is_driver === true; },
+      error: () => { this.portalDriver = false; },
+    });
   }
 
   async openCamera(): Promise<void> {

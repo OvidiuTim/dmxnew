@@ -2,6 +2,12 @@ import { of } from 'rxjs';
 import { PontajComponent } from './pontaj.component';
 
 describe('PontajComponent', () => {
+  it('afișează distinct pontajul făcut după 08:10', () => {
+    const component = new PontajComponent({} as any, {} as any);
+    expect(component.statusChipClass('IN', true)).toBe('chip late');
+    expect(component.statusChipClass('IN', false)).toBe('chip in');
+  });
+
   it('păstrează profesia angajatului în rândul de pontaj', () => {
     const api: any = {
       getAttendanceDay: () => of({ rows: [{ UserId: 1, UserName: 'Ion Pop', status: 'IN', sessions: [], total_hms: '01:00:00' }] }),

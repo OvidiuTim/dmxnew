@@ -52,7 +52,7 @@
             <td class="mono">{{ r.last_out ? (r.last_out | date:'HH:mm') : '—' }}</td>
             <td><div class="sessions"><span *ngFor="let s of r.sessions">{{ hm(s.in_time) }}–{{ s.out_time ? hm(s.out_time) : (s.missing_exit ? '—' : 'acum') }}</span><span class="muted" *ngIf="!r.sessions.length">Nicio sesiune</span></div></td>
             <td><strong class="worked">{{ durataOre(r.total_hms) }}</strong></td>
-            <td><span [class]="statusChipClass(r.status)">{{ r.status === 'IN' ? 'În lucru' : (r.status === 'OUT' ? 'Ieșit' : (r.status === 'LEAVE' ? (r.leave?.label || 'Concediu') : (r.status === 'ABSENT' ? 'Absent' : 'Fără pontaj'))) }}</span></td>
+            <td><span [class]="statusChipClass(r.status, r.late_check_in)">{{ r.late_check_in ? 'Pontat după 08:10' : (r.status === 'IN' ? 'În lucru' : (r.status === 'OUT' ? 'Ieșit' : (r.status === 'LEAVE' ? (r.leave?.label || 'Concediu') : (r.status === 'ABSENT' ? 'Absent' : 'Fără pontaj')))) }}</span></td>
             <td><div class="row-actions"><button type="button" aria-label="Editează angajat" title="Editează angajat" (click)="editEmployee(r.UserId)"><span class="material-symbols-rounded" aria-hidden="true">edit</span></button><button type="button" aria-label="Detalii pontaj" title="Detalii pontaj" (click)="seeAngajat(r.UserId)"><span class="material-symbols-rounded" aria-hidden="true">visibility</span></button><button type="button" aria-label="Fișa angajat" title="Fișa angajat" (click)="seeFisaAngajat(r.UserId)"><span class="material-symbols-rounded" aria-hidden="true">badge</span></button></div></td>
           </tr>
         </tbody>

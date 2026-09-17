@@ -192,12 +192,12 @@
     "উপস্থিতি নিশ্চিত করুন"
   ],
   "tesaHint": [
-    "Personal TESA · 08:00–16:00 · Locație GPS",
-    "TESA staff · 08:00–16:00 · GPS location",
-    "TESA ਸਟਾਫ · 08:00–16:00 · GPS ਟਿਕਾਣਾ",
-    "TESA कर्मचारी · 08:00–16:00 · GPS स्थान",
-    "TESA कर्मचारी · 08:00–16:00 · GPS स्थान",
-    "TESA কর্মী · 08:00–16:00 · GPS অবস্থান"
+    "Check-in și check-out · fără fotografie",
+    "Check-in and check-out · no photo",
+    "ਚੈੱਕ-ਇਨ ਅਤੇ ਚੈੱਕ-ਆਉਟ · ਬਿਨਾਂ ਫੋਟੋ",
+    "चेक-इन और चेक-आउट · बिना फोटो",
+    "चेक-इन र चेक-आउट · फोटो बिना",
+    "চেক-ইন এবং চেক-আউট · ছবি ছাড়া"
   ],
   "tesaStaff": [
     "Personal TESA",
@@ -208,13 +208,22 @@
     "TESA কর্মী"
   ],
   "presenceSubtitle": [
-    "Alege șantierul și confirmă prezența cu locația GPS.",
-    "Choose the worksite and confirm presence using GPS location.",
-    "ਸਾਈਟ ਚੁਣੋ ਅਤੇ GPS ਟਿਕਾਣੇ ਨਾਲ ਹਾਜ਼ਰੀ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ।",
-    "साइट चुनें और GPS स्थान से उपस्थिति की पुष्टि करें।",
-    "साइट छान्नुहोस् र GPS स्थानसहित हाजिरी पुष्टि गर्नुहोस्।",
-    "সাইট বেছে GPS অবস্থান দিয়ে উপস্থিতি নিশ্চিত করুন।"
+    "Înregistrează intrarea și ieșirea cu locația GPS, fără fotografie.",
+    "Record check-in and check-out with GPS location, without a photo.",
+    "GPS ਟਿਕਾਣੇ ਨਾਲ ਚੈੱਕ-ਇਨ ਅਤੇ ਚੈੱਕ-ਆਉਟ ਦਰਜ ਕਰੋ, ਬਿਨਾਂ ਫੋਟੋ।",
+    "GPS स्थान के साथ चेक-इन और चेक-आउट दर्ज करें, बिना फोटो।",
+    "GPS स्थानसहित चेक-इन र चेक-आउट दर्ता गर्नुहोस्, फोटो बिना।",
+    "GPS অবস্থান দিয়ে চেক-ইন ও চেক-আউট করুন, ছবি ছাড়া।"
   ],
+  "tesaAttendance": ["Pontaj TESA", "TESA attendance", "TESA ਹਾਜ਼ਰੀ", "TESA उपस्थिति", "TESA हाजिरी", "TESA উপস্থিতি"],
+  "tesaAttendanceHint": ["Selectează șantierul și înregistrează ora reală de intrare.", "Choose the worksite and record your actual check-in time.", "ਸਾਈਟ ਚੁਣੋ ਅਤੇ ਅਸਲ ਚੈੱਕ-ਇਨ ਸਮਾਂ ਦਰਜ ਕਰੋ।", "साइट चुनें और वास्तविक चेक-इन समय दर्ज करें।", "साइट छान्नुहोस् र वास्तविक चेक-इन समय दर्ता गर्नुहोस्।", "সাইট বেছে প্রকৃত চেক-ইন সময় নথিভুক্ত করুন।"],
+  "tesaCheckedInHint": ["Ești pontat. La terminarea programului înregistrează ieșirea.", "You are checked in. Record check-out when your shift ends.", "ਤੁਸੀਂ ਚੈੱਕ-ਇਨ ਹੋ। ਕੰਮ ਮੁਕਣ ਤੇ ਚੈੱਕ-ਆਉਟ ਕਰੋ।", "आप चेक-इन हैं। काम समाप्त होने पर चेक-आउट करें।", "तपाईं चेक-इन हुनुहुन्छ। काम सकिएपछि चेक-आउट गर्नुहोस्।", "আপনি চেক-ইন করেছেন। কাজ শেষে চেক-আউট করুন।"],
+  "tesaCheckIn": ["Pontează intrarea", "Check in", "ਚੈੱਕ-ਇਨ ਕਰੋ", "चेक-इन करें", "चेक-इन गर्नुहोस्", "চেক-ইন করুন"],
+  "tesaCheckOut": ["Pontează ieșirea", "Check out", "ਚੈੱਕ-ਆਉਟ ਕਰੋ", "चेक-आउट करें", "चेक-आउट गर्नुहोस्", "চেক-আউট করুন"],
+  "inProgress": ["În lucru", "In progress", "ਕੰਮ ਜਾਰੀ", "कार्य जारी", "काममा", "কাজ চলছে"],
+  "tesaAttendanceCompleted": ["Pontaj încheiat", "Attendance completed", "ਹਾਜ਼ਰੀ ਪੂਰੀ ਹੋਈ", "उपस्थिति पूर्ण", "हाजिरी पूरा भयो", "উপস্থিতি সম্পন্ন"],
+  "tesaCheckoutLocation": ["Distanță la ieșire", "Check-out distance", "ਚੈੱਕ-ਆਉਟ ਦੂਰੀ", "चेक-आउट दूरी", "चेक-आउट दूरी", "চেক-আউট দূরত্ব"],
+  "tesaAttendanceSaved": ["Orele reale de intrare și ieșire au fost salvate.", "The actual check-in and check-out times were saved.", "ਅਸਲ ਚੈੱਕ-ਇਨ ਅਤੇ ਚੈੱਕ-ਆਉਟ ਸਮੇਂ ਸੰਭਾਲੇ ਗਏ।", "वास्तविक चेक-इन और चेक-आउट समय सहेजे गए।", "वास्तविक चेक-इन र चेक-आउट समय सुरक्षित भयो।", "প্রকৃত চেক-ইন ও চেক-আউট সময় সংরক্ষিত হয়েছে।"],
   "loading": [
     "Se încarcă…",
     "Loading…",
@@ -232,12 +241,12 @@
     "ঘণ্টা"
   ],
   "fullDay": [
-    "O confirmare înregistrează programul complet de astăzi pe șantierul ales. Nu este necesar să pontezi ieșirea.",
-    "One confirmation records today's full schedule at the chosen worksite. No clock-out is needed.",
-    "ਇੱਕ ਪੁਸ਼ਟੀ ਨਾਲ ਚੁਣੀ ਸਾਈਟ ਉੱਤੇ ਅੱਜ ਦਾ ਪੂਰਾ ਕੰਮ ਸਮਾਂ ਦਰਜ ਹੁੰਦਾ ਹੈ। ਬਾਹਰ ਜਾਣ ਦਾ ਸਮਾਂ ਦਰਜ ਕਰਨ ਦੀ ਲੋੜ ਨਹੀਂ।",
-    "एक पुष्टि से चुनी साइट पर आज का पूरा कार्य समय दर्ज होता है। निकास दर्ज करना आवश्यक नहीं है।",
-    "एउटा पुष्टिले छानिएको साइटमा आजको पूरा कार्यसमय दर्ता गर्छ। निकास दर्ता गर्नुपर्दैन।",
-    "একবার নিশ্চিত করলে নির্বাচিত সাইটে আজকের পুরো কাজের সময় নথিভুক্ত হয়। প্রস্থান নথিভুক্ত করতে হবে না।"
+    "Intrarea deschide programul, iar ieșirea salvează orele lucrate efectiv.",
+    "Check-in starts the shift and check-out saves the actual hours worked.",
+    "ਚੈੱਕ-ਇਨ ਸ਼ਿਫਟ ਸ਼ੁਰੂ ਕਰਦਾ ਹੈ ਅਤੇ ਚੈੱਕ-ਆਊਟ ਅਸਲ ਕੰਮ ਦੇ ਘੰਟੇ ਸੰਭਾਲਦਾ ਹੈ।",
+    "चेक-इन कार्य शुरू करता है और चेक-आउट वास्तविक काम के घंटे सहेजता है।",
+    "चेक-इनले काम सुरु गर्छ र चेक-आउटले वास्तविक काम गरेको समय सुरक्षित गर्छ।",
+    "চেক-ইন কাজ শুরু করে এবং চেক-আউট প্রকৃত কাজের সময় সংরক্ষণ করে।"
   ],
   "worksite": [
     "Șantier",
@@ -360,12 +369,12 @@
     "সংরক্ষণ হচ্ছে…"
   ],
   "presencePrivacy": [
-    "Se salvează locația din momentul confirmării. Nu se solicită fotografie.",
-    "The location at confirmation is saved. No photo is requested.",
-    "ਪੁਸ਼ਟੀ ਸਮੇਂ ਦਾ ਟਿਕਾਣਾ ਸੰਭਾਲਿਆ ਜਾਂਦਾ ਹੈ। ਫੋਟੋ ਨਹੀਂ ਮੰਗੀ ਜਾਂਦੀ।",
-    "पुष्टि के समय का स्थान सहेजा जाता है। फोटो नहीं माँगी जाती।",
-    "पुष्टि गर्दाको स्थान सुरक्षित हुन्छ। फोटो मागिँदैन।",
-    "নিশ্চিত করার সময়ের অবস্থান সংরক্ষিত হয়। ছবি চাওয়া হয় না।"
+    "Se salvează locația la intrare și la ieșire. Nu se solicită fotografie.",
+    "Location is saved at check-in and check-out. No photo is requested.",
+    "ਚੈੱਕ-ਇਨ ਅਤੇ ਚੈੱਕ-ਆਉਟ ਵੇਲੇ ਟਿਕਾਣਾ ਸੰਭਾਲਿਆ ਜਾਂਦਾ ਹੈ। ਫੋਟੋ ਨਹੀਂ ਮੰਗੀ ਜਾਂਦੀ।",
+    "चेक-इन और चेक-आउट पर स्थान सहेजा जाता है। फोटो नहीं माँगी जाती।",
+    "चेक-इन र चेक-आउटमा स्थान सुरक्षित हुन्छ। फोटो मागिँदैन।",
+    "চেক-ইন ও চেক-আউটে অবস্থান সংরক্ষিত হয়। ছবি চাওয়া হয় না।"
   ],
   "presenceConfirmed": [
     "Prezență confirmată",
@@ -376,12 +385,12 @@
     "উপস্থিতি নিশ্চিত হয়েছে"
   ],
   "noCheckout": [
-    "Programul este înregistrat. Nu mai trebuie să pontezi ieșirea.",
-    "The schedule is recorded. You do not need to clock out.",
-    "ਕੰਮ ਸਮਾਂ ਦਰਜ ਹੋ ਗਿਆ ਹੈ। ਬਾਹਰ ਜਾਣ ਦਾ ਸਮਾਂ ਦਰਜ ਕਰਨ ਦੀ ਲੋੜ ਨਹੀਂ।",
-    "कार्य समय दर्ज हो गया है। निकास दर्ज करने की आवश्यकता नहीं है।",
-    "कार्यसमय दर्ता भयो। निकास दर्ता गर्नुपर्दैन।",
-    "কাজের সময় নথিভুক্ত হয়েছে। প্রস্থান নথিভুক্ত করতে হবে না।"
+    "Pontajul este încheiat, iar orele reale au fost salvate.",
+    "Attendance is complete and the actual hours have been saved.",
+    "ਹਾਜ਼ਰੀ ਪੂਰੀ ਹੋ ਗਈ ਹੈ ਅਤੇ ਅਸਲ ਘੰਟੇ ਸੰਭਾਲੇ ਗਏ ਹਨ।",
+    "उपस्थिति पूरी है और वास्तविक घंटे सहेजे गए हैं।",
+    "हाजिरी पूरा भयो र वास्तविक घण्टाहरू सुरक्षित भए।",
+    "উপস্থিতি সম্পন্ন হয়েছে এবং প্রকৃত ঘণ্টা সংরক্ষিত হয়েছে।"
   ],
   "locationUnsupported": [
     "Acest browser nu oferă acces la locație.",

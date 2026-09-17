@@ -3,7 +3,7 @@
     <button type="button" class="back-button" (click)="back()"><span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>{{ t.dashboard }}</button>
     <header>
       <p class="eyebrow">{{ t.tesaStaff }}</p>
-      <h1>{{ t.confirmPresence }}</h1>
+      <h1>{{ t.tesaAttendance }}</h1>
       <p class="subtitle">{{ t.presenceSubtitle }}</p>
     </header>
 
@@ -11,14 +11,14 @@
     <div *ngIf="error" class="state error" role="alert">{{ error }} <button *ngIf="!status" type="button" (click)="load()">{{ t.retry }}</button></div>
 
     <ng-container *ngIf="status && !loading">
-      <section class="presence-card" *ngIf="!status.session">
+      <section class="presence-card" *ngIf="!status.session?.out_time">
         <div class="person-row"><span class="material-symbols-rounded" aria-hidden="true">badge</span><strong>{{ status.employee.name }}</strong></div>
-        <div class="schedule"><div><span>{{ status.work_date | date:'dd.MM.yyyy' }}</span><strong>08:00 – 16:00</strong></div><span class="hours">8 {{ t.hours }}</span></div>
-        <p class="explanation">{{ t.fullDay }}</p>
+        <div class="schedule" *ngIf="status.session as activeSession"><div><span>{{ activeSession.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ activeSession.in_time | date:'HH:mm' }} – {{ t.inProgress }}</strong></div><span class="hours">{{ activeSession.hours | number:'1.0-2' }} {{ t.hours }}</span></div>
+        <p class="explanation">{{ status.session ? t.tesaCheckedInHint : t.tesaAttendanceHint }}</p>
         <p *ngIf="status.blocked_reason" class="state blocked" role="status">{{ blockedReason }}</p>
-        <ng-container *ngIf="status.can_confirm">
+        <ng-container *ngIf="canSubmit">
           <label for="tesa-worksite">{{ t.worksite }}</label>
-          <select id="tesa-worksite" [(ngModel)]="worksite" (ngModelChange)="worksiteChanged()" [disabled]="locating || saving">
+          <select id="tesa-worksite" [(ngModel)]="worksite" (ngModelChange)="worksiteChanged()" [disabled]="!!status.session || locating || saving">
             <option value="">{{ t.chooseSite }}</option>
             <option *ngFor="let site of status.worksites" [value]="site.name">{{ site.name }}</option>
           </select>
@@ -54,22 +54,22 @@
           </div>
 
           <button type="button" class="confirm-button" (click)="confirm()" [disabled]="!worksite || locating || saving">
-            <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>{{ saving ? t.saving : locating ? t.locating : t.confirmPresence }}
+            <span class="material-symbols-rounded" aria-hidden="true">{{ action === 'check_in' ? 'login' : 'logout' }}</span>{{ saving ? t.saving : locating ? t.locating : (action === 'check_in' ? t.tesaCheckIn : t.tesaCheckOut) }}
           </button>
           <p class="privacy-note">{{ t.presencePrivacy }}</p>
         </ng-container>
       </section>
 
-      <section *ngIf="status.session" class="presence-card success-card" role="status">
+      <section *ngIf="status.session?.out_time && status.session as completedSession" class="presence-card success-card" role="status">
         <span class="success-icon material-symbols-rounded" aria-hidden="true">check_circle</span>
-        <h2>{{ t.presenceConfirmed }}</h2>
+        <h2>{{ t.tesaAttendanceCompleted }}</h2>
         <p>{{ status.employee.name }}</p>
-        <strong class="confirmed-site">{{ status.session.worksite }}</strong>
-        <div class="schedule"><div><span>{{ status.session.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ status.session.in_time.slice(11, 16) }} – {{ status.session.out_time.slice(11, 16) }}</strong></div><span class="hours">{{ status.session.hours }} {{ t.hours }}</span></div>
-        <p class="confirmed-distance" *ngIf="status.session.distance_m !== null && status.session.distance_m !== undefined">
-          {{ t.distance }}: {{ status.session.distance_m | number:'1.0-0' }} m<span *ngIf="status.session.inside_perimeter === false"> ({{ t.outside }})</span>.
+        <strong class="confirmed-site">{{ completedSession.worksite }}</strong>
+        <div class="schedule"><div><span>{{ completedSession.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ completedSession.in_time | date:'HH:mm' }} – {{ completedSession.out_time | date:'HH:mm' }}</strong></div><span class="hours">{{ completedSession.hours | number:'1.0-2' }} {{ t.hours }}</span></div>
+        <p class="confirmed-distance" *ngIf="completedSession.checkout_distance_m !== null && completedSession.checkout_distance_m !== undefined">
+          {{ t.tesaCheckoutLocation }}: {{ completedSession.checkout_distance_m | number:'1.0-0' }} m<span *ngIf="completedSession.checkout_inside_perimeter === false"> ({{ t.outside }})</span>.
         </p>
-        <p>{{ t.noCheckout }}</p>
+        <p>{{ t.tesaAttendanceSaved }}</p>
         <button type="button" class="confirm-button" (click)="back()">{{ t.dashboard }}</button>
       </section>
     </ng-container>

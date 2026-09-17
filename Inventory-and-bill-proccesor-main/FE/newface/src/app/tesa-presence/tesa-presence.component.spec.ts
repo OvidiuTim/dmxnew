@@ -11,8 +11,17 @@ describe('TesaPresenceComponent', () => {
   let router: { navigateByUrl: jasmine.Spy };
   const api = window.location.origin + '/api/team-portal/tesa-presence/';
   const site = { name: 'Birou ingineri & TESA', latitude: 45.8, longitude: 24.1, radius_meters: 100 };
-  const state = { employee: { name: 'TESA Test' }, work_date: '2026-01-11', worksites: [site], session: null, can_confirm: true, blocked_reason: null };
-  const session = { work_date: state.work_date, worksite: site.name, in_time: '2026-01-11T08:00:00+02:00', out_time: '2026-01-11T16:00:00+02:00', hours: 8 };
+  const state = {
+    employee: { name: 'TESA Test' }, work_date: '2026-01-11', worksites: [site], session: null,
+    state: 'not_checked_in', can_check_in: true, can_check_out: false, can_confirm: true, blocked_reason: null,
+  };
+  const openSession = {
+    work_date: state.work_date, worksite: site.name, in_time: '2026-01-11T08:17:00+02:00',
+    out_time: null, hours: 0, state: 'open',
+  };
+  const closedSession = {
+    ...openSession, out_time: '2026-01-11T16:42:00+02:00', hours: 8.42, state: 'closed',
+  };
 
   beforeEach(async () => {
     router = { navigateByUrl: jasmine.createSpy() };
@@ -25,7 +34,7 @@ describe('TesaPresenceComponent', () => {
   });
   afterEach(() => { fixture.destroy(); http.verify(); });
 
-  it('cere GPS proaspăt și trimite numai șantierul și locația, fără selfie', () => {
+  it('face check-in cu GPS proaspăt și fără selfie', () => {
     http.expectOne(api).flush(state);
     component.worksite = site.name;
     let accept!: PositionCallback;
@@ -37,15 +46,37 @@ describe('TesaPresenceComponent', () => {
     accept({ coords: { latitude: 45.8, longitude: 24.1, accuracy: 9 }, timestamp: Date.now() } as GeolocationPosition);
     const post = http.expectOne(api);
     expect(post.request.method).toBe('POST');
-    expect(Object.keys(post.request.body).sort()).toEqual(['gps', 'worksite']);
+    expect(Object.keys(post.request.body).sort()).toEqual(['action', 'gps', 'worksite']);
+    expect(post.request.body.action).toBe('check_in');
     expect(post.request.body.gps.accuracy).toBe(9);
-    post.flush({ session });
+    post.flush({ session: openSession });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Prezență confirmată');
-    expect(fixture.nativeElement.textContent).toContain('08:00 – 16:00');
+    expect(fixture.nativeElement.textContent).toContain('Ești pontat');
+    expect(fixture.nativeElement.textContent).toContain('Pontează ieșirea');
+    expect(fixture.nativeElement.textContent).toContain('08:17');
     expect(fixture.nativeElement.querySelector('video')).toBeNull();
+  });
+
+  it('face check-out pentru sesiunea activă și salvează orele reale', () => {
+    http.expectOne(api).flush({
+      ...state, session: openSession, state: 'checked_in',
+      can_check_in: false, can_check_out: true, can_confirm: true,
+    });
+    fixture.detectChanges();
+    expect(component.worksite).toBe(site.name);
+    expect(fixture.nativeElement.textContent).toContain('Pontează ieșirea');
+    let accept!: PositionCallback;
+    spyOn(navigator.geolocation, 'getCurrentPosition').and.callFake(callback => { accept = callback; });
     component.confirm();
-    http.expectNone(api);
+    accept({ coords: { latitude: 45.8, longitude: 24.1, accuracy: 7 }, timestamp: Date.now() } as GeolocationPosition);
+    const post = http.expectOne(api);
+    expect(post.request.body.action).toBe('check_out');
+    expect(post.request.body.worksite).toBe(site.name);
+    post.flush({ session: closedSession });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Pontaj încheiat');
+    expect(fixture.nativeElement.textContent).toContain('08:17 – 16:42');
+    expect(fixture.nativeElement.querySelector('video')).toBeNull();
   });
 
   it('arată distanța față de șantier și permite confirmarea din afara perimetrului', () => {
@@ -62,9 +93,9 @@ describe('TesaPresenceComponent', () => {
     component.confirm();
     const post = http.expectOne(api);
     expect(post.request.body.gps.lat).toBe(45.81);
-    post.flush({ session: { ...session, distance_m: 5400, inside_perimeter: false } });
+    post.flush({ session: { ...openSession, distance_m: 5400, inside_perimeter: false } });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('în afara perimetrului');
+    expect(fixture.nativeElement.textContent).toContain('Ești pontat');
   });
 
   it('nu salvează pontajul când locația este refuzată', () => {
@@ -77,13 +108,16 @@ describe('TesaPresenceComponent', () => {
     http.expectNone(api);
   });
 
-  it('reîncărcarea arată confirmarea existentă și nu oferă încă un pontaj', () => {
-    http.expectOne(api).flush({ ...state, session, can_confirm: false });
+  it('reîncărcarea păstrează sesiunea activă și oferă check-out', () => {
+    http.expectOne(api).flush({
+      ...state, session: openSession, state: 'checked_in',
+      can_check_in: false, can_check_out: true, can_confirm: true,
+    });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Prezență confirmată');
-    expect(fixture.nativeElement.querySelector('select')).toBeNull();
-    component.confirm();
-    http.expectNone(api);
+    expect(fixture.nativeElement.textContent).toContain('Ești pontat');
+    expect(fixture.nativeElement.textContent).toContain('Pontează ieșirea');
+    expect(component.action).toBe('check_out');
+    expect(component.worksite).toBe(site.name);
   });
 
   it('redirecționează dacă accesul TESA a fost retras', () => {

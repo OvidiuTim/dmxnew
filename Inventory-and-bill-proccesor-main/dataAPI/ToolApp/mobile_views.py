@@ -44,7 +44,7 @@ from ToolApp.models import (
 )
 from ToolApp.team_attendance_notifications import is_team_working_day
 from ToolApp.module_access import TEAM_SCHEDULE_ROUTES, app_user_roles, effective_module_codes
-from ToolApp import team_portal_views
+from ToolApp import team_portal_views, tesa_views
 from ToolApp.views import _find_user_by_pin, _log_pin_attempt, _pin_is_blocked
 
 
@@ -722,3 +722,21 @@ def team_dashboard_notifications_read(request):
 @csrf_exempt
 def team_dashboard_worksites(request):
     return _mobile_portal_request(request, team_portal_views.portal_worksites)
+
+
+# TESA presence mobile facade --------------------------------------------------
+#
+# TESA staff already use the web `tesa_views.tesa_presence` endpoint (session
+# based, no photo). These two wrappers expose the exact same view/business
+# rules to Android through the PIN identity bridge, so the no-photo,
+# outside-perimeter-allowed contract stays defined in a single place.
+
+
+@csrf_exempt
+def team_dashboard_tesa_presence_status(request):
+    return _mobile_portal_request(request, tesa_views.tesa_presence, method="GET")
+
+
+@csrf_exempt
+def team_dashboard_tesa_presence_action(request):
+    return _mobile_portal_request(request, tesa_views.tesa_presence, method="POST")
