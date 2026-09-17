@@ -1,4 +1,4 @@
-# Deploy: acces echipe, conturi AppUser și notificări 07:40
+# Deploy: acces echipe, conturi AppUser și notificări 07:30
 
 ## 1. Backend și migrații
 
@@ -54,7 +54,7 @@ Fișierul Firebase este cheia JSON de service account din proiectul Firebase. Nu
 sudo install -o www-data -g www-data -m 600 firebase-service-account.json /etc/dmx/firebase-service-account.json
 ```
 
-## 3. Programarea alertelor la 07:40, 07:55, 08:10 și a raportului de la 18:00
+## 3. Programarea alertelor la 07:30, 07:55, 08:10 și a raportului de la 18:00
 
 Editează crontab-ul utilizatorului care rulează aplicația:
 
@@ -62,15 +62,19 @@ Editează crontab-ul utilizatorului care rulează aplicația:
 crontab -e
 ```
 
-Adaugă cele trei execuții (înlocuiește `/var/www/dmxnew` cu calea reală):
+Pe serverul de producție (`/srv/pontaj`, utilizatorul `app`): `sudo crontab -u app -e`
 
 ```cron
 CRON_TZ=Europe/Bucharest
-40 7 * * 1-6 cd /var/www/dmxnew/Inventory-and-bill-proccesor-main/dataAPI && /var/www/dmxnew/Inventory-and-bill-proccesor-main/.venv/bin/python manage.py process_attendance_alert_escalations >> /var/log/dmx-team-attendance.log 2>&1
-55 7 * * 1-6 cd /var/www/dmxnew/Inventory-and-bill-proccesor-main/dataAPI && /var/www/dmxnew/Inventory-and-bill-proccesor-main/.venv/bin/python manage.py process_attendance_alert_escalations >> /var/log/dmx-team-attendance.log 2>&1
-10 8 * * 1-6 cd /var/www/dmxnew/Inventory-and-bill-proccesor-main/dataAPI && /var/www/dmxnew/Inventory-and-bill-proccesor-main/.venv/bin/python manage.py process_attendance_alert_escalations >> /var/log/dmx-team-attendance.log 2>&1
-0 18 * * 1-6 cd /var/www/dmxnew/Inventory-and-bill-proccesor-main/dataAPI && /var/www/dmxnew/Inventory-and-bill-proccesor-main/.venv/bin/python manage.py process_attendance_alert_escalations >> /var/log/dmx-team-attendance.log 2>&1
+30 7 * * 1-6 cd /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI && .venv/bin/python manage.py process_attendance_alert_escalations >> /srv/pontaj/logs/dmx-team-attendance.log 2>&1
+55 7 * * 1-6 cd /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI && .venv/bin/python manage.py process_attendance_alert_escalations >> /srv/pontaj/logs/dmx-team-attendance.log 2>&1
+10 8 * * 1-6 cd /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI && .venv/bin/python manage.py process_attendance_alert_escalations >> /srv/pontaj/logs/dmx-team-attendance.log 2>&1
+0 18 * * 1-6 cd /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI && .venv/bin/python manage.py process_attendance_alert_escalations >> /srv/pontaj/logs/dmx-team-attendance.log 2>&1
 ```
+
+(`mkdir -p /srv/pontaj/logs && chown app /srv/pontaj/logs` o singură dată.) Fișierul de log trebuie să poată fi scris de `app` — dacă nu poate, cron nici nu pornește comanda.
+
+Plasă de siguranță: dacă cronul lipsește, primul request în Team Dashboard (web sau Android) după 07:30 / 07:55 / 08:10 trimite alertele restante. Push-ul ajunge atunci cu întârziere, deci cronul rămâne necesar.
 
 Rularea de la 18:00 trimite Nivelului 2 raportul cu angajații marcați absenți care s-au pontat totuși în cursul zilei.
 

@@ -164,7 +164,7 @@
     <section class="requests-card" *ngIf="filteredAttendanceAlerts.length">
       <div class="table-scroll"><table class="notifications-table"><thead><tr><th>Tip</th><th>Echipă</th><th>Șantier</th><th>Data</th><th>Angajați fără check-in</th></tr></thead>
         <tbody><tr *ngFor="let item of filteredAttendanceAlerts; trackBy: trackById" [class.unseen-request]="item.is_unseen">
-          <td><span class="type-chip">Pontaj 07:40</span></td>
+          <td><span class="type-chip">Pontaj 07:30</span></td>
           <td><strong>{{ item.team.name }}</strong></td>
           <td>{{ item.worksite || 'Fără șantier asignat' }}</td>
           <td class="mono">{{ item.date | date:'dd.MM.yyyy' }}</td>

@@ -276,15 +276,15 @@ class TeamAttendanceAlertTests(TestCase):
         )
 
     @patch("ToolApp.team_attendance_notifications._send_email", return_value=False)
-    def test_due_time_is_bucharest_0740_and_is_idempotent(self, _email_mock):
+    def test_due_time_is_bucharest_0730_and_is_idempotent(self, _email_mock):
         missing = self.add_member("Nepontat la timp", "06")
         tz = ZoneInfo("Europe/Bucharest")
 
-        early = ensure_team_attendance_alerts_due(datetime(2026, 8, 27, 7, 39, tzinfo=tz), send_email=False, send_push=False)
+        early = ensure_team_attendance_alerts_due(datetime(2026, 8, 27, 7, 29, tzinfo=tz), send_email=False, send_push=False)
         self.assertTrue(early["before_alert_time"])
         self.assertFalse(TeamAttendanceAlert.objects.exists())
 
-        due = ensure_team_attendance_alerts_due(datetime(2026, 8, 27, 7, 40, tzinfo=tz), send_email=False, send_push=False)
+        due = ensure_team_attendance_alerts_due(datetime(2026, 8, 27, 7, 30, tzinfo=tz), send_email=False, send_push=False)
         duplicate = ensure_team_attendance_alerts_due(datetime(2026, 8, 27, 8, 0, tzinfo=tz), send_email=False, send_push=False)
         self.assertEqual(due["created"], 1)
         self.assertEqual(duplicate["duplicates"], 1)

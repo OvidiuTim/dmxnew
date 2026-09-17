@@ -61,7 +61,7 @@ export class AttendanceAlertsComponent implements OnInit {
   }
 
   levelLabel(level: number): string {
-    return level === 0 ? '07:40 · Inițială' : level === 1 ? 'Nivel 1' : 'Nivel 2';
+    return level === 0 ? '07:30 · Inițială' : level === 1 ? 'Nivel 1' : 'Nivel 2';
   }
 
   goBack(): void { this.router.navigate(['/pontaj']); }

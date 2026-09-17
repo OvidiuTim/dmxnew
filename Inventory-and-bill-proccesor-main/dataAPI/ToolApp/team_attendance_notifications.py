@@ -22,7 +22,8 @@ from ToolApp.push_notifications import send_employee_push
 
 logger = logging.getLogger(__name__)
 ALERT_HOUR = 7
-ALERT_MINUTE = 40
+# Alerta inițială către șefii de echipă (cronul trebuie să ruleze la aceeași oră).
+ALERT_MINUTE = 30
 
 
 def _configured_non_working_dates():
@@ -49,6 +50,8 @@ def _missing_members(team, work_date):
         employment_status=Users.EmploymentStatus.ACTIVE,
         active=True,
         attendance_exempt=False,
+        # Personalul TESA are flux propriu de prezență și nu intră în alertele de pontaj.
+        is_tesa=False,
     ).filter(Q(hire_date__isnull=True) | Q(hire_date__lte=work_date)).distinct()
     present_ids = AttendanceSession.objects.filter(
         work_date=work_date,
@@ -100,7 +103,7 @@ def _send_email(alert, recipients):
         <p><strong>Echipă:</strong> {escape(alert.team.name)}<br>
            <strong>Șantier:</strong> {escape(worksite)}<br>
            <strong>Data:</strong> {alert.work_date.strftime('%d.%m.%Y')}</p>
-        <p><strong>Angajați fără check-in la 07:40:</strong></p><ul>{rows}</ul>
+        <p><strong>Angajați fără check-in la {ALERT_HOUR:02d}:{ALERT_MINUTE:02d}:</strong></p><ul>{rows}</ul>
       </div>
     """
     try:
@@ -180,7 +183,7 @@ def create_team_attendance_alerts(work_date=None, send_email=True, send_push=Tru
 
 
 def ensure_team_attendance_alerts_due(now=None, send_email=True, send_push=True):
-    """Creează idempotent alertele numai după 07:40 în fusul orar Django."""
+    """Creează idempotent alertele numai după ALERT_HOUR:ALERT_MINUTE în fusul orar Django."""
     local_now = timezone.localtime(now or timezone.now())
     if (local_now.hour, local_now.minute) < (ALERT_HOUR, ALERT_MINUTE):
         return {

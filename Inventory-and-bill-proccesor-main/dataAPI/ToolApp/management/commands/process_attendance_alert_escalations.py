@@ -6,7 +6,7 @@ from ToolApp.attendance_alert_escalation import process_due_attendance_alerts
 
 
 class Command(BaseCommand):
-    help = "Procesează idempotent alertele de pontaj 07:40, Nivel 1 și Nivel 2."
+    help = "Procesează idempotent alertele de pontaj 07:30, Nivel 1 și Nivel 2."
 
     def add_arguments(self, parser):
         parser.add_argument("--no-email", action="store_true")

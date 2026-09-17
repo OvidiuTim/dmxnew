@@ -1151,7 +1151,7 @@ def _sync_global_alert_recipients(app_user, day=None):
 
 
 def _notification_query(app_user):
-    # Notificările inițiale de la 07:40 rămân strict în echipele coordonate.
+    # Notificările inițiale de la 07:30 rămân strict în echipele coordonate.
     # Rolurile Nivel 1/Nivel 2 sunt adăugate separat, la pragurile lor, astfel
     # încât un utilizator cu roluri combinate să nu își piardă drepturile de bază.
     return TeamAttendanceAlertRecipient.objects.filter(
@@ -1195,6 +1195,44 @@ def _missing_row(employee, team, can_mark):
         "team": _team_summary(team),
         "can_mark_absent": bool(can_mark),
     }
+
+
+def _missing_today_rows(day=None, can_mark=False):
+    """Lista „Vezi nepontați”: nepontații de acum plus toți cei marcați absent azi.
+
+    După ora Nivelului 2 toți nepontații sunt trecuți automat absent, deci ies
+    din `company_missing_employees`. Înainte, aici se păstrau doar marcările
+    Nivelului 1, iar lista devenea goală („Toți angajații s-au pontat”) exact
+    când erau cei mai mulți lipsă. Acum rămân vizibili cu statusul „marcat absent”.
+    Cine s-a pontat ulterior marcării nu mai apare.
+    """
+    day = day or timezone.localdate()
+    rows = {
+        employee.pk: _missing_row(employee, team, can_mark)
+        for employee, team in company_missing_employees(day)
+    }
+    checked_in_ids = set(AttendanceSession.objects.filter(
+        work_date=day,
+        in_time__isnull=False,
+    ).values_list("user_fk_id", flat=True))
+    marks = AttendanceAbsenceMark.objects.filter(work_date=day, employee__is_tesa=False).exclude(
+        employee_id__in=checked_in_ids,
+    ).select_related("employee", "team", "team__leader", "marked_by", "marked_by__employee")
+    for mark in marks:
+        if mark.marked_by_id:
+            actor_name = mark.marked_by.employee.UserName
+        elif mark.source == AttendanceAbsenceMark.Source.AUTOMATIC_LEVEL_2:
+            actor_name = "Automat · Nivel 2"
+        else:
+            actor_name = "Nivel 1"
+        rows[mark.employee_id] = {
+            **_missing_row(mark.employee, mark.team, False),
+            "status": "marked_absent",
+            "marked_by": actor_name,
+            "marked_at": timezone.localtime(mark.marked_at).isoformat(),
+            "source": mark.source,
+        }
+    return sorted(rows.values(), key=lambda item: item["name"].casefold())
 
 
 def _absent_today_rows(day=None):
@@ -1299,10 +1337,7 @@ def _global_notification_payloads(app_user, day=None):
         }
 
     if AttendanceAlertCase.Level.LEVEL_1 in levels and _level_1_list_available():
-        level_1_rows = [
-            _missing_row(employee, team, False)
-            for employee, team in company_missing_employees(day)
-        ]
+        level_1_rows = _missing_today_rows(day)
         item = build_item(AttendanceAlertCase.Level.LEVEL_1, level_1_rows)
         if item:
             items.append(item)
@@ -1349,27 +1384,7 @@ def portal_missing_today(request):
     run_attendance_maintenance(day)
     refresh_resolutions(day)
     locked = absence_marking_locked()
-    rows_by_employee = {
-        employee.pk: _missing_row(employee, team, not locked)
-        for employee, team in company_missing_employees(day)
-    }
-    # Păstrăm marcările Nivelului 1 în listă după refresh, astfel încât acțiunea
-    # să rămână vizibilă și auditabilă fără să repoziționăm utilizatorul.
-    marks = AttendanceAbsenceMark.objects.filter(
-        work_date=day,
-    ).filter(
-        Q(source=AttendanceAbsenceMark.Source.LEVEL_1) | Q(marked_by=app_user)
-    ).select_related("employee", "team", "team__leader", "marked_by", "marked_by__employee")
-    for mark in marks:
-        actor_name = mark.marked_by.employee.UserName if mark.marked_by_id else "Nivel 1"
-        rows_by_employee[mark.employee_id] = {
-            **_missing_row(mark.employee, mark.team, False),
-            "status": "marked_absent",
-            "marked_by": actor_name,
-            "marked_at": timezone.localtime(mark.marked_at).isoformat(),
-            "source": mark.source,
-        }
-    rows = sorted(rows_by_employee.values(), key=lambda item: item["name"].casefold())
+    rows = _missing_today_rows(day, can_mark=not locked)
     return JsonResponse({
         "date": day.isoformat(),
         "locked": locked,
@@ -1405,7 +1420,6 @@ def portal_absent_today(request):
 
 def _notification_payload(recipient):
     alert = recipient.alert
-    current_missing = _missing_members(alert.team, alert.work_date)
     return {
         "id": recipient.pk,
         "kind": "team",
@@ -1414,15 +1428,47 @@ def _notification_payload(recipient):
         "date": alert.work_date.isoformat(),
         "checked_at": alert.created_at.isoformat(),
         "is_read": recipient.read_at is not None,
-        "employees": [
-            {
-                "id": employee.pk,
-                "name": employee.UserName,
-                "phone": employee.phone_number or "",
-            }
-            for employee in current_missing
-        ],
+        "employees": _team_alert_employees(alert.team, alert.work_date),
     }
+
+
+def _team_alert_employees(team, work_date):
+    """Oamenii din alerta echipei: încă nepontați + cei deja marcați absent.
+
+    Marcajul automat de la Nivelul 2 îi scoate din `_missing_members`; fără
+    partea a doua, notificarea șefului de echipă dispărea după ora limită.
+    """
+    rows = [
+        {"id": employee.pk, "name": employee.UserName, "phone": employee.phone_number or "", "status": "absent"}
+        for employee in _missing_members(team, work_date)
+    ]
+    seen = {row["id"] for row in rows}
+    checked_in_ids = AttendanceSession.objects.filter(
+        work_date=work_date,
+        in_time__isnull=False,
+    ).values_list("user_fk_id", flat=True)
+    marks = (
+        AttendanceAbsenceMark.objects.filter(
+            work_date=work_date,
+            employee__team_memberships__team=team,
+            employee__team_memberships__active=True,
+            employee__is_tesa=False,
+        )
+        .exclude(employee_id__in=checked_in_ids)
+        .select_related("employee")
+        .distinct()
+    )
+    for mark in marks:
+        if mark.employee_id in seen:
+            continue
+        seen.add(mark.employee_id)
+        rows.append({
+            "id": mark.employee_id,
+            "name": mark.employee.UserName,
+            "phone": mark.employee.phone_number or "",
+            "status": "marked_absent",
+        })
+    return sorted(rows, key=lambda row: row["name"].casefold())
 
 
 def _team_notification_payloads(app_user):

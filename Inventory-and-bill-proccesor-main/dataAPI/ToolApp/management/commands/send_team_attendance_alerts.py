@@ -7,7 +7,7 @@ from ToolApp.team_attendance_notifications import create_team_attendance_alerts,
 
 
 class Command(BaseCommand):
-    help = "Trimite la 07:40 alertele grupate pentru membrii echipelor fără check-in."
+    help = "Trimite la 07:30 alertele grupate pentru membrii echipelor fără check-in."
 
     def add_arguments(self, parser):
         parser.add_argument("--date", help="Data YYYY-MM-DD; implicit astăzi.")

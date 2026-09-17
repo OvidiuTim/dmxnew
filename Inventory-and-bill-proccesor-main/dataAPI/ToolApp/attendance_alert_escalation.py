@@ -132,6 +132,8 @@ def company_missing_employees(work_date=None):
         employment_status=Users.EmploymentStatus.ACTIVE,
         active=True,
         attendance_exempt=False,
+        # TESA nu este trecut automat absent și nu apare în listele Nivel 1/Nivel 2.
+        is_tesa=False,
     ).filter(Q(hire_date__isnull=True) | Q(hire_date__lte=work_date)).distinct()
     present_ids = AttendanceSession.objects.filter(
         work_date=work_date,
@@ -225,7 +227,7 @@ def run_attendance_maintenance(
     send_email=True,
     send_push=True,
 ):
-    """Întreținerea de pontaj: alertele de la 07:40 plus marcajele automate Nivel 2.
+    """Întreținerea de pontaj: alertele de la 07:30 plus marcajele automate Nivel 2.
 
     Face exact aceleași operații ca înainte, în aceeași ordine ca jobul din cron,
     dar dintr-un request se execută cel mult o dată la
@@ -250,8 +252,65 @@ def run_attendance_maintenance(
         send_email=send_email,
         send_push=send_push,
     )
+    if work_date == local_now.date():
+        # Plasă de siguranță: dacă cronul de la Nivel 1 / Nivel 2 nu a rulat,
+        # notificările pleacă la primul request după oră. Ordinea contează:
+        # escaladările se procesează ÎNAINTE de marcajele automate, altfel
+        # cazurile ar fi deja închise și nu s-ar mai trimite nimic.
+        process_pending_escalations(
+            work_date,
+            now=local_now,
+            send_email=send_email,
+            send_push=send_push,
+        )
     ensure_level2_auto_marks(work_date, now=local_now)
     return True
+
+
+# Stările după care o escaladare nu mai trebuie reluată în aceeași zi.
+FINAL_RUN_STATUSES = (
+    "completed",
+    "completed_with_errors",
+    "no_active_alerts",
+    "missing_recipient",
+    "disabled",
+    "skipped_non_working_day",
+)
+
+
+def process_pending_escalations(work_date=None, now=None, send_email=True, send_push=True):
+    """Rulează Nivel 1 / Nivel 2 ajunse la oră și încă neprocesate azi.
+
+    Nu înlocuiește cronul; îl acoperă când acesta lipsește sau a întârziat.
+    Fiecare nivel rulează cel mult o dată pe zi pe acest drum (după primul
+    AttendanceAlertRunLog final), ca să nu umple jurnalul la fiecare request.
+    """
+    local_now = timezone.localtime(now or timezone.now())
+    work_date = work_date or local_now.date()
+    if not is_team_working_day(work_date):
+        return []
+    results = []
+    for config in ensure_default_configs():
+        if not config.active or local_now.time().replace(tzinfo=None) < config.alert_time:
+            continue
+        already_done = AttendanceAlertRunLog.objects.filter(
+            work_date=work_date,
+            level=config.level,
+            status__in=FINAL_RUN_STATUSES,
+        ).exists()
+        if already_done:
+            continue
+        try:
+            results.append(process_escalation_level(
+                config.level,
+                work_date,
+                now=local_now,
+                send_email=send_email,
+                send_push=send_push,
+            ))
+        except Exception:
+            logger.exception("Escaladarea de pontaj nivel %s a eșuat în întreținere", config.level)
+    return results
 
 
 @transaction.atomic
@@ -613,9 +672,19 @@ def process_escalation_level(level, work_date=None, now=None, send_email=True, s
         missing_rows = company_missing_employees(work_date)
         missing = {employee.pk: (employee, team) for employee, team in missing_rows}
         sync_cases(work_date, level, missing)
+        cases_qs = AttendanceAlertCase.objects.filter(work_date=work_date, level=level)
+        if level == AttendanceAlertCase.Level.LEVEL_2:
+            # Cazurile deja marcate absent (manual sau de un request web care a
+            # rulat marcajele înaintea cronului) sunt tot absenți ai zilei și
+            # trebuie să intre în notificarea/emailul Nivelului 2.
+            cases_qs = cases_qs.filter(
+                Q(resolved_at__isnull=True)
+                | Q(resolution_method=AttendanceAlertCase.ResolutionMethod.MARKED_ABSENT)
+            )
+        else:
+            cases_qs = cases_qs.filter(resolved_at__isnull=True)
         cases = list(
-            AttendanceAlertCase.objects.filter(work_date=work_date, level=level, resolved_at__isnull=True)
-            .select_related("employee", "team", "team__leader")
+            cases_qs.select_related("employee", "team", "team__leader")
             .order_by("team__name", "worksite", "employee__UserName")
         )
         run.case_count = len(cases)
@@ -623,7 +692,7 @@ def process_escalation_level(level, work_date=None, now=None, send_email=True, s
             run.status = "no_active_alerts"
             return {"status": run.status, "level": level, "count": 0}
         if level == AttendanceAlertCase.Level.LEVEL_2:
-            _auto_mark_level2_cases(cases, work_date)
+            _auto_mark_level2_cases([case for case in cases if case.resolved_at is None], work_date)
         if not config.app_user_id:
             run.status = "missing_recipient"
             errors.append("Nu este selectată persoana destinatară.")
