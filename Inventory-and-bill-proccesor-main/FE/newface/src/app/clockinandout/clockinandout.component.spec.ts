@@ -45,6 +45,7 @@ describe('ClockinandoutComponent', () => {
     const byName = new Map(component.worksites.map(worksite => [worksite.name, worksite]));
 
     expect(component.worksites.length).toBe(15);
+    expect(component.worksites.every(worksite => worksite.radiusMeters === 90)).toBeTrue();
     expect(byName.get('The Lake Home Bloc A')?.center).toEqual({
       lat: 45.81034964338528,
       lng: 24.130413480467038,
@@ -61,6 +62,30 @@ describe('ClockinandoutComponent', () => {
       lat: 45.76837384893173,
       lng: 23.916721618503065,
     });
+  });
+
+  it('uses the selfie immediately after it is taken and keeps only the retake action', () => {
+    const video: any = { videoWidth: 640, videoHeight: 480, srcObject: {} };
+    component.cameraPreview = { nativeElement: video } as any;
+    const context = { drawImage: jasmine.createSpy() };
+    const canvas: any = {
+      width: 0,
+      height: 0,
+      getContext: () => context,
+      toDataURL: () => 'data:image/webp;base64,VEVTVA==',
+    };
+    const nativeCreateElement = document.createElement.bind(document);
+    spyOn(document, 'createElement').and.callFake((tagName: string) =>
+      tagName.toLowerCase() === 'canvas' ? canvas : nativeCreateElement(tagName));
+
+    component.captureSelfie();
+
+    expect(component.capturedSelfie).toBe('data:image/webp;base64,VEVTVA==');
+    expect(component.confirmedSelfie).toBe(component.capturedSelfie);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Fotografie făcută');
+    expect(fixture.nativeElement.textContent).toContain('Refă fotografia');
+    expect(fixture.nativeElement.textContent).not.toContain('Folosește fotografia');
   });
 
   it('accepts a captured GPS position outside the perimeter only for a portal driver', () => {

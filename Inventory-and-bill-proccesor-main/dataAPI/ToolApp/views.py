@@ -68,6 +68,7 @@ from ToolApp.worksites import (
     ACCEPTED_WORKSITES,
     ATTENDANCE_WORKSITE_BY_NAME,
     CHEF_ATTENDANCE_WORKSITE_CONFIG,
+    TEAM_DASHBOARD_WORKSITE_BY_NAME,
     InvalidWorksite,
     fold_worksite,
     match_worksite,
@@ -2209,7 +2210,7 @@ def nfc_scan(request):
         }, status=400)
     if is_manual_scan and manual_proof_contract and not attendance_photo:
         return JsonResponse({
-            "error": "Selfie-ul confirmat este obligatoriu pentru pontaj.",
+            "error": "Selfie-ul realizat este obligatoriu pentru pontaj.",
             "error_code": "ATTENDANCE_PHOTO_REQUIRED",
         }, status=400)
 
@@ -2347,7 +2348,11 @@ def nfc_scan(request):
         return _invalid_worksite_response(exc)
 
     if is_manual_scan and attendance_mode == "manual":
-        perimeters = worksite_perimeters(ws)
+        if getattr(request, "_team_portal_attendance", False):
+            portal_perimeter = TEAM_DASHBOARD_WORKSITE_BY_NAME.get(ws)
+            perimeters = (portal_perimeter,) if portal_perimeter else ()
+        else:
+            perimeters = worksite_perimeters(ws)
         rule = perimeters[0] if perimeters else None
         if not rule:
             return JsonResponse({
@@ -2614,26 +2619,24 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return raw in {"1", "true", "yes", "on"}
 
 
-def _app_version_payload():
-    link = os.environ.get(
-        "DMX_ANDROID_NEWVERSION_LINK",
-        os.environ.get(
-            "DMX_ANDROID_UPDATE_URL",
-            "https://play.google.com/store/apps/details?id=ro.dmxconstruction.dmxclock",
-        ),
-    )
+ANDROID_PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.dmx.clockin"
+
+
+def _app_version_payload(*, update_available: bool):
     return {
         "minimum_version_code": int(os.environ.get("DMX_ANDROID_MIN_VERSION_CODE", "1")),
         "latest_version_code": int(os.environ.get("DMX_ANDROID_LATEST_VERSION_CODE", "1")),
         "latest_version_name": os.environ.get("DMX_ANDROID_LATEST_VERSION_NAME", "1.0"),
-        "update_url": os.environ.get("DMX_ANDROID_UPDATE_URL", link),
+        "update_url": ANDROID_PLAY_STORE_URL,
         "message": os.environ.get(
             "DMX_ANDROID_UPDATE_MESSAGE",
             "Exista o versiune noua. Actualizeaza aplicatia ca sa poti continua pontajul.",
         ),
-        "is_update_available": _env_bool("DMX_ANDROID_UPDATE_AVAILABLE", False),
-        "is_force_update": _env_bool("DMX_ANDROID_FORCE_UPDATE", False),
-        "link": link,
+        "is_update_available": update_available,
+        "is_force_update": (
+            _env_bool("DMX_ANDROID_FORCE_UPDATE", False) if update_available else False
+        ),
+        "link": ANDROID_PLAY_STORE_URL,
     }
 
 
@@ -2643,7 +2646,16 @@ def app_version(request):
     if request.method != "GET":
         return JsonResponse({"error": "Only GET allowed"}, status=405)
 
-    return JsonResponse(_app_version_payload())
+    return JsonResponse(_app_version_payload(update_available=True))
+
+
+@csrf_exempt
+def app_version2(request):
+    """GET /api/app/version2/ - verificare fara actualizare disponibila."""
+    if request.method != "GET":
+        return JsonResponse({"error": "Only GET allowed"}, status=405)
+
+    return JsonResponse(_app_version_payload(update_available=False))
 
 
 @csrf_exempt

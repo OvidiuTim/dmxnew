@@ -96,6 +96,7 @@ urlpatterns = [
 
     # --- Pontaj (existente cu /api/) ---
     path('api/app/version/', views.app_version, name='app_version'),
+    path('api/app/version2/', views.app_version2, name='app_version2'),
     path('api/newversion/', views.app_version, name='new_version'),
     path('api/nfc/scan/', nfc_scan, name='nfc_scan'),
     path('api/pontaj/login/', views.pontaj_login, name='pontaj_login'),

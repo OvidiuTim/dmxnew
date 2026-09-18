@@ -171,9 +171,6 @@
                 <button type="button" class="selfie-btn secondary" (click)="retakeSelfie()" [disabled]="submitting">
                   <span class="material-symbols-rounded" aria-hidden="true">refresh</span> {{ t.retakePhoto }}
                 </button>
-                <button type="button" class="selfie-btn primary" (click)="useSelfie()" [disabled]="!!confirmedSelfie || submitting">
-                  <span class="material-symbols-rounded" aria-hidden="true">check</span> {{ confirmedSelfie ? t.photoUsed : t.usePhoto }}
-                </button>
               </ng-container>
             </div>
           </section>

@@ -70,20 +70,20 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   readonly worksites: WorksiteDefinition[] = [
     { name: 'The Lake Home Bloc A', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 90 },
-    { name: 'The Lake Home Bloc B2', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
-    { name: 'The Lake Home Bloc E & F', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 40 },
-    { name: 'Birou ingineri & TESA', type: 'circle', center: { lat: 45.809820427020156, lng: 24.13019018453687 }, radiusMeters: 100 },
-    { name: 'Psihiatrie C8', type: 'circle', center: { lat: 45.80720228440877, lng: 24.15440514734915 }, radiusMeters: 40 },
-    { name: 'Psihiatrie C16', type: 'circle', center: { lat: 45.80768553302182, lng: 24.157085884823974 }, radiusMeters: 40 },
-    { name: 'Spital Victoria', type: 'circle', center: { lat: 45.725861888407216, lng: 24.70584969156609 }, radiusMeters: 40 },
-    { name: 'Casa de Cultură Victoria', type: 'circle', center: { lat: 45.73050790281027, lng: 24.70109770865094 }, radiusMeters: 40 },
-    { name: 'Bazin Ucea', type: 'circle', center: { lat: 45.70058115535115, lng: 24.689376326811146 }, radiusMeters: 40 },
-    { name: 'Bloc Agnita', type: 'circle', center: { lat: 45.97724541353617, lng: 24.62272565333796 }, radiusMeters: 40 },
-    { name: 'Grădinița Agnita', type: 'circle', center: { lat: 45.97789754940184, lng: 24.61674765866955 }, radiusMeters: 40 },
-    { name: 'Bloc 14 Victoria', type: 'circle', center: { lat: 45.73336901742498, lng: 24.701707107591304 }, radiusMeters: 40 },
-    { name: 'Bloc 3 Victoria', type: 'circle', center: { lat: 45.73105012404724, lng: 24.696154238062714 }, radiusMeters: 40 },
-    { name: 'Cisnadie', type: 'circle', center: { lat: 45.71648035800439, lng: 24.162636701234426 }, radiusMeters: 50 },
-    { name: 'The River chalet', type: 'circle', center: { lat: 45.76837384893173, lng: 23.916721618503065 }, radiusMeters: 50 }
+    { name: 'The Lake Home Bloc B2', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 90 },
+    { name: 'The Lake Home Bloc E & F', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 90 },
+    { name: 'Birou ingineri & TESA', type: 'circle', center: { lat: 45.809820427020156, lng: 24.13019018453687 }, radiusMeters: 90 },
+    { name: 'Psihiatrie C8', type: 'circle', center: { lat: 45.80720228440877, lng: 24.15440514734915 }, radiusMeters: 90 },
+    { name: 'Psihiatrie C16', type: 'circle', center: { lat: 45.80768553302182, lng: 24.157085884823974 }, radiusMeters: 90 },
+    { name: 'Spital Victoria', type: 'circle', center: { lat: 45.725861888407216, lng: 24.70584969156609 }, radiusMeters: 90 },
+    { name: 'Casa de Cultură Victoria', type: 'circle', center: { lat: 45.73050790281027, lng: 24.70109770865094 }, radiusMeters: 90 },
+    { name: 'Bazin Ucea', type: 'circle', center: { lat: 45.70058115535115, lng: 24.689376326811146 }, radiusMeters: 90 },
+    { name: 'Bloc Agnita', type: 'circle', center: { lat: 45.97724541353617, lng: 24.62272565333796 }, radiusMeters: 90 },
+    { name: 'Grădinița Agnita', type: 'circle', center: { lat: 45.97789754940184, lng: 24.61674765866955 }, radiusMeters: 90 },
+    { name: 'Bloc 14 Victoria', type: 'circle', center: { lat: 45.73336901742498, lng: 24.701707107591304 }, radiusMeters: 90 },
+    { name: 'Bloc 3 Victoria', type: 'circle', center: { lat: 45.73105012404724, lng: 24.696154238062714 }, radiusMeters: 90 },
+    { name: 'Cisnadie', type: 'circle', center: { lat: 45.71648035800439, lng: 24.162636701234426 }, radiusMeters: 90 },
+    { name: 'The River chalet', type: 'circle', center: { lat: 45.76837384893173, lng: 23.916721618503065 }, radiusMeters: 90 }
   ];
 
   readonly translations = attendanceCopy;
@@ -578,7 +578,15 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   private loadPortalAttendanceRole(): void {
     this.api.getTeamPortalDashboard().subscribe({
-      next: dashboard => { this.portalDriver = dashboard?.employee?.is_driver === true; },
+      next: dashboard => {
+        this.portalDriver = dashboard?.employee?.is_driver === true;
+        // Personalul TESA folosește întotdeauna fluxul dedicat fără fotografie.
+        // Astfel nici accesarea directă a /team-dashboard/pontaj nu poate afișa
+        // formularul greșit unui profil TESA + șofer.
+        if (dashboard?.employee?.is_tesa === true) {
+          void this.router.navigateByUrl('/team-dashboard/confirma-prezenta');
+        }
+      },
       error: () => { this.portalDriver = false; },
     });
   }
@@ -633,11 +641,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     context.drawImage(video, (video.videoWidth - side) / 2, (video.videoHeight - side) / 2, side, side, 0, 0, 240, 240);
     const webp = canvas.toDataURL('image/webp', 0.4);
     this.capturedSelfie = webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.4);
+    // Fotografia făcută este folosită direct. Utilizatorul o poate reface,
+    // dar nu mai trebuie să apese încă un buton de confirmare.
+    this.confirmedSelfie = this.capturedSelfie;
     this.stopCamera();
-  }
-
-  useSelfie(): void {
-    if (this.capturedSelfie) this.confirmedSelfie = this.capturedSelfie;
   }
 
   retakeSelfie(): void {

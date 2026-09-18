@@ -385,11 +385,8 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     context.drawImage(video, (video.videoWidth - side) / 2, (video.videoHeight - side) / 2, side, side, 0, 0, 240, 240);
     const webp = canvas.toDataURL('image/webp', 0.4);
     this.capturedSelfie = webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/jpeg', 0.4);
+    this.confirmedSelfie = this.capturedSelfie;
     this.stopCamera();
-  }
-
-  useSelfie(): void {
-    if (this.capturedSelfie) this.confirmedSelfie = this.capturedSelfie;
   }
 
   retakeSelfie(): void {

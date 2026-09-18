@@ -164,6 +164,45 @@ class TesaPresenceTests(TestCase):
         self.assertFalse(state['session']['inside_perimeter'])
         self.assertEqual(state['session']['distance_m'], body['session']['distance_m'])
 
+    def test_tesa_driver_needs_only_action_and_gps_and_saves_both_locations(self):
+        self.employee.is_driver = True
+        self.employee.save(update_fields=('is_driver',))
+        status = self.client.get(self.url)
+        self.assertEqual(status.status_code, 200, status.content)
+        self.assertTrue(status.json()['unrestricted_location'])
+        self.assertTrue(all(site['radius_meters'] == 90 for site in status.json()['worksites']))
+
+        gps = {
+            'lat': 46.123,
+            'lng': 25.456,
+            'accuracy': 11,
+            'captured_at': self.now.isoformat(),
+        }
+        checkin = self.post({'action': 'check_in', 'gps': gps})
+        self.assertEqual(checkin.status_code, 201, checkin.content)
+        session = AttendanceSession.objects.get(user_fk=self.employee)
+        self.assertIsNone(session.worksite)
+        self.assertEqual(session.in_gps_latitude, gps['lat'])
+        self.assertEqual(session.in_gps_longitude, gps['lng'])
+        self.assertEqual(session.checkin_photo, '')
+
+        checkout_now = self.now + timedelta(hours=3)
+        checkout_gps = {
+            'lat': 46.789,
+            'lng': 25.987,
+            'accuracy': 14,
+            'captured_at': checkout_now.isoformat(),
+        }
+        checkout = self.post(
+            {'action': 'check_out', 'gps': checkout_gps},
+            now=checkout_now,
+        )
+        self.assertEqual(checkout.status_code, 200, checkout.content)
+        session.refresh_from_db()
+        self.assertEqual(session.out_gps_latitude, checkout_gps['lat'])
+        self.assertEqual(session.out_gps_longitude, checkout_gps['lng'])
+        self.assertEqual(session.checkout_photo, '')
+
     def test_existing_session_or_leave_prevents_extra_eight_hours(self):
         session = AttendanceSession.objects.create(user_fk=self.employee, work_date=self.now.date(),
                                                     in_time=self.now - timedelta(hours=1), out_time=self.now, duration_seconds=3600)

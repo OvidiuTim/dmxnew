@@ -51,8 +51,8 @@ export const routes: Routes = [
   { path: 'santiere', loadComponent: () => import('./construction-sites/construction-sites.component').then(m => m.ConstructionSitesComponent), canActivate: [AuthGuard], data: { permissionRoute: '/santiere', moduleCode: 'construction_sites' } },
   { path: 'santiere/:id', loadComponent: () => import('./construction-sites/construction-sites.component').then(m => m.ConstructionSitesComponent), canActivate: [AuthGuard], data: { permissionRoute: '/santiere', moduleCode: 'construction_sites' } },
 
-  // Pontaj manual separat
-  { path: 'clockinandout', component: ClockinandoutComponent },
+  // Ruta veche de pontaj intră acum în Team Dashboard.
+  { path: 'clockinandout', redirectTo: 'team-dashboard', pathMatch: 'full' },
   { path: 'clockinandoutdriver', component: ClockinandoutdriverComponent },
   { path: 'chef', component: ClockinandoutComponent, data: { chefMode: true } },
   { path: 'termeniigdpr', component: TermeniIgdprComponent },

@@ -53,7 +53,7 @@ from ToolApp.team_attendance_notifications import (
 )
 from ToolApp.team_organization_sync import sync_team_to_organization
 from ToolApp.views import nfc_scan
-from ToolApp.worksites import ACCEPTED_WORKSITES, ATTENDANCE_WORKSITES
+from ToolApp.worksites import ACCEPTED_WORKSITES, TEAM_DASHBOARD_WORKSITES
 
 
 def _error(message, status=400, details=None):
@@ -1891,7 +1891,7 @@ def portal_worksites(request):
         return _error("Acces interzis.", 403)
     return JsonResponse({
         "worksites": list(ACCEPTED_WORKSITES),
-        "attendance_worksites": list(ATTENDANCE_WORKSITES),
+        "attendance_worksites": list(TEAM_DASHBOARD_WORKSITES),
         "location_validity_seconds": 600,
     })
 
@@ -1917,7 +1917,7 @@ def portal_attendance(request):
         }, status=400)
     if not str(data.get("attendance_photo") or "").strip():
         return JsonResponse({
-            "error": "Selfie-ul confirmat este obligatoriu pentru pontaj.",
+            "error": "Selfie-ul realizat este obligatoriu pentru pontaj.",
             "error_code": "ATTENDANCE_PHOTO_REQUIRED",
         }, status=400)
     # Identitatea transmisă de browser nu este niciodată folosită. Backendul
@@ -1931,4 +1931,7 @@ def portal_attendance(request):
         "device_key": f"team-portal-{app_user.AppUserId}",
     })
     request._body = json.dumps(data).encode("utf-8")
+    # Semnal intern, imposibil de injectat prin endpointul public de pontaj.
+    # nfc_scan aplică astfel raza web de 90 m fără să modifice Android legacy.
+    request._team_portal_attendance = True
     return nfc_scan(request)

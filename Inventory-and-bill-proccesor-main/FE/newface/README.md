@@ -50,7 +50,7 @@ Rutele folosesc chei backend explicite:
 - Concedii: `/pontaj`;
 - Documente: `/pontaj/fisa-angajat` cât timp nu există permisiune backend dedicată.
 
-Loginul și rutele publice `/clockinandout` și `/clockinandoutdriver` nu folosesc shell-ul global. Routerul păstrează restaurarea scroll-ului la începutul paginii.
+Loginul și ruta publică `/clockinandoutdriver` nu folosesc shell-ul global. Ruta legacy `/clockinandout` redirecționează către `/team-dashboard`. Routerul păstrează restaurarea scroll-ului la începutul paginii.
 
 ## Echipe permanente și alocări temporare
 

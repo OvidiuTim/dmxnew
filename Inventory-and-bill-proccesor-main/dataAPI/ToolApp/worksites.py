@@ -33,6 +33,18 @@ ATTENDANCE_WORKSITES = (
     {"name": "The River chalet", "latitude": 45.76837384893173, "longitude": 23.916721618503065, "radius_meters": 50},
 )
 
+# Contractul web din Team Dashboard folosește aceeași rază pentru toate
+# șantierele. Configurația Android legacy rămâne separată mai jos, ca APK-urile
+# deja instalate să nu fie făcute incompatibile de această schimbare web.
+TEAM_DASHBOARD_RADIUS_METERS = 90
+TEAM_DASHBOARD_WORKSITES = tuple(
+    {**worksite, "radius_meters": TEAM_DASHBOARD_RADIUS_METERS}
+    for worksite in ATTENDANCE_WORKSITES
+)
+TEAM_DASHBOARD_WORKSITE_BY_NAME = {
+    worksite["name"]: worksite for worksite in TEAM_DASHBOARD_WORKSITES
+}
+
 # COMPATIBILITATE CRITICA ANDROID v1-v4:
 # ATTENDANCE_WORKSITES ramane contractul curent trimis catre v6/browser. Harta de
 # validare a serverului accepta suplimentar razele maxime si santierele publicate

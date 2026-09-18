@@ -95,6 +95,7 @@ class TeamPortalRoleSecurityTests(TestCase):
         self.assertEqual(response.json()["location_validity_seconds"], 600)
         worksites = response.json()["attendance_worksites"]
         self.assertEqual(worksites[0]["radius_meters"], 90)
+        self.assertTrue(all(item["radius_meters"] == 90 for item in worksites))
         by_name = {item["name"]: item for item in worksites}
         self.assertEqual(
             (by_name["The Lake Home Bloc A"]["latitude"], by_name["The Lake Home Bloc A"]["longitude"]),
@@ -106,6 +107,29 @@ class TeamPortalRoleSecurityTests(TestCase):
         )
         self.assertIn("Cisnadie", by_name)
         self.assertIn("The River chalet", by_name)
+
+    def test_team_portal_enforces_the_90_meter_web_radius(self):
+        response = client_for(self.plain_account).post(
+            "/api/team-portal/attendance/",
+            data=json.dumps({
+                "worksite": "The Lake Home Bloc B2",
+                # Aproximativ 96 m nord de centrul șantierului: în toleranța
+                # Android legacy de 100 m, dar în afara razei web de 90 m.
+                "gps": {
+                    "lat": 45.811213,
+                    "lng": 24.130413480467038,
+                    "accuracy": 8,
+                    "captured_at": timezone.now().isoformat(),
+                },
+                "data_processing_consent": True,
+                "attendance_photo": "data:image/jpeg;base64,AA==",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403, response.content)
+        self.assertEqual(response.json()["error_code"], "OUTSIDE_WORKSITE_AREA")
+        self.assertEqual(response.json()["allowed_radius_meters"], 90)
+        self.assertFalse(AttendanceSession.objects.filter(user_fk=self.plain).exists())
 
     def test_plain_employee_gets_only_own_portal_endpoints(self):
         self.plain.total_salary_ron = "9000.00"

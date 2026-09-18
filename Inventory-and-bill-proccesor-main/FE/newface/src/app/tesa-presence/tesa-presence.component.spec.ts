@@ -79,6 +79,29 @@ describe('TesaPresenceComponent', () => {
     expect(fixture.nativeElement.querySelector('video')).toBeNull();
   });
 
+  it('pentru TESA și șofer cere doar acțiunea și salvează GPS fără șantier sau selfie', () => {
+    http.expectOne(api).flush({
+      ...state,
+      employee: { name: 'TESA Șofer', is_tesa: true, is_driver: true },
+      unrestricted_location: true,
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('#tesa-worksite')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.map-card')).toBeNull();
+    expect(fixture.nativeElement.querySelector('video')).toBeNull();
+
+    let accept!: PositionCallback;
+    spyOn(navigator.geolocation, 'getCurrentPosition').and.callFake(callback => { accept = callback; });
+    component.confirm();
+    accept({ coords: { latitude: 46.1, longitude: 25.2, accuracy: 13 }, timestamp: Date.now() } as GeolocationPosition);
+    const post = http.expectOne(api);
+    expect(post.request.method).toBe('POST');
+    expect(Object.keys(post.request.body).sort()).toEqual(['action', 'gps']);
+    expect(post.request.body.action).toBe('check_in');
+    expect(post.request.body.gps.lat).toBe(46.1);
+    post.flush({ session: { ...openSession, worksite: null } });
+  });
+
   it('arată distanța față de șantier și permite confirmarea din afara perimetrului', () => {
     http.expectOne(api).flush(state);
     spyOn(navigator.geolocation, 'getCurrentPosition').and.callFake(callback =>
