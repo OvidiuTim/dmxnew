@@ -1,3 +1,4 @@
+from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
@@ -37,6 +38,10 @@ class Command(BaseCommand):
             action="store_true",
             help="Aplică valorile pentru angajații asociați sigur.",
         )
+        parser.add_argument(
+            "--require-matches", action="store_true",
+            help="Eșuează dacă niciun angajat nu poate fi asociat (pentru scriptul de deploy).",
+        )
 
     def handle(self, *args, **options):
         paths = [Path(value).expanduser() for value in options["files"]]
@@ -74,6 +79,8 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Angajați care vor fi actualizați: {len(aggregated)}"))
         self.stdout.write(self.style.WARNING(f"Nume negăsite: {len(unmatched)}"))
         self.stdout.write(self.style.WARNING(f"Asocieri ambigue: {len(ambiguous)}"))
+        partial = [item for item in aggregated.values() if any(item[field] is None for field in IMPORTED_SALARY_FIELDS)]
+        self.stdout.write(f"Angajați cu date incomplete (câmpurile lipsă se păstrează): {len(partial)}")
         self.stdout.write(
             f"Popriri adăugate la rest: {len(garnishment_rows)} rânduri, "
             f"total {sum((row.garnishment for row in garnishment_rows), start=0):.2f} lei"
@@ -108,8 +115,17 @@ class Command(BaseCommand):
             for item in repeated:
                 self.stdout.write(
                     f"  - {item['employee'].UserName}: {len(item['rows'])} rânduri, "
-                    f"total {item['total_salary_ron']:.2f} lei"
+                    f"total {item['total_salary_ron'] if item['total_salary_ron'] is not None else 'nespecificat, păstrat'} lei"
                 )
+
+        if options["require_matches"] and not aggregated:
+            raise CommandError("Niciun angajat asociat; importul nu a fost aplicat.")
+
+        for item in aggregated.values():
+            for field in IMPORTED_SALARY_FIELDS:
+                value = item[field]
+                if value is not None and value > Decimal("9999999999.99"):
+                    raise CommandError(f"{item['employee'].UserName}: valoarea pentru {field} depășește limita câmpului.")
 
         if not options["apply"]:
             self.stdout.write("")
@@ -118,18 +134,17 @@ class Command(BaseCommand):
             ))
             return
 
-        updates = []
-        for item in aggregated.values():
-            employee = item["employee"]
-            for field in IMPORTED_SALARY_FIELDS:
-                setattr(employee, field, item[field])
-            updates.append(employee)
-
         with transaction.atomic():
-            Users.objects.bulk_update(updates, IMPORTED_SALARY_FIELDS, batch_size=300)
+            for employee_id, item in aggregated.items():
+                # UPDATE doar pe câmpurile cunoscute: nici câmpurile lipsă,
+                # nici alte date modificate între timp nu sunt suprascrise.
+                Users.objects.filter(pk=employee_id).update(**{
+                    field: item[field] for field in IMPORTED_SALARY_FIELDS
+                    if item[field] is not None
+                })
 
         self.stdout.write("")
         self.stdout.write(self.style.SUCCESS(
-            f"Import finalizat: {len(updates)} angajați actualizați; "
+            f"Import finalizat: {len(aggregated)} angajați actualizați; "
             f"{len(unmatched)} nume negăsite; {len(ambiguous)} asocieri ambigue."
         ))

@@ -30,12 +30,13 @@ class SalarySourceRow:
     raw_name: str
     employee_name: str
     identifiers: tuple[str, ...]
-    total: Decimal
-    advance: Decimal
-    remainder: Decimal
-    meal_vouchers: Decimal
+    total: Decimal | None
+    advance: Decimal | None
+    remainder: Decimal | None
+    meal_vouchers: Decimal | None
     garnishment: Decimal = MONEY_ZERO
     ignored_difference: Decimal = MONEY_ZERO
+    exact_match_only: bool = False
 
     @property
     def location(self):
@@ -83,7 +84,7 @@ def extract_identifiers(value):
     found = []
     patterns = (
         r"(?<!\d)\d{6,14}(?!\d)",
-        r"\b[A-Z]{1,3}\s?\d{5,9}\b",
+        r"(?<![A-Z0-9])[A-Z]{1,3}\s?\d{5,9}(?![A-Z0-9])",
     )
     for pattern in patterns:
         for match in re.findall(pattern, text):
@@ -105,6 +106,8 @@ def money(value, *, location, field):
         raise SalarySourceError(
             f"{location}: valoare invalidă pentru {field}: {value!r}"
         ) from exc
+    if not result.is_finite():
+        raise SalarySourceError(f"{location}: valoare invalidă pentru {field}: {value!r}")
     if result < 0:
         raise SalarySourceError(f"{location}: {field} nu poate fi negativ: {value!r}")
     return result
@@ -139,10 +142,24 @@ def _read_xlsx(path):
     except Exception as exc:
         raise SalarySourceError(f"Nu pot deschide fișierul XLSX '{path}': {exc}") from exc
     try:
-        return [
+        sheets = [
             (sheet.title, [tuple(row) for row in sheet.iter_rows(values_only=True)])
             for sheet in workbook.worksheets
         ]
+        # openpyxl nu calculează formule. Un rezultat lipsă nu este un zero.
+        formulas = load_workbook(path, read_only=True, data_only=False)
+        try:
+            for sheet_name, rows in sheets:
+                for row in formulas[sheet_name].iter_rows():
+                    for cell in row:
+                        if cell.data_type == "f" and rows[cell.row - 1][cell.column - 1] is None:
+                            raise SalarySourceError(
+                                f"{path.name} / {sheet_name} / {cell.coordinate}: "
+                                "formulă fără rezultat salvat. Recalculează și salvează Excelul înainte de import."
+                            )
+        finally:
+            formulas.close()
+        return sheets
     finally:
         workbook.close()
 
@@ -298,11 +315,65 @@ def _parse_xmeg_sheet(path, sheet_name, rows):
     return parsed
 
 
+def _parse_consolidated_sheet(path, sheet_name, rows):
+    """Formatul Salarii_iulie_lichidare; None păstrează valoarea din DB."""
+    expected = (
+        "nume angajat", "avans lei", "bonuri lei", "lichidare lei",
+        "total lei", "firma", "pasaport",
+    )
+    header_index = next((
+        index for index, row in enumerate(rows)
+        if tuple(normalize_text(value) for value in row[:7]) == expected
+    ), None)
+    if header_index is None:
+        raise SalarySourceError(f"{path.name} / {sheet_name}: antet salarial nerecunoscut.")
+    parsed = []
+    for row_number, row in enumerate(rows[header_index + 1:], start=header_index + 2):
+        raw_name = str(_cell(row, 0) or "").strip()
+        if not raw_name or normalize_text(raw_name) == "total":
+            continue
+        location = f"{path.name} / {sheet_name} / rândul {row_number}"
+        advance, vouchers, remainder, total = (
+            money(_cell(row, index), location=location, field=field)
+            for index, field in enumerate(("advance", "meal_vouchers", "remainder", "total"), start=1)
+        )
+        if advance is None:
+            raise SalarySourceError(f"{location}: lipsește avansul (folosește 0 dacă nu există).")
+        # În acest format, Bonuri gol înseamnă fără bonuri; totalul și
+        # lichidarea goale sunt necunoscute pentru persoanele lipsă din copie.
+        vouchers = vouchers if vouchers is not None else MONEY_ZERO
+        if total is not None and remainder is not None and abs(total - advance - vouchers - remainder) > Decimal("0.01"):
+            raise SalarySourceError(f"{location}: Total nu este egal cu Avans + Bonuri + Lichidare.")
+        parsed.append(SalarySourceRow(
+            source_file=path.name, sheet=sheet_name, row_number=row_number,
+            company=str(_cell(row, 5) or ""), raw_name=raw_name,
+            employee_name=clean_source_name(raw_name),
+            identifiers=extract_identifiers(_cell(row, 6)),
+            total=total, advance=advance, remainder=remainder,
+            meal_vouchers=vouchers, exact_match_only=True,
+        ))
+    return parsed
+
+
 def parse_salary_files(paths):
     parsed = []
     for raw_path in paths:
         path = Path(raw_path).expanduser().resolve()
-        for sheet_name, rows in read_salary_workbook(path):
+        sheets = read_salary_workbook(path)
+        # Foaia secundară este un raport al acelorași persoane, nu încă o plată.
+        if any(normalize_text(name) == "lipsa din copie" for name, _ in sheets):
+            salary_sheets = [(name, rows) for name, rows in sheets if normalize_text(name) == "salarii"]
+            if not salary_sheets:
+                raise SalarySourceError(f"{path.name}: lipsește foaia Salarii.")
+            for name, rows in salary_sheets:
+                parsed.extend(_parse_consolidated_sheet(path, name, rows))
+            continue
+        for sheet_name, rows in sheets:
+            if any(tuple(normalize_text(value) for value in row[:5]) == (
+                "nume angajat", "avans lei", "bonuri lei", "lichidare lei", "total lei",
+            ) for row in rows):
+                parsed.extend(_parse_consolidated_sheet(path, sheet_name, rows))
+                continue
             if normalize_text(sheet_name) == "xmeg":
                 parsed.extend(_parse_xmeg_sheet(path, sheet_name, rows))
             else:
@@ -362,6 +433,8 @@ def _name_score(source_name, employee_name):
 
 
 def match_salary_row(row, employees):
+    if row.exact_match_only:
+        return _match_consolidated_row(row, employees)
     identifier_candidates = []
     for employee in employees:
         employee_identifier = normalize_identifier(employee.UserSerie)
@@ -390,6 +463,26 @@ def match_salary_row(row, employees):
     return scored[0][1], []
 
 
+def _match_consolidated_row(row, employees):
+    if row.identifiers:
+        candidates = [employee for employee in employees if set(row.identifiers) & set(
+            extract_identifiers(f"{employee.UserSerie} {employee.UserName}")
+        )]
+        # Nu cădem pe nume când pașaportul indică o altă persoană sau lipsește.
+    else:
+        source_name = sorted(_name_aliases(row.employee_name).split())
+        candidates = [employee for employee in employees if source_name == sorted(
+            _name_aliases(clean_employee_name(employee.UserName)).split()
+        )]
+    if len(candidates) > 1 and row.company:
+        same_company = [employee for employee in candidates if _company_key(employee.Company) == _company_key(row.company)]
+        if same_company:
+            candidates = same_company
+    if len(candidates) == 1:
+        return candidates[0], []
+    return None, candidates
+
+
 def aggregate_salary_rows(matches):
     aggregated = {}
     for row, employee in matches:
@@ -403,9 +496,9 @@ def aggregate_salary_rows(matches):
             "garnishment": MONEY_ZERO,
         })
         item["rows"].append(row)
-        item["total_salary_ron"] += row.total
-        item["salary_advance_ron"] += row.advance
-        item["salary_remainder_ron"] += row.remainder
-        item["meal_vouchers_ron"] += row.meal_vouchers
+        for field, value in zip(IMPORTED_SALARY_FIELDS, (row.total, row.advance, row.remainder, row.meal_vouchers)):
+            # Dacă una dintre contribuții este necunoscută, păstrăm câmpul
+            # existent, nu scriem o sumă incompletă.
+            item[field] = None if value is None or item[field] is None else item[field] + value
         item["garnishment"] += row.garnishment
     return aggregated

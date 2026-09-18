@@ -149,6 +149,29 @@ Backend-ul folosește modele pentru:
 - API-urile mobile expun rolurile, permisiunile efective, echipele coordonate, notificările, starea citit/necitit și înregistrarea tokenului Android;
 - instrucțiunile complete de configurare și deploy sunt în `Inventory-and-bill-proccesor-main/DEPLOY_TEAM_ACCESS_NOTIFICATIONS.md`.
 
+## Actualizare salarii din Excel pe server
+
+După publicarea acestor fișiere în Git, adu scriptul pe server o singură dată:
+
+```bash
+sudo -u app git -C /srv/pontaj pull --ff-only origin main
+sudo bash /srv/pontaj/updatesalary.sh
+```
+
+La următoarele actualizări rulează doar `sudo bash /srv/pontaj/updatesalary.sh`. Scriptul face backup PostgreSQL și `.env`, `git pull --ff-only origin main`, instalarea dependențelor Python, verificările Django, migrările, `collectstatic`, importul și repornirea backendului `pontaj`. Cron este oprit pe durata importului dacă era activ și este repornit inclusiv la eroare. Nu solicită confirmare interactivă și importă inclusiv când Git este deja la zi. Frontendul nu necesită rebuild pentru schimbarea datelor salariale; pentru alte modificări de interfață folosește `deploy.sh`.
+
+Sursa implicită este `Inventory-and-bill-proccesor-main/dataAPI/ToolApp/data/Salarii_iulie_lichidare.xlsx`, copia fișierului furnizat. Pentru alt fișier: `sudo bash /srv/pontaj/updatesalary.sh /cale/salarii.xlsx`. Configurarea serverului urmează `deploy.sh`: `/srv/pontaj`, utilizatorul `app`, baza PostgreSQL `pontaj`, mediul Python `dataAPI/.venv`. `REPO_DIR`, `APP_USER`, `PG_DB`, `SALARY_FILE` și `HEALTH_URL` pot fi suprascrise prin variabile de mediu. Modificările locale în fișierele urmărite de Git sau o ramură diferită de `main` opresc scriptul fără a le șterge. Nu rula simultan cu `deploy.sh`.
+
+Importatorul `ToolApp/salary_import.py` și comanda `import_employee_salaries` recunosc foaia **Salarii** și coloanele Nume angajat, Avans (lei), Bonuri (lei), Lichidare (lei), Total (lei), Firmă, Pașaport. Foaia **Lipsa din copie** și rândul TOTAL nu sunt importate, pentru a evita dublarea. Cele 170 de rânduri includ 62 fără total și lichidare: aceste câmpuri rămân neschimbate în aplicație. Bonurile goale reprezintă zero în acest format. Se citesc rezultatele salvate ale formulelor; formulele fără rezultat salvat opresc importul și necesită recalcularea/salvarea fișierului în Excel.
+
+Se actualizează exclusiv `Users.total_salary_ron`, `salary_advance_ron`, `salary_remainder_ron` și `meal_vouchers_ron`, pentru angajații identificați după pașaport sau, dacă acesta lipsește, numele normalizat. Firma departajează numele identice. Identificatorii necunoscuți nu sunt înlocuiți cu potriviri aproximative de nume. Numele negăsite și asocierile ambigue sunt raportate și omise; dacă nu există nicio asociere, scriptul eșuează. Angajații nu sunt creați. Rândurile aceleiași persoane se adună; o componentă incompletă păstrează valoarea existentă în acel câmp. Repetarea importului suprascrie cu aceleași valori, fără dublarea sumelor. Scrierea se face într-o tranzacție.
+
+Excelul conține **bonuri**, nu bonusuri separate. Bonusurile de bilet/șef de echipă, tariful orar, pontajele istorice și profilul contractual `EmployeeSalaryProfile` nu sunt modificate de acest import. Valorile actualizate sunt cele din fișa angajatului și câmpurile salariale expuse în portal/API.
+
+Backupul bazei (`pontaj.dump`), configurația, Excelul sursă și raportul complet (`update.log`) sunt în `/srv/pontaj/backups/salary-<dată>-<proces>/`, accesibile doar root. La eroare, serviciile oprite sunt repornite; codul, migrările și un import deja finalizat nu sunt anulate automat. Consultă raportul pentru persoane omise și erori înainte de o eventuală restaurare manuală.
+
+Previzualizare fără scriere: din `dataAPI`, `.venv/bin/python manage.py import_employee_salaries ToolApp/data/Salarii_iulie_lichidare.xlsx`. Teste locale: din același director, `../.venv/bin/python manage.py test ToolApp.test_salary_import_command --noinput`; sintaxa scriptului: `bash -n updatesalary.sh` din rădăcina repo-ului. Nu sunt necesare migrații noi pentru acest import.
+
 ## Notă pentru viitorii agenți Codex/ALT AGENT
 
 Dacă vezi mesajul acesta și adaugi funcționalități noi în proiect, actualizează acest README în continuare. Scrie clar:
