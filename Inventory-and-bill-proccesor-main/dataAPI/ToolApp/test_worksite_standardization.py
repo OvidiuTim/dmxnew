@@ -3,6 +3,7 @@ import json
 import tempfile
 from datetime import date, datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from django.core.management import call_command
 from django.test import TestCase
@@ -80,6 +81,41 @@ class WorksiteNormalizationTests(TestCase):
         self.assertEqual(accepted.status_code, 200, accepted.content)
         session = AttendanceSession.objects.get(user_fk=employee)
         self.assertEqual(session.worksite, "The Lake Home Bloc A")
+
+    def test_attendance_editor_allows_missing_checkout_only_for_current_day(self):
+        employee = Users.objects.create(UserName="Sesiune deschisă", UserSerie="OPEN-EDIT-1")
+        auth = {"HTTP_AUTHORIZATION": f"Bearer {make_admin_token()}"}
+        current_day = date(2026, 9, 21)
+        payload = {
+            "user_id": employee.pk,
+            "date": str(current_day),
+            "replace": True,
+            "rewrite_presence": True,
+            "sessions": [{"in": "08:56", "out": None, "worksite": "Bloc B2"}],
+        }
+
+        with patch("ToolApp.views.localdate", return_value=current_day):
+            response = self.client.post(
+                "/api/pontaj/day/edit/", data=json.dumps(payload),
+                content_type="application/json", **auth,
+            )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertIsNone(response.json()["last_out"])
+        self.assertIsNone(response.json()["sessions"][0]["out_time"])
+        session = AttendanceSession.objects.get(user_fk=employee)
+        self.assertIsNone(session.out_time)
+        self.assertEqual(session.duration_seconds, 0)
+        self.assertEqual(PresenceEvent.objects.filter(user_fk=employee, kind=PresenceEvent.Kind.ENTER).count(), 1)
+        self.assertFalse(PresenceEvent.objects.filter(user_fk=employee, kind=PresenceEvent.Kind.EXIT).exists())
+
+        payload["date"] = "2026-09-20"
+        with patch("ToolApp.views.localdate", return_value=current_day):
+            rejected = self.client.post(
+                "/api/pontaj/day/edit/", data=json.dumps(payload),
+                content_type="application/json", **auth,
+            )
+        self.assertEqual(rejected.status_code, 400, rejected.content)
 
 
 class CleanupWorksitesCommandTests(TestCase):

@@ -359,7 +359,7 @@ getAttendanceRangeForUser(start: string, end: string, userId: number) {
   editDaySessions(
     userId: number,
     dateISO: string,                                  // "YYYY-MM-DD"
-    sessions: Array<{ in: string; out: string; worksite?: string }>, // "HH:MM" sau ISO
+    sessions: Array<{ in: string; out: string | null; worksite?: string }>, // "HH:MM", ISO sau null pentru sesiunea deschisă de azi
     opts: { replace?: boolean; rewrite_presence?: boolean; apply_grace?: boolean } = {}
   ) {
     const body = {

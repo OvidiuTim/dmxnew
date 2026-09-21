@@ -5331,17 +5331,20 @@ def attendance_edit_day(request):
         for s in sessions:
             inn = s.get("in") or s.get("in_time")
             out = s.get("out") or s.get("out_time")
-            if not inn or not out:
-                return HttpResponseBadRequest("Each session needs both 'in' and 'out'")
+            if not inn:
+                return HttpResponseBadRequest("Each session needs 'in'")
+            if not out and day != localdate():
+                return HttpResponseBadRequest("An open session is allowed only for the current day")
 
             in_dt = _parse_hm_for_day(day, inn)
-            out_dt = _parse_hm_for_day(day, out)
-            if out_dt <= in_dt:
+            out_dt = _parse_hm_for_day(day, out) if out else None
+            if out_dt is not None and out_dt <= in_dt:
                 return HttpResponseBadRequest("A session has out <= in")
 
             if apply_grace:
                 in_dt = apply_enter_grace(in_dt)
-                out_dt = apply_exit_grace(out_dt)
+                if out_dt is not None:
+                    out_dt = apply_exit_grace(out_dt)
 
             try:
                 ws = normalize_worksite(s.get("worksite"))
@@ -5352,8 +5355,12 @@ def attendance_edit_day(request):
         return HttpResponseBadRequest(f"Invalid HH:MM in sessions ({e})")
 
     new_items.sort(key=lambda t: t[0])
+    open_items = [item for item in new_items if item[1] is None]
+    if len(open_items) > 1 or (open_items and new_items[-1][1] is not None):
+        return HttpResponseBadRequest("Only the last session of the current day may be open")
     for i in range(1, len(new_items)):
-        if new_items[i][0] < new_items[i - 1][1]:
+        previous_out = new_items[i - 1][1]
+        if previous_out is None or new_items[i][0] < previous_out:
             return HttpResponseBadRequest("Overlapping sessions")
 
     # commit
@@ -5365,7 +5372,7 @@ def attendance_edit_day(request):
 
         created = []
         for in_dt, out_dt, ws in new_items:
-            dur = int((out_dt - in_dt).total_seconds())
+            dur = int((out_dt - in_dt).total_seconds()) if out_dt is not None else 0
             ss = AttendanceSession.objects.create(
                 user_fk=user,
                 work_date=day,
@@ -5381,14 +5388,16 @@ def attendance_edit_day(request):
                 PresenceEvent.objects.create(
                     user_fk=user, kind=PresenceEvent.Kind.ENTER, timestamp=in_dt, worksite=ws
                 )
-                PresenceEvent.objects.create(
-                    user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=out_dt, worksite=ws
-                )
+                if out_dt is not None:
+                    PresenceEvent.objects.create(
+                        user_fk=user, kind=PresenceEvent.Kind.EXIT, timestamp=out_dt, worksite=ws
+                    )
 
         recompute_daily_pay(user, day)
 
     first_in = min(c.in_time for c in created)
-    last_out = max(c.out_time for c in created)
+    closed_out_times = [c.out_time for c in created if c.out_time is not None]
+    last_out = max(closed_out_times) if closed_out_times else None
     total = sum(int(c.duration_seconds or 0) for c in created)
 
     return JsonResponse({
@@ -5396,12 +5405,12 @@ def attendance_edit_day(request):
         "user": {"UserId": user.UserId, "UserName": user.UserName},
         "date": str(day),
         "first_in": localtime(first_in).isoformat(),
-        "last_out": localtime(last_out).isoformat(),
+        "last_out": localtime(last_out).isoformat() if last_out else None,
         "total_hms": _fmt_hms(total),
         "sessions": [{
             "session_id": s.id,
             "in_time": localtime(s.in_time).isoformat(),
-            "out_time": localtime(s.out_time).isoformat(),
+            "out_time": localtime(s.out_time).isoformat() if s.out_time else None,
             "duration_hms": _fmt_hms(s.duration_seconds or 0),
             "worksite": s.worksite
         } for s in created]

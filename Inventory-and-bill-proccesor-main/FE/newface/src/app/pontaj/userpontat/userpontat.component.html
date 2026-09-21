@@ -124,7 +124,7 @@
         <div class="session-edit-head"><strong>Sesiunea {{ index + 1 }}</strong><button type="button" class="remove-session" *ngIf="sessForm.length > 1" (click)="removeSessionRow(index)" [attr.aria-label]="'Șterge sesiunea ' + (index + 1)"><span class="material-symbols-rounded" aria-hidden="true">delete</span></button></div>
         <div class="session-fields">
           <label><span>Intrare</span><input type="text" placeholder="07:30" [(ngModel)]="session.in"></label>
-          <label><span>Ieșire</span><input type="text" placeholder="17:30" [(ngModel)]="session.out"></label>
+          <label><span>Ieșire</span><input type="text" [placeholder]="isCurrentDay(editingDay.date) ? 'Lasă gol pentru sesiune activă' : '17:30'" [(ngModel)]="session.out"><small *ngIf="isCurrentDay(editingDay.date)">Poate rămâne goală pentru o sesiune în lucru.</small></label>
           <label><span>Locație</span><select [(ngModel)]="session.worksite"><option value="" disabled>Selectează șantierul</option><option *ngFor="let worksite of worksiteOptions" [value]="worksite">{{ worksite }}</option></select></label>
         </div>
       </article>

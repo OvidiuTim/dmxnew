@@ -533,6 +533,12 @@ export class UserpontatComponent implements OnInit {
     if (this.sessForm.length > 1) this.sessForm.splice(i, 1);
   }
 
+  isCurrentDay(dateISO: string): boolean {
+    const today = new Date();
+    const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return dateISO === todayISO;
+  }
+
   deleteSingleSession(row: SessionRow): void {
     if (this.isDismissed) return;
     if (!row.session_id) return;
@@ -656,14 +662,24 @@ export class UserpontatComponent implements OnInit {
       alert('Adaugă cel puțin o sesiune.');
       return;
     }
-    for (const r of this.sessForm) {
-      if (!this.validHHMM(r.in) || !this.validHHMM(r.out)) {
+    const editingToday = this.isCurrentDay(day.date);
+    for (const [index, r] of this.sessForm.entries()) {
+      const out = r.out.trim();
+      if (!this.validHHMM(r.in) || (out && !this.validHHMM(out))) {
         alert('Ore invalid format (HH:MM).');
         return;
       }
+      if (!out && !editingToday) {
+        alert('Ora de ieșire poate rămâne goală numai pentru ziua curentă.');
+        return;
+      }
+      if (!out && index !== this.sessForm.length - 1) {
+        alert('Numai ultima sesiune a zilei poate rămâne fără oră de ieșire.');
+        return;
+      }
       const mi = this.toMinutes(r.in);
-      const mo = this.toMinutes(r.out);
-      if (mo <= mi) {
+      const mo = out ? this.toMinutes(out) : null;
+      if (mo !== null && mo <= mi) {
         alert('Ora de ieșire trebuie să fie după ora de intrare.');
         return;
       }
@@ -675,7 +691,7 @@ export class UserpontatComponent implements OnInit {
 
     const payload = this.sessForm.map(r => ({
       in: r.in,
-      out: r.out,
+      out: r.out.trim() || null,
       worksite: r.worksite?.trim() || undefined
     }));
 
