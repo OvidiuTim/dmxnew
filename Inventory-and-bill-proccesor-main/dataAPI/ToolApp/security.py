@@ -29,6 +29,7 @@ PUBLIC_API_PREFIXES = (
     "/api/mobile/",
     "/api/fleet/lookup/",
     "/api/fleet/qr/",
+    "/api/app/version/",
 )
 
 API_ROUTE_REQUIREMENTS = (
