@@ -23,6 +23,7 @@ class AppVersionApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["is_update_available"])
+        self.assertTrue(response.json()["is_force_update"])
         self.assertEqual(response.json()["update_url"], ANDROID_PLAY_STORE_URL)
         self.assertEqual(response.json()["link"], ANDROID_PLAY_STORE_URL)
 

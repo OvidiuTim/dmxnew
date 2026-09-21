@@ -2614,15 +2614,10 @@ def nfc_scan(request):
             "ts_used": "client" if client_when else "server"
         })
 
-def _env_bool(name: str, default: bool = False) -> bool:
-    raw = str(os.environ.get(name, str(default))).strip().lower()
-    return raw in {"1", "true", "yes", "on"}
-
-
 ANDROID_PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.dmx.clockin"
 
 
-def _app_version_payload(*, update_available: bool):
+def _app_version_payload(*, update_available: bool, force_update: bool):
     return {
         "minimum_version_code": int(os.environ.get("DMX_ANDROID_MIN_VERSION_CODE", "1")),
         "latest_version_code": int(os.environ.get("DMX_ANDROID_LATEST_VERSION_CODE", "1")),
@@ -2633,9 +2628,7 @@ def _app_version_payload(*, update_available: bool):
             "Exista o versiune noua. Actualizeaza aplicatia ca sa poti continua pontajul.",
         ),
         "is_update_available": update_available,
-        "is_force_update": (
-            _env_bool("DMX_ANDROID_FORCE_UPDATE", False) if update_available else False
-        ),
+        "is_force_update": force_update if update_available else False,
         "link": ANDROID_PLAY_STORE_URL,
     }
 
@@ -2646,7 +2639,7 @@ def app_version(request):
     if request.method != "GET":
         return JsonResponse({"error": "Only GET allowed"}, status=405)
 
-    return JsonResponse(_app_version_payload(update_available=True))
+    return JsonResponse(_app_version_payload(update_available=True, force_update=True))
 
 
 @csrf_exempt
@@ -2655,7 +2648,7 @@ def app_version2(request):
     if request.method != "GET":
         return JsonResponse({"error": "Only GET allowed"}, status=405)
 
-    return JsonResponse(_app_version_payload(update_available=False))
+    return JsonResponse(_app_version_payload(update_available=False, force_update=False))
 
 
 @csrf_exempt
