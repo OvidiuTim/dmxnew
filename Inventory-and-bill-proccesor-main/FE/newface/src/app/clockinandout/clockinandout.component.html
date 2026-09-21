@@ -76,7 +76,7 @@
         <div class="map-top">
           <div>
             <div class="step-chip">{{ portalMode ? '1' : '2' }}. {{ t.stepLocation }}</div>
-            <div *ngIf="selectedWorksite" class="gps-badge" [ngClass]="effectiveLocationState">{{ locationBadge }}</div>
+            <div *ngIf="selectedWorksite" class="gps-badge" [ngClass]="locationBadgeClass">{{ locationBadge }}</div>
 
             <h2>{{ locationTitle }}</h2>
             <p>{{ locationDetail }}</p>
@@ -104,7 +104,7 @@
           <div #mapContainer class="map-container" [class.inactive]="!selectedWorksite"></div>
           <div class="map-placeholder" *ngIf="!selectedWorksite">
             <div class="placeholder-title">{{ t.worksiteLabel }}</div>
-            <p>{{ t.worksiteHelper }}</p>
+            <p>{{ worksiteHelperText }}</p>
           </div>
         </div>
 

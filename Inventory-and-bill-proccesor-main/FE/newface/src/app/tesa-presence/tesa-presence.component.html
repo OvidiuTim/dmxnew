@@ -10,11 +10,19 @@
     <p *ngIf="loading" class="state" role="status">{{ t.loading }}</p>
     <div *ngIf="error" class="state error" role="alert">{{ error }} <button *ngIf="!status" type="button" (click)="load()">{{ t.retry }}</button></div>
 
-    <ng-container *ngIf="status && !loading">
+    <section *ngIf="successNotice as notice" class="attendance-success-alert" role="alert" aria-live="assertive">
+      <span class="material-symbols-rounded" aria-hidden="true">check_circle</span>
+      <strong>{{ notice.message }}</strong>
+      <small>{{ notice.redirecting }}</small>
+    </section>
+
+    <ng-container *ngIf="status && !loading && !successNotice">
       <section class="presence-card" *ngIf="!status.session?.out_time || status.can_check_in">
         <div class="person-row"><span class="material-symbols-rounded" aria-hidden="true">badge</span><strong>{{ status.employee.name }}</strong></div>
         <div class="schedule" *ngIf="status.session && !status.session.out_time"><div><span>{{ status.session.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ status.session.in_time | date:'HH:mm' }} – {{ t.inProgress }}</strong></div><span class="hours">{{ status.session.hours | number:'1.0-2' }} {{ t.hours }}</span></div>
-        <p class="explanation">{{ unrestrictedLocation ? unrestrictedHint : (status.session && !status.session.out_time ? t.tesaCheckedInHint : t.tesaAttendanceHint) }}</p>
+        <div class="schedule closed" *ngIf="closedSession as lastSession"><div><span>{{ lastSession.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ lastSession.in_time | date:'HH:mm' }} – {{ lastSession.out_time | date:'HH:mm' }}</strong></div><span class="hours">{{ lastSession.hours | number:'1.0-2' }} {{ t.hours }}</span></div>
+        <p class="explanation" *ngIf="completedToday">{{ resumeHint }}</p>
+        <p class="explanation" *ngIf="!completedToday">{{ unrestrictedLocation ? unrestrictedHint : (status.session && !status.session.out_time ? t.tesaCheckedInHint : t.tesaAttendanceHint) }}</p>
         <p *ngIf="status.blocked_reason" class="state blocked" role="status">{{ blockedReason }}</p>
         <ng-container *ngIf="canSubmit">
           <ng-container>

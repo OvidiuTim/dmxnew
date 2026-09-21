@@ -74,7 +74,10 @@ def _day_status(employee, day):
     if not confirmed:
         confirmed = sessions.order_by('-in_time').first()
     reason = None
-    if not confirmed or confirmed.out_time is not None:
+    # Concediul/absența blochează numai prima intrare a zilei. Dacă există deja
+    # pontaj real (inclusiv o sesiune închisă accidental), angajatul trebuie să
+    # poată începe o sesiune nouă exact ca personalul obișnuit.
+    if not confirmed:
         if LeaveDay.objects.filter(user_fk=employee, work_date=day).exclude(pk__in=_attendance_absence(employee, day)).exists():
             reason = LEAVE_CONFLICT
     return confirmed, reason

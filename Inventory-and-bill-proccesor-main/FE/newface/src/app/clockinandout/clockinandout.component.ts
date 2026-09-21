@@ -227,6 +227,17 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     return !!this.selectedWorksite && this.locationAccepted;
   }
 
+  /** Șoferii se pot ponta și din afara perimetrului, deci mesajele de zonă
+   * nu trebuie să sune a blocaj pentru ei. */
+  get driverMode(): boolean {
+    return this.portalMode && this.portalDriver;
+  }
+
+  /** Poziție citită, în afara razei, dar acceptată pentru că e șofer. */
+  get driverOutside(): boolean {
+    return this.driverMode && this.effectiveLocationState === 'outside';
+  }
+
   get locationAccepted(): boolean {
     return this.effectiveLocationState === 'inside'
       || (this.portalMode && this.portalDriver && this.effectiveLocationState === 'outside');
@@ -296,15 +307,28 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     }
 
     if (state === 'outside') {
-      return this.portalMode && this.portalDriver ? this.ui.driverHint : this.t.zoneRestriction;
+      return this.driverMode ? this.t.driverOutsideDetail : this.t.zoneRestriction;
     }
 
     return this.locationDetail;
   }
 
+  /** Clasa de culoare a badge-ului: pentru șoferi „în afara" nu e o eroare. */
+  get worksiteHelperText(): string {
+    return this.driverMode ? this.t.driverWorksiteHelper : this.t.worksiteHelper;
+  }
+
+  get locationBadgeClass(): string {
+    return this.driverOutside ? 'driver-ok' : this.effectiveLocationState;
+  }
+
   get locationBadge(): string {
     if (!this.selectedWorksite) {
       return this.t.worksitePlaceholder;
+    }
+
+    if (this.driverOutside) {
+      return this.t.driverOutsideBadge;
     }
 
     const state = this.effectiveLocationState;
@@ -329,6 +353,10 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
       return this.t.worksiteLabel;
     }
 
+    if (this.driverOutside) {
+      return this.t.driverOutsideTitle;
+    }
+
     const state = this.effectiveLocationState;
     if (state === 'idle' || state === 'expired') {
       return this.getLocationCopy(state).title;
@@ -348,7 +376,11 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
 
   get locationDetail(): string {
     if (!this.selectedWorksite) {
-      return this.t.worksiteHelper;
+      return this.worksiteHelperText;
+    }
+
+    if (this.driverOutside) {
+      return this.t.driverOutsideDetail;
     }
 
     const state = this.effectiveLocationState;

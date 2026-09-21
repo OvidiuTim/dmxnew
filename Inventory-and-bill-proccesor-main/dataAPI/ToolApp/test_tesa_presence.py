@@ -212,6 +212,32 @@ class TesaPresenceTests(TestCase):
         self.assertEqual(self.post().status_code, 409)
         self.assertFalse(AttendanceSession.objects.exists())
 
+    def test_closed_session_allows_reentry_even_if_a_leave_record_exists(self):
+        AttendanceSession.objects.create(
+            user_fk=self.employee,
+            work_date=self.now.date(),
+            in_time=self.now - timedelta(minutes=30),
+            out_time=self.now - timedelta(minutes=15),
+            duration_seconds=900,
+            source='manual-web',
+            worksite=self.site['name'],
+        )
+        LeaveDay.objects.create(
+            user_fk=self.employee,
+            work_date=self.now.date(),
+            reason=LeaveDay.Reason.CO,
+            hours=8,
+        )
+        with patch('ToolApp.tesa_views.timezone.now', return_value=self.now):
+            status = self.client.get(self.url).json()
+        self.assertTrue(status['can_check_in'])
+        self.assertIsNone(status['blocked_reason'])
+
+        response = self.post()
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(AttendanceSession.objects.filter(user_fk=self.employee).count(), 2)
+        self.assertTrue(AttendanceSession.objects.filter(user_fk=self.employee, out_time__isnull=True).exists())
+
     def test_previous_open_session_is_marked_missing_exit_and_does_not_block_today(self):
         stale = AttendanceSession.objects.create(
             user_fk=self.employee,

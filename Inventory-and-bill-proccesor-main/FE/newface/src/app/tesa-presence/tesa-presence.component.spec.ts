@@ -1,5 +1,5 @@
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TesaPresenceComponent } from './tesa-presence.component';
@@ -34,7 +34,7 @@ describe('TesaPresenceComponent', () => {
   });
   afterEach(() => { fixture.destroy(); http.verify(); });
 
-  it('face check-in cu GPS proaspăt și fără selfie', () => {
+  it('face check-in cu GPS proaspăt, confirmă ora și revine la dashboard', fakeAsync(() => {
     http.expectOne(api).flush(state);
     component.worksite = site.name;
     let accept!: PositionCallback;
@@ -51,11 +51,13 @@ describe('TesaPresenceComponent', () => {
     expect(post.request.body.gps.accuracy).toBe(9);
     post.flush({ session: openSession });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Ești pontat');
-    expect(fixture.nativeElement.textContent).toContain('Pontează ieșirea');
+    expect(fixture.nativeElement.textContent).toContain('Te-ai pontat la 08:17');
+    expect(fixture.nativeElement.textContent).toContain('Te întoarcem la dashboard');
     expect(fixture.nativeElement.textContent).toContain('08:17');
     expect(fixture.nativeElement.querySelector('video')).toBeNull();
-  });
+    tick(1800);
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/team-dashboard');
+  }));
 
   it('face check-out pentru sesiunea activă și salvează orele reale', () => {
     http.expectOne(api).flush({
@@ -76,7 +78,8 @@ describe('TesaPresenceComponent', () => {
     fixture.detectChanges();
     expect(component.action).toBe('check_in');
     expect(component.status?.can_check_in).toBeTrue();
-    expect(fixture.nativeElement.textContent).toContain('Pontează intrarea');
+    expect(fixture.nativeElement.textContent).toContain('Te-ai depontat la 16:42');
+    expect(fixture.nativeElement.textContent).toContain('Te întoarcem la dashboard');
     expect(fixture.nativeElement.querySelector('video')).toBeNull();
   });
 

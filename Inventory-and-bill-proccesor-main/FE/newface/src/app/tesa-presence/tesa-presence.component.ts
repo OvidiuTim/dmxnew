@@ -23,6 +23,11 @@ interface PresenceStatus {
   blocked_reason: string | null; blocked_reason_code?: string | null;
 }
 
+interface AttendanceSuccessNotice {
+  message: string;
+  redirecting: string;
+}
+
 @Component({
   selector: 'app-tesa-presence',
   templateUrl: './tesa-presence.component.html',
@@ -47,6 +52,8 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   worksite = '';
   error = '';
   position: CapturedPosition | null = null;
+  successNotice: AttendanceSuccessNotice | null = null;
+  private dashboardRedirectTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Harta arată șantierul selectat și poziția reală. Șoferii pot continua din
   // afara razei, însă GPS-ul și șantierul rămân obligatorii și sunt salvate.
@@ -71,6 +78,7 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void { setTimeout(() => this.map?.invalidateSize(), 0); }
   ngOnDestroy(): void {
     this.destroyed = true;
+    if (this.dashboardRedirectTimer) clearTimeout(this.dashboardRedirectTimer);
     this.destroyed$.next();
     this.destroyed$.complete();
     this.map?.remove();
@@ -109,6 +117,23 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
       pa: 'ਚੈੱਕ-ਇਨ ਜਾਂ ਚੈੱਕ-ਆਉਟ ਦਬਾਓ। ਤੁਸੀਂ ਕਿਤੇ ਤੋਂ ਵੀ ਹਾਜ਼ਰੀ ਲਗਾ ਸਕਦੇ ਹੋ; ਮੌਜੂਦਾ GPS ਟਿਕਾਣਾ ਸੰਭਾਲਿਆ ਜਾਵੇਗਾ।',
       hi: 'चेक-इन या चेक-आउट दबाएँ। आप कहीं से भी उपस्थिति दर्ज कर सकते हैं; वर्तमान GPS स्थान सहेजा जाएगा।',
       ne: 'चेक-इन वा चेक-आउट थिच्नुहोस्। तपाईं जहाँबाट पनि हाजिरी गर्न सक्नुहुन्छ; हालको GPS स्थान सुरक्षित गरिनेछ।',
+    }[this.language];
+  }
+  /** Sesiunea de azi e închisă, dar se poate începe una nouă (depontare din greșeală,
+   * ieșire și revenire în aceeași zi). */
+  get completedToday(): boolean {
+    return !!this.status?.session?.out_time && this.status?.can_check_in === true;
+  }
+  get closedSession(): PresenceSession | null {
+    return this.completedToday ? this.status?.session ?? null : null;
+  }
+  get resumeHint(): string {
+    return {
+      ro: 'Pontajul de mai sus a fost salvat. Dacă te-ai depontat din greșeală sau revii pe șantier, poți începe o intrare nouă.',
+      en: 'The attendance above has been saved. If you clocked out by mistake or you are back on site, you can start a new entry.',
+      pa: 'ਉੱਪਰਲੀ ਹਾਜ਼ਰੀ ਸੰਭਾਲੀ ਗਈ ਹੈ। ਜੇ ਤੁਸੀਂ ਗਲਤੀ ਨਾਲ ਚੈੱਕ-ਆਉਟ ਕੀਤਾ ਸੀ ਜਾਂ ਵਾਪਸ ਸਾਈਟ ਤੇ ਆਏ ਹੋ, ਤਾਂ ਨਵੀਂ ਹਾਜ਼ਰੀ ਸ਼ੁਰੂ ਕਰ ਸਕਦੇ ਹੋ।',
+      hi: 'ऊपर की उपस्थिति सहेज ली गई है। यदि आपने गलती से चेक-आउट किया था या आप वापस साइट पर हैं, तो आप नई प्रविष्टि शुरू कर सकते हैं।',
+      ne: 'माथिको हाजिरी सुरक्षित भयो। यदि तपाईंले गल्तीले चेक-आउट गर्नुभयो वा साइटमा फर्कनुभयो भने, नयाँ प्रविष्टि सुरु गर्न सक्नुहुन्छ।',
     }[this.language];
   }
   get perimeterRequiredHint(): string {
@@ -221,7 +246,10 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
           blocked_reason: null,
         };
         this.position = null;
-        setTimeout(() => this.drawWorksite(), 0);
+        this.successNotice = this.attendanceSuccessNotice(action, result.session);
+        this.dashboardRedirectTimer = setTimeout(() => {
+          void this.router.navigateByUrl('/team-dashboard');
+        }, 1800);
       },
       error: err => {
         this.saving = false;
@@ -229,6 +257,33 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
         if (err.status === 403) void this.router.navigateByUrl('/team-dashboard');
       },
     });
+  }
+
+  private attendanceSuccessNotice(
+    action: 'check_in' | 'check_out',
+    session: PresenceSession,
+  ): AttendanceSuccessNotice {
+    const timestamp = action === 'check_in' ? session.in_time : session.out_time;
+    const parsed = timestamp ? new Date(timestamp) : new Date();
+    const locale = { ro: 'ro-RO', en: 'en-GB', pa: 'pa-IN', hi: 'hi-IN', ne: 'ne-NP' }[this.language];
+    const time = new Intl.DateTimeFormat(locale, {
+      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Bucharest',
+    }).format(parsed);
+    const messages = {
+      ro: action === 'check_in' ? `Te-ai pontat la ${time}.` : `Te-ai depontat la ${time}.`,
+      en: action === 'check_in' ? `You clocked in at ${time}.` : `You clocked out at ${time}.`,
+      pa: action === 'check_in' ? `ਤੁਸੀਂ ${time} ਵਜੇ ਚੈੱਕ-ਇਨ ਕੀਤਾ।` : `ਤੁਸੀਂ ${time} ਵਜੇ ਚੈੱਕ-ਆਉਟ ਕੀਤਾ।`,
+      hi: action === 'check_in' ? `आपने ${time} बजे चेक-इन किया।` : `आपने ${time} बजे चेक-आउट किया।`,
+      ne: action === 'check_in' ? `तपाईंले ${time} मा चेक-इन गर्नुभयो।` : `तपाईंले ${time} मा चेक-आउट गर्नुभयो।`,
+    };
+    const redirecting = {
+      ro: 'Te întoarcem la dashboard…',
+      en: 'Returning to the dashboard…',
+      pa: 'ਡੈਸ਼ਬੋਰਡ ਤੇ ਵਾਪਸ ਜਾ ਰਹੇ ਹਾਂ…',
+      hi: 'डैशबोर्ड पर वापस जा रहे हैं…',
+      ne: 'ड्यासबोर्डमा फर्किँदै…',
+    };
+    return { message: messages[this.language], redirecting: redirecting[this.language] };
   }
 
   private initMap(container: HTMLElement): void {
