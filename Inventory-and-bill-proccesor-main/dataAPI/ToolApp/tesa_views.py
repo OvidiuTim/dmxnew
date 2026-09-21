@@ -65,12 +65,16 @@ def _session_payload(session):
 
 
 def _day_status(employee, day):
-    sessions = AttendanceSession.objects.filter(user_fk=employee)
+    sessions = AttendanceSession.objects.filter(user_fk=employee, work_date=day)
     # Dacă angajatul TESA a început ziua prin vechiul flux de pontaj, preluăm
     # sesiunea existentă și permitem check-out-ul, în loc să blocăm pagina.
-    confirmed = sessions.filter(work_date=day).order_by('-in_time').first()
-    reason = None
+    # O sesiune deschisă are prioritate. Dacă toate sunt închise, întoarcem
+    # ultima sesiune doar pentru rezumat și permitem o intrare nouă.
+    confirmed = sessions.filter(out_time__isnull=True).order_by('-in_time').first()
     if not confirmed:
+        confirmed = sessions.order_by('-in_time').first()
+    reason = None
+    if not confirmed or confirmed.out_time is not None:
         if LeaveDay.objects.filter(user_fk=employee, work_date=day).exclude(pk__in=_attendance_absence(employee, day)).exists():
             reason = LEAVE_CONFLICT
     return confirmed, reason
@@ -92,10 +96,8 @@ def _attendance_absence(employee, day):
 def _worksite_distance(lat, lng, worksite):
     """Distanța până la cel mai apropiat perimetru acceptat și dacă e înăuntru.
 
-    TESA se poate ponta și din afara perimetrului (birou, deplasare, alt punct
-    de lucru), spre deosebire de pontajul obișnuit. Distanța se calculează
-    oricum, se salvează în GPS-ul sesiunii și se întoarce clientului, ca
-    verificarea ulterioară să fie posibilă.
+    Distanța se calculează pentru toate profilurile. Numai șoferii pot continua
+    din afara perimetrului; coordonatele reale se salvează în ambele cazuri.
     """
     best_distance = None
     inside = False
@@ -129,8 +131,6 @@ def _gps(data, now, worksite):
         raise ValueError('Locația GPS este invalidă. Actualizează poziția și încearcă din nou.') from None
     if not -60 <= (now - captured).total_seconds() <= 600:
         raise ValueError('Locația GPS a expirat. Actualizează poziția și încearcă din nou.')
-    # Fără verificare de perimetru: personalul TESA confirmă și din afara
-    # șantierului. Locația rămâne obligatorie și se înregistrează ca atare.
     return lat, lng, accuracy
 
 
@@ -146,7 +146,7 @@ def tesa_presence(request):
     day = timezone.localdate(now)
     if request.method == 'GET':
         confirmed, reason = _day_status(actor.employee, day)
-        can_check_in = not confirmed and not reason
+        can_check_in = bool((not confirmed or confirmed.out_time is not None) and not reason)
         can_check_out = bool(confirmed and confirmed.out_time is None)
         return JsonResponse({
             'employee': {
@@ -156,6 +156,7 @@ def tesa_presence(request):
                 'is_driver': actor.employee.is_driver,
             },
             'unrestricted_location': bool(actor.employee.is_tesa and actor.employee.is_driver),
+            'outside_perimeter_allowed': bool(actor.employee.is_driver),
             'work_date': day.isoformat(), 'worksites': list(TEAM_DASHBOARD_WORKSITES),
             'session': _session_payload(confirmed) if confirmed else None,
             'state': 'checked_out' if confirmed and confirmed.out_time else 'checked_in' if confirmed else 'not_checked_in',
@@ -173,11 +174,18 @@ def tesa_presence(request):
         action = str(data.get('action') or '').strip().lower()
         if action not in {'check_in', 'check_out'}:
             raise ValueError('Acțiunea de pontaj nu este validă.')
-        unrestricted_location = bool(actor.employee.is_tesa and actor.employee.is_driver)
-        worksite = None if unrestricted_location else normalize_worksite(data.get('worksite'))
-        if not unrestricted_location and worksite not in {site['name'] for site in TEAM_DASHBOARD_WORKSITES}:
+        outside_perimeter_allowed = bool(actor.employee.is_driver)
+        worksite = normalize_worksite(data.get('worksite'))
+        if worksite not in {site['name'] for site in TEAM_DASHBOARD_WORKSITES}:
             raise ValueError('Alege un șantier din lista de pontaj.')
         lat, lng, accuracy = _gps(data, now, worksite)
+        distance, inside_perimeter = _worksite_distance(lat, lng, worksite)
+        if not outside_perimeter_allowed and not inside_perimeter:
+            radius = TEAM_DASHBOARD_WORKSITE_BY_NAME[worksite]['radius_meters']
+            raise ValueError(
+                f'Pontajul este permis numai în raza de {radius} m a șantierului selectat. '
+                f'Distanța actuală este de aproximativ {round(distance or 0)} m.'
+            )
     except (ValueError, TypeError, InvalidWorksite) as exc:
         return JsonResponse({'error': str(exc)}, status=400)
     with transaction.atomic():
@@ -199,9 +207,6 @@ def tesa_presence(request):
         if action == 'check_in':
             if session and session.out_time is None:
                 return JsonResponse({'ok': True, 'already_checked_in': True, 'session': _session_payload(session)})
-            if session:
-                return JsonResponse({'error': 'Pontajul TESA pentru astăzi este deja încheiat.',
-                                     'error_code': 'TESA_DAY_COMPLETED'}, status=409)
             if reason:
                 return JsonResponse({'error': reason, 'error_code': _blocked_reason_code(reason)}, status=409)
             session = AttendanceSession.objects.create(
@@ -222,7 +227,7 @@ def tesa_presence(request):
                                      'error_code': 'TESA_CHECK_IN_REQUIRED'}, status=409)
             if session.out_time is not None:
                 return JsonResponse({'ok': True, 'already_checked_out': True, 'session': _session_payload(session)})
-            if not unrestricted_location and session.worksite != worksite:
+            if session.worksite != worksite:
                 return JsonResponse({'error': 'Ieșirea trebuie înregistrată pentru același șantier ca intrarea.'}, status=409)
             session.out_time = max(now, session.in_time)
             session.duration_seconds = max(0, int((session.out_time - session.in_time).total_seconds()))

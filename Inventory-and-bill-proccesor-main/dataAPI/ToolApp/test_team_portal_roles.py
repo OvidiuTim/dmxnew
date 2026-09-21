@@ -131,6 +131,33 @@ class TeamPortalRoleSecurityTests(TestCase):
         self.assertEqual(response.json()["allowed_radius_meters"], 90)
         self.assertFalse(AttendanceSession.objects.filter(user_fk=self.plain).exists())
 
+    def test_driver_still_selects_a_site_but_can_clock_outside_and_real_gps_is_saved(self):
+        self.plain.is_driver = True
+        self.plain.save(update_fields=("is_driver",))
+        response = client_for(self.plain_account).post(
+            "/api/team-portal/attendance/",
+            data=json.dumps({
+                "worksite": "The Lake Home Bloc A",
+                "gps": {
+                    "lat": 46.123,
+                    "lng": 25.456,
+                    "accuracy": 9,
+                    "captured_at": timezone.now().isoformat(),
+                },
+                "data_processing_consent": True,
+                "attendance_photo": "data:image/jpeg;base64,AA==",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["state"], "ENTER")
+        session = AttendanceSession.objects.get(user_fk=self.plain)
+        self.assertEqual(session.source, "manual-driver")
+        self.assertEqual(session.worksite, "The Lake Home Bloc A")
+        self.assertAlmostEqual(session.in_gps_latitude, 46.123)
+        self.assertAlmostEqual(session.in_gps_longitude, 25.456)
+        self.assertTrue(session.checkin_photo)
+
     def test_plain_employee_gets_only_own_portal_endpoints(self):
         self.plain.total_salary_ron = "9000.00"
         self.plain.salary_advance_ron = "1000.00"

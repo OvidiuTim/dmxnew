@@ -10,7 +10,7 @@ describe('TesaPresenceComponent', () => {
   let http: HttpTestingController;
   let router: { navigateByUrl: jasmine.Spy };
   const api = window.location.origin + '/api/team-portal/tesa-presence/';
-  const site = { name: 'Birou ingineri & TESA', latitude: 45.8, longitude: 24.1, radius_meters: 100 };
+  const site = { name: 'Birou ingineri & TESA', latitude: 45.8, longitude: 24.1, radius_meters: 90 };
   const state = {
     employee: { name: 'TESA Test' }, work_date: '2026-01-11', worksites: [site], session: null,
     state: 'not_checked_in', can_check_in: true, can_check_out: false, can_confirm: true, blocked_reason: null,
@@ -74,21 +74,22 @@ describe('TesaPresenceComponent', () => {
     expect(post.request.body.worksite).toBe(site.name);
     post.flush({ session: closedSession });
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Pontaj încheiat');
-    expect(fixture.nativeElement.textContent).toContain('08:17 – 16:42');
+    expect(component.action).toBe('check_in');
+    expect(component.status?.can_check_in).toBeTrue();
+    expect(fixture.nativeElement.textContent).toContain('Pontează intrarea');
     expect(fixture.nativeElement.querySelector('video')).toBeNull();
   });
 
-  it('pentru TESA și șofer cere doar acțiunea și salvează GPS fără șantier sau selfie', () => {
+  it('pentru TESA și șofer cere șantierul, permite exteriorul și salvează GPS fără selfie', () => {
     http.expectOne(api).flush({
       ...state,
       employee: { name: 'TESA Șofer', is_tesa: true, is_driver: true },
       unrestricted_location: true,
     });
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('#tesa-worksite')).toBeNull();
-    expect(fixture.nativeElement.querySelector('.map-card')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#tesa-worksite')).not.toBeNull();
     expect(fixture.nativeElement.querySelector('video')).toBeNull();
+    component.worksite = site.name;
 
     let accept!: PositionCallback;
     spyOn(navigator.geolocation, 'getCurrentPosition').and.callFake(callback => { accept = callback; });
@@ -96,13 +97,14 @@ describe('TesaPresenceComponent', () => {
     accept({ coords: { latitude: 46.1, longitude: 25.2, accuracy: 13 }, timestamp: Date.now() } as GeolocationPosition);
     const post = http.expectOne(api);
     expect(post.request.method).toBe('POST');
-    expect(Object.keys(post.request.body).sort()).toEqual(['action', 'gps']);
+    expect(Object.keys(post.request.body).sort()).toEqual(['action', 'gps', 'worksite']);
     expect(post.request.body.action).toBe('check_in');
+    expect(post.request.body.worksite).toBe(site.name);
     expect(post.request.body.gps.lat).toBe(46.1);
-    post.flush({ session: { ...openSession, worksite: null } });
+    post.flush({ session: openSession });
   });
 
-  it('arată distanța față de șantier și permite confirmarea din afara perimetrului', () => {
+  it('arată distanța și blochează TESA fără rol de șofer în afara perimetrului', () => {
     http.expectOne(api).flush(state);
     spyOn(navigator.geolocation, 'getCurrentPosition').and.callFake(callback =>
       callback({ coords: { latitude: 45.81, longitude: 24.2, accuracy: 12 }, timestamp: Date.now() } as GeolocationPosition));
@@ -112,13 +114,9 @@ describe('TesaPresenceComponent', () => {
     expect(component.insidePerimeter).toBeFalse();
     expect(component.distanceMeters).toBeGreaterThan(site.radius_meters);
     expect(fixture.nativeElement.textContent).toContain('În afara perimetrului');
-    expect(fixture.nativeElement.querySelector('.confirm-button').disabled).toBeFalse();
+    expect(fixture.nativeElement.querySelector('.confirm-button').disabled).toBeTrue();
     component.confirm();
-    const post = http.expectOne(api);
-    expect(post.request.body.gps.lat).toBe(45.81);
-    post.flush({ session: { ...openSession, distance_m: 5400, inside_perimeter: false } });
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Ești pontat');
+    http.expectNone(api);
   });
 
   it('nu salvează pontajul când locația este refuzată', () => {
@@ -141,6 +139,17 @@ describe('TesaPresenceComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Pontează ieșirea');
     expect(component.action).toBe('check_out');
     expect(component.worksite).toBe(site.name);
+  });
+
+  it('după o ieșire permite imediat o intrare nouă în aceeași zi', () => {
+    http.expectOne(api).flush({
+      ...state, session: closedSession, state: 'checked_out',
+      can_check_in: true, can_check_out: false, can_confirm: true,
+    });
+    fixture.detectChanges();
+    expect(component.action).toBe('check_in');
+    expect(fixture.nativeElement.textContent).toContain('Pontează intrarea');
+    expect(fixture.nativeElement.textContent).not.toContain('Pontaj încheiat');
   });
 
   it('redirecționează dacă accesul TESA a fost retras', () => {

@@ -584,12 +584,6 @@ class AttendanceSession(models.Model):
 
     class Meta:
         ordering = ['-in_time']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user_fk', 'work_date'], condition=models.Q(source='tesa'),
-                name='unique_tesa_confirmation_per_day',
-            ),
-        ]
         indexes = [
             models.Index(fields=['work_date', 'user_fk']),
             models.Index(fields=['user_fk', 'out_time']),

@@ -17,6 +17,7 @@ interface PresenceSession {
 interface PresenceStatus {
   employee: { name: string; is_tesa?: boolean; is_driver?: boolean }; work_date: string; worksites: Worksite[];
   unrestricted_location?: boolean;
+  outside_perimeter_allowed?: boolean;
   session: PresenceSession | null; state: 'not_checked_in' | 'checked_in' | 'checked_out';
   can_check_in: boolean; can_check_out: boolean; can_confirm: boolean;
   blocked_reason: string | null; blocked_reason_code?: string | null;
@@ -47,9 +48,8 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   error = '';
   position: CapturedPosition | null = null;
 
-  // Harta este identică ca rol cu cea din pontajul obișnuit: zona șantierului,
-  // poziția proprie și distanța. Diferența e că personalul TESA poate confirma
-  // și din afara perimetrului, deci harta informează, nu blochează.
+  // Harta arată șantierul selectat și poziția reală. Șoferii pot continua din
+  // afara razei, însă GPS-ul și șantierul rămân obligatorii și sunt salvate.
   @ViewChild('mapEl') set mapElement(element: ElementRef<HTMLElement> | undefined) {
     if (element && !this.map) {
       this.initMap(element.nativeElement);
@@ -98,7 +98,8 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
 
   get selectedSite(): Worksite | undefined { return this.status?.worksites.find(site => site.name === this.worksite); }
   get unrestrictedLocation(): boolean {
-    return this.status?.unrestricted_location === true
+    return this.status?.outside_perimeter_allowed === true
+      || this.status?.unrestricted_location === true
       || (this.status?.employee?.is_tesa === true && this.status?.employee?.is_driver === true);
   }
   get unrestrictedHint(): string {
@@ -108,6 +109,15 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
       pa: 'ਚੈੱਕ-ਇਨ ਜਾਂ ਚੈੱਕ-ਆਉਟ ਦਬਾਓ। ਤੁਸੀਂ ਕਿਤੇ ਤੋਂ ਵੀ ਹਾਜ਼ਰੀ ਲਗਾ ਸਕਦੇ ਹੋ; ਮੌਜੂਦਾ GPS ਟਿਕਾਣਾ ਸੰਭਾਲਿਆ ਜਾਵੇਗਾ।',
       hi: 'चेक-इन या चेक-आउट दबाएँ। आप कहीं से भी उपस्थिति दर्ज कर सकते हैं; वर्तमान GPS स्थान सहेजा जाएगा।',
       ne: 'चेक-इन वा चेक-आउट थिच्नुहोस्। तपाईं जहाँबाट पनि हाजिरी गर्न सक्नुहुन्छ; हालको GPS स्थान सुरक्षित गरिनेछ।',
+    }[this.language];
+  }
+  get perimeterRequiredHint(): string {
+    return {
+      ro: 'Trebuie să fii în raza șantierului selectat pentru a te ponta.',
+      en: 'You must be within the selected worksite radius to record attendance.',
+      pa: 'ਹਾਜ਼ਰੀ ਲਗਾਉਣ ਲਈ ਤੁਹਾਨੂੰ ਚੁਣੀ ਸਾਈਟ ਦੇ ਘੇਰੇ ਅੰਦਰ ਹੋਣਾ ਲਾਜ਼ਮੀ ਹੈ।',
+      hi: 'उपस्थिति दर्ज करने के लिए आपको चुनी हुई साइट की सीमा के भीतर होना चाहिए।',
+      ne: 'हाजिरी दर्ता गर्न तपाईं चयन गरिएको साइटको परिधिभित्र हुनुपर्छ।',
     }[this.language];
   }
   get distanceMeters(): number | null {
@@ -141,7 +151,7 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   locate(): void { this.readLocation(false); }
 
   confirm(): void {
-    if (!this.canSubmit || this.saving || this.locating || (!this.unrestrictedLocation && !this.worksite)) return;
+    if (!this.canConfirm || this.saving || this.locating) return;
     // La ambele acțiuni se cere o poziție proaspătă. Nu se cere fotografie.
     this.readLocation(true);
   }
@@ -154,8 +164,12 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.action === 'check_out' ? !!this.status?.can_check_out : !!this.status?.can_check_in;
   }
 
+  get canConfirm(): boolean {
+    return this.canSubmit && !!this.worksite && (this.unrestrictedLocation || this.insidePerimeter !== false);
+  }
+
   private readLocation(submit: boolean): void {
-    if (this.locating || this.saving || (!this.unrestrictedLocation && !this.worksite)) return;
+    if (this.locating || this.saving || !this.worksite) return;
     this.error = '';
     this.position = null;
     this.drawPosition();
@@ -172,7 +186,10 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
         accuracy: position.coords.accuracy, captured_at: new Date(position.timestamp).toISOString(),
       };
       this.drawPosition();
-      if (submit) this.save();
+      if (submit) {
+        if (this.canConfirm) this.save();
+        else if (!this.unrestrictedLocation && this.insidePerimeter === false) this.error = this.perimeterRequiredHint;
+      }
     }, error => {
       if (this.destroyed) return;
       this.locating = false;
@@ -185,11 +202,11 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   private save(): void {
     this.saving = true;
     const action = this.action;
-    const payload: { action: 'check_in' | 'check_out'; gps: CapturedPosition | null; worksite?: string } = {
+    const payload: { action: 'check_in' | 'check_out'; gps: CapturedPosition | null; worksite: string } = {
       action,
       gps: this.position,
+      worksite: this.worksite,
     };
-    if (!this.unrestrictedLocation) payload.worksite = this.worksite;
     this.http.post<{ session: PresenceSession }>(this.api, payload,
       { withCredentials: true }).pipe(takeUntil(this.destroyed$)).subscribe({
       next: result => {
@@ -198,9 +215,9 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
           ...this.status,
           session: result.session,
           state: result.session.out_time ? 'checked_out' : 'checked_in',
-          can_check_in: false,
+          can_check_in: !!result.session.out_time,
           can_check_out: !result.session.out_time,
-          can_confirm: !result.session.out_time,
+          can_confirm: true,
           blocked_reason: null,
         };
         this.position = null;

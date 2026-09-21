@@ -11,15 +11,15 @@
     <div *ngIf="error" class="state error" role="alert">{{ error }} <button *ngIf="!status" type="button" (click)="load()">{{ t.retry }}</button></div>
 
     <ng-container *ngIf="status && !loading">
-      <section class="presence-card" *ngIf="!status.session?.out_time">
+      <section class="presence-card" *ngIf="!status.session?.out_time || status.can_check_in">
         <div class="person-row"><span class="material-symbols-rounded" aria-hidden="true">badge</span><strong>{{ status.employee.name }}</strong></div>
-        <div class="schedule" *ngIf="status.session as activeSession"><div><span>{{ activeSession.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ activeSession.in_time | date:'HH:mm' }} – {{ t.inProgress }}</strong></div><span class="hours">{{ activeSession.hours | number:'1.0-2' }} {{ t.hours }}</span></div>
-        <p class="explanation">{{ unrestrictedLocation ? unrestrictedHint : (status.session ? t.tesaCheckedInHint : t.tesaAttendanceHint) }}</p>
+        <div class="schedule" *ngIf="status.session && !status.session.out_time"><div><span>{{ status.session.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ status.session.in_time | date:'HH:mm' }} – {{ t.inProgress }}</strong></div><span class="hours">{{ status.session.hours | number:'1.0-2' }} {{ t.hours }}</span></div>
+        <p class="explanation">{{ unrestrictedLocation ? unrestrictedHint : (status.session && !status.session.out_time ? t.tesaCheckedInHint : t.tesaAttendanceHint) }}</p>
         <p *ngIf="status.blocked_reason" class="state blocked" role="status">{{ blockedReason }}</p>
         <ng-container *ngIf="canSubmit">
-          <ng-container *ngIf="!unrestrictedLocation">
+          <ng-container>
             <label for="tesa-worksite">{{ t.worksite }}</label>
-            <select id="tesa-worksite" [(ngModel)]="worksite" (ngModelChange)="worksiteChanged()" [disabled]="!!status.session || locating || saving">
+            <select id="tesa-worksite" [(ngModel)]="worksite" (ngModelChange)="worksiteChanged()" [disabled]="action === 'check_out' || locating || saving">
               <option value="">{{ t.chooseSite }}</option>
               <option *ngFor="let site of status.worksites" [value]="site.name">{{ site.name }}</option>
             </select>
@@ -40,7 +40,7 @@
                 <span class="meta-pill" *ngIf="locating">{{ t.locating }}</span>
               </div>
               <p class="outside-note" *ngIf="insidePerimeter === false">
-                {{ t.tesaOutside }}
+                {{ unrestrictedLocation ? t.driverHint : perimeterRequiredHint }}
               </p>
               <button type="button" class="location-button" (click)="locate()" [disabled]="locating || saving">
                 <span class="material-symbols-rounded" aria-hidden="true">my_location</span>{{ locating ? t.locating : t.refreshLocation }}
@@ -55,14 +55,14 @@
             </div>
           </ng-container>
 
-          <button type="button" class="confirm-button" (click)="confirm()" [disabled]="(!unrestrictedLocation && !worksite) || locating || saving">
+          <button type="button" class="confirm-button" (click)="confirm()" [disabled]="!canConfirm || locating || saving">
             <span class="material-symbols-rounded" aria-hidden="true">{{ action === 'check_in' ? 'login' : 'logout' }}</span>{{ saving ? t.saving : locating ? t.locating : (action === 'check_in' ? t.tesaCheckIn : t.tesaCheckOut) }}
           </button>
           <p class="privacy-note">{{ t.presencePrivacy }}</p>
         </ng-container>
       </section>
 
-      <section *ngIf="status.session?.out_time && status.session as completedSession" class="presence-card success-card" role="status">
+      <section *ngIf="status.session?.out_time && !status.can_check_in && status.session as completedSession" class="presence-card success-card" role="status">
         <span class="success-icon material-symbols-rounded" aria-hidden="true">check_circle</span>
         <h2>{{ t.tesaAttendanceCompleted }}</h2>
         <p>{{ status.employee.name }}</p>

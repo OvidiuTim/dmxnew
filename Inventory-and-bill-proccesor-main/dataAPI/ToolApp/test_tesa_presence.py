@@ -3,7 +3,6 @@ from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
 from unittest.mock import patch
 
-from django.db import IntegrityError, transaction
 from django.test import Client, TestCase
 from django.utils import timezone
 
@@ -57,6 +56,14 @@ class TesaPresenceTests(TestCase):
             response = admin.put('/api/user/', json.dumps({'UserId': self.employee.pk, 'UserName': self.employee.UserName, 'is_tesa': value}), content_type='application/json')
             self.assertEqual(response.status_code, 200, response.content)
             self.assertEqual(admin.get(f'/api/user/{self.employee.pk}').json()['is_tesa'], value)
+        for value in (True, False):
+            response = admin.put(
+                '/api/user/',
+                json.dumps({'UserId': self.employee.pk, 'UserName': self.employee.UserName, 'is_driver': value}),
+                content_type='application/json',
+            )
+            self.assertEqual(response.status_code, 200, response.content)
+            self.assertEqual(admin.get(f'/api/user/{self.employee.pk}').json()['is_driver'], value)
         denied = self.client.put('/api/user/', json.dumps({'UserId': self.other.pk, 'is_tesa': True}), content_type='application/json')
         self.assertIn(denied.status_code, (401, 403))
         self.other.refresh_from_db()
@@ -146,25 +153,15 @@ class TesaPresenceTests(TestCase):
             self.assertEqual(self.post(payload).status_code, 400)
         self.assertFalse(AttendanceSession.objects.exists())
 
-    def test_confirmation_is_accepted_outside_the_perimeter_with_the_distance_recorded(self):
-        # Spre deosebire de pontajul obisnuit, TESA se poate ponta si din afara
-        # santierului; distanta pana la perimetru se salveaza si se raporteaza.
+    def test_tesa_without_driver_role_is_rejected_outside_the_perimeter(self):
         far = self.payload()
         far['gps'] = {**far['gps'], 'lat': self.site['latitude'] + 0.05, 'lng': self.site['longitude'] + 0.05}
         response = self.post(far)
-        self.assertEqual(response.status_code, 201)
-        body = response.json()
-        self.assertFalse(body['session']['inside_perimeter'])
-        self.assertGreater(body['session']['distance_m'], self.site['radius_meters'])
-        session = AttendanceSession.objects.get()
-        self.assertEqual(session.duration_seconds, 0)
-        self.assertAlmostEqual(session.in_gps_latitude, self.site['latitude'] + 0.05, places=6)
-        with patch('ToolApp.tesa_views.timezone.now', return_value=self.now):
-            state = self.client.get(self.url).json()
-        self.assertFalse(state['session']['inside_perimeter'])
-        self.assertEqual(state['session']['distance_m'], body['session']['distance_m'])
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn('raza de 90 m', response.json()['error'])
+        self.assertFalse(AttendanceSession.objects.exists())
 
-    def test_tesa_driver_needs_only_action_and_gps_and_saves_both_locations(self):
+    def test_tesa_driver_selects_site_but_may_clock_outside_and_saves_real_gps(self):
         self.employee.is_driver = True
         self.employee.save(update_fields=('is_driver',))
         status = self.client.get(self.url)
@@ -178,10 +175,11 @@ class TesaPresenceTests(TestCase):
             'accuracy': 11,
             'captured_at': self.now.isoformat(),
         }
-        checkin = self.post({'action': 'check_in', 'gps': gps})
+        self.assertEqual(self.post({'action': 'check_in', 'gps': gps}).status_code, 400)
+        checkin = self.post({'action': 'check_in', 'worksite': self.site['name'], 'gps': gps})
         self.assertEqual(checkin.status_code, 201, checkin.content)
         session = AttendanceSession.objects.get(user_fk=self.employee)
-        self.assertIsNone(session.worksite)
+        self.assertEqual(session.worksite, self.site['name'])
         self.assertEqual(session.in_gps_latitude, gps['lat'])
         self.assertEqual(session.in_gps_longitude, gps['lng'])
         self.assertEqual(session.checkin_photo, '')
@@ -194,7 +192,7 @@ class TesaPresenceTests(TestCase):
             'captured_at': checkout_now.isoformat(),
         }
         checkout = self.post(
-            {'action': 'check_out', 'gps': checkout_gps},
+            {'action': 'check_out', 'worksite': self.site['name'], 'gps': checkout_gps},
             now=checkout_now,
         )
         self.assertEqual(checkout.status_code, 200, checkout.content)
@@ -203,13 +201,13 @@ class TesaPresenceTests(TestCase):
         self.assertEqual(session.out_gps_longitude, checkout_gps['lng'])
         self.assertEqual(session.checkout_photo, '')
 
-    def test_existing_session_or_leave_prevents_extra_eight_hours(self):
-        session = AttendanceSession.objects.create(user_fk=self.employee, work_date=self.now.date(),
-                                                    in_time=self.now - timedelta(hours=1), out_time=self.now, duration_seconds=3600)
-        self.assertEqual(self.post().status_code, 409)
-        session.refresh_from_db()
-        self.assertEqual(session.duration_seconds, 3600)
-        session.delete()
+    def test_leave_prevents_attendance_but_a_closed_session_does_not(self):
+        AttendanceSession.objects.create(user_fk=self.employee, work_date=self.now.date(),
+                                         in_time=self.now - timedelta(hours=1), out_time=self.now,
+                                         duration_seconds=3600)
+        self.assertEqual(self.post().status_code, 201)
+        self.assertEqual(AttendanceSession.objects.count(), 2)
+        AttendanceSession.objects.all().delete()
         LeaveDay.objects.create(user_fk=self.employee, work_date=self.now.date(), reason=LeaveDay.Reason.UNPAID, hours=8)
         self.assertEqual(self.post().status_code, 409)
         self.assertFalse(AttendanceSession.objects.exists())
@@ -273,10 +271,22 @@ class TesaPresenceTests(TestCase):
                 PresenceEvent.objects.all().delete()
                 DailyPay.objects.all().delete()
 
-    def test_database_rejects_two_tesa_confirmations_for_the_same_day(self):
+    def test_can_start_a_second_tesa_session_after_accidental_checkout(self):
         self.assertEqual(self.post().status_code, 201)
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            AttendanceSession.objects.create(user_fk=self.employee, work_date=self.now.date(), source='tesa')
+        checkout_at = self.now + timedelta(minutes=15)
+        self.assertEqual(self.post(self.payload(captured_at=checkout_at, action='check_out'), now=checkout_at).status_code, 200)
+        with patch('ToolApp.tesa_views.timezone.now', return_value=checkout_at):
+            status = self.client.get(self.url).json()
+        self.assertEqual(status['state'], 'checked_out')
+        self.assertTrue(status['can_check_in'])
+        self.assertFalse(status['can_check_out'])
+
+        second_checkin_at = self.now + timedelta(minutes=20)
+        second = self.post(self.payload(captured_at=second_checkin_at), now=second_checkin_at)
+        self.assertEqual(second.status_code, 201, second.content)
+        self.assertEqual(AttendanceSession.objects.filter(user_fk=self.employee, work_date=self.now.date()).count(), 2)
+        self.assertEqual(AttendanceSession.objects.filter(user_fk=self.employee, out_time__isnull=True).count(), 1)
+        self.assertEqual(PresenceEvent.objects.filter(user_fk=self.employee).count(), 3)
 
     def test_pay_failure_rolls_back_session_and_presence_events(self):
         with patch('ToolApp.tesa_views.recompute_daily_pay', side_effect=RuntimeError('test')):
