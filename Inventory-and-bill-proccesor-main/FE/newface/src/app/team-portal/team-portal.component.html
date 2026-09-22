@@ -173,18 +173,23 @@
               <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(team.leader.status) }}</span>{{ statusLabel(team.leader.status) }}</span>
             </div>
           </section>
-          <span class="hierarchy-connector branch" aria-hidden="true"></span>
+          <span class="hierarchy-connector" aria-hidden="true"></span>
           <div class="hierarchy-members-label">{{ t.membersLabel }}</div>
         </div>
         <p *ngIf="!team.members.length" class="empty-copy">{{ t.noMembers }}</p>
         <div *ngFor="let member of team.members; trackBy: trackById" class="member-row" [attr.data-status]="member.status">
-          <button type="button" class="member-summary" (click)="toggleMember(member.id)" [attr.aria-expanded]="openMemberId === member.id">
+          <button *ngIf="team.can_manage" type="button" class="member-summary" (click)="toggleMember(member.id)" [attr.aria-expanded]="openMemberId === member.id">
             <span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="member.photo" [src]="member.photo" alt="" /><span *ngIf="!member.photo">{{ member.name.charAt(0) }}</span></span>
             <span class="member-name">{{ member.name }} <small *ngIf="member.is_current_user" class="you-badge">{{ t.youLabel }}</small></span>
             <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(member.status) }}</span>{{ statusLabel(member.status) }}</span>
             <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === member.id ? 'expand_less' : 'expand_more' }}</span>
           </button>
-          <div *ngIf="openMemberId === member.id" class="member-detail">
+          <div *ngIf="!team.can_manage" class="member-summary read-only-member">
+            <span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="member.photo" [src]="member.photo" alt="" /><span *ngIf="!member.photo">{{ member.name.charAt(0) }}</span></span>
+            <span class="member-name">{{ member.name }} <small *ngIf="member.is_current_user" class="you-badge">{{ t.youLabel }}</small></span>
+            <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(member.status) }}</span>{{ statusLabel(member.status) }}</span>
+          </div>
+          <div *ngIf="team.can_manage && openMemberId === member.id" class="member-detail">
             <strong>{{ member.name }}</strong>
             <span>{{ t.phone }}: {{ member.phone || t.noPhone }}</span>
             <a *ngIf="member.phone" class="call-button" [href]="'tel:' + member.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>

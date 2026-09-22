@@ -98,7 +98,7 @@ describe('TeamPortalComponent performance regressions', () => {
         can_manage: false,
         supervisor: { id: 1, name: 'Supervisor', trade: 'Supervisor', status: 'present', is_current_user: false },
         leader: { id: 2, name: 'Șef Echipă', trade: 'Sudor', status: 'present', is_current_user: false },
-        members: [{ id: 5, name: 'Membru', trade: 'Sudor', status: 'present', is_current_user: true }],
+        members: [{ id: 5, name: 'Membru', phone: '0700000000', trade: 'Sudor', status: 'present', is_current_user: true }],
       }],
       can_mark_absent: false,
     });
@@ -110,6 +110,10 @@ describe('TeamPortalComponent performance regressions', () => {
     expect(fixture.nativeElement.textContent).toContain('Membru');
     expect(fixture.nativeElement.textContent).toContain('Tu');
     expect(fixture.nativeElement.querySelector('.team-title button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.member-row button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.member-detail')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.call-button')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.hierarchy-connector.branch')).toBeNull();
   });
 
   it('traduce statusul pontajului făcut după pragul de 08:10', () => {

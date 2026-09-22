@@ -540,6 +540,11 @@ def _portal_team_payload(
     )
     leader["is_current_user"] = team.leader_id == current_employee_id
     supervisor["is_current_user"] = team.effective_supervisor.pk == current_employee_id
+    if not can_manage:
+        # Membrii obișnuiți pot consulta componența și ierarhia echipei, fără
+        # acces la datele de contact sau la acțiunile rezervate coordonatorilor.
+        for person in [leader, supervisor, *members]:
+            person["phone"] = ""
     return {
         "id": team.pk,
         "name": team.name,

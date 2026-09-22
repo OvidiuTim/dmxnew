@@ -214,6 +214,9 @@ class TeamPortalRoleSecurityTests(TestCase):
         self.assertFalse(team["can_manage"])
         self.assertEqual([member["id"] for member in team["members"]], [self.member.pk])
         self.assertTrue(team["members"][0]["is_current_user"])
+        self.assertEqual(team["members"][0]["phone"], "")
+        self.assertEqual(team["leader"]["phone"], "")
+        self.assertEqual(team["supervisor"]["phone"], "")
         self.assertFalse(response.json()["can_mark_absent"])
 
         other = client_for(self.source_member_account).get("/api/team-portal/teams/").json()["teams"]
