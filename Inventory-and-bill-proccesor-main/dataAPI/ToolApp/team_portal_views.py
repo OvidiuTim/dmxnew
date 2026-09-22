@@ -132,6 +132,21 @@ def _coordinated_teams(app_user):
     ).select_related("leader", "supervisor").prefetch_related(_active_memberships_prefetch()).distinct()
 
 
+def _my_visible_teams(app_user):
+    """Echipele pe care utilizatorul are voie să le vadă în „Echipa mea”.
+
+    Un coordonator vede echipele conduse/supervizate, iar un angajat obișnuit
+    vede exclusiv echipa în care are o apartenență permanentă activă.
+    """
+    return EmployeeTeam.objects.filter(active=True).filter(
+        Q(leader_id=app_user.employee_id)
+        | Q(supervisor_id=app_user.employee_id)
+        | Q(memberships__employee_id=app_user.employee_id, memberships__active=True)
+    ).select_related("leader", "supervisor").prefetch_related(
+        _active_memberships_prefetch()
+    ).distinct()
+
+
 def _led_teams(app_user):
     return EmployeeTeam.objects.filter(active=True, leader_id=app_user.employee_id).select_related(
         "leader", "supervisor"
@@ -346,7 +361,7 @@ def portal_dashboard(request):
     app_user = _portal_actor(request)
     if not app_user:
         return _error("Nu ai acces la Team Dashboard.", 403)
-    teams = list(_coordinated_teams(app_user).values("id", "name"))
+    teams = list(_my_visible_teams(app_user).values("id", "name"))
     own_status = _presence_status([app_user.employee_id]).get(app_user.employee_id, "absent")
     levels = _escalation_levels(app_user)
     day = timezone.localdate()
@@ -388,6 +403,7 @@ def portal_dashboard(request):
         "alert_level_2": 2 in levels,
         "status": own_status,
         "teams": teams,
+        "can_view_my_team": bool(teams),
         "unread_notifications": unread,
         "absence_marking_locked": absence_marking_locked(),
         "lock_time": level_alert_time(AttendanceAlertCase.Level.LEVEL_2).strftime("%H:%M"),
@@ -461,59 +477,77 @@ def portal_teams(request):
         return _error("Acces interzis.", 403)
     day = timezone.localdate()
     run_attendance_maintenance(day)
-    teams = list(_led_teams(app_user))
+    teams = list(_my_visible_teams(app_user))
     if not teams:
-        return _error("Această pagină este disponibilă numai șefilor de echipă.", 403)
+        return _error("Nu ești asociat unei echipe active.", 403)
     member_ids = {
         membership.employee_id
         for team in teams
         for membership in _active_memberships(team)
     }
+    member_ids.update(team.leader_id for team in teams)
+    member_ids.update(team.effective_supervisor.pk for team in teams)
     statuses = _presence_status(member_ids)
     absence_marks = _absence_marks([pk for pk, status in statuses.items() if status == "marked_absent"])
-    payload = []
-    for team in teams:
-        members = []
-        seen = set()
-        for membership in _active_memberships(team):
-            if membership.employee_id in seen:
-                continue
-            seen.add(membership.employee_id)
-            members.append(_employee_summary(
-                membership.employee,
-                statuses.get(membership.employee_id, "absent"),
-                absence_marks,
-            ))
-        members.sort(key=lambda item: (item["status"] != "absent", item["name"].casefold()))
-        payload.append({"id": team.pk, "name": team.name, "members": members})
+    payload = [
+        _portal_team_payload(
+            team,
+            statuses,
+            absence_marks,
+            current_employee_id=app_user.employee_id,
+            can_manage=app_user.employee_id in {team.leader_id, team.effective_supervisor.pk},
+        )
+        for team in teams
+    ]
+    can_manage_any = any(team["can_manage"] for team in payload)
     return JsonResponse({
         "teams": payload,
         "locked": absence_marking_locked(),
         "lock_time": level_alert_time(AttendanceAlertCase.Level.LEVEL_2).strftime("%H:%M"),
-        "can_mark_absent": _initial_alert_available() and not absence_marking_locked(),
+        "can_mark_absent": can_manage_any and _initial_alert_available() and not absence_marking_locked(),
         "mark_available_from": f"{ALERT_HOUR:02d}:{ALERT_MINUTE:02d}",
     })
 
 
-def _portal_team_payload(team, statuses, absence_marks=None):
+def _portal_team_payload(
+    team,
+    statuses,
+    absence_marks=None,
+    *,
+    current_employee_id=None,
+    can_manage=False,
+):
     members = []
     seen = set()
+    role_holder_ids = {team.leader_id, team.effective_supervisor.pk}
     for membership in _active_memberships(team):
-        if membership.employee_id in seen:
+        if membership.employee_id in seen or membership.employee_id in role_holder_ids:
             continue
         seen.add(membership.employee_id)
-        members.append(_employee_summary(
+        member = _employee_summary(
             membership.employee,
             statuses.get(membership.employee_id, "absent"),
             absence_marks,
-        ))
+        )
+        member["is_current_user"] = membership.employee_id == current_employee_id
+        members.append(member)
     members.sort(key=lambda item: (item["status"] != "absent", item["name"].casefold()))
+    leader = _employee_summary(team.leader, statuses.get(team.leader_id, "absent"), absence_marks)
+    supervisor = _employee_summary(
+        team.effective_supervisor,
+        statuses.get(team.effective_supervisor.pk, "absent"),
+        absence_marks,
+    )
+    leader["is_current_user"] = team.leader_id == current_employee_id
+    supervisor["is_current_user"] = team.effective_supervisor.pk == current_employee_id
     return {
         "id": team.pk,
         "name": team.name,
         "worksite": team.default_worksite or "",
-        "leader": _employee_summary(team.leader, statuses.get(team.leader_id, "absent"), absence_marks),
+        "leader": leader,
+        "supervisor": supervisor,
         "members": members,
+        "can_manage": can_manage,
     }
 
 
@@ -534,7 +568,16 @@ def portal_supervised_teams(request):
     statuses = _presence_status(employee_ids)
     absence_marks = _absence_marks([pk for pk, status in statuses.items() if status == "marked_absent"])
     return JsonResponse({
-        "teams": [_portal_team_payload(team, statuses, absence_marks) for team in teams],
+        "teams": [
+            _portal_team_payload(
+                team,
+                statuses,
+                absence_marks,
+                current_employee_id=app_user.employee_id,
+                can_manage=True,
+            )
+            for team in teams
+        ],
         "can_mark_absent": _initial_alert_available() and not absence_marking_locked(),
         "mark_available_from": f"{ALERT_HOUR:02d}:{ALERT_MINUTE:02d}",
         "locked": absence_marking_locked(),

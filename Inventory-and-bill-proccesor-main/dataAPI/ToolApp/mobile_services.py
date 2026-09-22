@@ -745,13 +745,14 @@ def build_inventory(employee):
     )
 
 
-def _team_member_payload(employee, leader_id, current_id):
+def _team_member_payload(employee, leader_id, current_id, supervisor_id=None):
     return {
         "employee_id": employee.UserId,
         "display_name": employee.UserName,
         "trade_code": normalize_trade_code(employee.trade),
         "trade": employee.trade,
         "is_team_leader": employee.UserId == leader_id,
+        "is_supervisor": supervisor_id is not None and employee.UserId == supervisor_id,
         "is_current_user": employee.UserId == current_id,
     }
 
@@ -759,7 +760,7 @@ def _team_member_payload(employee, leader_id, current_id):
 def build_team(employee):
     team = EmployeeTeam.objects.filter(active=True).filter(
         Q(leader=employee) | Q(memberships__employee=employee, memberships__active=True)
-    ).select_related("leader").distinct().first()
+    ).select_related("leader", "supervisor").distinct().first()
     if not team:
         return None
     members = [
@@ -772,10 +773,21 @@ def build_team(employee):
     ordered_members = [item for item in members if item.UserId != employee.UserId]
     if current_member:
         ordered_members.append(current_member)
+    # Supervizorul nu e membru al echipei, dar face parte din ierarhia pe care o
+    # vede angajatul. Poate lipsi: echipele fara supervizor raman valide.
+    supervisor_id = team.supervisor_id
     return {
         "name": team.name,
-        "leader": _team_member_payload(team.leader, team.leader_id, employee.UserId),
-        "members": [_team_member_payload(item, team.leader_id, employee.UserId) for item in ordered_members],
+        "supervisor": (
+            _team_member_payload(team.supervisor, team.leader_id, employee.UserId, supervisor_id)
+            if team.supervisor
+            else None
+        ),
+        "leader": _team_member_payload(team.leader, team.leader_id, employee.UserId, supervisor_id),
+        "members": [
+            _team_member_payload(item, team.leader_id, employee.UserId, supervisor_id)
+            for item in ordered_members
+        ],
     }
 
 

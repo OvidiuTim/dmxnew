@@ -70,6 +70,48 @@ describe('TeamPortalComponent performance regressions', () => {
     expect(fixture.nativeElement.querySelector('.attendance-card small').textContent).toContain('Ești pontat de 2 ore 5 minute');
   });
 
+  it('afișează cardul și ierarhia echipei pentru un membru fără rol de șef', () => {
+    route.snapshot.data.portalView = 'home';
+    fixture.detectChanges();
+    http.expectOne(`${api}/dashboard/`).flush({
+      employee: { id: 5, name: 'Membru', is_tesa: false },
+      can_view_my_team: true,
+      is_team_leader: false,
+      is_supervisor: false,
+      attendance: { is_clocked_in: false, started_at: null },
+      unread_notifications: 0,
+    });
+    fixture.detectChanges();
+    const teamCard = Array.from(fixture.nativeElement.querySelectorAll('.action-card'))
+      .find((card: any) => card.textContent.includes('Echipa mea')) as HTMLElement;
+    expect(teamCard).toBeTruthy();
+    fixture.destroy();
+
+    route.snapshot.data.portalView = 'team';
+    fixture = TestBed.createComponent(TeamPortalComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    http.expectOne(`${api}/teams/`).flush({
+      teams: [{
+        id: 7,
+        name: 'Confecții Metalice',
+        can_manage: false,
+        supervisor: { id: 1, name: 'Supervisor', trade: 'Supervisor', status: 'present', is_current_user: false },
+        leader: { id: 2, name: 'Șef Echipă', trade: 'Sudor', status: 'present', is_current_user: false },
+        members: [{ id: 5, name: 'Membru', trade: 'Sudor', status: 'present', is_current_user: true }],
+      }],
+      can_mark_absent: false,
+    });
+    http.expectOne(`${api}/notifications/summary/`).flush({ unread_count: 0 });
+    fixture.detectChanges();
+    const hierarchy = fixture.nativeElement.querySelector('.team-hierarchy');
+    expect(hierarchy.textContent).toContain('Supervisor');
+    expect(hierarchy.textContent).toContain('Șef Echipă');
+    expect(fixture.nativeElement.textContent).toContain('Membru');
+    expect(fixture.nativeElement.textContent).toContain('Tu');
+    expect(fixture.nativeElement.querySelector('.team-title button')).toBeNull();
+  });
+
   it('traduce statusul pontajului făcut după pragul de 08:10', () => {
     component.language = 'ro';
     expect(component.statusLabel('late')).toBe('Pontat după 08:10');

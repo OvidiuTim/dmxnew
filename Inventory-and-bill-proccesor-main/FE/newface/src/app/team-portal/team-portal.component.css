@@ -140,6 +140,18 @@ button, select, input, textarea, a { font: inherit; }
 .team-title h2 { border: 0; }
 .team-title button, .inline-add { min-height: 42px; border: 1px solid rgba(43,211,148,.42); border-radius: 10px; background: rgba(43,211,148,.12); color: #5ee2ae; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 800; cursor: pointer; }
 .team-title button .material-symbols-rounded, .inline-add .material-symbols-rounded { font-size: 19px; }
+.team-hierarchy { display: grid; justify-items: center; padding: 20px 16px 4px; background: linear-gradient(180deg, rgba(43,211,148,.045), transparent); }
+.hierarchy-level { width: min(100%, 520px); display: grid; gap: 7px; }
+.hierarchy-label, .hierarchy-members-label { color: #62e5b4; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.hierarchy-person { min-height: 70px; padding: 12px 14px; border: 1px solid #29405c; border-radius: 15px; background: #101e31; display: grid; grid-template-columns: 42px minmax(0,1fr) auto auto; align-items: center; gap: 10px; }
+.hierarchy-person-copy { display: grid; gap: 3px; min-width: 0; }
+.hierarchy-person-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hierarchy-person-copy small { color: #8fa0b7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hierarchy-connector { width: 2px; height: 24px; background: #35516f; }
+.hierarchy-connector.branch { position: relative; height: 28px; }
+.hierarchy-connector.branch::after { content: ''; position: absolute; left: 50%; bottom: 0; width: min(66vw, 360px); height: 12px; border: 2px solid #35516f; border-bottom: 0; border-radius: 14px 14px 0 0; transform: translateX(-50%); }
+.hierarchy-members-label { position: relative; z-index: 1; padding: 5px 12px; border-radius: 999px; background: #0c1829; }
+.you-badge { display: inline-flex; align-items: center; width: fit-content; padding: 3px 8px; border-radius: 999px; background: rgba(43,211,148,.16); color: #62e5b4; font-size: 10px; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
 .leave-balance { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; border: 1px solid rgba(43,211,148,.4); border-radius: 16px; background: rgba(43,211,148,.1); }
 .leave-balance span { color: #9db0c7; }
 .leave-balance strong { color: #5ee2ae; font-size: 30px; }

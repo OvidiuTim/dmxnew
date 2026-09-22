@@ -30,7 +30,7 @@
       </div>
 
       <section class="action-grid" [attr.aria-label]="t.dashboard">
-        <button *ngIf="dashboard.is_team_leader" type="button" class="action-card" (click)="open('team')">
+        <button *ngIf="dashboard.can_view_my_team" type="button" class="action-card" (click)="open('team')">
           <span class="card-icon material-symbols-rounded" aria-hidden="true">groups</span>
           <span><strong>{{ t.myTeam }}</strong><small>{{ t.teamHint }}</small></span>
           <span class="material-symbols-rounded card-arrow" aria-hidden="true">arrow_forward</span>
@@ -152,12 +152,35 @@
       <div class="section-title-row"><h1>{{ t.myTeam }}</h1></div>
       <p *ngIf="teamsLocked" class="locked-note">{{ lockedNotice(teamsLockTime) }}</p>
       <article *ngFor="let team of teams; trackBy: trackById" class="team-card">
-        <div class="team-title"><h2>{{ team.name }}</h2><button type="button" (click)="startAddMember(team)"><span class="material-symbols-rounded">person_add</span>{{ t.addMember }}</button></div>
+        <div class="team-title"><h2>{{ team.name }}</h2><button *ngIf="team.can_manage" type="button" (click)="startAddMember(team)"><span class="material-symbols-rounded">person_add</span>{{ t.addMember }}</button></div>
+        <div class="team-hierarchy">
+          <section class="hierarchy-level">
+            <span class="hierarchy-label">{{ t.supervisorRole }}</span>
+            <div class="hierarchy-person" [attr.data-status]="team.supervisor.status">
+              <span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="team.supervisor.photo" [src]="team.supervisor.photo" alt="" /><span *ngIf="!team.supervisor.photo">{{ team.supervisor.name.charAt(0) }}</span></span>
+              <span class="hierarchy-person-copy"><strong>{{ team.supervisor.name }}</strong><small>{{ team.supervisor.trade || '—' }}</small></span>
+              <span *ngIf="team.supervisor.is_current_user" class="you-badge">{{ t.youLabel }}</span>
+              <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(team.supervisor.status) }}</span>{{ statusLabel(team.supervisor.status) }}</span>
+            </div>
+          </section>
+          <span class="hierarchy-connector" aria-hidden="true"></span>
+          <section class="hierarchy-level">
+            <span class="hierarchy-label">{{ t.leaderLabel }}</span>
+            <div class="hierarchy-person" [attr.data-status]="team.leader.status">
+              <span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="team.leader.photo" [src]="team.leader.photo" alt="" /><span *ngIf="!team.leader.photo">{{ team.leader.name.charAt(0) }}</span></span>
+              <span class="hierarchy-person-copy"><strong>{{ team.leader.name }}</strong><small>{{ team.leader.trade || '—' }}</small></span>
+              <span *ngIf="team.leader.is_current_user" class="you-badge">{{ t.youLabel }}</span>
+              <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(team.leader.status) }}</span>{{ statusLabel(team.leader.status) }}</span>
+            </div>
+          </section>
+          <span class="hierarchy-connector branch" aria-hidden="true"></span>
+          <div class="hierarchy-members-label">{{ t.membersLabel }}</div>
+        </div>
         <p *ngIf="!team.members.length" class="empty-copy">{{ t.noMembers }}</p>
         <div *ngFor="let member of team.members; trackBy: trackById" class="member-row" [attr.data-status]="member.status">
           <button type="button" class="member-summary" (click)="toggleMember(member.id)" [attr.aria-expanded]="openMemberId === member.id">
             <span class="member-avatar"><img loading="lazy" decoding="async" *ngIf="member.photo" [src]="member.photo" alt="" /><span *ngIf="!member.photo">{{ member.name.charAt(0) }}</span></span>
-            <span class="member-name">{{ member.name }}</span>
+            <span class="member-name">{{ member.name }} <small *ngIf="member.is_current_user" class="you-badge">{{ t.youLabel }}</small></span>
             <span class="member-status"><span class="material-symbols-rounded" aria-hidden="true">{{ statusIcon(member.status) }}</span>{{ statusLabel(member.status) }}</span>
             <span class="material-symbols-rounded expand-icon" aria-hidden="true">{{ openMemberId === member.id ? 'expand_less' : 'expand_more' }}</span>
           </button>
@@ -165,7 +188,7 @@
             <strong>{{ member.name }}</strong>
             <span>{{ t.phone }}: {{ member.phone || t.noPhone }}</span>
             <a *ngIf="member.phone" class="call-button" [href]="'tel:' + member.phone"><span class="material-symbols-rounded" aria-hidden="true">call</span>{{ t.call }}</a>
-            <button *ngIf="member.status === 'absent' && teamsCanMarkAbsent" type="button" class="absent-button" (click)="markAbsent(member)" [disabled]="markingAbsentId === member.id">
+            <button *ngIf="team.can_manage && member.status === 'absent' && teamsCanMarkAbsent" type="button" class="absent-button" (click)="markAbsent(member)" [disabled]="markingAbsentId === member.id">
               <span class="material-symbols-rounded" aria-hidden="true">person_off</span>
               {{ markingAbsentId === member.id ? t.markingAbsent : t.markAbsent }}
             </button>

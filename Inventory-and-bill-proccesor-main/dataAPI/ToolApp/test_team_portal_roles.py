@@ -196,6 +196,29 @@ class TeamPortalRoleSecurityTests(TestCase):
             with self.subTest(endpoint=endpoint):
                 self.assertEqual(client.get(endpoint).status_code, 403)
 
+    def test_team_member_sees_only_own_complete_team_hierarchy(self):
+        client = client_for(self.member_account)
+        dashboard = client.get("/api/team-portal/dashboard/")
+        self.assertEqual(dashboard.status_code, 200, dashboard.content)
+        self.assertTrue(dashboard.json()["can_view_my_team"])
+        self.assertEqual(dashboard.json()["teams"], [{"id": self.destination.pk, "name": "Destinație"}])
+
+        response = client.get("/api/team-portal/teams/")
+        self.assertEqual(response.status_code, 200, response.content)
+        teams = response.json()["teams"]
+        self.assertEqual(len(teams), 1)
+        team = teams[0]
+        self.assertEqual(team["id"], self.destination.pk)
+        self.assertEqual(team["leader"]["id"], self.leader.pk)
+        self.assertEqual(team["supervisor"]["id"], self.supervisor.pk)
+        self.assertFalse(team["can_manage"])
+        self.assertEqual([member["id"] for member in team["members"]], [self.member.pk])
+        self.assertTrue(team["members"][0]["is_current_user"])
+        self.assertFalse(response.json()["can_mark_absent"])
+
+        other = client_for(self.source_member_account).get("/api/team-portal/teams/").json()["teams"]
+        self.assertEqual([team["id"] for team in other], [self.source.pk])
+
     def test_dismissed_employee_token_is_rejected(self):
         self.plain.employment_status = Users.EmploymentStatus.DISMISSED
         self.plain.active = False
@@ -302,7 +325,10 @@ class TeamPortalRoleSecurityTests(TestCase):
         self.assertEqual({team["id"] for team in teams}, {self.destination.pk})
         people = client.get("/api/team-portal/personnel/").json()["employees"]
         self.assertIn(self.source_member.pk, {person["id"] for person in people})
-        self.assertEqual(client.get("/api/team-portal/teams/").status_code, 403)
+        own_team = client.get("/api/team-portal/teams/")
+        self.assertEqual(own_team.status_code, 200, own_team.content)
+        self.assertEqual([team["id"] for team in own_team.json()["teams"]], [self.destination.pk])
+        self.assertTrue(own_team.json()["teams"][0]["can_manage"])
 
     def test_supervisor_directly_adds_an_unassigned_employee(self):
         response = client_for(self.supervisor_account).post(
