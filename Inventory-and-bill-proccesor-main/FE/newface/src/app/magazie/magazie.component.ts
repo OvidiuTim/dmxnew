@@ -18,10 +18,18 @@ export class MagazieComponent implements OnInit {
   storekeeperFormOpen = false;
   savingStorekeeper = false;
   storekeeperError: string | null = null;
+  tapeRows: any[] = [];
+  tapeLoading = true;
+  tapeDownloading = false;
+  tapeError: string | null = null;
+  tapeStartDate = '';
+  tapeEndDate = this.todayISO();
+  tapeSearch = '';
 
   constructor(private router: Router, private service:SharedService) { }
 
   ngOnInit(): void {
+    this.loadTapeReport();
     forkJoin({
       employees: this.service.getUsrList(),
       tools: this.service.getTolList(),
@@ -45,6 +53,101 @@ export class MagazieComponent implements OnInit {
         this.error = 'Rezumatul magaziei nu a putut fi încărcat.';
       }
     });
+  }
+
+  get filteredTapeRows(): any[] {
+    const search = this.tapeSearch.trim().toLocaleLowerCase('ro-RO');
+    if (!search) return this.tapeRows;
+    return this.tapeRows.filter(item => [
+      item.recipient_name,
+      item.recipient_series,
+      item.tool_name,
+      item.tool_series,
+      item.issued_by,
+    ].some(value => String(value || '').toLocaleLowerCase('ro-RO').includes(search)));
+  }
+
+  get tapeRecipientCount(): number {
+    return new Set(this.filteredTapeRows.map(item =>
+      item.recipient_id ? `id:${item.recipient_id}` : `name:${String(item.recipient_name || '').toLocaleLowerCase('ro-RO')}`
+    )).size;
+  }
+
+  get tapeQuantity(): number {
+    return this.filteredTapeRows.reduce((total, item) => total + (Number(item.quantity) || 0), 0);
+  }
+
+  loadTapeReport(): void {
+    if (this.tapeStartDate && this.tapeEndDate && this.tapeStartDate > this.tapeEndDate) {
+      this.tapeError = 'Data de început nu poate fi după data de sfârșit.';
+      return;
+    }
+    this.tapeLoading = true;
+    this.tapeError = null;
+    this.service.getTapeMeasureReport({
+      start_date: this.tapeStartDate,
+      end_date: this.tapeEndDate,
+    }).subscribe({
+      next: data => {
+        this.tapeRows = data?.rows || [];
+        this.tapeLoading = false;
+      },
+      error: response => {
+        this.tapeRows = [];
+        this.tapeLoading = false;
+        this.tapeError = response?.error?.error || 'Raportul de rulete nu a putut fi încărcat.';
+      },
+    });
+  }
+
+  downloadTapeReport(): void {
+    if (this.tapeDownloading) return;
+    if (this.tapeStartDate && this.tapeEndDate && this.tapeStartDate > this.tapeEndDate) {
+      this.tapeError = 'Data de început nu poate fi după data de sfârșit.';
+      return;
+    }
+    this.tapeDownloading = true;
+    this.tapeError = null;
+    this.service.exportTapeMeasureReport({
+      start_date: this.tapeStartDate,
+      end_date: this.tapeEndDate,
+      q: this.tapeSearch,
+    }).subscribe({
+      next: response => {
+        const blob = response.body;
+        if (!blob) {
+          this.tapeDownloading = false;
+          this.tapeError = 'Fișierul Excel nu a putut fi generat.';
+          return;
+        }
+        const disposition = response.headers.get('content-disposition') || '';
+        const match = disposition.match(/filename="?([^";]+)"?/i);
+        const filename = match?.[1] || `raport_rulete_${this.tapeEndDate || this.todayISO()}.xlsx`;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+        this.tapeDownloading = false;
+      },
+      error: response => {
+        this.tapeDownloading = false;
+        this.tapeError = response?.error?.error || 'Fișierul Excel nu a putut fi descărcat.';
+      },
+    });
+  }
+
+  formatReportDate(value: string | null | undefined): string {
+    if (!value) return 'Dată necunoscută';
+    const [year, month, day] = value.split('-');
+    return `${day}.${month}.${year}`;
+  }
+
+  private todayISO(): string {
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 10);
   }
 
   private applyStorekeeperData(data: any): void {

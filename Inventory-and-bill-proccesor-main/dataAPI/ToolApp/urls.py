@@ -9,6 +9,7 @@ from ToolApp import organization_views
 from ToolApp import employee_reports
 from ToolApp import tesa_views
 from ToolApp import fleet_views
+from ToolApp import warehouse_reports
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -40,6 +41,8 @@ from .views import (
 )
 
 urlpatterns = [
+    path('api/warehouse/tape-measures/', warehouse_reports.tape_measure_report, name='tape_measure_report'),
+    path('api/warehouse/tape-measures/excel/', warehouse_reports.tape_measure_report_excel, name='tape_measure_report_excel'),
     path('api/fleet/lookup/', fleet_views.fleet_lookup, name='fleet_lookup'),
     path('api/fleet/equipment/', fleet_views.fleet_equipment_collection, name='fleet_equipment_collection'),
     path('api/fleet/equipment/dashboard/', fleet_views.fleet_dashboard, name='fleet_dashboard'),

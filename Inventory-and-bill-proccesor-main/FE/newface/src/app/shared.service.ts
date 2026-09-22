@@ -119,6 +119,18 @@ export class SharedService {
   removeStorekeeper(employeeId: number) {
     return this.http.delete<any>(`${this.API}/warehouse/storekeepers/`, { body: { employee_id: employeeId } });
   }
+  getTapeMeasureReport(params?: { start_date?: string; end_date?: string; q?: string }) {
+    return this.http.get<any>(`${this.API}/warehouse/tape-measures/`, {
+      params: this.cleanParams(params || {}),
+    });
+  }
+  exportTapeMeasureReport(params?: { start_date?: string; end_date?: string; q?: string }) {
+    return this.http.get(`${this.API}/warehouse/tape-measures/excel/`, {
+      params: this.cleanParams(params || {}),
+      observe: 'response',
+      responseType: 'blob',
+    });
+  }
 
   // --- Istoric ---
   getHisList(): Observable<any[]>      { return this.http.get<any[]>(`${this.API}/history/`); }

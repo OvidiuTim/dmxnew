@@ -22,6 +22,77 @@
     <button type="button" routerLink="/rafturi"><span class="module-icon material-symbols-rounded" aria-hidden="true">shelves</span><div><strong>Rafturi</strong><p>Organizarea fizică a spațiilor de depozitare.</p></div><i class="material-symbols-rounded" aria-hidden="true">arrow_forward</i></button>
   </section>
 
+  <section class="tape-report-section" aria-labelledby="tape-report-title">
+    <header class="section-header tape-report-header">
+      <div>
+        <span class="eyebrow">Raport unelte</span>
+        <h2 id="tape-report-title">Cine a primit rulete</h2>
+        <p>Include toate predările înregistrate și alocările inițiale importate, de la început până la data aleasă.</p>
+      </div>
+      <button type="button" class="primary-action" (click)="downloadTapeReport()" [disabled]="tapeDownloading || tapeLoading">
+        <span class="material-symbols-rounded" aria-hidden="true">download</span>
+        {{ tapeDownloading ? 'Se generează…' : 'Descarcă Excel' }}
+      </button>
+    </header>
+
+    <div class="tape-filters">
+      <label>
+        <span>De la</span>
+        <input type="date" [(ngModel)]="tapeStartDate" [max]="tapeEndDate || null">
+        <small>Lasă gol pentru prima înregistrare</small>
+      </label>
+      <label>
+        <span>Până la</span>
+        <input type="date" [(ngModel)]="tapeEndDate" [min]="tapeStartDate || null">
+      </label>
+      <label class="search-field">
+        <span>Caută</span>
+        <input type="search" [(ngModel)]="tapeSearch" placeholder="Nume, serie angajat sau ruletă">
+      </label>
+      <button type="button" class="secondary-action apply-report" (click)="loadTapeReport()" [disabled]="tapeLoading">
+        <span class="material-symbols-rounded" aria-hidden="true">filter_alt</span>
+        {{ tapeLoading ? 'Se încarcă…' : 'Aplică perioada' }}
+      </button>
+    </div>
+
+    <div class="state error" *ngIf="tapeError">{{ tapeError }}</div>
+
+    <div class="tape-summary" *ngIf="!tapeLoading && !tapeError">
+      <article><strong>{{ filteredTapeRows.length }}</strong><span>predări găsite</span></article>
+      <article><strong>{{ tapeRecipientCount }}</strong><span>persoane distincte</span></article>
+      <article><strong>{{ tapeQuantity }}</strong><span>bucăți predate</span></article>
+    </div>
+
+    <div class="report-loading" *ngIf="tapeLoading">Se încarcă raportul…</div>
+    <div class="report-table-wrap" *ngIf="!tapeLoading && !tapeError && filteredTapeRows.length">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>Persoană</th>
+            <th>Ruletă</th>
+            <th>Cantitate</th>
+            <th>Data primirii</th>
+            <th>Predat de</th>
+            <th>Sursă</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of filteredTapeRows">
+            <td><strong>{{ item.recipient_name }}</strong><small>{{ item.person_type }}{{ item.recipient_series ? ' · ' + item.recipient_series : '' }}</small></td>
+            <td><strong>{{ item.tool_name }}</strong><small *ngIf="item.tool_series">{{ item.tool_series }}</small></td>
+            <td><span class="quantity-pill">{{ item.quantity }}</span></td>
+            <td>{{ formatReportDate(item.received_date) }}</td>
+            <td>{{ item.issued_by || '—' }}</td>
+            <td><span class="source-pill" [class.imported]="item.source !== 'Istoric mișcări'">{{ item.source }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="empty-copy" *ngIf="!tapeLoading && !tapeError && !filteredTapeRows.length">
+      Nu există predări de rulete pentru perioada sau căutarea selectată.
+    </p>
+  </section>
+
   <section class="storekeeper-section" aria-labelledby="storekeeper-title">
     <header class="section-header">
       <div>
