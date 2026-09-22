@@ -691,6 +691,7 @@ class LeaveRequest(models.Model):
     class LeaveType(models.TextChoices):
         PAID_LEAVE = "paid_leave", "Concediu de odihnă"
         UNPAID_LEAVE = "unpaid_leave", "Concediu fără plată"
+        MEDICAL_LEAVE = "medical_leave", "Concediu medical"
 
     class Status(models.TextChoices):
         PENDING = "pending", "În așteptare"
@@ -770,20 +771,27 @@ class LeaveRequest(models.Model):
             reason_map = {
                 self.LeaveType.PAID_LEAVE: LeaveDay.Reason.CO,
                 self.LeaveType.UNPAID_LEAVE: LeaveDay.Reason.UNPAID,
+                self.LeaveType.MEDICAL_LEAVE: LeaveDay.Reason.CM,
             }
+            # Concediul medical se plateste 75%, ca la zilele introduse de
+            # administrator (vezi views.py). Pentru CO si UNPAID pastram
+            # comportamentul existent, ca sa nu schimbam retroactiv salarizarea.
+            multiplier_map = {LeaveDay.Reason.CM: Decimal("0.75")}
             current = self.start_date
             hourly_rate = self.employee.hourly_rate or Decimal("0.00")
             while current <= self.end_date:
                 if current.isoweekday() <= 6:
+                    leave_reason = reason_map[self.leave_type]
+                    multiplier = multiplier_map.get(leave_reason, Decimal("1.00"))
                     LeaveDay.objects.update_or_create(
                         user_fk=self.employee,
                         work_date=current,
                         defaults={
-                            "reason": reason_map[self.leave_type],
+                            "reason": leave_reason,
                             "hours": Decimal("8.00"),
-                            "multiplier": Decimal("1.00"),
+                            "multiplier": multiplier,
                             "hourly_rate_snapshot": hourly_rate,
-                            "pay_amount": hourly_rate * Decimal("8.00"),
+                            "pay_amount": hourly_rate * Decimal("8.00") * multiplier,
                             "note": self.reason[:255],
                             "source_leave_request": self,
                         },
