@@ -44,7 +44,7 @@ describe('ClockinandoutComponent', () => {
   it('uses the principal attendance worksite coordinates in clock-in and team dashboard mode', () => {
     const byName = new Map(component.worksites.map(worksite => [worksite.name, worksite]));
 
-    expect(component.worksites.length).toBe(15);
+    expect(component.worksites.length).toBe(16);
     expect(component.worksites.every(worksite => worksite.radiusMeters === 90)).toBeTrue();
     expect(byName.get('The Lake Home Bloc A')?.center).toEqual({
       lat: 45.81034964338528,
@@ -53,6 +53,10 @@ describe('ClockinandoutComponent', () => {
     expect(byName.get('Birou ingineri & TESA')?.center).toEqual({
       lat: 45.809820427020156,
       lng: 24.13019018453687,
+    });
+    expect(byName.get('Magazie si aprovizionare')?.center).toEqual({
+      lat: 45.81009008953653,
+      lng: 24.130724515361457,
     });
     expect(byName.get('Cisnadie')?.center).toEqual({
       lat: 45.71648035800439,

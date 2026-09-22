@@ -20,6 +20,7 @@ ATTENDANCE_WORKSITES = (
     {"name": "The Lake Home Bloc B2", **_LAKE_HOME_CENTER, "radius_meters": 40},
     {"name": "The Lake Home Bloc E & F", **_LAKE_HOME_CENTER, "radius_meters": 40},
     dict(ENGINEERING_OFFICE_WORKSITE),
+    {"name": "Magazie si aprovizionare", "latitude": 45.81009008953653, "longitude": 24.130724515361457, "radius_meters": 90},
     {"name": "Psihiatrie C8", "latitude": 45.80720228440877, "longitude": 24.15440514734915, "radius_meters": 40},
     {"name": "Psihiatrie C16", "latitude": 45.80768553302182, "longitude": 24.157085884823974, "radius_meters": 40},
     {"name": "Spital Victoria", "latitude": 45.725861888407216, "longitude": 24.70584969156609, "radius_meters": 40},
@@ -110,6 +111,7 @@ ACCEPTED_WORKSITES = (
     "The Lake Home Bloc B2",
     "The Lake Home Bloc E & F",
     "Birou ingineri & TESA",
+    "Magazie si aprovizionare",
     "magazie/depozit",
     "Psihiatrie C8",
     "Psihiatrie C16",
@@ -160,6 +162,9 @@ def _aliases():
         "Birou ingineri & TESA": (
             "Birou", "Biroul inginerilor", "Birou Ingineri", "Birou ingineri si TESA",
             "Birou ingineri TESA", "Chef",
+        ),
+        "Magazie si aprovizionare": (
+            "Magazie aprovizionare", "Magazie și aprovizionare",
         ),
         "magazie/depozit": ("Magazie", "Depozit", "Magazie depozit", "Warehouse"),
         "Psihiatrie C8": ("C8 Psihiatrie", "Psihiatrie C 8", "C8"),

@@ -73,6 +73,7 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     { name: 'The Lake Home Bloc B2', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 90 },
     { name: 'The Lake Home Bloc E & F', type: 'circle', center: this.sharedLakeHomeCenter, radiusMeters: 90 },
     { name: 'Birou ingineri & TESA', type: 'circle', center: { lat: 45.809820427020156, lng: 24.13019018453687 }, radiusMeters: 90 },
+    { name: 'Magazie si aprovizionare', type: 'circle', center: { lat: 45.81009008953653, lng: 24.130724515361457 }, radiusMeters: 90 },
     { name: 'Psihiatrie C8', type: 'circle', center: { lat: 45.80720228440877, lng: 24.15440514734915 }, radiusMeters: 90 },
     { name: 'Psihiatrie C16', type: 'circle', center: { lat: 45.80768553302182, lng: 24.157085884823974 }, radiusMeters: 90 },
     { name: 'Spital Victoria', type: 'circle', center: { lat: 45.725861888407216, lng: 24.70584969156609 }, radiusMeters: 90 },

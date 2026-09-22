@@ -36,6 +36,7 @@ interface AttendanceSuccessNotice {
 export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly language = readEmployeeLanguage();
   readonly t = employeeCopy[this.language];
+  readonly defaultWorksite = 'Birou ingineri & TESA';
   get blockedReason(): string {
     if (this.status?.blocked_reason_code === 'ATTENDANCE_CONFLICT') return this.t.attendanceConflict;
     if (this.status?.blocked_reason_code === 'LEAVE_CONFLICT') return this.t.leaveConflict;
@@ -92,7 +93,11 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
       next: status => {
         this.status = status;
         this.loading = false;
-        if (status.session?.worksite) this.worksite = status.session.worksite;
+        if (status.session?.worksite) {
+          this.worksite = status.session.worksite;
+        } else if (!this.worksite && status.worksites.some(site => site.name === this.defaultWorksite)) {
+          this.worksite = this.defaultWorksite;
+        }
         setTimeout(() => this.drawWorksite(), 0);
       },
       error: err => {
@@ -117,6 +122,15 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
       pa: 'ਚੈੱਕ-ਇਨ ਜਾਂ ਚੈੱਕ-ਆਉਟ ਦਬਾਓ। ਤੁਸੀਂ ਕਿਤੇ ਤੋਂ ਵੀ ਹਾਜ਼ਰੀ ਲਗਾ ਸਕਦੇ ਹੋ; ਮੌਜੂਦਾ GPS ਟਿਕਾਣਾ ਸੰਭਾਲਿਆ ਜਾਵੇਗਾ।',
       hi: 'चेक-इन या चेक-आउट दबाएँ। आप कहीं से भी उपस्थिति दर्ज कर सकते हैं; वर्तमान GPS स्थान सहेजा जाएगा।',
       ne: 'चेक-इन वा चेक-आउट थिच्नुहोस्। तपाईं जहाँबाट पनि हाजिरी गर्न सक्नुहुन्छ; हालको GPS स्थान सुरक्षित गरिनेछ।',
+    }[this.language];
+  }
+  get workPointLabel(): string {
+    return {
+      ro: 'Selectează punctul de lucru',
+      en: 'Select work location',
+      pa: 'ਕੰਮ ਦੀ ਥਾਂ ਚੁਣੋ',
+      hi: 'कार्य स्थल चुनें',
+      ne: 'कार्यस्थल छान्नुहोस्',
     }[this.language];
   }
   /** Sesiunea de azi e închisă, dar se poate începe una nouă (depontare din greșeală,

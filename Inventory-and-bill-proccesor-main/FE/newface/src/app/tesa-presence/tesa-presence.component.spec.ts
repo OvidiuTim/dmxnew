@@ -36,7 +36,7 @@ describe('TesaPresenceComponent', () => {
 
   it('face check-in cu GPS proaspăt, confirmă ora și revine la dashboard', fakeAsync(() => {
     http.expectOne(api).flush(state);
-    component.worksite = site.name;
+    expect(component.worksite).toBe(site.name);
     let accept!: PositionCallback;
     spyOn(navigator.geolocation, 'getCurrentPosition').and.callFake(callback => { accept = callback; });
     component.confirm();
@@ -57,6 +57,18 @@ describe('TesaPresenceComponent', () => {
     expect(fixture.nativeElement.querySelector('video')).toBeNull();
     tick(1800);
     expect(router.navigateByUrl).toHaveBeenCalledWith('/team-dashboard');
+  }));
+
+  it('afișează punctul de lucru și selectează implicit Birou ingineri & TESA', fakeAsync(() => {
+    http.expectOne(api).flush(state);
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    expect(component.worksite).toBe('Birou ingineri & TESA');
+    expect(fixture.nativeElement.querySelector('label[for="tesa-worksite"]').textContent)
+      .toContain('Selectează punctul de lucru');
+    expect(fixture.nativeElement.querySelector('#tesa-worksite').value).toBe('Birou ingineri & TESA');
+    tick(1000);
   }));
 
   it('face check-out pentru sesiunea activă și salvează orele reale', () => {

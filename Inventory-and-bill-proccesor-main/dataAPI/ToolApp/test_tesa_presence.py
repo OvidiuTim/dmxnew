@@ -49,6 +49,18 @@ class TesaPresenceTests(TestCase):
         self.assertEqual(admin.get(self.url).status_code, 403)
         self.assertFalse(AttendanceSession.objects.exists())
 
+    def test_tesa_worksites_include_magazie_si_aprovizionare(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200, response.content)
+        worksites = {item['name']: item for item in response.json()['worksites']}
+        self.assertIn('Birou ingineri & TESA', worksites)
+        self.assertEqual(worksites['Magazie si aprovizionare'], {
+            'name': 'Magazie si aprovizionare',
+            'latitude': 45.81009008953653,
+            'longitude': 24.130724515361457,
+            'radius_meters': 90,
+        })
+
     def test_admin_checkbox_roundtrip_and_portal_cannot_change_it(self):
         admin = Client()
         admin.cookies['ptj'] = make_admin_token()

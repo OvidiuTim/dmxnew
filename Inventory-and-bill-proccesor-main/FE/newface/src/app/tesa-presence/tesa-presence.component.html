@@ -26,9 +26,9 @@
         <p *ngIf="status.blocked_reason" class="state blocked" role="status">{{ blockedReason }}</p>
         <ng-container *ngIf="canSubmit">
           <ng-container>
-            <label for="tesa-worksite">{{ t.worksite }}</label>
+            <label for="tesa-worksite">{{ workPointLabel }}</label>
             <select id="tesa-worksite" [(ngModel)]="worksite" (ngModelChange)="worksiteChanged()" [disabled]="action === 'check_out' || locating || saving">
-              <option value="">{{ t.chooseSite }}</option>
+              <option value="">{{ workPointLabel }}</option>
               <option *ngFor="let site of status.worksites" [value]="site.name">{{ site.name }}</option>
             </select>
 
@@ -57,7 +57,7 @@
 
             <div class="location-card" *ngIf="!worksite">
               <span class="material-symbols-rounded" aria-hidden="true">location_on</span>
-              <div><strong>{{ t.chooseSite }}</strong>
+              <div><strong>{{ workPointLabel }}</strong>
                 <p>{{ t.mapHint }}</p>
               </div>
             </div>
