@@ -56,8 +56,9 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   successNotice: AttendanceSuccessNotice | null = null;
   private dashboardRedirectTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Harta arată șantierul selectat și poziția reală. Șoferii pot continua din
-  // afara razei, însă GPS-ul și șantierul rămân obligatorii și sunt salvate.
+  // Reguli: TESA = punct de lucru + poziție în raza lui (harta arată cercul).
+  // TESA + pontaj mobil permis = de oriunde, fără hartă; punctul de lucru rămâne
+  // selectabil, implicit „Birou ingineri & TESA”. GPS-ul se salvează mereu.
   @ViewChild('mapEl') set mapElement(element: ElementRef<HTMLElement> | undefined) {
     if (element && !this.map) {
       this.initMap(element.nativeElement);
@@ -117,11 +118,11 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   get unrestrictedHint(): string {
     return {
-      ro: 'Apasă intrare sau ieșire. Poți face pontajul de oriunde; locația GPS curentă va fi salvată.',
-      en: 'Tap check-in or check-out. You can clock in from anywhere; your current GPS location will be saved.',
-      pa: 'ਚੈੱਕ-ਇਨ ਜਾਂ ਚੈੱਕ-ਆਉਟ ਦਬਾਓ। ਤੁਸੀਂ ਕਿਤੇ ਤੋਂ ਵੀ ਹਾਜ਼ਰੀ ਲਗਾ ਸਕਦੇ ਹੋ; ਮੌਜੂਦਾ GPS ਟਿਕਾਣਾ ਸੰਭਾਲਿਆ ਜਾਵੇਗਾ।',
-      hi: 'चेक-इन या चेक-आउट दबाएँ। आप कहीं से भी उपस्थिति दर्ज कर सकते हैं; वर्तमान GPS स्थान सहेजा जाएगा।',
-      ne: 'चेक-इन वा चेक-आउट थिच्नुहोस्। तपाईं जहाँबाट पनि हाजिरी गर्न सक्नुहुन्छ; हालको GPS स्थान सुरक्षित गरिनेछ।',
+      ro: 'Verifică punctul de lucru și apasă butonul de mai jos.',
+      en: 'Check the work point and tap the button below.',
+      pa: 'ਕੰਮ ਦੀ ਥਾਂ ਜਾਂਚੋ ਅਤੇ ਹੇਠਾਂ ਦਿੱਤਾ ਬਟਨ ਦਬਾਓ।',
+      hi: 'कार्य स्थल जाँचें और नीचे दिया बटन दबाएँ।',
+      ne: 'कार्यस्थल जाँच गर्नुहोस् र तलको बटन थिच्नुहोस्।',
     }[this.language];
   }
   get workPointLabel(): string {
@@ -143,20 +144,20 @@ export class TesaPresenceComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   get resumeHint(): string {
     return {
-      ro: 'Pontajul de mai sus a fost salvat. Dacă te-ai depontat din greșeală sau revii pe șantier, poți începe o intrare nouă.',
-      en: 'The attendance above has been saved. If you clocked out by mistake or you are back on site, you can start a new entry.',
-      pa: 'ਉੱਪਰਲੀ ਹਾਜ਼ਰੀ ਸੰਭਾਲੀ ਗਈ ਹੈ। ਜੇ ਤੁਸੀਂ ਗਲਤੀ ਨਾਲ ਚੈੱਕ-ਆਉਟ ਕੀਤਾ ਸੀ ਜਾਂ ਵਾਪਸ ਸਾਈਟ ਤੇ ਆਏ ਹੋ, ਤਾਂ ਨਵੀਂ ਹਾਜ਼ਰੀ ਸ਼ੁਰੂ ਕਰ ਸਕਦੇ ਹੋ।',
-      hi: 'ऊपर की उपस्थिति सहेज ली गई है। यदि आपने गलती से चेक-आउट किया था या आप वापस साइट पर हैं, तो आप नई प्रविष्टि शुरू कर सकते हैं।',
-      ne: 'माथिको हाजिरी सुरक्षित भयो। यदि तपाईंले गल्तीले चेक-आउट गर्नुभयो वा साइटमा फर्कनुभयो भने, नयाँ प्रविष्टि सुरु गर्न सक्नुहुन्छ।',
+      ro: 'Pontajul a fost salvat. Pentru o intrare nouă, apasă butonul de mai jos.',
+      en: 'Your attendance was saved. To start a new entry, tap the button below.',
+      pa: 'ਹਾਜ਼ਰੀ ਸੰਭਾਲੀ ਗਈ ਹੈ। ਨਵੀਂ ਹਾਜ਼ਰੀ ਲਈ ਹੇਠਾਂ ਦਿੱਤਾ ਬਟਨ ਦਬਾਓ।',
+      hi: 'उपस्थिति सहेज ली गई है। नई प्रविष्टि के लिए नीचे दिया बटन दबाएँ।',
+      ne: 'हाजिरी सुरक्षित भयो। नयाँ प्रविष्टिका लागि तलको बटन थिच्नुहोस्।',
     }[this.language];
   }
   get perimeterRequiredHint(): string {
     return {
-      ro: 'Trebuie să fii în raza șantierului selectat pentru a te ponta.',
-      en: 'You must be within the selected worksite radius to record attendance.',
-      pa: 'ਹਾਜ਼ਰੀ ਲਗਾਉਣ ਲਈ ਤੁਹਾਨੂੰ ਚੁਣੀ ਸਾਈਟ ਦੇ ਘੇਰੇ ਅੰਦਰ ਹੋਣਾ ਲਾਜ਼ਮੀ ਹੈ।',
-      hi: 'उपस्थिति दर्ज करने के लिए आपको चुनी हुई साइट की सीमा के भीतर होना चाहिए।',
-      ne: 'हाजिरी दर्ता गर्न तपाईं चयन गरिएको साइटको परिधिभित्र हुनुपर्छ।',
+      ro: 'Mergi în zona punctului de lucru selectat și încearcă din nou.',
+      en: 'Go to the selected work point area and try again.',
+      pa: 'ਚੁਣੀ ਕੰਮ ਦੀ ਥਾਂ ਦੇ ਖੇਤਰ ਵਿੱਚ ਜਾਓ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।',
+      hi: 'चुने गए कार्य स्थल के क्षेत्र में जाएँ और फिर से प्रयास करें।',
+      ne: 'छानिएको कार्यस्थलको क्षेत्रमा जानुहोस् र फेरि प्रयास गर्नुहोस्।',
     }[this.language];
   }
   get distanceMeters(): number | null {

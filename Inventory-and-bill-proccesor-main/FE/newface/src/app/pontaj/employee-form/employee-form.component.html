@@ -87,9 +87,10 @@
             <div class="field" *ngIf="!isCollaborator">
               <label class="tesa-option" for="user-is-driver">
                 <input id="user-is-driver" type="checkbox" formControlName="is_driver">
-                <span>Șofer</span>
+                <span>{{ form.value.is_tesa ? 'Pontaj mobil permis' : 'Șofer' }}</span>
               </label>
-              <small>Alege șantierul, dar se poate ponta din orice locație. Poziția GPS reală rămâne obligatorie și este salvată.</small>
+              <small *ngIf="!form.value.is_tesa">Alege șantierul, dar se poate ponta din orice locație. Poziția GPS reală rămâne obligatorie și este salvată.</small>
+              <small *ngIf="form.value.is_tesa">Se poate ponta din orice locație, fără fotografie. Punctul de lucru implicit este „Birou ingineri &amp; TESA”; poziția GPS reală este salvată.</small>
             </div>
           </div>
         </section>

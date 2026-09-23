@@ -2216,7 +2216,7 @@ def nfc_scan(request):
 
     if attendance_mode == "driver" and not gps_payload:
         return JsonResponse({
-            "error": "Locatia GPS este obligatorie pentru pontajul soferilor.",
+            "error": "Permite accesul la locație și încearcă din nou.",
             "error_code": "GPS_REQUIRED_FOR_DRIVER"
         }, status=400)
 
@@ -2337,7 +2337,7 @@ def nfc_scan(request):
 
     if attendance_mode == "driver" and not user.is_driver:
         return JsonResponse({
-            "error": "Pontajul din orice locație este disponibil numai angajaților marcați ca șoferi.",
+            "error": "Alege punctul de lucru și pontează-te din zona lui.",
             "error_code": "DRIVER_ACCESS_REQUIRED",
         }, status=403)
 

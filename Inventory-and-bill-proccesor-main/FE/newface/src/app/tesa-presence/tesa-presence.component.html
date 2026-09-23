@@ -22,7 +22,7 @@
         <div class="schedule" *ngIf="status.session && !status.session.out_time"><div><span>{{ status.session.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ status.session.in_time | date:'HH:mm' }} – {{ t.inProgress }}</strong></div><span class="hours">{{ status.session.hours | number:'1.0-2' }} {{ t.hours }}</span></div>
         <div class="schedule closed" *ngIf="closedSession as lastSession"><div><span>{{ lastSession.work_date | date:'dd.MM.yyyy' }}</span><strong>{{ lastSession.in_time | date:'HH:mm' }} – {{ lastSession.out_time | date:'HH:mm' }}</strong></div><span class="hours">{{ lastSession.hours | number:'1.0-2' }} {{ t.hours }}</span></div>
         <p class="explanation" *ngIf="completedToday">{{ resumeHint }}</p>
-        <p class="explanation" *ngIf="!completedToday">{{ unrestrictedLocation ? unrestrictedHint : (status.session && !status.session.out_time ? t.tesaCheckedInHint : t.tesaAttendanceHint) }}</p>
+        <p class="explanation" *ngIf="!completedToday">{{ status.session && !status.session.out_time ? t.tesaCheckedInHint : (unrestrictedLocation ? unrestrictedHint : t.tesaAttendanceHint) }}</p>
         <p *ngIf="status.blocked_reason" class="state blocked" role="status">{{ blockedReason }}</p>
         <ng-container *ngIf="canSubmit">
           <ng-container>
@@ -32,7 +32,7 @@
               <option *ngFor="let site of status.worksites" [value]="site.name">{{ site.name }}</option>
             </select>
 
-            <section class="map-card" *ngIf="worksite">
+            <section class="map-card" *ngIf="worksite && !unrestrictedLocation">
               <div class="legend">
                 <span class="legend-item"><span class="legend-dot zone"></span>{{ t.zone }}</span>
                 <span class="legend-item"><span class="legend-dot you" [class.outside]="insidePerimeter === false"></span>{{ t.myPosition }}</span>
@@ -48,7 +48,7 @@
                 <span class="meta-pill" *ngIf="locating">{{ t.locating }}</span>
               </div>
               <p class="outside-note" *ngIf="insidePerimeter === false">
-                {{ unrestrictedLocation ? t.driverHint : perimeterRequiredHint }}
+                {{ perimeterRequiredHint }}
               </p>
               <button type="button" class="location-button" (click)="locate()" [disabled]="locating || saving">
                 <span class="material-symbols-rounded" aria-hidden="true">my_location</span>{{ locating ? t.locating : t.refreshLocation }}

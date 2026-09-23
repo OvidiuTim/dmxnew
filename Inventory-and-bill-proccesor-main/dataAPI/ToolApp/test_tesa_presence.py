@@ -187,7 +187,6 @@ class TesaPresenceTests(TestCase):
             'accuracy': 11,
             'captured_at': self.now.isoformat(),
         }
-        self.assertEqual(self.post({'action': 'check_in', 'gps': gps}).status_code, 400)
         checkin = self.post({'action': 'check_in', 'worksite': self.site['name'], 'gps': gps})
         self.assertEqual(checkin.status_code, 201, checkin.content)
         session = AttendanceSession.objects.get(user_fk=self.employee)
@@ -212,6 +211,29 @@ class TesaPresenceTests(TestCase):
         self.assertEqual(session.out_gps_latitude, checkout_gps['lat'])
         self.assertEqual(session.out_gps_longitude, checkout_gps['lng'])
         self.assertEqual(session.checkout_photo, '')
+
+    def test_tesa_driver_without_worksite_defaults_to_tesa_office_from_anywhere(self):
+        self.employee.is_driver = True
+        self.employee.save(update_fields=('is_driver',))
+        gps = {'lat': 46.123, 'lng': 25.456, 'accuracy': 11, 'captured_at': self.now.isoformat()}
+        checkin = self.post({'action': 'check_in', 'gps': gps})
+        self.assertEqual(checkin.status_code, 201, checkin.content)
+        session = AttendanceSession.objects.get(user_fk=self.employee)
+        self.assertEqual(session.worksite, 'Birou ingineri & TESA')
+        checkout_now = self.now + timedelta(hours=2)
+        checkout = self.post(
+            {'action': 'check_out', 'gps': {**gps, 'captured_at': checkout_now.isoformat()}},
+            now=checkout_now,
+        )
+        self.assertEqual(checkout.status_code, 200, checkout.content)
+        session.refresh_from_db()
+        self.assertIsNotNone(session.out_time)
+
+    def test_tesa_without_driver_must_choose_worksite(self):
+        payload = self.payload()
+        payload.pop('worksite')
+        self.assertEqual(self.post(payload).status_code, 400)
+        self.assertFalse(AttendanceSession.objects.exists())
 
     def test_leave_prevents_attendance_but_a_closed_session_does_not(self):
         AttendanceSession.objects.create(user_fk=self.employee, work_date=self.now.date(),
