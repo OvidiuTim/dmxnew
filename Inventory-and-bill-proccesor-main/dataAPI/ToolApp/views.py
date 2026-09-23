@@ -2703,7 +2703,11 @@ def pontaj_login(request):
         }, status=404)
 
     _log_pin_attempt(request, success=True, reason="login_ok", device_key=device_key, uid=uid)
-    role_mode = "driver" if user.is_driver else "tesa" if user.is_tesa else "worker"
+    # TESA are prioritate fata de sofer: cine e bifat si TESA, si sofer se ponteaza
+    # prin fluxul TESA (fara fotografie, fara santier, de oriunde), iar tesa_views
+    # ii da unrestricted_location tocmai pentru combinatia asta. Cu ordinea inversa
+    # combinatia era imposibil de atins din aplicatie.
+    role_mode = "tesa" if user.is_tesa else "driver" if user.is_driver else "worker"
     return JsonResponse({
         "ok": True,
         "mode": role_mode,
