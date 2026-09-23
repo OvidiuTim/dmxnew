@@ -158,51 +158,51 @@
   <ng-container *ngIf="!loading && mode === 'notifications'">
     <section class="stats-grid notification-stats" aria-label="Situația notificărilor">
       <article><span class="stat-icon amber material-symbols-rounded" aria-hidden="true">notifications_active</span><div><strong>{{ notificationCount }}</strong><small>Notificări primite</small></div></article>
-      <article><span class="stat-icon green material-symbols-rounded" aria-hidden="true">pending_actions</span><div><strong>{{ pendingRequestCount }}</strong><small>În așteptare</small></div></article>
+      <article><span class="stat-icon green material-symbols-rounded" aria-hidden="true">pending_actions</span><div><strong>{{ pendingRequestCount }}</strong><small>Cereri în așteptare</small></div></article>
     </section>
+
+    <nav class="notification-tabs" role="tablist" aria-label="Tip notificare">
+      <button type="button" role="tab" [class.active]="notificationTab === 'attendance'" [attr.aria-selected]="notificationTab === 'attendance'" (click)="setNotificationTab('attendance')"><span class="material-symbols-rounded" aria-hidden="true">alarm</span><span>Notificări de pontaj</span><strong>{{ notificationTabCount('attendance') }}</strong></button>
+      <button type="button" role="tab" [class.active]="notificationTab === 'transfers'" [attr.aria-selected]="notificationTab === 'transfers'" (click)="setNotificationTab('transfers')"><span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span><span>Cereri de transfer</span><strong>{{ notificationTabCount('transfers') }}</strong></button>
+      <button type="button" role="tab" [class.active]="notificationTab === 'leave'" [attr.aria-selected]="notificationTab === 'leave'" (click)="setNotificationTab('leave')"><span class="material-symbols-rounded" aria-hidden="true">beach_access</span><span>Cereri de concediu</span><strong>{{ notificationTabCount('leave') }}</strong></button>
+    </nav>
+
     <section class="toolbar one-column"><label class="search-control"><span class="material-symbols-rounded" aria-hidden="true">search</span><input type="search" [(ngModel)]="searchTerm" placeholder="Caută angajat sau echipă" aria-label="Caută notificări"></label></section>
-    <section class="requests-card" *ngIf="filteredAttendanceAlerts.length">
-      <div class="table-scroll"><table class="notifications-table"><thead><tr><th>Tip</th><th>Echipă</th><th>Șantier</th><th>Data</th><th>Angajați fără check-in</th></tr></thead>
-        <tbody><tr *ngFor="let item of filteredAttendanceAlerts; trackBy: trackById" [class.unseen-request]="item.is_unseen">
-          <td><span class="type-chip">Pontaj 07:30</span></td>
-          <td><strong>{{ item.team.name }}</strong></td>
-          <td>{{ item.worksite || 'Fără șantier asignat' }}</td>
-          <td class="mono">{{ item.date | date:'dd.MM.yyyy' }}</td>
-          <td><span *ngFor="let employee of item.employees; let last = last"><a [routerLink]="['/user', employee.id]">{{ employee.name }}</a><span *ngIf="!last">, </span></span></td>
-        </tr></tbody>
-      </table></div>
+
+    <section *ngIf="notificationTab === 'attendance'" class="notification-panel" role="tabpanel">
+      <header class="notification-panel-head"><div><span class="eyebrow">Pontaj lipsă</span><h2>Angajați care nu s-au pontat</h2><p>Deschide fiecare zi pentru a vedea nominal angajații, echipa și șantierul.</p></div></header>
+      <div class="attendance-days" *ngIf="attendanceAlertsByDate.length; else noAttendanceNotifications">
+        <article *ngFor="let day of attendanceAlertsByDate" class="attendance-day" [class.unseen-request]="day.isUnseen">
+          <button type="button" class="attendance-day-toggle" (click)="toggleAttendanceDate(day.date)" [attr.aria-expanded]="isAttendanceDateExpanded(day.date)">
+            <span class="attendance-date-icon material-symbols-rounded" aria-hidden="true">calendar_today</span>
+            <span class="attendance-day-copy"><strong>{{ formatNotificationDate(day.date) }}</strong><small>{{ day.employeeCount }} {{ day.employeeCount === 1 ? 'angajat fără pontaj' : 'angajați fără pontaj' }} · {{ day.teamCount }} {{ day.teamCount === 1 ? 'echipă' : 'echipe' }}</small></span>
+            <span class="attendance-total">{{ day.employeeCount }}</span>
+            <span class="material-symbols-rounded attendance-chevron" aria-hidden="true">{{ isAttendanceDateExpanded(day.date) ? 'expand_less' : 'expand_more' }}</span>
+          </button>
+          <div class="attendance-day-detail" *ngIf="isAttendanceDateExpanded(day.date)">
+            <section *ngFor="let alert of day.alerts; trackBy: trackById" class="attendance-team-group">
+              <header><div><strong>{{ alert.team.name }}</strong><small><span class="material-symbols-rounded" aria-hidden="true">location_on</span>{{ alert.worksite || 'Fără șantier asignat' }}</small></div><span>{{ alert.employees.length }} {{ alert.employees.length === 1 ? 'persoană' : 'persoane' }}</span></header>
+              <div class="attendance-employee-list">
+                <a *ngFor="let employee of alert.employees; trackBy: trackById" [routerLink]="['/user', employee.id]" class="attendance-employee"><app-employee-avatar [employee]="employee" size="small"></app-employee-avatar><span><strong>{{ employee.name }}</strong><small>{{ employee.trade || employee.company || employee.serie || 'Date necompletate' }}</small></span><span class="missing-chip"><span class="material-symbols-rounded" aria-hidden="true">person_off</span>Fără pontaj</span><span class="material-symbols-rounded open-employee" aria-hidden="true">chevron_right</span></a>
+              </div>
+            </section>
+          </div>
+        </article>
+      </div>
+      <ng-template #noAttendanceNotifications><div class="notification-empty"><span class="material-symbols-rounded" aria-hidden="true">task_alt</span><strong>Nu există notificări de pontaj.</strong><small>Niciun angajat nu corespunde căutării curente.</small></div></ng-template>
     </section>
-    <section class="requests-card" *ngIf="filteredRequests.length">
-      <div class="table-scroll"><table class="notifications-table"><thead><tr><th>Tip</th><th>Muncitor</th><th>Solicitare</th><th>Perioadă</th><th>Motiv</th><th>Status</th><th>Acțiuni</th></tr></thead>
-        <tbody><tr *ngFor="let item of filteredRequests; trackBy: trackById" [class.unseen-request]="item.is_unseen">
-          <td><span class="type-chip" [class.permanent]="item.request_type === 'permanent'">{{ item.request_type_label }}</span></td>
-          <td><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || 'Meserie necompletată' }}</small></td>
-          <td><strong>{{ item.requester_team.name }}</strong><small>solicită din {{ item.source_team.name }}</small></td>
-          <td class="mono">{{ item.request_type === 'permanent' ? 'Permanent' : (item.start_date + ' – ' + item.end_date) }}</td>
-          <td>{{ item.reason || '—' }}</td>
-          <td><span class="status-chip" [attr.data-status]="item.status">{{ item.status_label }}</span></td>
-          <td><div class="row-actions">
-            <button *ngIf="item.can_approve" type="button" class="decision approve" (click)="requestAction(item, 'approve')"><span class="material-symbols-rounded" aria-hidden="true">check</span>Aprobă</button>
-            <button *ngIf="item.can_reject" type="button" class="decision reject" (click)="requestAction(item, 'reject')"><span class="material-symbols-rounded" aria-hidden="true">close</span>Respinge</button>
-            <span class="resolved-label" *ngIf="!item.can_approve && !item.can_reject">Soluționată</span>
-          </div></td>
-        </tr></tbody>
-      </table></div>
+
+    <section *ngIf="notificationTab === 'transfers'" class="notification-panel" role="tabpanel">
+      <header class="notification-panel-head"><div><span class="eyebrow">Echipe</span><h2>Cereri de transfer</h2><p>Solicitările temporare și permanente pentru mutarea angajaților între echipe.</p></div></header>
+      <div class="table-scroll" *ngIf="filteredRequests.length; else noTransferNotifications"><table class="notifications-table"><thead><tr><th>Tip</th><th>Muncitor</th><th>Solicitare</th><th>Perioadă</th><th>Motiv</th><th>Status</th><th>Acțiuni</th></tr></thead><tbody><tr *ngFor="let item of filteredRequests; trackBy: trackById" [class.unseen-request]="item.is_unseen"><td><span class="type-chip" [class.permanent]="item.request_type === 'permanent'">{{ item.request_type_label }}</span></td><td><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || 'Meserie necompletată' }}</small></td><td><strong>{{ item.requester_team.name }}</strong><small>solicită din {{ item.source_team.name }}</small></td><td class="mono">{{ item.request_type === 'permanent' ? 'Permanent' : (item.start_date + ' – ' + item.end_date) }}</td><td>{{ item.reason || '—' }}</td><td><span class="status-chip" [attr.data-status]="item.status">{{ item.status_label }}</span></td><td><div class="row-actions"><button *ngIf="item.can_approve" type="button" class="decision approve" (click)="requestAction(item, 'approve')"><span class="material-symbols-rounded" aria-hidden="true">check</span>Aprobă</button><button *ngIf="item.can_reject" type="button" class="decision reject" (click)="requestAction(item, 'reject')"><span class="material-symbols-rounded" aria-hidden="true">close</span>Respinge</button><span class="resolved-label" *ngIf="!item.can_approve && !item.can_reject">Soluționată</span></div></td></tr></tbody></table></div>
+      <ng-template #noTransferNotifications><div class="notification-empty"><span class="material-symbols-rounded" aria-hidden="true">swap_horiz</span><strong>Nu există cereri de transfer.</strong><small>Nicio solicitare nu corespunde căutării curente.</small></div></ng-template>
     </section>
-    <section class="requests-card" *ngIf="filteredLeaveNotifications.length">
-      <div class="table-scroll"><table class="notifications-table"><thead><tr><th>Tip</th><th>Angajat</th><th>Echipă</th><th>Perioadă</th><th>Motiv</th><th>Status</th><th>Acțiuni</th></tr></thead>
-        <tbody><tr *ngFor="let item of filteredLeaveNotifications" [class.unseen-request]="item.is_unseen">
-          <td><span class="type-chip">Concediu</span><small>{{ item.leave_type_label }}</small></td>
-          <td><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || item.employee.serie }}</small></td>
-          <td>{{ item.team?.name || 'Fără echipă' }}</td>
-          <td class="mono">{{ item.start_date | date:'dd.MM.yyyy' }} – {{ item.end_date | date:'dd.MM.yyyy' }}</td>
-          <td>{{ item.reason || '—' }}</td>
-          <td><span class="status-chip" [attr.data-status]="item.status">{{ item.status_label }}</span></td>
-          <td><a class="button compact secondary" routerLink="/pontaj/concedii"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span>Deschide</a></td>
-        </tr></tbody>
-      </table></div>
+
+    <section *ngIf="notificationTab === 'leave'" class="notification-panel" role="tabpanel">
+      <header class="notification-panel-head"><div><span class="eyebrow">Concedii</span><h2>Cereri de concediu</h2><p>Cererile primite și starea lor actuală.</p></div></header>
+      <div class="table-scroll" *ngIf="filteredLeaveNotifications.length; else noLeaveNotifications"><table class="notifications-table"><thead><tr><th>Tip</th><th>Angajat</th><th>Echipă</th><th>Perioadă</th><th>Motiv</th><th>Status</th><th>Acțiuni</th></tr></thead><tbody><tr *ngFor="let item of filteredLeaveNotifications" [class.unseen-request]="item.is_unseen"><td><span class="type-chip">Concediu</span><small>{{ item.leave_type_label }}</small></td><td><strong>{{ item.employee.name }}</strong><small>{{ item.employee.trade || item.employee.serie }}</small></td><td>{{ item.team?.name || 'Fără echipă' }}</td><td class="mono">{{ item.start_date | date:'dd.MM.yyyy' }} – {{ item.end_date | date:'dd.MM.yyyy' }}</td><td>{{ item.reason || '—' }}</td><td><span class="status-chip" [attr.data-status]="item.status">{{ item.status_label }}</span></td><td><a class="button compact secondary" routerLink="/pontaj/concedii"><span class="material-symbols-rounded" aria-hidden="true">open_in_new</span>Deschide</a></td></tr></tbody></table></div>
+      <ng-template #noLeaveNotifications><div class="notification-empty"><span class="material-symbols-rounded" aria-hidden="true">beach_access</span><strong>Nu există cereri de concediu.</strong><small>Nicio cerere nu corespunde căutării curente.</small></div></ng-template>
     </section>
-    <div class="empty-state" *ngIf="!filteredRequests.length && !filteredLeaveNotifications.length && !filteredAttendanceAlerts.length"><span class="material-symbols-rounded" aria-hidden="true">notifications_off</span><strong>Nu ai notificări de soluționat.</strong></div>
   </ng-container>
 </section>
 

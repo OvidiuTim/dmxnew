@@ -87,4 +87,40 @@ describe('TeamsWorkspaceComponent', () => {
     expect(component.load).toHaveBeenCalled();
     expect(component.notice).toContain('a fost ștearsă');
   });
+
+  it('grupează notificările de pontaj pe zi și numără angajații o singură dată', () => {
+    const component = new TeamsWorkspaceComponent({} as any, {} as any);
+    component.attendanceAlerts = [
+      { id: 1, date: '2026-09-22', team: { id: 1, name: 'Alfa' }, worksite: 'Bloc A', is_unseen: true, employees: [employee(1, 'Ana Pop', 'Dulgher'), employee(2, 'Ion Stan', 'Fierar')] },
+      { id: 2, date: '2026-09-22', team: { id: 2, name: 'Beta' }, worksite: 'Bloc B2', is_unseen: false, employees: [employee(2, 'Ion Stan', 'Fierar'), employee(3, 'Mihai Dan', 'Sudor')] },
+      { id: 3, date: '2026-09-21', team: { id: 1, name: 'Alfa' }, worksite: 'Bloc A', is_unseen: false, employees: [employee(4, 'Dan Ene', 'Zidar')] },
+    ] as any;
+
+    const days = component.attendanceAlertsByDate;
+
+    expect(days.map(item => item.date)).toEqual(['2026-09-22', '2026-09-21']);
+    expect(days[0].employeeCount).toBe(3);
+    expect(days[0].teamCount).toBe(2);
+    expect(days[0].isUnseen).toBeTrue();
+  });
+
+  it('deschide și închide acordeonul unei zile de pontaj', () => {
+    const component = new TeamsWorkspaceComponent({} as any, {} as any);
+
+    component.toggleAttendanceDate('2026-09-22');
+    expect(component.isAttendanceDateExpanded('2026-09-22')).toBeTrue();
+
+    component.toggleAttendanceDate('2026-09-22');
+    expect(component.isAttendanceDateExpanded('2026-09-22')).toBeFalse();
+  });
+
+  it('separă tipurile de notificări în taburi și resetează căutarea', () => {
+    const component = new TeamsWorkspaceComponent({} as any, {} as any);
+    component.searchTerm = 'Popescu';
+
+    component.setNotificationTab('leave');
+
+    expect(component.notificationTab).toBe('leave');
+    expect(component.searchTerm).toBe('');
+  });
 });

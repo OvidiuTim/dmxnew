@@ -47,6 +47,53 @@ h1 { margin: 7px 0 5px; color: var(--text); font-size: clamp(29px, 4vw, 38px); l
 .personnel-tabs button.active { background: var(--primary-soft); color: var(--primary); }
 .personnel-tabs .material-symbols-rounded { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; line-height: 1; font-size: 18px; }
 .notification-stats { grid-template-columns: repeat(2, minmax(180px, 300px)); }
+.notification-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.notification-tabs button { min-height: 64px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 13px; background: var(--card); color: var(--text-muted); text-align: left; cursor: pointer; }
+.notification-tabs button:hover { border-color: var(--border-strong); color: var(--text); }
+.notification-tabs button.active { border-color: rgba(49,214,143,.55); background: var(--primary-soft); color: var(--primary); }
+.notification-tabs button > .material-symbols-rounded { font-size: 24px; }
+.notification-tabs button > span:nth-child(2) { font-size: 11px; font-weight: 800; }
+.notification-tabs button > strong { min-width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(132,144,163,.13); color: var(--text); font-size: 10px; }
+.notification-tabs button.active > strong { background: rgba(49,214,143,.18); color: var(--primary); }
+.notification-panel { overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: var(--shadow); }
+.notification-panel-head { padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.notification-panel-head h2 { margin: 5px 0 4px; color: var(--text); font-size: 18px; }
+.notification-panel-head p { margin: 0; color: var(--text-muted); font-size: 10px; }
+.attendance-days { display: grid; }
+.attendance-day + .attendance-day { border-top: 1px solid var(--border); }
+.attendance-day-toggle { width: 100%; min-height: 78px; display: grid; grid-template-columns: 42px minmax(0, 1fr) auto 24px; align-items: center; gap: 12px; padding: 13px 18px; border: 0; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.attendance-day-toggle:hover { background: rgba(255,255,255,.02); }
+.attendance-date-icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 11px; background: rgba(84,168,255,.1); color: #60adff; font-size: 21px; }
+.attendance-day-copy { min-width: 0; }
+.attendance-day-copy strong, .attendance-day-copy small { display: block; }
+.attendance-day-copy strong { font-size: 13px; text-transform: capitalize; }
+.attendance-day-copy small { margin-top: 5px; color: var(--text-muted); font-size: 9px; }
+.attendance-total { min-width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; background: rgba(255,184,77,.12); color: var(--warning); font-size: 11px; font-weight: 900; }
+.attendance-chevron { color: var(--text-muted); }
+.attendance-day-detail { display: grid; gap: 10px; padding: 0 18px 18px 72px; }
+.attendance-team-group { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.attendance-team-group > header { min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 13px; border-bottom: 1px solid var(--border); }
+.attendance-team-group > header strong, .attendance-team-group > header small { display: block; }
+.attendance-team-group > header strong { font-size: 11px; }
+.attendance-team-group > header small { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--text-muted); font-size: 8px; }
+.attendance-team-group > header small .material-symbols-rounded { font-size: 14px; }
+.attendance-team-group > header > span { padding: 5px 8px; border-radius: 99px; background: rgba(255,184,77,.1); color: var(--warning); font-size: 8px; font-weight: 800; white-space: nowrap; }
+.attendance-employee-list { display: grid; }
+.attendance-employee { min-height: 58px; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto 22px; align-items: center; gap: 10px; padding: 9px 12px; color: var(--text); text-decoration: none; }
+.attendance-employee + .attendance-employee { border-top: 1px solid var(--border); }
+.attendance-employee:hover { background: rgba(49,214,143,.05); }
+.attendance-employee > span:nth-child(2) { min-width: 0; }
+.attendance-employee strong, .attendance-employee small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attendance-employee strong { font-size: 10px; }
+.attendance-employee small { margin-top: 3px; color: var(--text-muted); font-size: 8px; }
+.missing-chip { min-height: 25px; display: inline-flex !important; align-items: center; gap: 4px; padding: 0 8px; border-radius: 99px; background: rgba(255,100,100,.1); color: #ff8585; font-size: 8px; font-weight: 800; white-space: nowrap; }
+.missing-chip .material-symbols-rounded { font-size: 14px; }
+.open-employee { color: var(--text-muted); font-size: 18px; }
+.notification-empty { min-height: 210px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 30px; color: var(--text-muted); text-align: center; }
+.notification-empty > .material-symbols-rounded { margin-bottom: 5px; color: var(--primary); font-size: 34px; }
+.notification-empty strong { color: var(--text); font-size: 12px; }
+.notification-empty small { font-size: 9px; }
+.notification-panel .notifications-table { min-width: 1050px; }
 .notifications-table { min-width: 1050px; }
 .unseen-request { box-shadow: inset 3px 0 #ff6262; }
 .decision { width: auto !important; min-height: 34px; gap: 5px; padding: 0 10px; font-size: 9px; font-weight: 800; }
@@ -105,6 +152,18 @@ h1 { margin: 7px 0 5px; color: var(--text); font-size: clamp(29px, 4vw, 38px); l
   .member-statuses { flex: 1 0 100%; order: 4; margin: 2px 0 0 40px; }
   .member-remove-action { display: none; }
   .member-actions-menu-wrap { display: block; margin-left: auto; }
+  .notification-tabs { grid-template-columns: 1fr; }
+  .attendance-day-detail { padding-right: 14px; padding-left: 14px; }
+}
+
+@media (max-width: 560px) {
+  .notification-stats { grid-template-columns: 1fr; }
+  .attendance-day-toggle { grid-template-columns: 38px minmax(0, 1fr) auto 20px; gap: 9px; padding: 12px; }
+  .attendance-date-icon { width: 38px; height: 38px; }
+  .attendance-employee { grid-template-columns: 32px minmax(0, 1fr) 20px; }
+  .attendance-employee .missing-chip { grid-column: 2; justify-self: start; }
+  .attendance-employee .open-employee { grid-row: 1 / span 2; grid-column: 3; }
+  .notification-panel-head { padding: 16px; }
 }
 
 .leader-row.supervisor-row { margin-top: -5px; border-color: rgba(84,168,255,.2); }

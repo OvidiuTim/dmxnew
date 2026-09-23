@@ -4,6 +4,15 @@ import { forkJoin, Subscription } from 'rxjs';
 import { AttendanceAlertNotification, EmployeeTeam, LeaveNotification, TeamApiService, TeamEmployee, TeamRequest } from './team-api.service';
 
 type TeamMode = 'permanent' | 'mine' | 'today' | 'available' | 'notifications';
+type NotificationTab = 'attendance' | 'transfers' | 'leave';
+
+interface AttendanceAlertDay {
+  date: string;
+  alerts: AttendanceAlertNotification[];
+  employeeCount: number;
+  teamCount: number;
+  isUnseen: boolean;
+}
 
 @Component({
   selector: 'app-teams-workspace',
@@ -23,6 +32,8 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   teamStatus = 'all';
   availabilityFilter = 'all';
   personnelTab: 'unassigned' | 'assigned' = 'unassigned';
+  notificationTab: NotificationTab = 'attendance';
+  expandedAttendanceDates = new Set<string>();
   leaderSearchFocused = false;
   supervisorSearchFocused = false;
   selectedDate = this.todayISO();
@@ -79,7 +90,7 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
   get subtitle(): string {
     if (this.mode === 'today') return 'Situația echipelor, transferurilor și absențelor pentru data selectată.';
     if (this.mode === 'available') return 'Gestionează separat angajații atribuiți și neatribuiți.';
-    if (this.mode === 'notifications') return 'Cererile de personal și de concediu care necesită atenția ta.';
+    if (this.mode === 'notifications') return 'Alerte de pontaj, cereri de transfer și cereri de concediu, organizate separat.';
     if (this.mode === 'mine') return 'Vezi și actualizează membrii echipei pe care o conduci.';
     return 'Configurează echipele, șefii și apartenența permanentă a muncitorilor.';
   }
@@ -132,6 +143,55 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
     return this.attendanceAlerts.filter(item => !search || this.normalize(
       `${item.team.name} ${item.worksite} ${item.employees.map(employee => employee.name).join(' ')}`
     ).includes(search));
+  }
+
+  get attendanceAlertsByDate(): AttendanceAlertDay[] {
+    const groups = new Map<string, AttendanceAlertNotification[]>();
+    for (const alert of this.filteredAttendanceAlerts) {
+      const rows = groups.get(alert.date) || [];
+      rows.push(alert);
+      groups.set(alert.date, rows);
+    }
+    return Array.from(groups.entries())
+      .map(([date, alerts]) => ({
+        date,
+        alerts: [...alerts].sort((first, second) => first.team.name.localeCompare(second.team.name, 'ro')),
+        employeeCount: new Set(alerts.flatMap(alert => alert.employees.map(employee => employee.id))).size,
+        teamCount: new Set(alerts.map(alert => alert.team.id)).size,
+        isUnseen: alerts.some(alert => alert.is_unseen),
+      }))
+      .sort((first, second) => second.date.localeCompare(first.date));
+  }
+
+  notificationTabCount(tab: NotificationTab): number {
+    if (tab === 'attendance') return this.attendanceAlerts.length;
+    if (tab === 'transfers') return this.requests.length;
+    return this.leaveNotifications.length;
+  }
+
+  setNotificationTab(tab: NotificationTab): void {
+    this.notificationTab = tab;
+    this.searchTerm = '';
+  }
+
+  toggleAttendanceDate(date: string): void {
+    if (this.expandedAttendanceDates.has(date)) this.expandedAttendanceDates.delete(date);
+    else this.expandedAttendanceDates.add(date);
+  }
+
+  isAttendanceDateExpanded(date: string): boolean {
+    return this.expandedAttendanceDates.has(date);
+  }
+
+  formatNotificationDate(value: string): string {
+    const [year, month, day] = value.split('-').map(Number);
+    if (!year || !month || !day) return value;
+    return new Intl.DateTimeFormat('ro-RO', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(year, month - 1, day));
   }
 
   get pendingRequestCount(): number {
@@ -234,6 +294,11 @@ export class TeamsWorkspaceComponent implements OnInit, OnDestroy {
           this.requests = response.requests || [];
           this.leaveNotifications = response.leave_requests || [];
           this.attendanceAlerts = response.attendance_alerts || [];
+          const newestDate = this.attendanceAlerts
+            .map(item => item.date)
+            .sort((first, second) => second.localeCompare(first))[0];
+          this.expandedAttendanceDates.clear();
+          if (newestDate) this.expandedAttendanceDates.add(newestDate);
           this.loading = false;
           window.dispatchEvent(new CustomEvent('team-notifications-changed'));
         },
