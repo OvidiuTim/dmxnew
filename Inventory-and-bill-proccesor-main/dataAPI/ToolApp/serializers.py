@@ -277,6 +277,23 @@ class UserSerializer(serializers.ModelSerializer):
             cache.delete(f"pin-login-user:{digest}")
 
 
+class UserOptionSerializer(serializers.ModelSerializer):
+    """Răspuns mic pentru selectoarele de angajați din interfață."""
+
+    class Meta:
+        model = Users
+        fields = (
+            "UserId",
+            "UserName",
+            "UserSerie",
+            "Company",
+            "trade",
+            "person_type",
+            "employment_status",
+            "active",
+        )
+
+
 
 # -------------------- TOOLS --------------------
 class ToolSerializer(serializers.ModelSerializer):
@@ -523,6 +540,13 @@ class ToolSerializer(serializers.ModelSerializer):
 from rest_framework import serializers
 from django.utils import timezone
 from ToolApp.models import Histories, Users, Tools
+
+class ToolListSerializer(ToolSerializer):
+    """Listă de unelte fără fotografia-sursă, care nu este afișată în registru."""
+
+    class Meta(ToolSerializer.Meta):
+        fields = tuple(field for field in ToolSerializer.Meta.fields if field != "SourcePhoto")
+
 
 class HistorySerializer(serializers.ModelSerializer):
     # input pe serii (nu pe ID/FK)

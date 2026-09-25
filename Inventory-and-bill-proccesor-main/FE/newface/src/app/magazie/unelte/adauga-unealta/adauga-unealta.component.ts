@@ -91,7 +91,7 @@ export class AdaugaUnealtaComponent implements OnInit {
 
   loadUsers(): void {
     this.loadingUsers = true;
-    this.service.getUsrList().subscribe({
+    this.service.getUsrList({ compact: true }).subscribe({
       next: (users) => {
         this.users = (users ?? [])
           .map(user => ({

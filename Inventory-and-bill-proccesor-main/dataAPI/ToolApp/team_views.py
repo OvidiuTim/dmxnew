@@ -4,7 +4,7 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -23,7 +23,7 @@ from ToolApp.models import (
 )
 from ToolApp.module_access import app_user_has_manual_module
 from ToolApp.security import get_app_user_from_request, request_has_admin
-from ToolApp.mobile_services import build_leave_summary
+from ToolApp.mobile_services import build_leave_summaries
 from ToolApp.team_email import send_worker_request_email
 from ToolApp.team_organization_sync import remove_team_from_organization, sync_team_to_organization
 from ToolApp.worksites import ACCEPTED_WORKSITES
@@ -115,15 +115,7 @@ def _employee_payload(employee, team=None, member_status=None, include_requests=
 def _team_payload(team, app_user=None, can_manage_all=False, member_statuses=None):
     member_statuses = member_statuses or {}
     include_requests = can_manage_all or _is_team_manager(app_user, team)
-    memberships = list(
-        team.memberships.filter(
-            active=True,
-            employee__active=True,
-            employee__employment_status=Users.EmploymentStatus.ACTIVE,
-        )
-        .select_related("employee")
-        .order_by("employee__UserName")
-    )
+    memberships = _active_memberships(team)
     members = []
     seen = set()
     for membership in memberships:
@@ -170,7 +162,33 @@ def _team_payload(team, app_user=None, can_manage_all=False, member_statuses=Non
 
 
 def _teams_queryset():
-    return EmployeeTeam.objects.select_related("leader", "supervisor").prefetch_related("memberships__employee")
+    active_memberships = (
+        EmployeeTeamMember.objects.filter(
+            active=True,
+            employee__active=True,
+            employee__employment_status=Users.EmploymentStatus.ACTIVE,
+        )
+        .select_related("employee")
+        .order_by("employee__UserName")
+    )
+    return EmployeeTeam.objects.select_related("leader", "supervisor").prefetch_related(
+        Prefetch("memberships", queryset=active_memberships, to_attr="active_memberships")
+    )
+
+
+def _active_memberships(team):
+    prefetched = getattr(team, "active_memberships", None)
+    if prefetched is not None:
+        return prefetched
+    return list(
+        team.memberships.filter(
+            active=True,
+            employee__active=True,
+            employee__employment_status=Users.EmploymentStatus.ACTIVE,
+        )
+        .select_related("employee")
+        .order_by("employee__UserName")
+    )
 
 
 def _normalize_text(value):
@@ -201,11 +219,7 @@ def _team_member_statuses(teams, app_user, can_manage_all):
         for team in teams
         for employee_id in [
             team.leader_id,
-            *team.memberships.filter(
-                active=True,
-                employee__active=True,
-                employee__employment_status=Users.EmploymentStatus.ACTIVE,
-            ).values_list("employee_id", flat=True),
+            *(membership.employee_id for membership in _active_memberships(team)),
         ]
     }
     if not employee_ids:
@@ -237,10 +251,7 @@ def _team_member_statuses(teams, app_user, can_manage_all):
         )
     }
     employees = Users.objects.in_bulk(employee_ids)
-    leave_balances = {
-        employee_id: build_leave_summary(employee, timezone.localdate())
-        for employee_id, employee in employees.items()
-    }
+    leave_balances = build_leave_summaries(employees.values(), timezone.localdate())
 
     request_rows = {employee_id: [] for employee_id in employee_ids}
     visible_team_ids = {
@@ -361,7 +372,7 @@ def teams_collection(request):
                 for employee_id in (
                     team.leader_id,
                     team.supervisor_id,
-                    *team.memberships.filter(active=True).values_list("employee_id", flat=True),
+                    *(membership.employee_id for membership in _active_memberships(team)),
                 )
                 if employee_id
             }

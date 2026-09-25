@@ -175,7 +175,7 @@ export class UnelteComponent implements OnInit {
     this.loading = true;
     this.error = null;
 
-    this.service.getUsrList().subscribe({
+    this.service.getUsrList({ compact: true }).subscribe({
       next: (users) => {
         this.users = (users ?? [])
           .map(user => ({
@@ -198,7 +198,7 @@ export class UnelteComponent implements OnInit {
 
   refreshToolList(): void {
     this.loading = true;
-    this.service.getTolList().subscribe({
+    this.service.getTolList({ compact: true }).subscribe({
       next: (tools) => {
         this.tools = (tools ?? []) as ToolItem[];
         this.loading = false;

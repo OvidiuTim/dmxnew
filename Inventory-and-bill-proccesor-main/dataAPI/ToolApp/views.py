@@ -36,7 +36,8 @@ from ToolApp.models import (
     PinAttemptLog, EmployeeTeam, EmployeeTeamMember
 )
 from ToolApp.serializers import (
-    ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, ToolSerializer,
+    ConsumableSerializer, ShedSerializer, UnfunctionalSerializer, UserSerializer, UserOptionSerializer, ToolSerializer,
+    ToolListSerializer,
     HistorySerializer, MaterialSerializer, WorkFieldSerializer, CofrajMetalicSerializer,
     CofrajtTipDokaSerializer, PopiSerializer, SchelaUsoaraSerializer, SchelaFatadaSerializer,
     SchelaFatadaModularaSerializer, CombustibilSerializer, HistorieScheleSerializer, MijloaceFixeSerializer, 
@@ -487,11 +488,24 @@ def userApi(request,id=0):
 
             return JsonResponse(_employee_api_payload(user), safe=False)
 
-        users = Users.objects.prefetch_related(
-            "team_memberships__team",
-            "led_employee_teams",
-            "supervised_employee_teams",
-        ).all()
+        compact = _truthy(request.GET.get("compact"))
+        if compact:
+            users = Users.objects.only(
+                "UserId",
+                "UserName",
+                "UserSerie",
+                "Company",
+                "trade",
+                "person_type",
+                "employment_status",
+                "active",
+            )
+        else:
+            users = Users.objects.prefetch_related(
+                "team_memberships__team",
+                "led_employee_teams",
+                "supervised_employee_teams",
+            ).all()
         person_type = str(request.GET.get("person_type") or "").strip()
         if person_type in dict(Users.PersonType.choices):
             users = users.filter(person_type=person_type)
@@ -503,7 +517,9 @@ def userApi(request,id=0):
                 | Q(UserPin__icontains=search)
                 | Q(Company__icontains=search)
             )
-        users_serializer = UserSerializer(users, many=True)
+        users = users.order_by("UserName", "UserId")
+        serializer_class = UserOptionSerializer if compact else UserSerializer
+        users_serializer = serializer_class(users, many=True)
         return JsonResponse(users_serializer.data, safe=False)
 
     elif request.method=='POST':
@@ -953,9 +969,13 @@ def toolApi(request,id=0):
                 | Q(Detail__icontains=search)
             )
 
+        compact = _truthy(request.GET.get("compact"))
+        if compact:
+            tools = tools.defer("SourcePhoto")
+
         tools = tools.order_by("ToolName", "ToolId")
-        tools_serializer = ToolSerializer(tools, many=True)
-        return JsonResponse(tools_serializer.data, safe=False)
+        serializer_class = ToolListSerializer if compact else ToolSerializer
+        return JsonResponse(serializer_class(tools, many=True).data, safe=False)
 
     elif request.method=='POST':
         tool_data=JSONParser().parse(request)

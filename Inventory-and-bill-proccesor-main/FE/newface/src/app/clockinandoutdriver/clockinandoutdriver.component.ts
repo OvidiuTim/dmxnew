@@ -4,6 +4,7 @@ import { employeeCopy } from '../i18n/employee-copy';
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import * as L from 'leaflet';
 import { SharedService } from '../shared.service';
+import { scheduleDailyPageReload } from '../daily-page-reload';
 
 type FeedbackKind = 'enter' | 'exit' | 'error';
 type AttendanceState = 'ENTER' | 'EXIT';
@@ -56,10 +57,12 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
   private clockTimer: ReturnType<typeof setInterval> | null = null;
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
   private cameraStream: MediaStream | null = null;
+  private cancelDailyReload: (() => void) | null = null;
 
   constructor(private api: SharedService) {}
 
   ngOnInit(): void {
+    this.cancelDailyReload = scheduleDailyPageReload(3);
     this.clockTimer = setInterval(() => {
       this.currentTime = new Date();
     }, 1000);
@@ -77,6 +80,8 @@ export class ClockinandoutdriverComponent implements OnInit, AfterViewInit, OnDe
     if (this.resetTimer) {
       clearTimeout(this.resetTimer);
     }
+
+    this.cancelDailyReload?.();
 
     this.map?.remove();
     this.stopCamera();

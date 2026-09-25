@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_UP
 
-from django.db.models import Q
+from django.db.models import Min, Q
 from django.utils.text import slugify
 
 from ToolApp.models import AttendanceSession, EmployeeTeam, Histories, LeaveDay, LeaveRequest, Tools
@@ -597,27 +597,12 @@ def calculate_available_leave_days(employee, as_of_date, exclude_request_id=None
     return max(0, int(remaining.to_integral_value(rounding=ROUND_FLOOR)))
 
 
-def build_leave_summary(employee, as_of_date):
+def _leave_summary_payload(employee, as_of_date, used, pending_dates, first_attendance):
     year_start = date(as_of_date.year, 1, 1)
-    year_end = date(as_of_date.year, 12, 31)
-    used = used_paid_leave_days(employee, as_of_date.year)
-    pending_dates = _request_dates(LeaveRequest.objects.filter(
-        employee=employee,
-        leave_type=LeaveRequest.LeaveType.PAID_LEAVE,
-        status=LeaveRequest.Status.PENDING,
-        start_date__lte=year_end,
-        end_date__gte=year_start,
-    ), year_start, year_end)
     if employee.hire_date:
         effective_hire_date = employee.hire_date
         hire_date_source = "manual"
     else:
-        first_attendance = (
-            AttendanceSession.objects.filter(user_fk=employee)
-            .order_by("work_date")
-            .values_list("work_date", flat=True)
-            .first()
-        )
         effective_hire_date = first_attendance or year_start
         hire_date_source = "first_attendance" if first_attendance else "year_start_fallback"
 
@@ -666,6 +651,102 @@ def build_leave_summary(employee, as_of_date):
         "pending_days": len(pending_dates),
         "used_days": used,
     }
+
+
+def build_leave_summaries(employees, as_of_date):
+    """Calculează soldurile de concediu pentru mai mulți angajați în lot.
+
+    Varianta individuală executa până la patru interogări pentru fiecare
+    angajat. Ecranele cu toate echipele ajungeau astfel la sute de interogări.
+    Aici încărcăm aceleași date în maximum patru interogări, apoi păstrăm
+    exact aceleași reguli de calcul în memorie.
+    """
+    employees_by_id = {
+        employee.pk: employee
+        for employee in employees
+        if getattr(employee, "pk", None) is not None
+    }
+    if not employees_by_id:
+        return {}
+
+    employee_ids = tuple(employees_by_id)
+    year_start = date(as_of_date.year, 1, 1)
+    year_end = date(as_of_date.year, 12, 31)
+
+    used_dates = defaultdict(set)
+    approved_requests = LeaveRequest.objects.filter(
+        employee_id__in=employee_ids,
+        leave_type=LeaveRequest.LeaveType.PAID_LEAVE,
+        status=LeaveRequest.Status.APPROVED,
+        start_date__lte=year_end,
+        end_date__gte=year_start,
+    ).values_list("employee_id", "start_date", "end_date")
+    for employee_id, request_start, request_end in approved_requests:
+        current = max(request_start, year_start)
+        last = min(request_end, year_end)
+        while current <= last:
+            if current.isoweekday() <= 6:
+                used_dates[employee_id].add(current)
+            current += timedelta(days=1)
+
+    leave_days = LeaveDay.objects.filter(
+        user_fk_id__in=employee_ids,
+        reason__in=(LeaveDay.Reason.CO, LeaveDay.Reason.INDIA),
+        work_date__range=(year_start, year_end),
+    ).values_list("user_fk_id", "work_date")
+    for employee_id, work_date in leave_days:
+        used_dates[employee_id].add(work_date)
+
+    pending_dates = defaultdict(set)
+    pending_requests = LeaveRequest.objects.filter(
+        employee_id__in=employee_ids,
+        leave_type=LeaveRequest.LeaveType.PAID_LEAVE,
+        status=LeaveRequest.Status.PENDING,
+        start_date__lte=year_end,
+        end_date__gte=year_start,
+    ).values_list("employee_id", "start_date", "end_date")
+    for employee_id, request_start, request_end in pending_requests:
+        current = max(request_start, year_start)
+        last = min(request_end, year_end)
+        while current <= last:
+            if current.isoweekday() <= 6:
+                pending_dates[employee_id].add(current)
+            current += timedelta(days=1)
+
+    missing_hire_ids = [
+        employee_id
+        for employee_id, employee in employees_by_id.items()
+        if not employee.hire_date
+    ]
+    first_attendance = {}
+    if missing_hire_ids:
+        first_attendance = dict(
+            AttendanceSession.objects.filter(user_fk_id__in=missing_hire_ids)
+            .values("user_fk_id")
+            .annotate(first_work_date=Min("work_date"))
+            .values_list("user_fk_id", "first_work_date")
+        )
+
+    summaries = {}
+    for employee_id, employee in employees_by_id.items():
+        prior_days = (
+            int(employee.prior_paid_leave_days or 0)
+            if employee.prior_paid_leave_year == as_of_date.year
+            else 0
+        )
+        used = len(used_dates[employee_id]) + prior_days
+        summaries[employee_id] = _leave_summary_payload(
+            employee,
+            as_of_date,
+            used,
+            pending_dates[employee_id],
+            first_attendance.get(employee_id),
+        )
+    return summaries
+
+
+def build_leave_summary(employee, as_of_date):
+    return build_leave_summaries([employee], as_of_date)[employee.pk]
 
 
 def _stable_name_code(tool):

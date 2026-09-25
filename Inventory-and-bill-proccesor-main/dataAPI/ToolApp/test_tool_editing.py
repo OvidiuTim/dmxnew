@@ -98,6 +98,24 @@ class ToolEditingApiTests(TestCase):
         self.assertEqual(response.json()["AssignedTeamId"], team.id)
         self.assertEqual(response.json()["AssignedTeamName"], "Echipa Y")
 
+    def test_compact_tool_list_omits_source_photo(self):
+        tool = Tools.objects.create(
+            ToolName="Unealtă compactă",
+            Pieces=1,
+            SourcePhoto="https://example.test/fotografie-mare.jpg",
+        )
+
+        response = self.client.get(
+            "/api/tool/",
+            {"compact": "1"},
+            HTTP_AUTHORIZATION=f"Bearer {make_admin_token()}",
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        row = next(item for item in response.json() if item["ToolId"] == tool.ToolId)
+        self.assertEqual(row["ToolName"], "Unealtă compactă")
+        self.assertNotIn("SourcePhoto", row)
+
     def test_assign_and_return_flow_uses_standardized_statuses(self):
         employee = Users.objects.create(UserName="Muncitor Flux", UserSerie="FLOW-1")
         warehouse_tool = Tools.objects.create(

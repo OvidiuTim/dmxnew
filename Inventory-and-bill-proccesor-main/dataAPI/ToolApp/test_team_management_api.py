@@ -2,8 +2,9 @@ import json
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.test import Client, TestCase
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
@@ -176,6 +177,26 @@ class TeamManagementApiTests(TestCase):
         self.assertEqual(team["leader"]["photo"], "https://example.test/leader.jpg")
         worker = next(member for member in team["members"] if member["id"] == self.worker_a.pk)
         self.assertEqual(worker["photo"], "data:image/png;base64,worker")
+
+    def test_team_list_query_count_does_not_grow_per_employee(self):
+        team = EmployeeTeam.objects.create(name="Echipa mare", leader=self.leader_a)
+        employees = [
+            self.employee(f"Muncitor volum {index}", f"V-{index}", "Dulgher")
+            for index in range(30)
+        ]
+        EmployeeTeamMember.objects.bulk_create(
+            [EmployeeTeamMember(team=team, employee=employee) for employee in employees]
+        )
+
+        with CaptureQueriesContext(connection) as queries:
+            response = self.admin.get(reverse("teams_collection"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertLessEqual(
+            len(queries),
+            25,
+            f"Lista de echipe a executat {len(queries)} interogări pentru 30 de membri.",
+        )
 
     def test_edit_team(self):
         team = self.create_team("Echipa Alfa", self.leader_a, [self.worker_a])

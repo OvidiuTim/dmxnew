@@ -4,6 +4,7 @@ import { employeeCopy } from '../i18n/employee-copy';
 import { AfterViewInit, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Location } from '@angular/common';
+import { scheduleDailyPageReload } from '../daily-page-reload';
 import { Router } from '@angular/router';
 import * as L from 'leaflet';
 import { SharedService } from '../shared.service';
@@ -119,6 +120,12 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   private resetTimer: ReturnType<typeof setTimeout> | null = null;
   private portalRedirectTimer: ReturnType<typeof setTimeout> | null = null;
   private portalNotificationTimer: ReturnType<typeof setInterval> | null = null;
+  private cancelDailyReload: (() => void) | null = null;
+  private readonly onVisibilityChange = () => {
+    if (this.portalMode && !document.hidden) {
+      this.loadPortalNotificationCount();
+    }
+  };
   private cameraStream: MediaStream | null = null;
 
   constructor(
@@ -131,11 +138,19 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
   ngOnInit(): void {
     this.chefMode = this.route.snapshot.data['chefMode'] === true;
     this.portalMode = this.route.snapshot.data['portalMode'] === true;
+    if (this.portalMode || this.chefMode) {
+      this.cancelDailyReload = scheduleDailyPageReload(3);
+    }
     if (this.portalMode) {
       this.selectedLanguage = this.readPortalLanguage();
       this.loadPortalAttendanceRole();
       this.loadPortalNotificationCount();
-      this.portalNotificationTimer = setInterval(() => this.loadPortalNotificationCount(), 15000);
+      this.portalNotificationTimer = setInterval(() => {
+        if (!document.hidden) {
+          this.loadPortalNotificationCount();
+        }
+      }, 15000);
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
     }
     if (this.chefMode) {
       this.selectedWorksite = this.chefWorksite;
@@ -166,6 +181,8 @@ export class ClockinandoutComponent implements OnInit, AfterViewInit, OnDestroy 
     if (this.portalNotificationTimer) {
       clearInterval(this.portalNotificationTimer);
     }
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    this.cancelDailyReload?.();
 
     this.stopGeolocation();
     this.stopCamera();

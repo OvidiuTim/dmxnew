@@ -146,7 +146,7 @@ export class PredareUnealtaComponent implements OnInit {
 
   loadUsers(): void {
     this.loadingUsers = true;
-    this.service.getUsrList().subscribe({
+    this.service.getUsrList({ compact: true }).subscribe({
       next: (users) => {
         this.users = (users ?? [])
           .map(user => ({
@@ -182,7 +182,7 @@ export class PredareUnealtaComponent implements OnInit {
 
   loadTools(): void {
     this.loadingTools = true;
-    this.service.getTolList().subscribe({
+    this.service.getTolList({ compact: true }).subscribe({
       next: (tools) => {
         this.tools = ((tools ?? []) as ToolItem[])
           .sort((a, b) => String(a.ToolName ?? '').localeCompare(String(b.ToolName ?? ''), 'ro'));

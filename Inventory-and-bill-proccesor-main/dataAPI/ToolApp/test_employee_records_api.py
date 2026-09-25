@@ -74,6 +74,21 @@ class EmployeeRecordsApiTests(TestCase):
         self.assertEqual([item["UserId"] for item in response.json()], [self.employee.pk])
         self.assertNotIn("UserPin", response.json()[0])
 
+    def test_compact_employee_directory_omits_large_profile_fields(self):
+        self.employee.photo = "data:image/jpeg;base64,foarte-mare"
+        self.employee.Company = "DMX"
+        self.employee.save(update_fields=["photo", "Company"])
+
+        response = self.admin.get("/api/user/", {"compact": "1"})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        row = next(item for item in response.json() if item["UserId"] == self.employee.pk)
+        self.assertEqual(row["UserName"], self.employee.UserName)
+        self.assertEqual(row["Company"], "DMX")
+        self.assertNotIn("photo", row)
+        self.assertNotIn("teams", row)
+        self.assertNotIn("hourly_rate", row)
+
     def test_employee_can_be_created_with_total_salary_in_ron(self):
         response = self.admin.post(
             "/api/user/",

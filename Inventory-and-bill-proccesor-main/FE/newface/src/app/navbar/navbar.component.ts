@@ -1,7 +1,7 @@
 import { Component, EventEmitter, HostListener, OnDestroy, Output } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
-import { Subscription, catchError, of, switchMap, timer } from 'rxjs';
+import { Subscription, catchError, fromEvent, merge, of, switchMap, timer } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { TeamApiService } from '../teams/team-api.service';
 
@@ -80,7 +80,11 @@ export class NavbarComponent implements OnDestroy {
         this.markActive(e.urlAfterRedirects);
       });
     if (this.visibleLinks(this.groups.find(group => group.moduleCode === 'teams_schedule')!).length) {
-      this.notificationSubscription = timer(0, 30000).pipe(
+      this.notificationSubscription = merge(
+        timer(0, 30000),
+        fromEvent(document, 'visibilitychange'),
+      ).pipe(
+        filter(() => !document.hidden),
         switchMap(() => this.teamsApi.getNotificationSummary().pipe(catchError(() => of({ attention_count: 0 }))))
       ).subscribe(response => this.setNotificationCount(Number(response?.attention_count || 0)));
     }
