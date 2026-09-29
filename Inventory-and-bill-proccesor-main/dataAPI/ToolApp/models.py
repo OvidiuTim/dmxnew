@@ -1657,6 +1657,56 @@ class DocumentUtilajVersiune(models.Model):
         ordering = ("-created_at", "-id")
 
 
+class FleetDocumentResponsible(models.Model):
+    """Persoană care primește alertele de expirare pentru utilajele alocate."""
+
+    responsabil = models.OneToOneField(
+        Users,
+        on_delete=models.CASCADE,
+        related_name="responsabilitate_documente_flota",
+    )
+    email = models.EmailField()
+    toate_utilajele = models.BooleanField(default=False, db_index=True)
+    utilaje = models.ManyToManyField(Utilaj, blank=True, related_name="responsabili_documente")
+    activ = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("responsabil__UserName", "id")
+
+    def __str__(self):
+        scope = "toate utilajele" if self.toate_utilajele else f"{self.utilaje.count()} utilaje"
+        return f"{self.responsabil.UserName} · {scope}"
+
+
+class FleetDocumentExpiryNotification(models.Model):
+    """Jurnal anti-duplicat pentru fiecare responsabil, document și dată de expirare."""
+
+    responsabil = models.ForeignKey(
+        FleetDocumentResponsible,
+        on_delete=models.CASCADE,
+        related_name="notificari_expirare",
+    )
+    document = models.ForeignKey(
+        DocumentUtilaj,
+        on_delete=models.CASCADE,
+        related_name="notificari_responsabili",
+    )
+    data_expirare = models.DateField()
+    email = models.EmailField()
+    trimisa_la = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-trimisa_la", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("responsabil", "document", "data_expirare"),
+                name="unique_fleet_expiry_notice_per_responsible",
+            ),
+        ]
+
+
 class SesiuneUtilaj(models.Model):
     class MotivInchidere(models.TextChoices):
         PREDARE = "predare", "Predare de către angajat"

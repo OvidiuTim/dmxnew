@@ -6,6 +6,8 @@ from pathlib import Path
 
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -27,12 +29,14 @@ from ToolApp.models import (
     EmployeeDocument,
     EmployeeDocumentType,
     FleetAuditLog,
+    FleetDocumentResponsible,
     IncercareUtilajBlocata,
     SesiuneUtilaj,
     SesizareDefectUtilaj,
     RevizieUtilaj,
     TipDocumentUtilaj,
     Utilaj,
+    Users,
 )
 from ToolApp.security import get_app_user_from_request, request_has_admin
 from ToolApp.views import MISSING_EXIT_SOURCE_TAG, _find_user_by_pin
@@ -470,6 +474,110 @@ def fleet_expirations(request):
             "group": group,
         })
     return JsonResponse({"ok": True, "rows": rows, "authorizations": authorizations})
+
+
+def _fleet_responsible_payload(item):
+    equipment = list(item.utilaje.filter(activ=True).order_by("cod_intern"))
+    return {
+        "id": item.pk,
+        "employee": {
+            "id": item.responsabil_id,
+            "name": item.responsabil.UserName,
+            "serie": item.responsabil.UserSerie,
+            "company": item.responsabil.Company or "",
+        },
+        "email": item.email,
+        "all_equipment": item.toate_utilajele,
+        "equipment_ids": [row.pk for row in equipment],
+        "equipment": [{"id": row.pk, "code": row.cod_intern, "name": row.denumire} for row in equipment],
+        "active": item.activ,
+    }
+
+
+@csrf_exempt
+def fleet_document_responsibles(request, responsibility_id=None):
+    if request.method == "GET" and responsibility_id is None:
+        responsibles = (
+            FleetDocumentResponsible.objects.select_related("responsabil")
+            .prefetch_related("utilaje")
+            .filter(activ=True)
+        )
+        employees = Users.objects.filter(
+            employment_status=Users.EmploymentStatus.ACTIVE,
+        ).order_by("UserName", "UserId")
+        equipment = Utilaj.objects.filter(activ=True).order_by("cod_intern")
+        return JsonResponse({
+            "ok": True,
+            "responsibles": [_fleet_responsible_payload(item) for item in responsibles],
+            "employees": [{
+                "id": item.pk,
+                "name": item.UserName,
+                "serie": item.UserSerie,
+                "company": item.Company or "",
+                "email": item.email or "",
+            } for item in employees],
+            "equipment": [{
+                "id": item.pk,
+                "code": item.cod_intern,
+                "name": item.denumire,
+                "registration_number": item.nr_inmatriculare or "",
+            } for item in equipment],
+        })
+
+    if request.method == "POST" and responsibility_id is None:
+        data = _json_body(request)
+        if data is None:
+            return _error("INVALID_JSON", "Datele responsabilului nu sunt valide.")
+        employee = Users.objects.filter(
+            pk=data.get("employee_id"),
+            employment_status=Users.EmploymentStatus.ACTIVE,
+        ).first()
+        if not employee:
+            return _error("INVALID_EMPLOYEE", "Selectează un angajat activ.")
+        email = str(data.get("email") or employee.email or "").strip().lower()
+        try:
+            validate_email(email)
+        except ValidationError:
+            return _error("INVALID_EMAIL", "Completează o adresă de email validă.")
+        all_equipment = bool(data.get("all_equipment"))
+        equipment_ids = data.get("equipment_ids") or []
+        selected = Utilaj.objects.filter(pk__in=equipment_ids, activ=True)
+        if not all_equipment and not selected.exists():
+            return _error("EQUIPMENT_REQUIRED", "Selectează cel puțin un utilaj sau bifează toate utilajele.")
+        existing = FleetDocumentResponsible.objects.filter(responsabil=employee).first()
+        requested_id = data.get("id")
+        if existing and (not requested_id or existing.pk != int(requested_id)):
+            return _error("DUPLICATE_RESPONSIBLE", "Angajatul este deja configurat ca responsabil.", 409)
+        item = FleetDocumentResponsible.objects.filter(pk=requested_id).first() if requested_id else None
+        if item is None:
+            item = FleetDocumentResponsible(responsabil=employee)
+        item.responsabil = employee
+        item.email = email
+        item.toate_utilajele = all_equipment
+        item.activ = True
+        item.save()
+        item.utilaje.set([] if all_equipment else selected)
+        _audit(
+            request,
+            "responsabil_documente_actualizat",
+            responsible=employee.UserName,
+            email=email,
+            all_equipment=all_equipment,
+            equipment_ids=[] if all_equipment else list(selected.values_list("pk", flat=True)),
+        )
+        item = FleetDocumentResponsible.objects.select_related("responsabil").prefetch_related("utilaje").get(pk=item.pk)
+        return JsonResponse({"ok": True, "responsible": _fleet_responsible_payload(item)}, status=201 if not requested_id else 200)
+
+    if request.method == "DELETE" and responsibility_id is not None:
+        item = FleetDocumentResponsible.objects.select_related("responsabil").filter(pk=responsibility_id).first()
+        if not item:
+            return _error("NOT_FOUND", "Responsabilul nu a fost găsit.", 404)
+        name = item.responsabil.UserName
+        item.delete()
+        _audit(request, "responsabil_documente_eliminat", responsible=name)
+        return JsonResponse({"ok": True, "deleted": True})
+
+    return _error("METHOD_NOT_ALLOWED", "Metoda nu este permisă.", 405)
 
 
 @csrf_exempt

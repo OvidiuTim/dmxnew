@@ -31,6 +31,8 @@ from ToolApp.models import (
     SesizareDefectUtilaj,
     IncercareUtilajBlocata,
     FleetAuditLog,
+    FleetDocumentResponsible,
+    FleetDocumentExpiryNotification,
     AlimentareUtilaj,
     RevizieUtilaj,
     SesiuneUtilaj,
@@ -181,6 +183,22 @@ class DocumentUtilajVersiuneAdmin(admin.ModelAdmin):
     list_filter = ("data_expirare", "document__tip")
     search_fields = ("document__utilaj__cod_intern", "document__tip__nume", "nume_fisier_original")
     readonly_fields = ("created_at",)
+
+
+@admin.register(FleetDocumentResponsible)
+class FleetDocumentResponsibleAdmin(admin.ModelAdmin):
+    list_display = ("responsabil", "email", "toate_utilajele", "activ", "updated_at")
+    list_filter = ("toate_utilajele", "activ")
+    search_fields = ("responsabil__UserName", "responsabil__UserSerie", "email")
+    filter_horizontal = ("utilaje",)
+
+
+@admin.register(FleetDocumentExpiryNotification)
+class FleetDocumentExpiryNotificationAdmin(admin.ModelAdmin):
+    list_display = ("responsabil", "document", "data_expirare", "email", "trimisa_la")
+    list_filter = ("data_expirare", "trimisa_la")
+    search_fields = ("responsabil__responsabil__UserName", "document__utilaj__cod_intern", "email")
+    readonly_fields = ("responsabil", "document", "data_expirare", "email", "trimisa_la")
 
 
 @admin.register(SesizareDefectUtilaj)
