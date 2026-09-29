@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { SharedService } from '../shared.service';
 
@@ -11,15 +12,16 @@ type FleetTab = 'overview' | 'equipment' | 'expirations' | 'responsibles' | 'ses
 })
 export class FleetAdminComponent implements OnInit {
   tab: FleetTab = 'overview';
-  tabs: Array<{ key: FleetTab; label: string; icon: string }> = [
-    { key: 'overview', label: 'Flotă', icon: 'space_dashboard' },
-    { key: 'equipment', label: 'Utilaje', icon: 'local_shipping' },
-    { key: 'expirations', label: 'Expirări documente', icon: 'event_upcoming' },
-    { key: 'responsibles', label: 'Desemnează responsabili', icon: 'manage_accounts' },
-    { key: 'sessions', label: 'Utilizări', icon: 'history' },
-    { key: 'defects', label: 'Defecte și service', icon: 'build' },
-    { key: 'reports', label: 'Rapoarte flotă', icon: 'bar_chart' },
-  ];
+  createMode = false;
+  private readonly pageCopy: Record<FleetTab, { title: string; description: string }> = {
+    overview: { title: 'Flotă', description: 'Starea flotei, alertele zilei și utilajele în lucru.' },
+    equipment: { title: 'Utilaje', description: 'Lista utilajelor, fișele, documentele și codurile QR.' },
+    expirations: { title: 'Expirări documente', description: 'Tipurile de documente, importanța lor și actele care expiră.' },
+    responsibles: { title: 'Desemnează responsabili', description: 'Responsabilul de documente și responsabilul tehnic.' },
+    sessions: { title: 'Utilizări', description: 'Sesiunile Iau / Predau și încercările blocate.' },
+    defects: { title: 'Defecte și service', description: 'Sesizări, reparații și mentenanță planificată.' },
+    reports: { title: 'Rapoarte flotă', description: 'Ore, cost de utilizare, service și combustibil.' },
+  };
   dashboard: any = null;
   equipment: any[] = [];
   expirations: any[] = [];
@@ -49,16 +51,34 @@ export class FleetAdminComponent implements OnInit {
   formOpen = false;
   form: any = this.emptyEquipmentForm();
   documentForm: any = { type_id: '', expiry_date: '', file: null };
-  documentTypeForm: any = { id: null, name: '', blocking: false, warning_days: 30, required_employee_document_type_ids: [] };
+  documentTypeForm: any = { id: null, name: '', importance: 'medium', warning_days: 30, required_employee_document_type_ids: [] };
   defectForm: any = { description: '', severity: 'medie', photo: null };
   fuelForm: any = { date: '', liters: '', cost: '', counter: '' };
   maintenanceForm: any = { name: '', due_date: '', due_counter: '', notes: '' };
   recommendationForm: any = this.emptyRecommendationForm();
   responsibleForm: any = this.emptyResponsibleForm();
 
-  constructor(public api: SharedService) {}
+  constructor(public api: SharedService, private route: ActivatedRoute, private router: Router) {}
 
-  ngOnInit(): void { this.loadOverview(); }
+  ngOnInit(): void {
+    const routeTab = (this.route.snapshot.data['fleetTab'] || 'overview') as FleetTab;
+    this.tab = routeTab;
+    this.createMode = !!this.route.snapshot.data['createEquipment'];
+    if (routeTab === 'overview') {
+      this.loadOverview();
+      return;
+    }
+    this.api.getFleetDashboard().subscribe({
+      next: dashboard => {
+        this.dashboard = dashboard;
+        this.sites = dashboard?.sites || [];
+        this.documentTypes = dashboard?.document_types || [];
+        this.setTab(routeTab);
+        if (this.createMode) this.openCreate();
+      },
+      error: error => this.fail(error),
+    });
+  }
 
   setTab(tab: FleetTab): void {
     this.tab = tab;
@@ -241,6 +261,23 @@ export class FleetAdminComponent implements OnInit {
 
   openCreate(): void { this.form = this.emptyEquipmentForm(); this.formOpen = true; }
 
+  openCreatePage(): void { this.router.navigate(['/utilaje/adauga']); }
+
+  closeForm(): void {
+    this.formOpen = false;
+    if (this.createMode) this.router.navigate(['/utilaje/lista']);
+  }
+
+  get pageTitle(): string {
+    return this.createMode ? 'Adaugă utilaj' : this.pageCopy[this.tab].title;
+  }
+
+  get pageDescription(): string {
+    return this.createMode
+      ? 'Completează fișa utilajului și documentele obligatorii.'
+      : this.pageCopy[this.tab].description;
+  }
+
   openEdit(item: any): void {
     this.loading = true;
     this.api.getFleetEquipmentAdmin(item.id).subscribe({
@@ -269,7 +306,7 @@ export class FleetAdminComponent implements OnInit {
       next: result => {
         this.saving = false; this.notice = this.form.id ? 'Utilaj actualizat.' : 'Utilaj adăugat.';
         if (this.form.id) { this.selected = { ...this.selected, ...result.equipment }; this.refreshSelected(); }
-        else { this.formOpen = false; this.loadEquipment(); }
+        else { this.formOpen = false; this.router.navigate(['/utilaje/lista']); }
       },
       error: error => { this.saving = false; this.error = this.message(error); },
     });
@@ -318,14 +355,14 @@ export class FleetAdminComponent implements OnInit {
     this.documentTypeForm = {
       id: type.id,
       name: type.name,
-      blocking: !!type.blocking,
+      importance: type.importance || (type.blocking ? 'high' : 'medium'),
       warning_days: type.warning_days,
       required_employee_document_type_ids: [...(type.required_employee_document_type_ids || [])],
     };
   }
 
   cancelDocumentTypeEdit(): void {
-    this.documentTypeForm = { id: null, name: '', blocking: false, warning_days: 30, required_employee_document_type_ids: [] };
+    this.documentTypeForm = { id: null, name: '', importance: 'medium', warning_days: 30, required_employee_document_type_ids: [] };
   }
 
   toggleRequiredEmployeeDocument(typeId: number, checked: boolean): void {

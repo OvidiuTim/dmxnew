@@ -33,6 +33,7 @@ from ToolApp.models import (
     FleetAuditLog,
     FleetDocumentResponsible,
     FleetDocumentExpiryNotification,
+    FleetDocumentUsageAlert,
     FleetTechnicalResponsible,
     FleetTechnicalRecommendation,
     FleetRecommendationSubmission,
@@ -206,6 +207,14 @@ class FleetDocumentExpiryNotificationAdmin(admin.ModelAdmin):
     list_filter = ("data_expirare", "trimisa_la")
     search_fields = ("responsabil__responsabil__UserName", "document__utilaj__cod_intern", "email")
     readonly_fields = ("responsabil", "document", "data_expirare", "email", "trimisa_la")
+
+
+@admin.register(FleetDocumentUsageAlert)
+class FleetDocumentUsageAlertAdmin(admin.ModelAdmin):
+    list_display = ("responsabil", "utilaj", "angajat", "tip_document", "work_date", "blocata", "created_at")
+    list_filter = ("blocata", "work_date", "tip_document")
+    search_fields = ("responsabil__responsabil__UserName", "angajat__UserName", "utilaj__cod_intern")
+    readonly_fields = ("created_at",)
 
 
 @admin.register(SesizareDefectUtilaj)

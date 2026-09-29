@@ -27,6 +27,8 @@ from ToolApp.models import (
     AttendanceSession,
     EmployeeTeam,
     EmployeeTeamMember,
+    FleetDocumentResponsible,
+    FleetDocumentUsageAlert,
     FleetRecommendationSubmission,
     FleetTechnicalResponsible,
     LeaveDay,
@@ -398,6 +400,7 @@ def portal_dashboard(request):
         "is_supervisor": "supervisor" in roles,
         "is_storekeeper": "storekeeper" in roles,
         "is_technical_responsible": "technical_responsible" in roles,
+        "is_document_responsible": "document_responsible" in roles,
         "can_access_tools": app_user_has_module(app_user, "tools"),
         # Iau/Predau este o funcție a portalului. Modulul `flota` controlează
         # separat administrarea de la /utilaje.
@@ -1741,6 +1744,37 @@ def _technical_recommendation_notification_payloads(app_user):
     ).filter(status=FleetRecommendationSubmission.Status.PENDING)]
 
 
+def _document_usage_notification_payloads(app_user):
+    responsible = FleetDocumentResponsible.objects.filter(
+        responsabil_id=app_user.employee_id,
+        activ=True,
+    ).first()
+    if not responsible:
+        return []
+    return [{
+        "id": item.pk,
+        "kind": "document_usage_blocked" if item.blocata else "document_usage_warning",
+        "urgent": item.blocata,
+        "team": {"id": None, "name": item.utilaj.cod_intern},
+        "status": "blocked" if item.blocata else "allowed",
+        "status_label": "Utilizare blocată" if item.blocata else "Utilizare permisă cu avertizare",
+        "document_type": item.tip_document.nume,
+        "importance": item.tip_document.importanta,
+        "importance_label": item.tip_document.get_importanta_display(),
+        "date": item.work_date.isoformat(),
+        "checked_at": item.created_at.isoformat(),
+        "is_read": item.read_at is not None,
+        "target_path": f"/team-dashboard/utilaje/{item.utilaj.token_qr}",
+        "employees": [{
+            "id": item.angajat_id,
+            "name": item.angajat.UserName,
+            "phone": item.angajat.phone_number or "",
+        }],
+    } for item in FleetDocumentUsageAlert.objects.select_related(
+        "angajat", "utilaj", "tip_document"
+    ).filter(responsabil=responsible, read_at__isnull=True)]
+
+
 def _open_request_notifications(app_user):
     """Notificările de cereri care mai au sens: aprobări încă în așteptare și rezultate."""
     return TeamPortalNotification.objects.filter(recipient=app_user).exclude(
@@ -1800,7 +1834,8 @@ def _current_portal_unread_count(app_user):
         ),
     ).count()
     technical = len(_technical_recommendation_notification_payloads(app_user))
-    return personal + attendance + pending_approvals + results + technical
+    documents = len(_document_usage_notification_payloads(app_user))
+    return personal + attendance + pending_approvals + results + technical + documents
 
 
 @csrf_exempt
@@ -1827,10 +1862,12 @@ def portal_notifications(request):
         # Absențele deja văzute nu se mai afișează.
         attendance_items = [item for item in attendance_items if not item["is_read"]]
         personal_items = [item for item in _personal_notification_payloads(app_user) if not item["is_read"]]
+        document_items = _document_usage_notification_payloads(app_user)
         request_items = (
             _pending_approval_payloads(app_user)
             + _request_notification_payloads(app_user)
             + _technical_recommendation_notification_payloads(app_user)
+            + document_items
         )
         result_ids = [
             item["id"]
@@ -1843,6 +1880,12 @@ def portal_notifications(request):
         items = attendance_items + personal_items + request_items
         items.sort(key=lambda item: item["checked_at"], reverse=True)
         _mark_notifications_seen(app_user, attendance_items, personal_items, result_ids)
+        if document_items:
+            FleetDocumentUsageAlert.objects.filter(
+                responsabil__responsabil_id=app_user.employee_id,
+                pk__in=[item["id"] for item in document_items],
+                read_at__isnull=True,
+            ).update(read_at=timezone.now())
         return JsonResponse({
             "notifications": items,
             "unread_count": _current_portal_unread_count(app_user),
@@ -1881,6 +1924,13 @@ def portal_notifications(request):
         ).update(read_at=timezone.now())
         unread_count = _current_portal_unread_count(app_user)
         return JsonResponse({"updated": updated, "unread_count": unread_count})
+    if notification_kind in {"document_usage_warning", "document_usage_blocked"}:
+        updated = FleetDocumentUsageAlert.objects.filter(
+            responsabil__responsabil_id=app_user.employee_id,
+            pk__in=notification_ids,
+            read_at__isnull=True,
+        ).update(read_at=timezone.now())
+        return JsonResponse({"updated": updated, "unread_count": _current_portal_unread_count(app_user)})
     query = _notification_query(app_user)
     updated = query.filter(pk__in=notification_ids, read_at__isnull=True).update(read_at=timezone.now())
     return JsonResponse({

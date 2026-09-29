@@ -62,9 +62,18 @@ export class NavbarComponent implements OnDestroy {
       links: [{ label: 'Registru unelte', path: '/unelte', icon: 'construction', permissionRoute: '/unelte' }]
     },
     {
-      label: 'Flotă',
+      label: 'Utilaje',
       moduleCode: 'flota',
-      links: [{ label: 'Utilaje', path: '/utilaje', icon: 'local_shipping', permissionRoute: '/utilaje' }]
+      links: [
+        { label: 'Adaugă utilaj', path: '/utilaje/adauga', icon: 'add', permissionRoute: '/utilaje/adauga' },
+        { label: 'Flotă', path: '/utilaje', icon: 'space_dashboard', permissionRoute: '/utilaje' },
+        { label: 'Utilaje', path: '/utilaje/lista', icon: 'local_shipping', permissionRoute: '/utilaje/lista' },
+        { label: 'Expirări documente', path: '/utilaje/expirari', icon: 'event_upcoming', permissionRoute: '/utilaje/expirari' },
+        { label: 'Desemnează responsabili', path: '/utilaje/responsabili', icon: 'manage_accounts', permissionRoute: '/utilaje/responsabili' },
+        { label: 'Utilizări', path: '/utilaje/utilizari', icon: 'history', permissionRoute: '/utilaje/utilizari' },
+        { label: 'Defecte și service', path: '/utilaje/service', icon: 'build', permissionRoute: '/utilaje/service' },
+        { label: 'Rapoarte flotă', path: '/utilaje/rapoarte', icon: 'bar_chart', permissionRoute: '/utilaje/rapoarte' },
+      ]
     }
   ];
 
@@ -96,7 +105,7 @@ export class NavbarComponent implements OnDestroy {
 
   private markActive(currentUrl: string) {
     this.groups.forEach(group => group.links.forEach(link => {
-      const sectionRoot = link.path === '/pontaj' || link.path === '/magazie';
+      const sectionRoot = link.path === '/pontaj' || link.path === '/magazie' || link.path === '/utilaje';
       link.active = currentUrl === link.path || (!sectionRoot && currentUrl.startsWith(`${link.path}/`));
     }));
   }

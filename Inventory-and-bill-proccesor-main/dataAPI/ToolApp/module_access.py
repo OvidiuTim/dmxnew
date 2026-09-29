@@ -82,12 +82,19 @@ MODULE_DEFINITIONS = OrderedDict([
         ],
     }),
     ("flota", {
-        "label": "Flotă",
+        "label": "Utilaje",
         "description": "Actele utilajelor și sesiunile Iau / Predau.",
         "icon": "local_shipping",
         "main_route": "/utilaje",
         "routes": [
-            {"path": "/utilaje", "label": "Utilaje", "icon": "local_shipping"},
+            {"path": "/utilaje/adauga", "label": "Adaugă utilaj", "icon": "add"},
+            {"path": "/utilaje", "label": "Flotă", "icon": "space_dashboard"},
+            {"path": "/utilaje/lista", "label": "Utilaje", "icon": "local_shipping"},
+            {"path": "/utilaje/expirari", "label": "Expirări documente", "icon": "event_upcoming"},
+            {"path": "/utilaje/responsabili", "label": "Desemnează responsabili", "icon": "manage_accounts"},
+            {"path": "/utilaje/utilizari", "label": "Utilizări", "icon": "history"},
+            {"path": "/utilaje/service", "label": "Defecte și service", "icon": "build"},
+            {"path": "/utilaje/rapoarte", "label": "Rapoarte flotă", "icon": "bar_chart"},
         ],
     }),
 ])
@@ -110,9 +117,11 @@ def app_user_roles(app_user):
     employee = app_user.employee
     if getattr(app_user, "is_storekeeper", False):
         roles.append("storekeeper")
-    from ToolApp.models import FleetTechnicalResponsible
+    from ToolApp.models import FleetDocumentResponsible, FleetTechnicalResponsible
     if FleetTechnicalResponsible.objects.filter(app_user=app_user, active=True).exists():
         roles.append("technical_responsible")
+    if FleetDocumentResponsible.objects.filter(responsabil=employee, activ=True).exists():
+        roles.append("document_responsible")
     if employee.led_employee_teams.filter(active=True).exists():
         roles.append("team_leader")
     if employee.supervised_employee_teams.filter(active=True).exists():

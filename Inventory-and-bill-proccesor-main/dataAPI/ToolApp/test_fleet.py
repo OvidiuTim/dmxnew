@@ -21,6 +21,7 @@ from ToolApp.models import (
     EmployeeDocumentType,
     FleetDocumentExpiryNotification,
     FleetDocumentResponsible,
+    FleetDocumentUsageAlert,
     FleetRecommendationSubmission,
     FleetTechnicalRecommendation,
     FleetTechnicalResponsible,
@@ -52,7 +53,7 @@ class FleetFlowTests(TestCase):
         )
         self.itp, _ = TipDocumentUtilaj.objects.update_or_create(
             nume="ITP",
-            defaults={"blocheaza_utilizarea": True, "zile_avertizare": 30},
+            defaults={"importanta": TipDocumentUtilaj.Importance.HIGH, "zile_avertizare": 30},
         )
         self.utilaj.tipuri_document_necesare.add(self.itp)
         self.document = DocumentUtilaj.objects.create(
@@ -203,6 +204,62 @@ class FleetFlowTests(TestCase):
         self.assertEqual(response.status_code, 409)
         self.assertEqual(response.json()["error_code"], "BLOCKED_DOCUMENTS")
         self.assertFalse(SesiuneUtilaj.objects.exists())
+
+    @patch("ToolApp.fleet_views.send_employee_push")
+    def test_medium_expired_document_warns_responsible_but_allows_take(self, send_push):
+        self.itp.importanta = TipDocumentUtilaj.Importance.MEDIUM
+        self.itp.save()
+        self.document.data_expirare = localdate() - timedelta(days=1)
+        self.document.save()
+        responsible_employee = Users.objects.create(
+            UserName="Responsabil Acte", UserSerie="DOC-1", email="acte@example.com"
+        )
+        responsible_user = AppUser.objects.create(
+            employee=responsible_employee, username="documente.user", pin_hash="unused"
+        )
+        FleetDocumentResponsible.objects.create(
+            responsabil=responsible_employee,
+            email=responsible_employee.email,
+            toate_utilajele=True,
+        )
+        responsible_client = Client()
+        responsible_client.cookies["appj"] = make_app_user_token(responsible_user)
+        self.check_in()
+
+        response = self.take()
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json()["document_warnings"][0]["type"], "ITP")
+        alert = FleetDocumentUsageAlert.objects.get()
+        self.assertFalse(alert.blocata)
+        send_push.assert_called_once()
+        summary = responsible_client.get("/api/team-portal/notifications/summary/")
+        self.assertEqual(summary.status_code, 200, summary.content)
+        self.assertEqual(summary.json()["unread_count"], 1)
+
+    @patch("ToolApp.fleet_views.send_employee_push")
+    def test_high_expired_document_blocks_and_alerts_responsible_once(self, send_push):
+        self.document.data_expirare = localdate() - timedelta(days=1)
+        self.document.save()
+        responsible_employee = Users.objects.create(
+            UserName="Responsabil Blocare", UserSerie="DOC-2", email="blocare@example.com"
+        )
+        FleetDocumentResponsible.objects.create(
+            responsabil=responsible_employee,
+            email=responsible_employee.email,
+            toate_utilajele=True,
+        )
+        self.check_in()
+
+        first = self.take()
+        second = self.take()
+
+        self.assertEqual(first.status_code, 409, first.content)
+        self.assertEqual(first.json()["error_code"], "BLOCKED_DOCUMENTS")
+        self.assertEqual(len(first.json()["responsibles"]), 1)
+        self.assertEqual(second.status_code, 409, second.content)
+        self.assertEqual(FleetDocumentUsageAlert.objects.filter(blocata=True).count(), 1)
+        send_push.assert_called_once()
 
     def test_take_requires_employee_authorization_configured_for_equipment(self):
         authorization = EmployeeDocumentType.objects.create(

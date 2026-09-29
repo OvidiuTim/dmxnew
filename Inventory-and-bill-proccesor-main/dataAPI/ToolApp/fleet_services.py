@@ -48,6 +48,8 @@ def document_rows(utilaj, request=None, today=None):
             "type_id": tip.pk,
             "type": tip.nume,
             "blocking": tip.blocheaza_utilizarea,
+            "importance": tip.importanta,
+            "importance_label": tip.get_importanta_display(),
             "warning_days": tip.zile_avertizare,
             "expiry_date": item.data_expirare.isoformat() if item and item.data_expirare else None,
             "days_remaining": days,
@@ -61,7 +63,15 @@ def document_rows(utilaj, request=None, today=None):
 def blocking_equipment_documents(utilaj, today=None):
     return [
         row for row in document_rows(utilaj, today=today)
-        if row["blocking"] and row["status"] in {"missing", "expired"}
+        if row["importance"] == "high" and row["status"] in {"missing", "expired"}
+    ]
+
+
+def problematic_equipment_documents(utilaj, today=None):
+    """Acte lipsă/expirate care cer avertizare sau blocare la preluare."""
+    return [
+        row for row in document_rows(utilaj, today=today)
+        if row["importance"] in {"medium", "high"} and row["status"] in {"missing", "expired"}
     ]
 
 

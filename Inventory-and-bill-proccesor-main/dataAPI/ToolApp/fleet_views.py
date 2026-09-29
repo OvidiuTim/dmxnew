@@ -16,10 +16,10 @@ from django.views.decorators.csrf import csrf_exempt
 
 from ToolApp.fleet_services import (
     blocking_technical_recommendations,
-    blocking_equipment_documents,
     close_open_utilaj_sessions,
     document_rows,
     missing_employee_authorizations,
+    problematic_equipment_documents,
     technical_recommendation_state,
 )
 from ToolApp.models import (
@@ -32,6 +32,7 @@ from ToolApp.models import (
     EmployeeDocumentType,
     FleetAuditLog,
     FleetDocumentResponsible,
+    FleetDocumentUsageAlert,
     FleetRecommendationSubmission,
     FleetTechnicalRecommendation,
     FleetTechnicalResponsible,
@@ -200,6 +201,55 @@ def _technical_responsible_for_request(request):
     return FleetTechnicalResponsible.objects.filter(app_user=app_user, active=True).first()
 
 
+def _document_responsibles_for_equipment(utilaj):
+    return FleetDocumentResponsible.objects.select_related("responsabil").filter(
+        activ=True,
+    ).filter(Q(toate_utilajele=True) | Q(utilaje=utilaj)).distinct()
+
+
+def _document_responsible_contacts(utilaj):
+    return [{
+        "name": item.responsabil.UserName,
+        "phone": item.responsabil.phone_number or "",
+        "email": item.email,
+    } for item in _document_responsibles_for_equipment(utilaj)]
+
+
+def _create_document_usage_alerts(utilaj, employee, rows, work_date):
+    """Persistă și trimite o singură alertă/act/responsabil/zi."""
+    responsibles = list(_document_responsibles_for_equipment(utilaj))
+    for row in rows:
+        blocked = row["importance"] == TipDocumentUtilaj.Importance.HIGH
+        for responsible in responsibles:
+            alert, created = FleetDocumentUsageAlert.objects.get_or_create(
+                responsabil=responsible,
+                utilaj=utilaj,
+                angajat=employee,
+                tip_document_id=row["type_id"],
+                work_date=work_date,
+                defaults={"document_id": row["id"], "blocata": blocked},
+            )
+            escalated = not created and blocked and not alert.blocata
+            if escalated:
+                alert.blocata = True
+                alert.document_id = row["id"]
+                alert.read_at = None
+                alert.save(update_fields=("blocata", "document", "read_at"))
+            if created or escalated:
+                send_employee_push(
+                    [responsible.responsabil_id],
+                    "Tentativă blocată" if blocked else "Utilaj folosit cu document expirat",
+                    f"{employee.UserName} {'a încercat să folosească' if blocked else 'vrea să folosească'} "
+                    f"{utilaj.cod_intern} cu {row['type'].lower()} {('lipsă' if row['status'] == 'missing' else 'expirată')}.",
+                    {
+                        "type": "fleet_document_usage",
+                        "alert_id": alert.pk,
+                        "equipment_token": utilaj.token_qr,
+                        "blocked": int(blocked),
+                    },
+                )
+
+
 def _utilaj_payload(utilaj, request=None):
     open_session = utilaj.sesiuni.select_related("angajat").filter(sfarsit__isnull=True).first()
     recommendations = [
@@ -227,6 +277,7 @@ def _utilaj_payload(utilaj, request=None):
         "site": ({"id": utilaj.santier_curent_id, "code": utilaj.santier_curent.code, "name": utilaj.santier_curent.name}
                  if utilaj.santier_curent else None),
         "documents": document_rows(utilaj, request=request),
+        "document_responsibles": _document_responsible_contacts(utilaj),
         "active_session": _session_payload(open_session),
         "recommendations": recommendations,
         "due_recommendations": [item for item in recommendations if item["due"]],
@@ -527,6 +578,7 @@ def fleet_dashboard(request):
         "idle": idle,
         "sites": [{"id": item.pk, "code": item.code, "name": item.name} for item in ConstructionSite.objects.filter(status=ConstructionSite.Status.ACTIVE)],
         "document_types": [{"id": item.pk, "name": item.nume, "blocking": item.blocheaza_utilizarea,
+                            "importance": item.importanta, "importance_label": item.get_importanta_display(),
                             "warning_days": item.zile_avertizare} for item in TipDocumentUtilaj.objects.filter(activ=True)],
         "generated_at": timezone.localtime(now).isoformat(),
     })
@@ -543,6 +595,7 @@ def fleet_expirations(request):
         rows.append({
             "id": item.pk, "equipment_id": item.utilaj_id, "equipment": item.utilaj.cod_intern,
             "equipment_name": item.utilaj.denumire, "type_id": item.tip_id, "type": item.tip.nume,
+            "importance": item.tip.importanta, "importance_label": item.tip.get_importanta_display(),
             "expiry_date": item.data_expirare.isoformat(), "days_remaining": days, "group": group,
             "file_url": request.build_absolute_uri(f"/api/fleet/qr/{item.utilaj.token_qr}/documents/{item.pk}/") if item.fisier else "",
         })
@@ -829,6 +882,8 @@ def fleet_document_types(request):
                 "id": item.pk,
                 "name": item.nume,
                 "blocking": item.blocheaza_utilizarea,
+                "importance": item.importanta,
+                "importance_label": item.get_importanta_display(),
                 "warning_days": item.zile_avertizare,
                 "required_employee_document_type_ids": list(item.documente_angajat_necesare.values_list("pk", flat=True)),
             } for item in TipDocumentUtilaj.objects.filter(activ=True).prefetch_related("documente_angajat_necesare")],
@@ -848,7 +903,12 @@ def fleet_document_types(request):
         if item is None:
             item, created = TipDocumentUtilaj.objects.get_or_create(nume=str(data["name"]).strip())
         item.nume = str(data["name"]).strip()
-        item.blocheaza_utilizarea = bool(data.get("blocking"))
+        importance = data.get("importance")
+        if importance is None:
+            importance = TipDocumentUtilaj.Importance.HIGH if data.get("blocking") else TipDocumentUtilaj.Importance.MEDIUM
+        if importance not in TipDocumentUtilaj.Importance.values:
+            return _error("INVALID_IMPORTANCE", "Nivelul de importanță nu este valid.")
+        item.importanta = importance
         item.zile_avertizare = warning_days
         try:
             item.save()
@@ -861,6 +921,8 @@ def fleet_document_types(request):
             "id": item.pk,
             "name": item.nume,
             "blocking": item.blocheaza_utilizarea,
+            "importance": item.importanta,
+            "importance_label": item.get_importanta_display(),
             "warning_days": item.zile_avertizare,
             "required_employee_document_type_ids": list(item.documente_angajat_necesare.values_list("pk", flat=True)),
         }}, status=201 if created else 200)
@@ -1338,10 +1400,22 @@ def fleet_take(request, token):
             return _blocked_attempt(utilaj, employee, "EMPLOYEE_HAS_EQUIPMENT", f"Ai deja utilajul {current.utilaj.cod_intern} în lucru.")
         if utilaj.stare != Utilaj.Stare.DISPONIBIL:
             return _blocked_attempt(utilaj, employee, "EQUIPMENT_UNAVAILABLE", f"Utilajul este {utilaj.get_stare_display().lower()}.")
-        blocked_documents = blocking_equipment_documents(utilaj, today=today)
+        document_problems = problematic_equipment_documents(utilaj, today=today)
+        if document_problems:
+            _create_document_usage_alerts(utilaj, employee, document_problems, today)
+        blocked_documents = [
+            row for row in document_problems
+            if row["importance"] == TipDocumentUtilaj.Importance.HIGH
+        ]
         if blocked_documents:
-            return _blocked_attempt(utilaj, employee, "BLOCKED_DOCUMENTS", "Utilajul nu poate fi folosit: are documente lipsă sau expirate.",
-                                    documents=blocked_documents)
+            return _blocked_attempt(
+                utilaj,
+                employee,
+                "BLOCKED_DOCUMENTS",
+                "Utilajul nu poate fi folosit: are documente importante lipsă sau expirate. Sună responsabilul de documente.",
+                documents=blocked_documents,
+                responsibles=_document_responsible_contacts(utilaj),
+            )
         blocked_recommendations = blocking_technical_recommendations(utilaj, now=now)
         if blocked_recommendations:
             return _blocked_attempt(
@@ -1381,6 +1455,7 @@ def fleet_take(request, token):
         _audit(request, "utilaj_luat", utilaj, employee=employee.UserName, session_id=session.pk)
     session = SesiuneUtilaj.objects.select_related("angajat").get(pk=session.pk)
     return JsonResponse({"ok": True, "state": "TAKEN", "session": _session_payload(session),
+                         "document_warnings": [row for row in document_problems if row["importance"] == "medium"],
                          "equipment": _utilaj_payload(utilaj, request=request)}, status=201)
 
 

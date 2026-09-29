@@ -208,15 +208,15 @@
     "TESA কর্মী"
   ],
   "presenceSubtitle": [
-    "Înregistrează intrarea și ieșirea cu locația GPS, fără fotografie.",
-    "Record check-in and check-out with GPS location, without a photo.",
-    "GPS ਟਿਕਾਣੇ ਨਾਲ ਚੈੱਕ-ਇਨ ਅਤੇ ਚੈੱਕ-ਆਉਟ ਦਰਜ ਕਰੋ, ਬਿਨਾਂ ਫੋਟੋ।",
-    "GPS स्थान के साथ चेक-इन और चेक-आउट दर्ज करें, बिना फोटो।",
-    "GPS स्थानसहित चेक-इन र चेक-आउट दर्ता गर्नुहोस्, फोटो बिना।",
-    "GPS অবস্থান দিয়ে চেক-ইন ও চেক-আউট করুন, ছবি ছাড়া।"
+    "Pontează intrarea când începi și ieșirea când termini.",
+    "Check in when you start and check out when you finish.",
+    "ਕੰਮ ਸ਼ੁਰੂ ਕਰਨ ਵੇਲੇ ਚੈੱਕ-ਇਨ ਅਤੇ ਖਤਮ ਕਰਨ ਵੇਲੇ ਚੈੱਕ-ਆਉਟ ਕਰੋ।",
+    "काम शुरू करते समय चेक-इन और खत्म करते समय चेक-आउट करें।",
+    "काम सुरु गर्दा चेक-इन र सकिँदा चेक-आउट गर्नुहोस्।",
+    "কাজ শুরু করলে চেক-ইন এবং শেষ করলে চেক-আউট করুন।"
   ],
   "tesaAttendance": ["Pontaj TESA", "TESA attendance", "TESA ਹਾਜ਼ਰੀ", "TESA उपस्थिति", "TESA हाजिरी", "TESA উপস্থিতি"],
-  "tesaAttendanceHint": ["Selectează șantierul și înregistrează ora reală de intrare.", "Choose the worksite and record your actual check-in time.", "ਸਾਈਟ ਚੁਣੋ ਅਤੇ ਅਸਲ ਚੈੱਕ-ਇਨ ਸਮਾਂ ਦਰਜ ਕਰੋ।", "साइट चुनें और वास्तविक चेक-इन समय दर्ज करें।", "साइट छान्नुहोस् र वास्तविक चेक-इन समय दर्ता गर्नुहोस्।", "সাইট বেছে প্রকৃত চেক-ইন সময় নথিভুক্ত করুন।"],
+  "tesaAttendanceHint": ["Selectează punctul de lucru și pontează intrarea.", "Choose the work point and check in.", "ਕੰਮ ਦੀ ਥਾਂ ਚੁਣੋ ਅਤੇ ਚੈੱਕ-ਇਨ ਕਰੋ।", "कार्य स्थल चुनें और चेक-इन करें।", "कार्यस्थल छान्नुहोस् र चेक-इन गर्नुहोस्।", "কাজের স্থান বেছে নিয়ে চেক-ইন করুন।"],
   "tesaCheckedInHint": ["Ești pontat. La terminarea programului înregistrează ieșirea.", "You are checked in. Record check-out when your shift ends.", "ਤੁਸੀਂ ਚੈੱਕ-ਇਨ ਹੋ। ਕੰਮ ਮੁਕਣ ਤੇ ਚੈੱਕ-ਆਉਟ ਕਰੋ।", "आप चेक-इन हैं। काम समाप्त होने पर चेक-आउट करें।", "तपाईं चेक-इन हुनुहुन्छ। काम सकिएपछि चेक-आउट गर्नुहोस्।", "আপনি চেক-ইন করেছেন। কাজ শেষে চেক-আউট করুন।"],
   "tesaCheckIn": ["Pontează intrarea", "Check in", "ਚੈੱਕ-ਇਨ ਕਰੋ", "चेक-इन करें", "चेक-इन गर्नुहोस्", "চেক-ইন করুন"],
   "tesaCheckOut": ["Pontează ieșirea", "Check out", "ਚੈੱਕ-ਆਉਟ ਕਰੋ", "चेक-आउट करें", "चेक-आउट गर्नुहोस्", "চেক-আউট করুন"],
@@ -345,12 +345,12 @@
     "অবস্থান হালনাগাদ করুন"
   ],
   "tesaOutside": [
-    "Personalul TESA poate confirma și din afara perimetrului. Distanța se salvează împreună cu pontajul.",
-    "TESA staff can also confirm outside the perimeter. The distance is saved with attendance.",
-    "TESA ਸਟਾਫ ਘੇਰੇ ਤੋਂ ਬਾਹਰ ਵੀ ਪੁਸ਼ਟੀ ਕਰ ਸਕਦਾ ਹੈ। ਦੂਰੀ ਹਾਜ਼ਰੀ ਨਾਲ ਸੰਭਾਲੀ ਜਾਂਦੀ ਹੈ।",
-    "TESA कर्मचारी परिधि के बाहर भी पुष्टि कर सकते हैं। दूरी उपस्थिति के साथ सहेजी जाती है।",
-    "TESA कर्मचारीले परिधिबाहिरबाट पनि पुष्टि गर्न सक्छन्। दूरी हाजिरीसँग सुरक्षित हुन्छ।",
-    "TESA কর্মীরা এলাকার বাইরে থেকেও নিশ্চিত করতে পারেন। দূরত্ব উপস্থিতির সঙ্গে সংরক্ষিত হয়।"
+    "Mergi în zona punctului de lucru selectat și încearcă din nou.",
+    "Go to the selected work point area and try again.",
+    "ਚੁਣੀ ਕੰਮ ਦੀ ਥਾਂ ਦੇ ਖੇਤਰ ਵਿੱਚ ਜਾਓ ਅਤੇ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
+    "चुने गए कार्य स्थल के क्षेत्र में जाएँ और फिर से प्रयास करें।",
+    "छानिएको कार्यस्थलको क्षेत्रमा जानुहोस् र फेरि प्रयास गर्नुहोस्।",
+    "নির্বাচিত কাজের স্থানের এলাকায় যান এবং আবার চেষ্টা করুন।"
   ],
   "mapHint": [
     "După selecție apare harta cu zona șantierului și distanța până la ea.",
@@ -369,12 +369,12 @@
     "সংরক্ষণ হচ্ছে…"
   ],
   "presencePrivacy": [
-    "Se salvează locația la intrare și la ieșire. Nu se solicită fotografie.",
-    "Location is saved at check-in and check-out. No photo is requested.",
-    "ਚੈੱਕ-ਇਨ ਅਤੇ ਚੈੱਕ-ਆਉਟ ਵੇਲੇ ਟਿਕਾਣਾ ਸੰਭਾਲਿਆ ਜਾਂਦਾ ਹੈ। ਫੋਟੋ ਨਹੀਂ ਮੰਗੀ ਜਾਂਦੀ।",
-    "चेक-इन और चेक-आउट पर स्थान सहेजा जाता है। फोटो नहीं माँगी जाती।",
-    "चेक-इन र चेक-आउटमा स्थान सुरक्षित हुन्छ। फोटो मागिँदैन।",
-    "চেক-ইন ও চেক-আউটে অবস্থান সংরক্ষিত হয়। ছবি চাওয়া হয় না।"
+    "Permite accesul la locație când ți se cere.",
+    "Allow location access when prompted.",
+    "ਪੁੱਛੇ ਜਾਣ ਤੇ ਟਿਕਾਣੇ ਦੀ ਪਹੁੰਚ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ।",
+    "पूछे जाने पर स्थान की अनुमति दें।",
+    "सोधिँदा स्थानको अनुमति दिनुहोस्।",
+    "জিজ্ঞাসা করা হলে অবস্থানের অনুমতি দিন।"
   ],
   "presenceConfirmed": [
     "Prezență confirmată",
@@ -457,20 +457,20 @@
     "এই পৃষ্ঠায় শুধু PIN 1165 অনুমোদিত।"
   ],
   "driverTitle": [
-    "Pontaj șoferi",
-    "Driver attendance",
-    "ਡਰਾਈਵਰ ਹਾਜ਼ਰੀ",
-    "ड्राइवर उपस्थिति",
-    "चालक हाजिरी",
-    "চালকের উপস্থিতি"
+    "Pontaj mobil",
+    "Mobile attendance",
+    "ਮੋਬਾਈਲ ਹਾਜ਼ਰੀ",
+    "मोबाइल उपस्थिति",
+    "मोबाइल हाजिरी",
+    "মোবাইল উপস্থিতি"
   ],
   "driverHint": [
-    "Șoferii se pot ponta din orice locație. Locația GPS este obligatorie și se salvează la fiecare intrare și ieșire.",
-    "Drivers can record attendance from any location. GPS is required and saved at each clock-in and clock-out.",
-    "ਡਰਾਈਵਰ ਕਿਸੇ ਵੀ ਥਾਂ ਤੋਂ ਹਾਜ਼ਰੀ ਦਰਜ ਕਰ ਸਕਦੇ ਹਨ। ਹਰ ਵਾਰ ਆਉਣ ਅਤੇ ਜਾਣ ਵੇਲੇ GPS ਲਾਜ਼ਮੀ ਹੈ ਅਤੇ ਸੰਭਾਲਿਆ ਜਾਂਦਾ ਹੈ।",
-    "ड्राइवर कहीं से भी उपस्थिति दर्ज कर सकते हैं। हर प्रवेश और निकास पर GPS आवश्यक है और सहेजा जाता है।",
-    "चालकले जुनसुकै स्थानबाट हाजिरी दर्ता गर्न सक्छन्। हरेक प्रवेश र निकासमा GPS आवश्यक छ र सुरक्षित हुन्छ।",
-    "চালকেরা যেকোনো স্থান থেকে উপস্থিতি নথিভুক্ত করতে পারেন। প্রতিবার প্রবেশ ও প্রস্থানে GPS আবশ্যক ও সংরক্ষিত হয়।"
+    "Permite accesul la locație, apoi introdu PIN-ul.",
+    "Allow location access, then enter your PIN.",
+    "ਟਿਕਾਣੇ ਦੀ ਪਹੁੰਚ ਦੀ ਇਜਾਜ਼ਤ ਦਿਓ, ਫਿਰ ਆਪਣਾ PIN ਦਰਜ ਕਰੋ।",
+    "स्थान की अनुमति दें, फिर अपना PIN दर्ज करें।",
+    "स्थानको अनुमति दिनुहोस्, त्यसपछि आफ्नो PIN प्रविष्ट गर्नुहोस्।",
+    "অবস্থানের অনুমতি দিন, তারপর আপনার PIN লিখুন।"
   ],
   "locationReady": [
     "Locația este gata pentru pontaj.",
@@ -571,5 +571,25 @@
   "fleetTake": ["Iau utilajul", "Take equipment", "ਮਸ਼ੀਨ ਲਵੋ", "उपकरण लें", "उपकरण लिनुहोस्", "যন্ত্র নিন"],
   "fleetReturn": ["Predau utilajul", "Return equipment", "ਮਸ਼ੀਨ ਵਾਪਸ ਕਰੋ", "उपकरण लौटाएँ", "उपकरण फिर्ता गर्नुहोस्", "যন্ত্র ফেরত দিন"],
   "fleetTakenSuccess": ["Utilajul a fost luat în primire.", "Equipment has been checked out.", "ਮਸ਼ੀਨ ਲੈ ਲਈ ਗਈ ਹੈ।", "उपकरण ले लिया गया है।", "उपकरण लिइयो।", "যন্ত্র নেওয়া হয়েছে।"],
-  "fleetReturnedSuccess": ["Utilajul a fost predat.", "Equipment has been returned.", "ਮਸ਼ੀਨ ਵਾਪਸ ਕਰ ਦਿੱਤੀ ਗਈ ਹੈ।", "उपकरण लौटा दिया गया है।", "उपकरण फिर्ता गरियो।", "যন্ত্র ফেরত দেওয়া হয়েছে।"]
+  "fleetReturnedSuccess": ["Utilajul a fost predat.", "Equipment has been returned.", "ਮਸ਼ੀਨ ਵਾਪਸ ਕਰ ਦਿੱਤੀ ਗਈ ਹੈ।", "उपकरण लौटा दिया गया है।", "उपकरण फिर्ता गरियो।", "যন্ত্র ফেরত দেওয়া হয়েছে।"],
+  "fleetDocAlertBlockedTitle": ["Utilizarea utilajului este blocată", "Equipment use is blocked", "ਮਸ਼ੀਨ ਦੀ ਵਰਤੋਂ ਬੰਦ ਹੈ", "उपकरण का उपयोग रोका गया है", "उपकरणको प्रयोग रोकिएको छ", "যন্ত্রের ব্যবহার বন্ধ আছে"],
+  "fleetDocAlertBlockedText": ["Un act important lipsește sau a expirat. Sună responsabilul de documente ca să facă actele.", "An important document is missing or has expired. Call the document manager to sort out the paperwork.", "ਇੱਕ ਜ਼ਰੂਰੀ ਦਸਤਾਵੇਜ਼ ਗੁੰਮ ਹੈ ਜਾਂ ਮਿਆਦ ਪੁੱਗ ਗਈ ਹੈ। ਕਾਗਜ਼ ਠੀਕ ਕਰਵਾਉਣ ਲਈ ਦਸਤਾਵੇਜ਼ ਜ਼ਿੰਮੇਵਾਰ ਨੂੰ ਫ਼ੋਨ ਕਰੋ।", "एक ज़रूरी दस्तावेज़ अनुपलब्ध है या उसकी अवधि समाप्त हो गई है। कागज़ ठीक कराने के लिए दस्तावेज़ जिम्मेदार को फ़ोन करें।", "एउटा महत्त्वपूर्ण कागजात छैन वा म्याद सकिएको छ। कागजात मिलाउन कागजात जिम्मेवारलाई फोन गर्नुहोस्।", "একটি গুরুত্বপূর্ণ কাগজ নেই বা মেয়াদ শেষ হয়েছে। কাগজপত্র ঠিক করতে কাগজপত্রের দায়িত্বপ্রাপ্তকে ফোন করুন।"],
+  "fleetDocAlertWarningTitle": ["Poți lucra, dar actele nu sunt în regulă", "You can work, but the documents are not in order", "ਤੁਸੀਂ ਕੰਮ ਕਰ ਸਕਦੇ ਹੋ, ਪਰ ਦਸਤਾਵੇਜ਼ ਠੀਕ ਨਹੀਂ ਹਨ", "आप काम कर सकते हैं, लेकिन दस्तावेज़ ठीक नहीं हैं", "काम गर्न सक्नुहुन्छ, तर कागजात मिलेका छैनन्", "আপনি কাজ করতে পারেন, তবে কাগজপত্র ঠিক নেই"],
+  "fleetDocAlertWarningText": ["Responsabilul de documente este anunțat când iei utilajul.", "The document manager is notified when you take the equipment.", "ਜਦੋਂ ਤੁਸੀਂ ਮਸ਼ੀਨ ਲਵੋਗੇ, ਦਸਤਾਵੇਜ਼ ਜ਼ਿੰਮੇਵਾਰ ਨੂੰ ਸੂਚਨਾ ਜਾਵੇਗੀ।", "उपकरण लेते ही दस्तावेज़ जिम्मेदार को सूचना चली जाएगी।", "उपकरण लिँदा कागजात जिम्मेवारलाई सूचना जान्छ।", "যন্ত্র নেওয়ার সময় কাগজপত্রের দায়িত্বপ্রাপ্তকে জানানো হবে।"],
+  "fleetDocAlertCall": ["Sună responsabilul", "Call the document manager", "ਦਸਤਾਵੇਜ਼ ਜ਼ਿੰਮੇਵਾਰ ਨੂੰ ਫ਼ੋਨ ਕਰੋ", "दस्तावेज़ जिम्मेदार को फ़ोन करें", "कागजात जिम्मेवारलाई फोन गर्नुहोस्", "কাগজপত্রের দায়িত্বপ্রাপ্তকে ফোন করুন"],
+  "fleetDocResponsibleNotified": ["Responsabilul de documente a fost anunțat.", "The document manager has been notified.", "ਦਸਤਾਵੇਜ਼ ਜ਼ਿੰਮੇਵਾਰ ਨੂੰ ਸੂਚਨਾ ਭੇਜ ਦਿੱਤੀ ਗਈ ਹੈ।", "दस्तावेज़ जिम्मेदार को सूचना भेज दी गई है।", "कागजात जिम्मेवारलाई सूचना पठाइयो।", "কাগজপত্রের দায়িত্বপ্রাপ্তকে জানানো হয়েছে।"],
+  "tesaAnywhereHint": ["Verifică punctul de lucru și apasă butonul de mai jos.", "Check the work point and tap the button below.", "ਕੰਮ ਦੀ ਥਾਂ ਜਾਂਚੋ ਅਤੇ ਹੇਠਾਂ ਦਿੱਤਾ ਬਟਨ ਦਬਾਓ।", "कार्य स्थल जाँचें और नीचे दिया बटन दबाएँ।", "कार्यस्थल जाँच गर्नुहोस् र तलको बटन थिच्नुहोस्।", "কাজের স্থান যাচাই করে নিচের বোতাম চাপুন।"],
+  "tesaCheckedInAt": ["Te-ai pontat la {ora}.", "You clocked in at {ora}.", "ਤੁਸੀਂ {ora} ਵਜੇ ਚੈੱਕ-ਇਨ ਕੀਤਾ।", "आपने {ora} बजे चेक-इन किया।", "तपाईंले {ora} मा चेक-इन गर्नुभयो।", "আপনি {ora}-এ চেক-ইন করেছেন।"],
+  "tesaCheckedOutAt": ["Te-ai depontat la {ora}.", "You clocked out at {ora}.", "ਤੁਸੀਂ {ora} ਵਜੇ ਚੈੱਕ-ਆਉਟ ਕੀਤਾ।", "आपने {ora} बजे चेक-आउट किया।", "तपाईंले {ora} मा चेक-आउट गर्नुभयो।", "আপনি {ora}-এ চেক-আউট করেছেন।"],
+  "tesaReturningToDashboard": ["Te întoarcem la dashboard…", "Returning to the dashboard…", "ਡੈਸ਼ਬੋਰਡ ਤੇ ਵਾਪਸ ਜਾ ਰਹੇ ਹਾਂ…", "डैशबोर्ड पर वापस जा रहे हैं…", "ड्यासबोर्डमा फर्किँदै…", "ড্যাশবোর্ডে ফিরে যাচ্ছি…"],
+  "tesaWorkPointTitle": ["Punct de lucru", "Work location", "ਕੰਮ ਦੀ ਥਾਂ", "कार्य स्थल", "कार्यस्थल", "কর্মস্থল"],
+  "myTeamCard": ["Vezi echipa ta", "See your team", "ਆਪਣੀ ਟੀਮ ਵੇਖੋ", "अपनी टीम देखें", "आफ्नो टोली हेर्नुहोस्", "আপনার টিম দেখুন"],
+  "manageTeamCard": ["Gestionează echipa", "Manage team", "ਟੀਮ ਸੰਭਾਲੋ", "टीम प्रबंधित करें", "टोली व्यवस्थापन", "টিম পরিচালনা"],
+  "attendanceTapHint": ["Apasă aici pentru pontaj", "Tap here to clock in or out", "ਹਾਜ਼ਰੀ ਲਈ ਇੱਥੇ ਦਬਾਓ", "उपस्थिति के लिए यहाँ दबाएँ", "हाजिरीका लागि यहाँ थिच्नुहोस्", "উপস্থিতির জন্য এখানে চাপুন"],
+  "teamHierarchyTitle": ["Echipa mea", "My team", "ਮੇਰੀ ਟੀਮ", "मेरी टीम", "मेरो टोली", "আমার টিম"],
+  "teamSupervisorLabel": ["Supervizor", "Supervisor", "ਸੁਪਰਵਾਈਜ਼ਰ", "सुपरवाइज़र", "सुपरभाइजर", "সুপারভাইজার"],
+  "teamLeaderLabel": ["Șef de echipă", "Team leader", "ਟੀਮ ਲੀਡਰ", "टीम लीडर", "टोली प्रमुख", "টিম লিডার"],
+  "teamMembersLabel": ["Echipa", "Team", "ਟੀਮ", "टीम", "टोली", "টিম"],
+  "teamNoTeam": ["Nu ești repartizat într-o echipă.", "You are not assigned to a team.", "ਤੁਸੀਂ ਕਿਸੇ ਟੀਮ ਵਿੱਚ ਨਹੀਂ ਹੋ।", "आप किसी टीम में नहीं हैं।", "तपाईं कुनै टोलीमा हुनुहुन्न।", "আপনি কোনো টিমে নেই।"],
+  "teamYouLabel": ["tu", "you", "ਤੁਸੀਂ", "आप", "तपाईं", "আপনি"]
 }

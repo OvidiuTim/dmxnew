@@ -1589,8 +1589,14 @@ class Utilaj(models.Model):
 
 
 class TipDocumentUtilaj(models.Model):
+    class Importance(models.TextChoices):
+        LOW = "low", "Scăzută"
+        MEDIUM = "medium", "Medie"
+        HIGH = "high", "Ridicată"
+
     nume = models.CharField(max_length=120, unique=True)
     blocheaza_utilizarea = models.BooleanField(default=False)
+    importanta = models.CharField(max_length=8, choices=Importance.choices, default=Importance.MEDIUM, db_index=True)
     zile_avertizare = models.PositiveSmallIntegerField(default=30)
     activ = models.BooleanField(default=True, db_index=True)
     # De exemplu, un stivuitor poate cere autorizația ISCIR a angajatului.
@@ -1605,6 +1611,12 @@ class TipDocumentUtilaj(models.Model):
 
     def __str__(self):
         return self.nume
+
+    def save(self, *args, **kwargs):
+        self.blocheaza_utilizarea = self.importanta == self.Importance.HIGH
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"blocheaza_utilizarea"}
+        return super().save(*args, **kwargs)
 
 
 class DocumentUtilaj(models.Model):
@@ -1703,6 +1715,39 @@ class FleetDocumentExpiryNotification(models.Model):
             models.UniqueConstraint(
                 fields=("responsabil", "document", "data_expirare"),
                 name="unique_fleet_expiry_notice_per_responsible",
+            ),
+        ]
+
+
+class FleetDocumentUsageAlert(models.Model):
+    """Alertă imediată când se încearcă folosirea unui utilaj cu acte expirate/lipsă."""
+
+    responsabil = models.ForeignKey(
+        FleetDocumentResponsible,
+        on_delete=models.CASCADE,
+        related_name="alerte_utilizare",
+    )
+    utilaj = models.ForeignKey(Utilaj, on_delete=models.CASCADE, related_name="alerte_documente_utilizare")
+    angajat = models.ForeignKey(Users, on_delete=models.PROTECT, related_name="alerte_documente_utilaj")
+    tip_document = models.ForeignKey(TipDocumentUtilaj, on_delete=models.PROTECT, related_name="alerte_utilizare")
+    document = models.ForeignKey(
+        DocumentUtilaj,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="alerte_utilizare",
+    )
+    work_date = models.DateField(db_index=True)
+    blocata = models.BooleanField(default=False, db_index=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("responsabil", "utilaj", "angajat", "tip_document", "work_date"),
+                name="unique_fleet_document_usage_alert_day",
             ),
         ]
 

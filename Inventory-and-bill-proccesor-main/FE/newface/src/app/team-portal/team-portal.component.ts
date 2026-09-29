@@ -64,6 +64,13 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     hi: { role: 'तकनीकी जिम्मेदार', notification: 'नई तकनीकी जाँच', pending: 'जाँच आवश्यक' },
     ne: { role: 'प्राविधिक जिम्मेवार', notification: 'नयाँ प्राविधिक जाँच', pending: 'जाँच आवश्यक' },
   };
+  private readonly documentRoleCopy: Record<PortalLanguage, { role: string; warning: string; blocked: string; allowed: string }> = {
+    ro: { role: 'Responsabil documente', warning: 'Document expirat', blocked: 'Utilizare blocată', allowed: 'Utilizare permisă cu avertizare' },
+    en: { role: 'Document manager', warning: 'Expired document', blocked: 'Use blocked', allowed: 'Use allowed with warning' },
+    pa: { role: 'ਦਸਤਾਵੇਜ਼ ਜ਼ਿੰਮੇਵਾਰ', warning: 'ਮਿਆਦ ਪੁੱਗਿਆ ਦਸਤਾਵੇਜ਼', blocked: 'ਵਰਤੋਂ ਰੋਕੀ ਗਈ', allowed: 'ਚੇਤਾਵਨੀ ਨਾਲ ਵਰਤੋਂ ਮਨਜ਼ੂਰ' },
+    hi: { role: 'दस्तावेज़ जिम्मेदार', warning: 'समाप्त दस्तावेज़', blocked: 'उपयोग रोका गया', allowed: 'चेतावनी के साथ उपयोग अनुमत' },
+    ne: { role: 'कागजात जिम्मेवार', warning: 'म्याद सकिएको कागजात', blocked: 'प्रयोग रोकियो', allowed: 'चेतावनीसहित प्रयोग अनुमति' },
+  };
   private readonly attendanceStateCopy: Record<PortalLanguage, { active: string; inactive: string }> = {
     ro: { active: 'Ești pontat de {hours} ore {minutes} minute', inactive: 'Nu ești pontat astăzi' },
     en: { active: 'Clocked in for {hours} hours {minutes} minutes', inactive: 'You are not clocked in today' },
@@ -481,6 +488,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     if (this.dashboard.is_supervisor) labels.push(this.t.supervisorRole);
     if (this.dashboard.is_storekeeper) labels.push(this.storekeeperCopy[this.language].role);
     if (this.dashboard.is_technical_responsible) labels.push(this.technicalRoleCopy[this.language].role);
+    if (this.dashboard.is_document_responsible) labels.push(this.documentRoleCopy[this.language].role);
     const configured = this.dashboard.role_labels || {};
     if (this.dashboard.alert_level_1) labels.push(this.language === 'ro' ? (configured['1'] || this.ui.level1) : this.ui.level1);
     if (this.dashboard.alert_level_2) labels.push(this.language === 'ro' ? (configured['2'] || this.ui.level2) : this.ui.level2);
@@ -828,6 +836,8 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
 
   notificationTitle(notification: any): string {
     if (notification?.kind === 'technical_recommendation') return `${this.technicalRoleCopy[this.language].notification} · ${notification.recommendation_title || ''}`;
+    if (notification?.kind === 'document_usage_blocked') return `${this.documentRoleCopy[this.language].blocked} · ${notification.document_type || ''}`;
+    if (notification?.kind === 'document_usage_warning') return `${this.documentRoleCopy[this.language].warning} · ${notification.document_type || ''}`;
     if (notification?.kind === 'leave_approval') return this.t.newLeaveNotification;
     if (notification?.kind === 'transfer_approval') return this.t.newTransferNotification;
     if (notification?.kind === 'leave_result') return this.t.leaveResultNotification;
@@ -837,6 +847,8 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
 
   notificationStatusLabel(notification: any): string {
     if (notification?.kind === 'technical_recommendation') return this.technicalRoleCopy[this.language].pending;
+    if (notification?.kind === 'document_usage_blocked') return this.documentRoleCopy[this.language].blocked;
+    if (notification?.kind === 'document_usage_warning') return this.documentRoleCopy[this.language].allowed;
     return notification?.kind === 'personal_leave'
       ? this.requestStatusLabel(notification.status)
       : this.statusLabel(notification.status);

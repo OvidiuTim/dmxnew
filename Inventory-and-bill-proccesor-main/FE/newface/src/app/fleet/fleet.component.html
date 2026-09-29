@@ -39,6 +39,16 @@
       <p *ngIf="!equipment.documents.length" class="empty">{{ ui.fleetNoDocuments }}</p>
     </section>
 
+    <section class="document-usage-alert" *ngIf="documentProblems.length" [class.blocking]="hasHighDocumentProblem">
+      <span class="material-symbols-rounded">{{ hasHighDocumentProblem ? 'gpp_bad' : 'warning' }}</span>
+      <div>
+        <strong>{{ hasHighDocumentProblem ? ui.fleetDocAlertBlockedTitle : ui.fleetDocAlertWarningTitle }}</strong>
+        <p>{{ hasHighDocumentProblem ? ui.fleetDocAlertBlockedText : ui.fleetDocAlertWarningText }}</p>
+        <small>{{ documentProblemNames }}</small>
+      </div>
+      <a *ngIf="documentResponsiblePhone" [href]="'tel:' + documentResponsiblePhone"><span class="material-symbols-rounded">call</span>{{ ui.fleetDocAlertCall }}</a>
+    </section>
+
     <section class="technical-recommendations" *ngIf="equipment.due_recommendations?.length">
       <h3>{{ tc.title }}</h3>
       <article *ngFor="let item of equipment.due_recommendations" class="technical-card" [attr.data-importance]="item.importance">

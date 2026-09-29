@@ -7,7 +7,7 @@ import { employeeCopy } from '../i18n/employee-copy';
 @Component({
   selector: 'app-fleet',
   templateUrl: './fleet.component.html',
-  styleUrls: ['./fleet.component.css']
+  styleUrls: ['./fleet.component.css', './fleet-document-alerts.component.css']
 })
 export class FleetComponent implements OnInit {
   readonly language = readEmployeeLanguage();
@@ -26,6 +26,8 @@ export class FleetComponent implements OnInit {
   error = '';
   success = '';
   recommendationPhotos: Record<number, File | null> = {};
+  /** Telefonul venit în răspunsul 409, când utilajul nu a putut fi luat. */
+  blockedResponsiblePhone = '';
   readonly technicalCopy: Record<string, any> = {
     ro: { title: 'Recomandări tehnice scadente', responsible: 'Verificări de aprobat', due: 'Scadentă', low: 'Poți folosi utilajul, dar execută recomandarea cât mai curând.', medium: 'După trimiterea pozei, utilizarea se deblochează în 15 minute dacă nu există răspuns.', high: 'Utilajul rămâne blocat până la aprobarea responsabilului tehnic.', photo: 'Adaugă fotografia lucrării', submit: 'Trimite spre verificare', pending: 'Fotografie trimisă. Așteaptă verificarea.', blocked: 'Utilizarea este blocată de o recomandare tehnică.', approve: 'Aprobă', reject: 'Respinge', sent: 'Recomandarea a fost trimisă responsabilului tehnic.', approved: 'Verificarea a fost aprobată.', rejected: 'Verificarea a fost respinsă.', by: 'Trimisă de' },
     en: { title: 'Due technical recommendations', responsible: 'Checks to approve', due: 'Due', low: 'You may use the equipment, but complete this recommendation as soon as possible.', medium: 'After sending the photo, use is unlocked in 15 minutes if there is no response.', high: 'The equipment stays blocked until the technical manager approves it.', photo: 'Add a photo of the completed work', submit: 'Send for review', pending: 'Photo sent. Waiting for review.', blocked: 'Use is blocked by a technical recommendation.', approve: 'Approve', reject: 'Reject', sent: 'The recommendation was sent to the technical manager.', approved: 'The check was approved.', rejected: 'The check was rejected.', by: 'Sent by' },
@@ -108,6 +110,25 @@ export class FleetComponent implements OnInit {
 
   get tc(): any { return this.technicalCopy[this.language] || this.technicalCopy['ro']; }
 
+  get documentProblems(): any[] {
+    return (this.equipment?.documents || []).filter((item: any) =>
+      ['missing', 'expired'].includes(item.status) && ['medium', 'high'].includes(item.importance)
+    );
+  }
+
+  get hasHighDocumentProblem(): boolean {
+    return this.documentProblems.some(item => item.importance === 'high');
+  }
+
+  get documentResponsiblePhone(): string {
+    return this.equipment?.document_responsibles?.find((item: any) => item.phone)?.phone
+      || this.blockedResponsiblePhone;
+  }
+
+  get documentProblemNames(): string {
+    return this.documentProblems.map((item: any) => item.type).join(' · ');
+  }
+
   recommendationHint(item: any): string {
     if (item.pending_submission) return this.tc.pending;
     return item.importance === 'high' ? this.tc.high : item.importance === 'medium' ? this.tc.medium : this.tc.low;
@@ -184,9 +205,18 @@ export class FleetComponent implements OnInit {
           this.equipment = response?.equipment;
           this.pin = '';
           this.counter = null;
+          this.blockedResponsiblePhone = '';
+          const warnings = response?.document_warnings || [];
           this.success = action === 'take' ? this.ui.fleetTakenSuccess : this.ui.fleetReturnedSuccess;
+          if (action === 'take' && warnings.length) {
+            this.success = `${this.success} ${this.ui.fleetDocResponsibleNotified}`;
+          }
         },
-        error: error => { this.submitting = false; this.error = this.apiError(error); }
+        error: error => {
+          this.submitting = false;
+          this.error = this.apiError(error);
+          this.blockedResponsiblePhone = (error?.error?.responsibles || []).find((item: any) => item.phone)?.phone || '';
+        }
       });
     };
     if (action === 'take' && navigator.geolocation) {
