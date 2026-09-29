@@ -4,7 +4,14 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.timezone import localdate
 
-from ToolApp.models import DocumentUtilaj, EmployeeDocument, SesiuneUtilaj, Utilaj
+from ToolApp.models import (
+    DocumentUtilaj,
+    EmployeeDocument,
+    FleetRecommendationSubmission,
+    FleetTechnicalRecommendation,
+    SesiuneUtilaj,
+    Utilaj,
+)
 
 
 def document_status(document, today=None):
@@ -73,6 +80,68 @@ def missing_employee_authorizations(employee, utilaj, today=None):
         if not valid:
             missing.append({"id": document_type.pk, "name": document_type.name})
     return missing
+
+
+def technical_recommendation_state(recommendation, now=None):
+    """Starea operațională a unei recomandări, inclusiv regula de 15 minute."""
+    now = now or timezone.now()
+    today = timezone.localdate(now)
+    approved = recommendation.verificari.filter(
+        status=FleetRecommendationSubmission.Status.APPROVED,
+    ).order_by("-reviewed_at", "-submitted_at").first()
+    if approved:
+        completed_at = approved.reviewed_at or approved.submitted_at
+        due_date = timezone.localdate(completed_at) + timedelta(days=recommendation.interval_days)
+    else:
+        due_date = recommendation.prima_scadenta
+    due = today >= due_date
+    pending = recommendation.verificari.filter(
+        status=FleetRecommendationSubmission.Status.PENDING,
+    ).select_related("employee").order_by("-submitted_at").first()
+    latest = recommendation.verificari.select_related("employee", "reviewed_by__employee").first()
+    grace_ends_at = None
+    can_use = True
+    block_reason = ""
+    if due and recommendation.importanta == FleetTechnicalRecommendation.Importance.MEDIUM:
+        if pending:
+            grace_ends_at = pending.submitted_at + timedelta(minutes=15)
+            can_use = now >= grace_ends_at
+            if not can_use:
+                block_reason = "Așteaptă aprobarea responsabilului tehnic sau expirarea celor 15 minute."
+        else:
+            can_use = False
+            block_reason = "Execută recomandarea și trimite fotografia înainte de utilizare."
+    elif due and recommendation.importanta == FleetTechnicalRecommendation.Importance.HIGH:
+        can_use = False
+        block_reason = "Recomandarea trebuie aprobată de responsabilul tehnic înainte de utilizare."
+    return {
+        "due": due,
+        "due_date": due_date,
+        "approved": approved,
+        "pending": pending,
+        "latest": latest,
+        "grace_ends_at": grace_ends_at,
+        "can_use": can_use,
+        "block_reason": block_reason,
+    }
+
+
+def blocking_technical_recommendations(utilaj, now=None):
+    blocked = []
+    for recommendation in utilaj.recomandari_tehnice.filter(activ=True):
+        state = technical_recommendation_state(recommendation, now=now)
+        if state["due"] and not state["can_use"]:
+            blocked.append({
+                "id": recommendation.pk,
+                "title": recommendation.titlu,
+                "importance": recommendation.importanta,
+                "importance_label": recommendation.get_importanta_display(),
+                "due_date": state["due_date"].isoformat(),
+                "reason": state["block_reason"],
+                "pending_since": state["pending"].submitted_at.isoformat() if state["pending"] else None,
+                "grace_ends_at": state["grace_ends_at"].isoformat() if state["grace_ends_at"] else None,
+            })
+    return blocked
 
 
 def close_open_utilaj_sessions(employee, closed_at=None, reason=SesiuneUtilaj.MotivInchidere.DEPONTARE):

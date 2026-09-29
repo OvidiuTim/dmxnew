@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { forkJoin } from 'rxjs';
 import { SharedService } from '../shared.service';
 
-type FleetTab = 'overview' | 'equipment' | 'expirations' | 'sessions' | 'defects' | 'reports';
+type FleetTab = 'overview' | 'equipment' | 'expirations' | 'responsibles' | 'sessions' | 'defects' | 'reports';
 
 @Component({
   selector: 'app-fleet-admin',
@@ -15,6 +15,7 @@ export class FleetAdminComponent implements OnInit {
     { key: 'overview', label: 'Flotă', icon: 'space_dashboard' },
     { key: 'equipment', label: 'Utilaje', icon: 'local_shipping' },
     { key: 'expirations', label: 'Expirări documente', icon: 'event_upcoming' },
+    { key: 'responsibles', label: 'Desemnează responsabili', icon: 'manage_accounts' },
     { key: 'sessions', label: 'Utilizări', icon: 'history' },
     { key: 'defects', label: 'Defecte și service', icon: 'build' },
     { key: 'reports', label: 'Rapoarte flotă', icon: 'bar_chart' },
@@ -31,6 +32,13 @@ export class FleetAdminComponent implements OnInit {
   sites: any[] = [];
   documentTypes: any[] = [];
   employeeDocumentTypes: any[] = [];
+  responsibles: any[] = [];
+  responsibleEmployees: any[] = [];
+  responsibleEquipment: any[] = [];
+  responsibleEquipmentSearch = '';
+  technicalResponsible: any = null;
+  technicalUsers: any[] = [];
+  technicalResponsibleForm: any = { app_user_id: '' };
   selected: any = null;
   detailTab = 'details';
   loading = false;
@@ -45,6 +53,8 @@ export class FleetAdminComponent implements OnInit {
   defectForm: any = { description: '', severity: 'medie', photo: null };
   fuelForm: any = { date: '', liters: '', cost: '', counter: '' };
   maintenanceForm: any = { name: '', due_date: '', due_counter: '', notes: '' };
+  recommendationForm: any = this.emptyRecommendationForm();
+  responsibleForm: any = this.emptyResponsibleForm();
 
   constructor(public api: SharedService) {}
 
@@ -56,6 +66,7 @@ export class FleetAdminComponent implements OnInit {
     if (tab === 'overview') this.loadOverview();
     if (tab === 'equipment') this.loadEquipment();
     if (tab === 'expirations') this.loadExpirations();
+    if (tab === 'responsibles') this.loadResponsibles();
     if (tab === 'sessions') this.loadSessions();
     if (tab === 'defects') this.loadDefects();
     if (tab === 'reports') this.loadReports();
@@ -91,6 +102,126 @@ export class FleetAdminComponent implements OnInit {
   loadExpirations(): void {
     this.loading = true;
     forkJoin({ expirations: this.api.getFleetExpirations(), types: this.api.getFleetDocumentTypes() }).subscribe({ next: result => { this.expirations = result.expirations?.rows || []; this.authorizationExpirations = result.expirations?.authorizations || []; this.documentTypes = result.types?.types || []; this.employeeDocumentTypes = result.types?.employee_document_types || []; this.loading = false; }, error: error => this.fail(error) });
+  }
+
+  loadResponsibles(): void {
+    this.loading = true;
+    forkJoin({
+      documents: this.api.getFleetDocumentResponsibles(),
+      technical: this.api.getFleetTechnicalResponsible(),
+    }).subscribe({
+      next: result => {
+        this.responsibles = result.documents?.responsibles || [];
+        this.responsibleEmployees = result.documents?.employees || [];
+        this.responsibleEquipment = result.documents?.equipment || [];
+        this.technicalResponsible = result.technical?.responsible || null;
+        this.technicalUsers = result.technical?.users || [];
+        this.technicalResponsibleForm.app_user_id = this.technicalResponsible?.app_user_id || '';
+        this.loading = false;
+      },
+      error: error => this.fail(error),
+    });
+  }
+
+  get filteredResponsibleEquipment(): any[] {
+    const search = this.responsibleEquipmentSearch.trim().toLocaleLowerCase('ro');
+    if (!search) return this.responsibleEquipment;
+    return this.responsibleEquipment.filter(item =>
+      `${item.code} ${item.name} ${item.registration_number || ''}`.toLocaleLowerCase('ro').includes(search)
+    );
+  }
+
+  onResponsibleEmployeeChange(): void {
+    const employee = this.responsibleEmployees.find(item => item.id === Number(this.responsibleForm.employee_id));
+    this.responsibleForm.email = employee?.email || '';
+  }
+
+  isEmployeeAlreadyResponsible(employeeId: number): boolean {
+    return this.responsibles.some(item =>
+      item.employee.id === employeeId && item.id !== this.responsibleForm.id
+    );
+  }
+
+  toggleResponsibleEquipment(equipmentId: number, checked: boolean): void {
+    const ids = this.responsibleForm.equipment_ids as number[];
+    if (checked && !ids.includes(equipmentId)) ids.push(equipmentId);
+    if (!checked) this.responsibleForm.equipment_ids = ids.filter(id => id !== equipmentId);
+  }
+
+  isResponsibleEquipmentSelected(equipmentId: number): boolean {
+    return this.responsibleForm.equipment_ids.includes(equipmentId);
+  }
+
+  editResponsible(item: any): void {
+    this.responsibleForm = {
+      id: item.id,
+      employee_id: item.employee.id,
+      email: item.email,
+      all_equipment: !!item.all_equipment,
+      equipment_ids: [...(item.equipment_ids || [])],
+    };
+    this.responsibleEquipmentSearch = '';
+  }
+
+  cancelResponsibleEdit(): void {
+    this.responsibleForm = this.emptyResponsibleForm();
+    this.responsibleEquipmentSearch = '';
+  }
+
+  saveResponsible(): void {
+    if (!this.responsibleForm.employee_id || !this.responsibleForm.email?.trim() || this.saving) return;
+    if (!this.responsibleForm.all_equipment && !this.responsibleForm.equipment_ids.length) {
+      this.error = 'Selectează cel puțin un utilaj sau bifează „Desemnează toate utilajele”.';
+      return;
+    }
+    this.saving = true;
+    this.error = '';
+    this.api.saveFleetDocumentResponsible(this.responsibleForm).subscribe({
+      next: () => {
+        this.saving = false;
+        this.notice = this.responsibleForm.id ? 'Responsabil actualizat.' : 'Responsabil adăugat.';
+        this.cancelResponsibleEdit();
+        this.loadResponsibles();
+      },
+      error: error => { this.saving = false; this.error = this.message(error); },
+    });
+  }
+
+  deleteResponsible(item: any): void {
+    if (!confirm(`Elimini responsabilul ${item.employee.name}?`)) return;
+    this.api.deleteFleetDocumentResponsible(item.id).subscribe({
+      next: () => {
+        if (this.responsibleForm.id === item.id) this.cancelResponsibleEdit();
+        this.notice = 'Responsabil eliminat.';
+        this.loadResponsibles();
+      },
+      error: error => this.error = this.message(error),
+    });
+  }
+
+  saveTechnicalResponsible(): void {
+    if (!this.technicalResponsibleForm.app_user_id || this.saving) return;
+    this.saving = true;
+    this.api.saveFleetTechnicalResponsible(this.technicalResponsibleForm).subscribe({
+      next: response => {
+        this.saving = false;
+        this.technicalResponsible = response?.responsible || null;
+        this.notice = 'Responsabilul tehnic a fost salvat.';
+      },
+      error: error => { this.saving = false; this.error = this.message(error); },
+    });
+  }
+
+  deleteTechnicalResponsible(): void {
+    if (!this.technicalResponsible || !confirm('Elimini responsabilul tehnic?')) return;
+    this.api.deleteFleetTechnicalResponsible().subscribe({
+      next: () => {
+        this.technicalResponsible = null;
+        this.technicalResponsibleForm = { app_user_id: '' };
+        this.notice = 'Responsabilul tehnic a fost eliminat.';
+      },
+      error: error => this.error = this.message(error),
+    });
   }
 
   loadSessions(): void {
@@ -234,6 +365,47 @@ export class FleetAdminComponent implements OnInit {
     });
   }
 
+  saveRecommendation(): void {
+    if (!this.selected || !this.recommendationForm.title.trim() || this.saving) return;
+    this.saving = true;
+    const id = this.recommendationForm.id || undefined;
+    this.api.saveFleetRecommendation({
+      ...this.recommendationForm,
+      equipment_id: this.selected.id,
+    }, id).subscribe({
+      next: () => {
+        this.saving = false;
+        this.notice = id ? 'Recomandarea tehnică a fost actualizată.' : 'Recomandarea tehnică a fost adăugată.';
+        this.recommendationForm = this.emptyRecommendationForm();
+        this.refreshSelected();
+      },
+      error: error => { this.saving = false; this.error = this.message(error); },
+    });
+  }
+
+  editRecommendation(item: any): void {
+    this.recommendationForm = {
+      id: item.id,
+      title: item.title,
+      instructions: item.instructions,
+      frequency_value: item.frequency_value,
+      frequency_unit: item.frequency_unit,
+      first_due_date: item.first_due_date,
+      importance: item.importance,
+      active: item.active,
+    };
+  }
+
+  cancelRecommendationEdit(): void { this.recommendationForm = this.emptyRecommendationForm(); }
+
+  deleteRecommendation(item: any): void {
+    if (!confirm(`Dezactivezi recomandarea „${item.title}”?`)) return;
+    this.api.deleteFleetRecommendation(item.id).subscribe({
+      next: () => { this.notice = 'Recomandarea a fost dezactivată.'; this.refreshSelected(); },
+      error: error => this.error = this.message(error),
+    });
+  }
+
   completeMaintenance(item: any): void {
     const cost = prompt('Cost revizie (lei)', item.cost || '0');
     if (cost === null) return;
@@ -276,4 +448,13 @@ export class FleetAdminComponent implements OnInit {
   private fail(error: any): void { this.loading = false; this.error = this.message(error); }
   private message(error: any): string { return error?.error?.error || 'Datele flotei nu au putut fi actualizate.'; }
   private emptyEquipmentForm(): any { return { code: '', name: '', registration_number: '', chassis_series: '', manufacture_year: '', owner: '', ownership_type: '', internal_rate: '', category: 'autoutilitara', counter_type: 'km', current_counter: '', state: 'disponibil', site_id: '', required_document_type_ids: [] }; }
+  private emptyResponsibleForm(): any { return { id: null, employee_id: '', email: '', all_equipment: false, equipment_ids: [] }; }
+  private emptyRecommendationForm(): any {
+    return { id: null, title: '', instructions: '', frequency_value: 1, frequency_unit: 'day', first_due_date: this.todayIso(), importance: 'low', active: true };
+  }
+  private todayIso(): string {
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 10);
+  }
 }

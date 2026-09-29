@@ -33,10 +33,17 @@ from ToolApp.models import (
     FleetAuditLog,
     FleetDocumentResponsible,
     FleetDocumentExpiryNotification,
+    FleetTechnicalResponsible,
+    FleetTechnicalRecommendation,
+    FleetRecommendationSubmission,
     AlimentareUtilaj,
     RevizieUtilaj,
     SesiuneUtilaj,
 )
+
+admin.site.register(FleetTechnicalResponsible)
+admin.site.register(FleetTechnicalRecommendation)
+admin.site.register(FleetRecommendationSubmission)
 
 
 admin.site.register(AttendanceAlertEscalationConfig)

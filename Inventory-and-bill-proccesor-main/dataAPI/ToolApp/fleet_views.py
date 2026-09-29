@@ -15,10 +15,12 @@ from django.utils.timezone import localdate
 from django.views.decorators.csrf import csrf_exempt
 
 from ToolApp.fleet_services import (
+    blocking_technical_recommendations,
     blocking_equipment_documents,
     close_open_utilaj_sessions,
     document_rows,
     missing_employee_authorizations,
+    technical_recommendation_state,
 )
 from ToolApp.models import (
     AlimentareUtilaj,
@@ -30,6 +32,9 @@ from ToolApp.models import (
     EmployeeDocumentType,
     FleetAuditLog,
     FleetDocumentResponsible,
+    FleetRecommendationSubmission,
+    FleetTechnicalRecommendation,
+    FleetTechnicalResponsible,
     IncercareUtilajBlocata,
     SesiuneUtilaj,
     SesizareDefectUtilaj,
@@ -38,6 +43,7 @@ from ToolApp.models import (
     Utilaj,
     Users,
 )
+from ToolApp.push_notifications import send_employee_push
 from ToolApp.security import get_app_user_from_request, request_has_admin
 from ToolApp.views import MISSING_EXIT_SOURCE_TAG, _find_user_by_pin
 
@@ -138,9 +144,70 @@ def _session_payload(session):
     }
 
 
+def _submission_payload(item, request=None):
+    photo_url = ""
+    if item and item.photo:
+        photo_url = f"/api/fleet/qr/recommendation-submissions/{item.pk}/photo/"
+        if request:
+            photo_url = request.build_absolute_uri(photo_url)
+    return {
+        "id": item.pk,
+        "employee": {"id": item.employee_id, "name": item.employee.UserName},
+        "status": item.status,
+        "status_label": item.get_status_display(),
+        "submitted_at": timezone.localtime(item.submitted_at).isoformat(),
+        "reviewed_at": timezone.localtime(item.reviewed_at).isoformat() if item.reviewed_at else None,
+        "reviewed_by": item.reviewed_by.employee.UserName if item.reviewed_by_id else None,
+        "review_note": item.review_note,
+        "photo_url": photo_url,
+    }
+
+
+def _recommendation_payload(recommendation, request=None, now=None, include_history=False):
+    state = technical_recommendation_state(recommendation, now=now)
+    latest = state["latest"]
+    payload = {
+        "id": recommendation.pk,
+        "title": recommendation.titlu,
+        "instructions": recommendation.instructiuni,
+        "frequency_value": recommendation.frecventa_valoare,
+        "frequency_unit": recommendation.frecventa_unitate,
+        "frequency_label": recommendation.get_frecventa_unitate_display(),
+        "first_due_date": recommendation.prima_scadenta.isoformat(),
+        "importance": recommendation.importanta,
+        "importance_label": recommendation.get_importanta_display(),
+        "active": recommendation.activ,
+        "due": state["due"],
+        "due_date": state["due_date"].isoformat(),
+        "can_use": state["can_use"],
+        "block_reason": state["block_reason"],
+        "grace_ends_at": state["grace_ends_at"].isoformat() if state["grace_ends_at"] else None,
+        "pending_submission": _submission_payload(state["pending"], request) if state["pending"] else None,
+        "latest_submission": _submission_payload(latest, request) if latest else None,
+    }
+    if include_history:
+        payload["submissions"] = [
+            _submission_payload(item, request)
+            for item in recommendation.verificari.select_related("employee", "reviewed_by__employee")[:50]
+        ]
+    return payload
+
+
+def _technical_responsible_for_request(request):
+    app_user = getattr(request, "app_user", None) or get_app_user_from_request(request)
+    if not app_user:
+        return None
+    return FleetTechnicalResponsible.objects.filter(app_user=app_user, active=True).first()
+
+
 def _utilaj_payload(utilaj, request=None):
     open_session = utilaj.sesiuni.select_related("angajat").filter(sfarsit__isnull=True).first()
-    return {
+    recommendations = [
+        _recommendation_payload(item, request=request)
+        for item in utilaj.recomandari_tehnice.filter(activ=True)
+    ]
+    technical_responsible = _technical_responsible_for_request(request) if request else None
+    payload = {
         "id": utilaj.pk,
         "token": str(utilaj.token_qr),
         "code": utilaj.cod_intern,
@@ -161,9 +228,33 @@ def _utilaj_payload(utilaj, request=None):
                  if utilaj.santier_curent else None),
         "documents": document_rows(utilaj, request=request),
         "active_session": _session_payload(open_session),
+        "recommendations": recommendations,
+        "due_recommendations": [item for item in recommendations if item["due"]],
+        "technical_blocked": any(item["due"] and not item["can_use"] for item in recommendations),
+        "can_review_recommendations": bool(technical_responsible),
         "has_problems": utilaj.stare in {Utilaj.Stare.DEFECT, Utilaj.Stare.SERVICE}
             or any(row["status"] in {"missing", "expired"} for row in document_rows(utilaj)),
     }
+    if technical_responsible:
+        payload["pending_verifications"] = [
+            {
+                **_submission_payload(item, request),
+                "recommendation": {
+                    "id": item.recommendation_id,
+                    "title": item.recommendation.titlu,
+                    "instructions": item.recommendation.instructiuni,
+                    "importance": item.recommendation.importanta,
+                    "importance_label": item.recommendation.get_importanta_display(),
+                },
+            }
+            for item in FleetRecommendationSubmission.objects.select_related(
+                "employee", "recommendation"
+            ).filter(
+                recommendation__utilaj=utilaj,
+                status=FleetRecommendationSubmission.Status.PENDING,
+            )
+        ]
+    return payload
 
 
 def _parse_iso_date(value, field_name):
@@ -263,6 +354,10 @@ def fleet_equipment_detail(request, equipment_id):
         return _error("NOT_FOUND", "Utilajul nu a fost găsit.", 404)
     if request.method == "GET":
         payload = _utilaj_payload(utilaj, request=request)
+        payload["recommendations"] = [
+            _recommendation_payload(item, request=request, include_history=True)
+            for item in utilaj.recomandari_tehnice.all()
+        ]
         payload["required_document_type_ids"] = list(utilaj.tipuri_document_necesare.values_list("pk", flat=True))
         payload["sessions"] = [_session_payload(item) for item in utilaj.sesiuni.select_related("angajat", "santier")[:100]]
         payload["defects"] = [_defect_payload(item, request) for item in utilaj.defecte.select_related("raportat_de")[:100]]
@@ -544,11 +639,16 @@ def fleet_document_responsibles(request, responsibility_id=None):
         selected = Utilaj.objects.filter(pk__in=equipment_ids, activ=True)
         if not all_equipment and not selected.exists():
             return _error("EQUIPMENT_REQUIRED", "Selectează cel puțin un utilaj sau bifează toate utilajele.")
-        existing = FleetDocumentResponsible.objects.filter(responsabil=employee).first()
-        requested_id = data.get("id")
-        if existing and (not requested_id or existing.pk != int(requested_id)):
-            return _error("DUPLICATE_RESPONSIBLE", "Angajatul este deja configurat ca responsabil.", 409)
+        try:
+            requested_id = int(data.get("id")) if data.get("id") else None
+        except (TypeError, ValueError):
+            return _error("INVALID_RESPONSIBLE", "Responsabilul selectat nu este valid.")
         item = FleetDocumentResponsible.objects.filter(pk=requested_id).first() if requested_id else None
+        if requested_id and item is None:
+            return _error("NOT_FOUND", "Responsabilul nu a fost găsit.", 404)
+        existing = FleetDocumentResponsible.objects.filter(responsabil=employee).first()
+        if existing and existing.pk != requested_id:
+            return _error("DUPLICATE_RESPONSIBLE", "Angajatul este deja configurat ca responsabil.", 409)
         if item is None:
             item = FleetDocumentResponsible(responsabil=employee)
         item.responsabil = employee
@@ -578,6 +678,146 @@ def fleet_document_responsibles(request, responsibility_id=None):
         return JsonResponse({"ok": True, "deleted": True})
 
     return _error("METHOD_NOT_ALLOWED", "Metoda nu este permisă.", 405)
+
+
+def _technical_responsible_payload(item):
+    if not item:
+        return None
+    return {
+        "id": item.pk,
+        "app_user_id": item.app_user_id,
+        "employee": {
+            "id": item.app_user.employee_id,
+            "name": item.app_user.employee.UserName,
+            "serie": item.app_user.employee.UserSerie,
+        },
+        "username": item.app_user.username,
+        "active": item.active,
+    }
+
+
+@csrf_exempt
+def fleet_technical_responsible(request):
+    if request.method == "GET":
+        item = FleetTechnicalResponsible.objects.select_related("app_user__employee").filter(active=True).first()
+        users = Users.objects.filter(
+            app_user__is_active=True,
+            active=True,
+            employment_status=Users.EmploymentStatus.ACTIVE,
+        ).select_related("app_user").order_by("UserName", "UserId")
+        return JsonResponse({
+            "ok": True,
+            "responsible": _technical_responsible_payload(item),
+            "users": [{
+                "app_user_id": employee.app_user.pk,
+                "employee_id": employee.pk,
+                "name": employee.UserName,
+                "serie": employee.UserSerie,
+                "username": employee.app_user.username,
+            } for employee in users],
+        })
+    if request.method == "POST":
+        data = _json_body(request)
+        if data is None:
+            return _error("INVALID_JSON", "Datele responsabilului tehnic nu sunt valide.")
+        from ToolApp.models import AppUser
+        app_user = AppUser.objects.select_related("employee").filter(
+            pk=data.get("app_user_id"),
+            is_active=True,
+            employee__active=True,
+            employee__employment_status=Users.EmploymentStatus.ACTIVE,
+        ).first()
+        if not app_user:
+            return _error("INVALID_APP_USER", "Selectează un cont activ din aplicație.")
+        with transaction.atomic():
+            FleetTechnicalResponsible.objects.exclude(app_user=app_user).delete()
+            item, _ = FleetTechnicalResponsible.objects.update_or_create(
+                app_user=app_user,
+                defaults={"active": True},
+            )
+            _audit(request, "responsabil_tehnic_actualizat", responsible=app_user.employee.UserName)
+        return JsonResponse({"ok": True, "responsible": _technical_responsible_payload(item)})
+    if request.method == "DELETE":
+        deleted, _ = FleetTechnicalResponsible.objects.all().delete()
+        _audit(request, "responsabil_tehnic_eliminat")
+        return JsonResponse({"ok": True, "deleted": bool(deleted)})
+    return _error("METHOD_NOT_ALLOWED", "Metoda nu este permisă.", 405)
+
+
+@csrf_exempt
+def fleet_recommendations(request, recommendation_id=None):
+    if request.method == "GET":
+        rows = FleetTechnicalRecommendation.objects.select_related("utilaj")
+        if request.GET.get("equipment"):
+            rows = rows.filter(utilaj_id=request.GET["equipment"])
+        return JsonResponse({
+            "ok": True,
+            "recommendations": [
+                {**_recommendation_payload(item, request=request, include_history=True),
+                 "equipment_id": item.utilaj_id, "equipment": item.utilaj.cod_intern}
+                for item in rows[:1000]
+            ],
+        })
+    if request.method not in {"POST", "PATCH", "PUT", "DELETE"}:
+        return _error("METHOD_NOT_ALLOWED", "Metoda nu este permisă.", 405)
+    item = None
+    if recommendation_id is not None:
+        item = FleetTechnicalRecommendation.objects.select_related("utilaj").filter(pk=recommendation_id).first()
+        if not item:
+            return _error("NOT_FOUND", "Recomandarea tehnică nu a fost găsită.", 404)
+    if request.method == "DELETE":
+        item.activ = False
+        item.save(update_fields=("activ", "updated_at"))
+        _audit(request, "recomandare_tehnica_dezactivata", item.utilaj, recommendation_id=item.pk)
+        return JsonResponse({"ok": True})
+    data = _json_body(request)
+    if data is None:
+        return _error("INVALID_JSON", "Datele recomandării nu sunt valide.")
+    utilaj = item.utilaj if item else Utilaj.objects.filter(pk=data.get("equipment_id"), activ=True).first()
+    title = str(data.get("title") if "title" in data else item.titlu if item else "").strip()
+    if not utilaj or not title:
+        return _error("INVALID_INPUT", "Utilajul și denumirea recomandării sunt obligatorii.")
+    try:
+        frequency_value = int(data.get("frequency_value", item.frecventa_valoare if item else 1))
+    except (TypeError, ValueError):
+        return _error("INVALID_INPUT", "Frecvența nu este validă.")
+    if frequency_value < 1 or frequency_value > 365:
+        return _error("INVALID_INPUT", "Frecvența trebuie să fie între 1 și 365.")
+    frequency_unit = str(data.get("frequency_unit", item.frecventa_unitate if item else "day"))
+    importance = str(data.get("importance", item.importanta if item else "low"))
+    if frequency_unit not in FleetTechnicalRecommendation.FrequencyUnit.values:
+        return _error("INVALID_INPUT", "Unitatea frecvenței nu este validă.")
+    if importance not in FleetTechnicalRecommendation.Importance.values:
+        return _error("INVALID_INPUT", "Nivelul de importanță nu este valid.")
+    try:
+        first_due_date = _parse_iso_date(
+            data.get("first_due_date", item.prima_scadenta.isoformat() if item else localdate().isoformat()),
+            "Prima scadență",
+        )
+    except ValueError as exc:
+        return _error("INVALID_INPUT", str(exc))
+    created = item is None
+    if item is None:
+        item = FleetTechnicalRecommendation(utilaj=utilaj, creat_de=_actor(request))
+    item.titlu = title
+    item.instructiuni = str(data.get("instructions", item.instructiuni or "")).strip()
+    item.frecventa_valoare = frequency_value
+    item.frecventa_unitate = frequency_unit
+    item.prima_scadenta = first_due_date
+    item.importanta = importance
+    item.activ = bool(data.get("active", True))
+    item.save()
+    _audit(
+        request,
+        "recomandare_tehnica_creata" if created else "recomandare_tehnica_actualizata",
+        utilaj,
+        recommendation_id=item.pk,
+        importance=item.importanta,
+    )
+    return JsonResponse(
+        {"ok": True, "recommendation": _recommendation_payload(item, request=request, include_history=True)},
+        status=201 if created else 200,
+    )
 
 
 @csrf_exempt
@@ -931,6 +1171,131 @@ def fleet_document_download(request, token, document_id):
 
 
 @csrf_exempt
+def fleet_recommendation_submit(request, token, recommendation_id):
+    if request.method != "POST":
+        return _error("METHOD_NOT_ALLOWED", "Este permis doar POST.", 405)
+    recommendation = FleetTechnicalRecommendation.objects.select_related("utilaj").filter(
+        pk=recommendation_id,
+        utilaj__token_qr=token,
+        utilaj__activ=True,
+        activ=True,
+    ).first()
+    if not recommendation:
+        return _error("NOT_FOUND", "Recomandarea tehnică nu a fost găsită.", 404)
+    employee = _employee_for_action(request, request.POST)
+    if not employee:
+        return _error("AUTH_REQUIRED", "Autentifică-te în aplicație sau introdu PIN-ul corect.", 401)
+    photo = request.FILES.get("photo")
+    if not photo:
+        return _error("PHOTO_REQUIRED", "Adaugă o fotografie care arată recomandarea executată.")
+    if not technical_recommendation_state(recommendation)["due"]:
+        return _error("NOT_DUE", "Recomandarea nu este încă scadentă.", 409)
+    try:
+        with transaction.atomic():
+            locked = FleetTechnicalRecommendation.objects.select_for_update().get(pk=recommendation.pk)
+            if locked.verificari.filter(status=FleetRecommendationSubmission.Status.PENDING).exists():
+                return _error("ALREADY_PENDING", "Există deja o verificare în așteptarea aprobării.", 409)
+            submission = FleetRecommendationSubmission.objects.create(
+                recommendation=locked,
+                employee=employee,
+                photo=photo,
+            )
+            _audit(
+                request,
+                "recomandare_tehnica_executata",
+                locked.utilaj,
+                recommendation_id=locked.pk,
+                submission_id=submission.pk,
+                employee=employee.UserName,
+            )
+    except IntegrityError:
+        return _error("ALREADY_PENDING", "Există deja o verificare în așteptarea aprobării.", 409)
+    responsible = FleetTechnicalResponsible.objects.select_related("app_user__employee").filter(active=True).first()
+    if responsible:
+        send_employee_push(
+            [responsible.app_user.employee_id],
+            "Verificare tehnică nouă",
+            f"{employee.UserName} a executat «{recommendation.titlu}» pentru {recommendation.utilaj.cod_intern}.",
+            {
+                "route": "notifications",
+                "type": "technical_recommendation",
+                "submission_id": submission.pk,
+                "equipment_token": recommendation.utilaj.token_qr,
+            },
+        )
+    recommendation = FleetTechnicalRecommendation.objects.get(pk=recommendation.pk)
+    return JsonResponse({
+        "ok": True,
+        "submission": _submission_payload(submission, request),
+        "equipment": _utilaj_payload(recommendation.utilaj, request=request),
+    }, status=201)
+
+
+def fleet_recommendation_photo(request, submission_id):
+    if request.method != "GET":
+        return _error("METHOD_NOT_ALLOWED", "Este permis doar GET.", 405)
+    submission = FleetRecommendationSubmission.objects.select_related("recommendation__utilaj").filter(
+        pk=submission_id,
+        recommendation__utilaj__activ=True,
+    ).first()
+    if not submission or not submission.photo:
+        return _error("NOT_FOUND", "Fotografia nu a fost găsită.", 404)
+    app_user = get_app_user_from_request(request)
+    is_responsible = bool(app_user and FleetTechnicalResponsible.objects.filter(app_user=app_user, active=True).exists())
+    is_employee = bool(app_user and app_user.employee_id == submission.employee_id)
+    if not (request_has_admin(request) or is_responsible or is_employee):
+        return _error("FORBIDDEN", "Nu ai acces la această fotografie.", 403)
+    return FileResponse(
+        submission.photo.open("rb"),
+        as_attachment=False,
+        filename=Path(submission.photo.name).name,
+    )
+
+
+@csrf_exempt
+def fleet_recommendation_decision(request, submission_id):
+    if request.method != "POST":
+        return _error("METHOD_NOT_ALLOWED", "Este permis doar POST.", 405)
+    app_user = get_app_user_from_request(request)
+    if not app_user or not FleetTechnicalResponsible.objects.filter(app_user=app_user, active=True).exists():
+        return _error("FORBIDDEN", "Doar responsabilul tehnic poate valida recomandarea.", 403)
+    data = _json_body(request)
+    action = str((data or {}).get("action") or "").strip()
+    if action not in {"approve", "reject"}:
+        return _error("INVALID_ACTION", "Alege aprobă sau respinge.")
+    with transaction.atomic():
+        submission = FleetRecommendationSubmission.objects.select_for_update().select_related(
+            "recommendation__utilaj", "employee"
+        ).filter(pk=submission_id).first()
+        if not submission:
+            return _error("NOT_FOUND", "Verificarea nu a fost găsită.", 404)
+        if submission.status != FleetRecommendationSubmission.Status.PENDING:
+            return _error("ALREADY_REVIEWED", "Verificarea a fost deja soluționată.", 409)
+        submission.status = (
+            FleetRecommendationSubmission.Status.APPROVED
+            if action == "approve"
+            else FleetRecommendationSubmission.Status.REJECTED
+        )
+        submission.reviewed_by = app_user
+        submission.reviewed_at = timezone.now()
+        submission.review_note = str((data or {}).get("note") or "").strip()[:500]
+        submission.save(update_fields=("status", "reviewed_by", "reviewed_at", "review_note"))
+        _audit(
+            request,
+            "recomandare_tehnica_aprobata" if action == "approve" else "recomandare_tehnica_respinsa",
+            submission.recommendation.utilaj,
+            recommendation_id=submission.recommendation_id,
+            submission_id=submission.pk,
+            employee=submission.employee.UserName,
+        )
+    return JsonResponse({
+        "ok": True,
+        "submission": _submission_payload(submission, request),
+        "equipment": _utilaj_payload(submission.recommendation.utilaj, request=request),
+    })
+
+
+@csrf_exempt
 def fleet_take(request, token):
     if request.method != "POST":
         return _error("METHOD_NOT_ALLOWED", "Este permis doar POST.", 405)
@@ -977,6 +1342,15 @@ def fleet_take(request, token):
         if blocked_documents:
             return _blocked_attempt(utilaj, employee, "BLOCKED_DOCUMENTS", "Utilajul nu poate fi folosit: are documente lipsă sau expirate.",
                                     documents=blocked_documents)
+        blocked_recommendations = blocking_technical_recommendations(utilaj, now=now)
+        if blocked_recommendations:
+            return _blocked_attempt(
+                utilaj,
+                employee,
+                "TECHNICAL_RECOMMENDATION_REQUIRED",
+                "Utilajul are recomandări tehnice care trebuie executate sau aprobate.",
+                recommendations=blocked_recommendations,
+            )
         missing_authorizations = missing_employee_authorizations(employee, utilaj, today=today)
         if missing_authorizations:
             return _blocked_attempt(utilaj, employee, "EMPLOYEE_AUTHORIZATION_REQUIRED", "Nu ai toate autorizațiile valabile pentru acest utilaj.",

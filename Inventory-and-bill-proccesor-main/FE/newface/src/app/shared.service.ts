@@ -254,6 +254,18 @@ export class SharedService {
   updateFleetEquipment(id: number, payload: any) { return this.http.patch<any>(`${this.API}/fleet/equipment/${id}/`, payload); }
   archiveFleetEquipment(id: number) { return this.http.delete<any>(`${this.API}/fleet/equipment/${id}/`); }
   getFleetExpirations() { return this.http.get<any>(`${this.API}/fleet/equipment/expirations/`); }
+  getFleetDocumentResponsibles() { return this.http.get<any>(`${this.API}/fleet/equipment/responsibles/`); }
+  saveFleetDocumentResponsible(payload: any) { return this.http.post<any>(`${this.API}/fleet/equipment/responsibles/`, payload); }
+  deleteFleetDocumentResponsible(id: number) { return this.http.delete<any>(`${this.API}/fleet/equipment/responsibles/${id}/`); }
+  getFleetTechnicalResponsible() { return this.http.get<any>(`${this.API}/fleet/equipment/technical-responsible/`); }
+  saveFleetTechnicalResponsible(payload: any) { return this.http.post<any>(`${this.API}/fleet/equipment/technical-responsible/`, payload); }
+  deleteFleetTechnicalResponsible() { return this.http.delete<any>(`${this.API}/fleet/equipment/technical-responsible/`); }
+  saveFleetRecommendation(payload: any, id?: number) {
+    return id
+      ? this.http.patch<any>(`${this.API}/fleet/equipment/recommendations/${id}/`, payload)
+      : this.http.post<any>(`${this.API}/fleet/equipment/recommendations/`, payload);
+  }
+  deleteFleetRecommendation(id: number) { return this.http.delete<any>(`${this.API}/fleet/equipment/recommendations/${id}/`); }
   getFleetDocumentTypes() { return this.http.get<any>(`${this.API}/fleet/equipment/document-types/`); }
   createFleetDocumentType(payload: any) { return this.http.post<any>(`${this.API}/fleet/equipment/document-types/`, payload); }
   saveFleetDocument(payload: FormData) { return this.http.post<any>(`${this.API}/fleet/equipment/documents/`, payload); }
@@ -270,6 +282,12 @@ export class SharedService {
   getFleetEquipmentByToken(token: string) { return this.http.get<any>(`${this.API}/fleet/qr/${token}/`); }
   takeFleetEquipment(token: string, payload: any) { return this.http.post<any>(`${this.API}/fleet/qr/${token}/take/`, payload); }
   returnFleetEquipment(token: string, payload: any) { return this.http.post<any>(`${this.API}/fleet/qr/${token}/return/`, payload); }
+  submitFleetRecommendation(token: string, recommendationId: number, payload: FormData) {
+    return this.http.post<any>(`${this.API}/fleet/qr/${token}/recommendations/${recommendationId}/submit/`, payload);
+  }
+  decideFleetRecommendation(submissionId: number, payload: any) {
+    return this.http.post<any>(`${this.API}/fleet/qr/recommendation-submissions/${submissionId}/decision/`, payload);
+  }
 
   teamPortalAttendance(options: ManualAttendanceOptions) {
     return this.http.post<any>(`${this.API}/team-portal/attendance/`, {

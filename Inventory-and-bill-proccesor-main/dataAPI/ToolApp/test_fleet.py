@@ -1,6 +1,7 @@
 import json
 import tempfile
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import Client, TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -9,6 +10,7 @@ from django.utils.timezone import localdate
 
 from ToolApp import views
 from ToolApp.fleet_services import due_fleet_document_expiry_notifications
+from ToolApp.document_expiry_email import process_due_fleet_document_expiry_notifications
 from ToolApp.models import (
     AttendanceSession,
     AppModuleAccess,
@@ -17,6 +19,11 @@ from ToolApp.models import (
     DocumentUtilajVersiune,
     EmployeeDocument,
     EmployeeDocumentType,
+    FleetDocumentExpiryNotification,
+    FleetDocumentResponsible,
+    FleetRecommendationSubmission,
+    FleetTechnicalRecommendation,
+    FleetTechnicalResponsible,
     SesiuneUtilaj,
     IncercareUtilajBlocata,
     RevizieUtilaj,
@@ -99,6 +106,82 @@ class FleetFlowTests(TestCase):
         self.assertIsNone(self.document.expiry_notification_sent_for)
         self.assertEqual([item.pk for item in due_fleet_document_expiry_notifications()], [self.document.pk])
 
+    def test_admin_can_assign_multiple_document_responsibles_to_selected_or_all_equipment(self):
+        first = Users.objects.create(
+            UserName="Responsabil Unu", UserSerie="RESP-1", email="unu@example.com"
+        )
+        second = Users.objects.create(
+            UserName="Responsabil Doi", UserSerie="RESP-2", email="doi@example.com"
+        )
+        selected = self.admin_client.post(
+            "/api/fleet/equipment/responsibles/",
+            data=json.dumps({
+                "employee_id": first.pk,
+                "email": first.email,
+                "all_equipment": False,
+                "equipment_ids": [self.utilaj.pk],
+            }),
+            content_type="application/json",
+        )
+        all_equipment = self.admin_client.post(
+            "/api/fleet/equipment/responsibles/",
+            data=json.dumps({
+                "employee_id": second.pk,
+                "email": second.email,
+                "all_equipment": True,
+                "equipment_ids": [],
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(selected.status_code, 201, selected.content)
+        self.assertEqual(all_equipment.status_code, 201, all_equipment.content)
+        payload = self.admin_client.get("/api/fleet/equipment/responsibles/").json()
+        self.assertEqual(len(payload["responsibles"]), 2)
+        selected_payload = next(item for item in payload["responsibles"] if item["employee"]["id"] == first.pk)
+        self.assertEqual(selected_payload["equipment_ids"], [self.utilaj.pk])
+        self.assertFalse(selected_payload["all_equipment"])
+        self.assertTrue(next(item for item in payload["responsibles"] if item["employee"]["id"] == second.pk)["all_equipment"])
+
+    @patch("ToolApp.document_expiry_email._send_fleet_document_expiry_email")
+    def test_each_fleet_responsible_receives_only_assigned_expirations_once(self, send_email):
+        other_equipment = Utilaj.objects.create(cod_intern="DMX-U-099", denumire="Excavator alertă")
+        other_document = DocumentUtilaj.objects.create(
+            utilaj=other_equipment,
+            tip=self.itp,
+            data_expirare=localdate() + timedelta(days=8),
+            fisier="utilaj_documents/other.pdf",
+        )
+        first_employee = Users.objects.create(
+            UserName="Responsabil Selectiv", UserSerie="RESP-SEL", email="selectiv@example.com"
+        )
+        second_employee = Users.objects.create(
+            UserName="Responsabil General", UserSerie="RESP-ALL", email="general@example.com"
+        )
+        selected = FleetDocumentResponsible.objects.create(
+            responsabil=first_employee, email=first_employee.email
+        )
+        selected.utilaje.add(self.utilaj)
+        FleetDocumentResponsible.objects.create(
+            responsabil=second_employee, email=second_employee.email, toate_utilajele=True
+        )
+
+        notified = process_due_fleet_document_expiry_notifications()
+
+        self.assertEqual({item.pk for item in notified}, {self.document.pk, other_document.pk})
+        self.assertEqual(send_email.call_count, 2)
+        deliveries = {
+            call.args[1][0]: {item.pk for item in call.args[0]}
+            for call in send_email.call_args_list
+        }
+        self.assertEqual(deliveries["selectiv@example.com"], {self.document.pk})
+        self.assertEqual(deliveries["general@example.com"], {self.document.pk, other_document.pk})
+        self.assertEqual(FleetDocumentExpiryNotification.objects.count(), 3)
+
+        send_email.reset_mock()
+        self.assertEqual(process_due_fleet_document_expiry_notifications(), [])
+        send_email.assert_not_called()
+
     def test_registry_requires_fleet_module_but_qr_card_is_public(self):
         app_user = AppUser.objects.create(employee=self.employee, username="driver.test", pin_hash="unused")
         app_client = Client()
@@ -160,6 +243,118 @@ class FleetFlowTests(TestCase):
         self.utilaj.refresh_from_db()
         self.assertEqual(self.utilaj.stare, Utilaj.Stare.DISPONIBIL)
         self.assertEqual(self.utilaj.contor_curent, 115)
+
+    def test_low_importance_due_recommendation_does_not_block_usage(self):
+        FleetTechnicalRecommendation.objects.create(
+            utilaj=self.utilaj,
+            titlu="Curăță cabina",
+            prima_scadenta=localdate(),
+            importanta=FleetTechnicalRecommendation.Importance.LOW,
+        )
+        self.check_in()
+
+        response = self.take()
+
+        self.assertEqual(response.status_code, 201, response.content)
+
+    @patch("ToolApp.fleet_views.send_employee_push")
+    def test_high_recommendation_blocks_until_photo_is_approved(self, send_push):
+        recommendation = FleetTechnicalRecommendation.objects.create(
+            utilaj=self.utilaj,
+            titlu="Schimbă uleiul",
+            instructiuni="Fotografiază joja și recipientul nou.",
+            prima_scadenta=localdate(),
+            importanta=FleetTechnicalRecommendation.Importance.HIGH,
+        )
+        technician_employee = Users.objects.create(
+            UserName="Responsabil Tehnic", UserSerie="TECH-1", email="tech@example.com"
+        )
+        technician = AppUser.objects.create(
+            employee=technician_employee, username="tech.user", pin_hash="unused"
+        )
+        FleetTechnicalResponsible.objects.create(app_user=technician)
+        technician_client = Client()
+        technician_client.cookies["appj"] = make_app_user_token(technician)
+        self.check_in()
+        blocked = self.take()
+        self.assertEqual(blocked.status_code, 409)
+        self.assertEqual(blocked.json()["error_code"], "TECHNICAL_RECOMMENDATION_REQUIRED")
+
+        photo = SimpleUploadedFile("ulei.jpg", b"photo-test", content_type="image/jpeg")
+        submitted = self.client.post(
+            f"{self.detail_url}recommendations/{recommendation.pk}/submit/",
+            {"pin": "4321", "photo": photo},
+        )
+        self.assertEqual(submitted.status_code, 201, submitted.content)
+        submission_id = submitted.json()["submission"]["id"]
+        send_push.assert_called_once()
+        self.assertEqual(
+            technician_client.get("/api/team-portal/notifications/summary/").json()["unread_count"],
+            1,
+        )
+        self.assertEqual(self.take().status_code, 409)
+
+        approved = technician_client.post(
+            f"/api/fleet/qr/recommendation-submissions/{submission_id}/decision/",
+            data=json.dumps({"action": "approve"}),
+            content_type="application/json",
+        )
+        self.assertEqual(approved.status_code, 200, approved.content)
+        self.assertEqual(FleetRecommendationSubmission.objects.get(pk=submission_id).status, "approved")
+        self.assertEqual(self.take().status_code, 201)
+        self.assertEqual(
+            technician_client.get("/api/team-portal/notifications/summary/").json()["unread_count"],
+            0,
+        )
+
+    def test_medium_recommendation_unlocks_fifteen_minutes_after_submission(self):
+        recommendation = FleetTechnicalRecommendation.objects.create(
+            utilaj=self.utilaj,
+            titlu="Verifică presiunea",
+            prima_scadenta=localdate(),
+            importanta=FleetTechnicalRecommendation.Importance.MEDIUM,
+        )
+        self.check_in()
+        self.assertEqual(self.take().status_code, 409)
+        photo = SimpleUploadedFile("presiune.jpg", b"photo-test", content_type="image/jpeg")
+        submitted = self.client.post(
+            f"{self.detail_url}recommendations/{recommendation.pk}/submit/",
+            {"pin": "4321", "photo": photo},
+        )
+        self.assertEqual(submitted.status_code, 201, submitted.content)
+        self.assertEqual(self.take().status_code, 409)
+        FleetRecommendationSubmission.objects.filter(pk=submitted.json()["submission"]["id"]).update(
+            submitted_at=timezone.now() - timedelta(minutes=16)
+        )
+
+        self.assertEqual(self.take().status_code, 201)
+
+    def test_admin_configures_technical_responsible_and_recommendation(self):
+        technician_employee = Users.objects.create(UserName="Tehnic Admin", UserSerie="TECH-2")
+        technician = AppUser.objects.create(employee=technician_employee, username="tech.admin", pin_hash="unused")
+        configured = self.admin_client.post(
+            "/api/fleet/equipment/technical-responsible/",
+            data=json.dumps({"app_user_id": technician.pk}),
+            content_type="application/json",
+        )
+        self.assertEqual(configured.status_code, 200, configured.content)
+        recommendation = self.admin_client.post(
+            "/api/fleet/equipment/recommendations/",
+            data=json.dumps({
+                "equipment_id": self.utilaj.pk,
+                "title": "Curățare săptămânală",
+                "instructions": "Curăță exteriorul și cabina.",
+                "frequency_value": 1,
+                "frequency_unit": "week",
+                "first_due_date": localdate().isoformat(),
+                "importance": "low",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(recommendation.status_code, 201, recommendation.content)
+        detail = self.admin_client.get(f"/api/fleet/equipment/{self.utilaj.pk}/").json()["equipment"]
+        self.assertEqual(detail["recommendations"][0]["title"], "Curățare săptămânală")
+        self.assertTrue(FleetTechnicalResponsible.objects.filter(app_user=technician).exists())
 
     def test_admin_can_manage_equipment_documents_and_maintenance(self):
         authorization = EmployeeDocumentType.objects.create(

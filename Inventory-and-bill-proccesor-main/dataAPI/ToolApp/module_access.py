@@ -110,6 +110,9 @@ def app_user_roles(app_user):
     employee = app_user.employee
     if getattr(app_user, "is_storekeeper", False):
         roles.append("storekeeper")
+    from ToolApp.models import FleetTechnicalResponsible
+    if FleetTechnicalResponsible.objects.filter(app_user=app_user, active=True).exists():
+        roles.append("technical_responsible")
     if employee.led_employee_teams.filter(active=True).exists():
         roles.append("team_leader")
     if employee.supervised_employee_teams.filter(active=True).exists():

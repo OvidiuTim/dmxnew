@@ -27,6 +27,8 @@ from ToolApp.models import (
     AttendanceSession,
     EmployeeTeam,
     EmployeeTeamMember,
+    FleetRecommendationSubmission,
+    FleetTechnicalResponsible,
     LeaveDay,
     LeaveRequest,
     PortalTeamTransferRequest,
@@ -395,6 +397,7 @@ def portal_dashboard(request):
         "is_team_leader": "team_leader" in roles,
         "is_supervisor": "supervisor" in roles,
         "is_storekeeper": "storekeeper" in roles,
+        "is_technical_responsible": "technical_responsible" in roles,
         "can_access_tools": app_user_has_module(app_user, "tools"),
         # Iau/Predau este o funcție a portalului. Modulul `flota` controlează
         # separat administrarea de la /utilaje.
@@ -1711,6 +1714,33 @@ def _request_notification_payloads(app_user):
     return payloads
 
 
+def _technical_recommendation_notification_payloads(app_user):
+    if not FleetTechnicalResponsible.objects.filter(app_user=app_user, active=True).exists():
+        return []
+    return [{
+        "id": item.pk,
+        "kind": "technical_recommendation",
+        "urgent": True,
+        "team": {"id": None, "name": item.recommendation.utilaj.cod_intern},
+        "status": item.status,
+        "status_label": item.get_status_display(),
+        "recommendation_title": item.recommendation.titlu,
+        "importance": item.recommendation.importanta,
+        "importance_label": item.recommendation.get_importanta_display(),
+        "date": item.submitted_at.date().isoformat(),
+        "checked_at": item.submitted_at.isoformat(),
+        "is_read": False,
+        "target_path": f"/team-dashboard/utilaje/{item.recommendation.utilaj.token_qr}?verification={item.pk}",
+        "employees": [{
+            "id": item.employee_id,
+            "name": item.employee.UserName,
+            "phone": item.employee.phone_number or "",
+        }],
+    } for item in FleetRecommendationSubmission.objects.select_related(
+        "employee", "recommendation__utilaj"
+    ).filter(status=FleetRecommendationSubmission.Status.PENDING)]
+
+
 def _open_request_notifications(app_user):
     """Notificările de cereri care mai au sens: aprobări încă în așteptare și rezultate."""
     return TeamPortalNotification.objects.filter(recipient=app_user).exclude(
@@ -1769,7 +1799,8 @@ def _current_portal_unread_count(app_user):
             TeamPortalNotification.Kind.TRANSFER_RESULT,
         ),
     ).count()
-    return personal + attendance + pending_approvals + results
+    technical = len(_technical_recommendation_notification_payloads(app_user))
+    return personal + attendance + pending_approvals + results + technical
 
 
 @csrf_exempt
@@ -1796,7 +1827,11 @@ def portal_notifications(request):
         # Absențele deja văzute nu se mai afișează.
         attendance_items = [item for item in attendance_items if not item["is_read"]]
         personal_items = [item for item in _personal_notification_payloads(app_user) if not item["is_read"]]
-        request_items = _pending_approval_payloads(app_user) + _request_notification_payloads(app_user)
+        request_items = (
+            _pending_approval_payloads(app_user)
+            + _request_notification_payloads(app_user)
+            + _technical_recommendation_notification_payloads(app_user)
+        )
         result_ids = [
             item["id"]
             for item in request_items

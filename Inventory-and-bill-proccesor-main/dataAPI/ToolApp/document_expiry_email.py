@@ -7,10 +7,12 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.timezone import localdate
 
-from ToolApp.models import DocumentUtilaj, EmployeeDocument
-from ToolApp.fleet_services import due_fleet_document_expiry_notifications
-
-
+from ToolApp.models import (
+    DocumentUtilaj,
+    EmployeeDocument,
+    FleetDocumentExpiryNotification,
+    FleetDocumentResponsible,
+)
 logger = logging.getLogger(__name__)
 
 DOCUMENT_EXPIRY_RECIPIENTS = (
@@ -118,11 +120,7 @@ def process_due_document_expiry_notifications(reference_date=None, recipients=No
     return documents
 
 
-def process_due_fleet_document_expiry_notifications(reference_date=None, recipients=None, dry_run=False):
-    documents = due_fleet_document_expiry_notifications(reference_date=reference_date)
-    if not documents or dry_run:
-        return documents
-
+def _send_fleet_document_expiry_email(documents, recipients, reference_date=None):
     today = reference_date or localdate()
     text_lines = ["Documente utilaje care expiră", ""]
     rows = []
@@ -155,7 +153,7 @@ def process_due_fleet_document_expiry_notifications(reference_date=None, recipie
     )
     response = SendGridAPIClient(api_key).send(Mail(
         from_email=from_email,
-        to_emails=list(recipients or DOCUMENT_EXPIRY_RECIPIENTS),
+        to_emails=list(recipients),
         subject=f"Avertizare documente flotă – {len(documents)}",
         plain_text_content="\n".join(text_lines),
         html_content=html,
@@ -163,10 +161,104 @@ def process_due_fleet_document_expiry_notifications(reference_date=None, recipie
     status_code = int(getattr(response, "status_code", 0) or 0)
     if not 200 <= status_code < 300:
         raise RuntimeError(f"SendGrid a răspuns cu status {status_code}.")
-    sent_at = timezone.now()
-    for item in documents:
-        DocumentUtilaj.objects.filter(pk=item.pk).update(
-            expiry_notification_sent_for=item.data_expirare,
-            expiry_notification_sent_at=sent_at,
+    return response
+
+
+def _fleet_expiry_candidates(reference_date=None):
+    today = reference_date or localdate()
+    documents = (
+        DocumentUtilaj.objects.select_related("utilaj", "tip")
+        .filter(utilaj__activ=True, data_expirare__gte=today)
+        .order_by("data_expirare", "utilaj__cod_intern", "tip__nume")
+    )
+    return [
+        item for item in documents
+        if item.data_expirare <= today + timedelta(days=item.tip.zile_avertizare)
+    ]
+
+
+def process_due_fleet_document_expiry_notifications(reference_date=None, recipients=None, dry_run=False):
+    """Trimite alertele pe responsabil; utilajele nealocate folosesc destinatarii centrali."""
+    candidates = _fleet_expiry_candidates(reference_date=reference_date)
+    if not candidates:
+        return []
+
+    # --only din management command suprascrie responsabilii și este sigur pentru testarea emailului.
+    if recipients is not None:
+        documents = [
+            item for item in candidates
+            if item.expiry_notification_sent_for != item.data_expirare
+        ]
+        if not documents or dry_run:
+            return documents
+        _send_fleet_document_expiry_email(documents, recipients, reference_date=reference_date)
+        sent_at = timezone.now()
+        for item in documents:
+            DocumentUtilaj.objects.filter(pk=item.pk).update(
+                expiry_notification_sent_for=item.data_expirare,
+                expiry_notification_sent_at=sent_at,
+            )
+        return documents
+
+    responsibles = list(
+        FleetDocumentResponsible.objects.select_related("responsabil")
+        .prefetch_related("utilaje")
+        .filter(activ=True)
+    )
+    candidate_ids = {item.pk for item in candidates}
+    covered_document_ids = set()
+    deliveries = []
+    pending_documents = {}
+
+    for responsible in responsibles:
+        equipment_ids = None if responsible.toate_utilajele else set(responsible.utilaje.values_list("pk", flat=True))
+        scoped = [
+            item for item in candidates
+            if equipment_ids is None or item.utilaj_id in equipment_ids
+        ]
+        covered_document_ids.update(item.pk for item in scoped)
+        sent_keys = set(
+            FleetDocumentExpiryNotification.objects.filter(
+                responsabil=responsible,
+                document_id__in=[item.pk for item in scoped],
+            ).values_list("document_id", "data_expirare")
         )
-    return documents
+        due = [item for item in scoped if (item.pk, item.data_expirare) not in sent_keys]
+        if due:
+            deliveries.append((responsible, due))
+            pending_documents.update({item.pk: item for item in due})
+
+    central = [
+        item for item in candidates
+        if item.pk in candidate_ids - covered_document_ids
+        and item.expiry_notification_sent_for != item.data_expirare
+    ]
+    pending_documents.update({item.pk: item for item in central})
+    result = sorted(
+        pending_documents.values(),
+        key=lambda item: (item.data_expirare, item.utilaj.cod_intern, item.tip.nume),
+    )
+    if dry_run:
+        return result
+
+    for responsible, documents in deliveries:
+        _send_fleet_document_expiry_email(documents, [responsible.email], reference_date=reference_date)
+        FleetDocumentExpiryNotification.objects.bulk_create([
+            FleetDocumentExpiryNotification(
+                responsabil=responsible,
+                document=item,
+                data_expirare=item.data_expirare,
+                email=responsible.email,
+            )
+            for item in documents
+        ], ignore_conflicts=True)
+
+    if central:
+        _send_fleet_document_expiry_email(central, DOCUMENT_EXPIRY_RECIPIENTS, reference_date=reference_date)
+        sent_at = timezone.now()
+        for item in central:
+            DocumentUtilaj.objects.filter(pk=item.pk).update(
+                expiry_notification_sent_for=item.data_expirare,
+                expiry_notification_sent_at=sent_at,
+            )
+    return result

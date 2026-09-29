@@ -57,6 +57,13 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     hi: { role: 'स्टोरकीपर', tools: 'औज़ार', hint: 'औज़ार और वितरण रजिस्टर खोलें', hidden: 'फ़िलहाल उपलब्ध नहीं' },
     ne: { role: 'भण्डारपाल', tools: 'औजार', hint: 'औजार र वितरण रजिस्टर खोल्नुहोस्', hidden: 'हाल उपलब्ध छैन' },
   };
+  private readonly technicalRoleCopy: Record<PortalLanguage, { role: string; notification: string; pending: string }> = {
+    ro: { role: 'Responsabil tehnic', notification: 'Verificare tehnică nouă', pending: 'Necesită verificare' },
+    en: { role: 'Technical manager', notification: 'New technical check', pending: 'Review required' },
+    pa: { role: 'ਤਕਨੀਕੀ ਜ਼ਿੰਮੇਵਾਰ', notification: 'ਨਵੀਂ ਤਕਨੀਕੀ ਜਾਂਚ', pending: 'ਜਾਂਚ ਲੋੜੀਂਦੀ' },
+    hi: { role: 'तकनीकी जिम्मेदार', notification: 'नई तकनीकी जाँच', pending: 'जाँच आवश्यक' },
+    ne: { role: 'प्राविधिक जिम्मेवार', notification: 'नयाँ प्राविधिक जाँच', pending: 'जाँच आवश्यक' },
+  };
   private readonly attendanceStateCopy: Record<PortalLanguage, { active: string; inactive: string }> = {
     ro: { active: 'Ești pontat de {hours} ore {minutes} minute', inactive: 'Nu ești pontat astăzi' },
     en: { active: 'Clocked in for {hours} hours {minutes} minutes', inactive: 'You are not clocked in today' },
@@ -473,6 +480,7 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
     if (this.dashboard.is_team_leader) labels.push(this.t.teamLeaderRole);
     if (this.dashboard.is_supervisor) labels.push(this.t.supervisorRole);
     if (this.dashboard.is_storekeeper) labels.push(this.storekeeperCopy[this.language].role);
+    if (this.dashboard.is_technical_responsible) labels.push(this.technicalRoleCopy[this.language].role);
     const configured = this.dashboard.role_labels || {};
     if (this.dashboard.alert_level_1) labels.push(this.language === 'ro' ? (configured['1'] || this.ui.level1) : this.ui.level1);
     if (this.dashboard.alert_level_2) labels.push(this.language === 'ro' ? (configured['2'] || this.ui.level2) : this.ui.level2);
@@ -819,11 +827,19 @@ export class TeamPortalComponent implements OnInit, OnDestroy {
   }
 
   notificationTitle(notification: any): string {
+    if (notification?.kind === 'technical_recommendation') return `${this.technicalRoleCopy[this.language].notification} · ${notification.recommendation_title || ''}`;
     if (notification?.kind === 'leave_approval') return this.t.newLeaveNotification;
     if (notification?.kind === 'transfer_approval') return this.t.newTransferNotification;
     if (notification?.kind === 'leave_result') return this.t.leaveResultNotification;
     if (notification?.kind === 'transfer_result') return this.t.transferResultNotification;
     return notification?.kind === 'personal_leave' ? this.t.leaveRequest : (notification?.team?.name || this.t.notifications);
+  }
+
+  notificationStatusLabel(notification: any): string {
+    if (notification?.kind === 'technical_recommendation') return this.technicalRoleCopy[this.language].pending;
+    return notification?.kind === 'personal_leave'
+      ? this.requestStatusLabel(notification.status)
+      : this.statusLabel(notification.status);
   }
 
   approvalLabels(labels: string[] | undefined): string {

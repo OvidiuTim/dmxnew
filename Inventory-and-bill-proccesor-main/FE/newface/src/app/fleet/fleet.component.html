@@ -39,6 +39,30 @@
       <p *ngIf="!equipment.documents.length" class="empty">{{ ui.fleetNoDocuments }}</p>
     </section>
 
+    <section class="technical-recommendations" *ngIf="equipment.due_recommendations?.length">
+      <h3>{{ tc.title }}</h3>
+      <article *ngFor="let item of equipment.due_recommendations" class="technical-card" [attr.data-importance]="item.importance">
+        <header><div><strong>{{ item.title }}</strong><small>{{ item.importance_label }} · {{ tc.due }} {{ item.due_date | date:'dd.MM.yyyy' }}</small></div><span class="material-symbols-rounded">engineering</span></header>
+        <p *ngIf="item.instructions">{{ item.instructions }}</p>
+        <div class="technical-rule">{{ recommendationHint(item) }}</div>
+        <div *ngIf="!item.pending_submission" class="technical-submit">
+          <label>{{ tc.photo }}<input type="file" accept="image/*" capture="environment" (change)="setRecommendationPhoto(item.id, $event)"></label>
+          <label *ngIf="!pin">{{ ui.fleetPinLabel }}<input type="password" inputmode="numeric" [(ngModel)]="pin" [ngModelOptions]="{standalone: true}"></label>
+          <button type="button" (click)="submitRecommendation(item)" [disabled]="submitting || !recommendationPhotos[item.id]">{{ tc.submit }}</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="technical-approvals" *ngIf="equipment.can_review_recommendations && equipment.pending_verifications?.length">
+      <h3>{{ tc.responsible }}</h3>
+      <article *ngFor="let item of equipment.pending_verifications" class="approval-card" [attr.data-importance]="item.recommendation.importance">
+        <header><div><strong>{{ item.recommendation.title }}</strong><small>{{ tc.by }} {{ item.employee.name }} · {{ item.submitted_at | date:'dd.MM.yyyy HH:mm' }}</small></div><span>{{ item.recommendation.importance_label }}</span></header>
+        <p>{{ item.recommendation.instructions }}</p>
+        <a [href]="item.photo_url" target="_blank" rel="noopener"><span class="material-symbols-rounded">photo_camera</span>{{ tc.photo }}</a>
+        <footer><button type="button" class="reject" (click)="decideRecommendation(item, 'reject')" [disabled]="submitting">{{ tc.reject }}</button><button type="button" class="approve" (click)="decideRecommendation(item, 'approve')" [disabled]="submitting">{{ tc.approve }}</button></footer>
+      </article>
+    </section>
+
     <section class="operator" *ngIf="equipment.active_session">
       <span>{{ ui.fleetCurrentOperator }}</span><strong>{{ equipment.active_session.employee.name }}</strong>
       <small>{{ equipment.active_session.started_at | date:'short' }}</small>
@@ -48,6 +72,7 @@
       <label>{{ ui.fleetPinLabel }}<input type="password" inputmode="numeric" [(ngModel)]="pin" [ngModelOptions]="{standalone: true}" /></label>
       <label *ngIf="equipment.counter_type !== 'fara'">{{ equipment.counter_type === 'km' ? ui.fleetCounterKm : ui.fleetCounterHours }}
         <input type="number" min="0" step="0.01" [(ngModel)]="counter" [ngModelOptions]="{standalone: true}" /></label>
+      <p *ngIf="equipment.technical_blocked" class="technical-blocked"><span class="material-symbols-rounded">lock</span>{{ tc.blocked }}</p>
       <button *ngIf="!equipment.active_session" class="take" type="button" (click)="take()" [disabled]="submitting || equipment.state !== 'disponibil'">
         {{ submitting ? ui.fleetProcessing : ui.fleetTake }}
       </button>

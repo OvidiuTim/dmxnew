@@ -1707,6 +1707,109 @@ class FleetDocumentExpiryNotification(models.Model):
         ]
 
 
+class FleetTechnicalResponsible(models.Model):
+    """Contul care validează executarea recomandărilor tehnice ale flotei."""
+
+    app_user = models.OneToOneField(
+        AppUser,
+        on_delete=models.CASCADE,
+        related_name="fleet_technical_responsibility",
+    )
+    active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("app_user__employee__UserName", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("active",),
+                condition=models.Q(active=True),
+                name="unique_active_fleet_technical_responsible",
+            ),
+        ]
+
+    def __str__(self):
+        return self.app_user.employee.UserName
+
+
+class FleetTechnicalRecommendation(models.Model):
+    class Importance(models.TextChoices):
+        LOW = "low", "Scăzută"
+        MEDIUM = "medium", "Medie"
+        HIGH = "high", "Ridicată"
+
+    class FrequencyUnit(models.TextChoices):
+        DAY = "day", "Zile"
+        WEEK = "week", "Săptămâni"
+
+    utilaj = models.ForeignKey(Utilaj, on_delete=models.CASCADE, related_name="recomandari_tehnice")
+    titlu = models.CharField(max_length=180)
+    instructiuni = models.TextField(blank=True, default="")
+    frecventa_valoare = models.PositiveSmallIntegerField(default=1)
+    frecventa_unitate = models.CharField(max_length=8, choices=FrequencyUnit.choices, default=FrequencyUnit.DAY)
+    prima_scadenta = models.DateField(db_index=True)
+    importanta = models.CharField(max_length=8, choices=Importance.choices, default=Importance.LOW, db_index=True)
+    activ = models.BooleanField(default=True, db_index=True)
+    creat_de = models.CharField(max_length=180, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-activ", "prima_scadenta", "titlu", "id")
+
+    @property
+    def interval_days(self):
+        multiplier = 7 if self.frecventa_unitate == self.FrequencyUnit.WEEK else 1
+        return max(1, self.frecventa_valoare) * multiplier
+
+    def __str__(self):
+        return f"{self.utilaj.cod_intern} · {self.titlu}"
+
+
+class FleetRecommendationSubmission(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "În așteptare"
+        APPROVED = "approved", "Aprobată"
+        REJECTED = "rejected", "Respinsă"
+
+    recommendation = models.ForeignKey(
+        FleetTechnicalRecommendation,
+        on_delete=models.CASCADE,
+        related_name="verificari",
+    )
+    employee = models.ForeignKey(
+        Users,
+        on_delete=models.PROTECT,
+        related_name="verificari_recomandari_tehnice",
+    )
+    photo = models.FileField(upload_to="fleet_recommendations/%Y/%m/")
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True)
+    submitted_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    reviewed_by = models.ForeignKey(
+        AppUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="fleet_recommendation_reviews",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=500, blank=True, default="")
+
+    class Meta:
+        ordering = ("-submitted_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("recommendation",),
+                condition=models.Q(status="pending"),
+                name="unique_pending_fleet_recommendation",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.recommendation} · {self.employee.UserName} · {self.get_status_display()}"
+
+
 class SesiuneUtilaj(models.Model):
     class MotivInchidere(models.TextChoices):
         PREDARE = "predare", "Predare de către angajat"
