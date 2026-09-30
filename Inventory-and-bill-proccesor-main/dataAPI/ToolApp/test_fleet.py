@@ -3,8 +3,10 @@ import tempfile
 from datetime import timedelta
 from unittest.mock import patch
 
+from django.db import connection
 from django.test import Client, TestCase
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from django.utils.timezone import localdate
 
@@ -238,6 +240,29 @@ class FleetFlowTests(TestCase):
         self.assertEqual(summary.json()["unread_count"], 1)
 
     @patch("ToolApp.fleet_views.send_employee_push")
+    def test_low_expired_document_allows_take_without_alerting_responsible(self, send_push):
+        self.itp.importanta = TipDocumentUtilaj.Importance.LOW
+        self.itp.save()
+        self.document.data_expirare = localdate() - timedelta(days=1)
+        self.document.save()
+        responsible_employee = Users.objects.create(
+            UserName="Responsabil fără alertă", UserSerie="DOC-LOW", email="low@example.com"
+        )
+        FleetDocumentResponsible.objects.create(
+            responsabil=responsible_employee,
+            email=responsible_employee.email,
+            toate_utilajele=True,
+        )
+        self.check_in()
+
+        response = self.take()
+
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertEqual(response.json()["document_warnings"], [])
+        self.assertFalse(FleetDocumentUsageAlert.objects.exists())
+        send_push.assert_not_called()
+
+    @patch("ToolApp.fleet_views.send_employee_push")
     def test_high_expired_document_blocks_and_alerts_responsible_once(self, send_push):
         self.document.data_expirare = localdate() - timedelta(days=1)
         self.document.save()
@@ -300,6 +325,57 @@ class FleetFlowTests(TestCase):
         self.utilaj.refresh_from_db()
         self.assertEqual(self.utilaj.stare, Utilaj.Stare.DISPONIBIL)
         self.assertEqual(self.utilaj.contor_curent, 115)
+
+    def test_return_rejects_lower_counter_without_closing_session(self):
+        self.check_in()
+        self.assertEqual(self.take().status_code, 201)
+
+        response = self.client.post(
+            f"{self.detail_url}return/",
+            data=json.dumps({"pin": "4321", "counter": 99}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 409, response.content)
+        self.assertEqual(response.json()["error_code"], "COUNTER_TOO_SMALL")
+        session = SesiuneUtilaj.objects.get()
+        self.assertIsNone(session.sfarsit)
+        self.utilaj.refresh_from_db()
+        self.assertEqual(self.utilaj.stare, Utilaj.Stare.IN_LUCRU)
+        self.assertEqual(self.utilaj.contor_curent, 101)
+
+    def test_only_current_operator_can_return_equipment(self):
+        self.check_in()
+        self.assertEqual(self.take().status_code, 201)
+        other = Users.objects.create(UserName="Alt operator", UserSerie="DRV-2", UserPin="9876")
+
+        response = self.client.post(
+            f"{self.detail_url}return/",
+            data=json.dumps({"pin": other.UserPin, "counter": 115}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403, response.content)
+        self.assertEqual(response.json()["error_code"], "NOT_CURRENT_OPERATOR")
+        self.assertIsNone(SesiuneUtilaj.objects.get().sfarsit)
+
+    def test_equipment_registry_queries_do_not_grow_per_equipment(self):
+        def query_count():
+            with CaptureQueriesContext(connection) as queries:
+                response = self.admin_client.get("/api/fleet/equipment/")
+            self.assertEqual(response.status_code, 200, response.content)
+            return len(queries)
+
+        baseline = query_count()
+        Utilaj.objects.bulk_create([
+            Utilaj(cod_intern=f"PERF-{index:02d}", denumire=f"Utilaj performanță {index}")
+            for index in range(24)
+        ])
+
+        expanded = query_count()
+
+        self.assertLessEqual(expanded, baseline + 1)
+        self.assertLessEqual(expanded, 15)
 
     def test_low_importance_due_recommendation_does_not_block_usage(self):
         FleetTechnicalRecommendation.objects.create(

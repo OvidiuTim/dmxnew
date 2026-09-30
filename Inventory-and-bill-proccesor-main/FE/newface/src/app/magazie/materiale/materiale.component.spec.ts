@@ -1,4 +1,7 @@
+import { DatePipe } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { FormsModule } from '@angular/forms';
 
 import { MaterialeComponent } from './materiale.component';
 
@@ -8,7 +11,9 @@ describe('MaterialeComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ MaterialeComponent ]
+      declarations: [ MaterialeComponent ],
+      imports: [HttpClientTestingModule, FormsModule],
+      providers: [DatePipe]
     })
     .compileComponents();
 

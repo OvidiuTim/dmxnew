@@ -5,7 +5,7 @@ from io import BytesIO
 from pathlib import Path
 
 from django.db import IntegrityError, transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.http import FileResponse, HttpResponse, JsonResponse
@@ -207,12 +207,18 @@ def _document_responsibles_for_equipment(utilaj):
     ).filter(Q(toate_utilajele=True) | Q(utilaje=utilaj)).distinct()
 
 
-def _document_responsible_contacts(utilaj):
+def _document_responsible_contacts(utilaj, global_responsibles=None):
+    if global_responsibles is not None:
+        assigned = getattr(utilaj, "_fleet_document_responsibles", ())
+        by_id = {item.pk: item for item in (*global_responsibles, *assigned)}
+        responsibles = by_id.values()
+    else:
+        responsibles = _document_responsibles_for_equipment(utilaj)
     return [{
         "name": item.responsabil.UserName,
         "phone": item.responsabil.phone_number or "",
         "email": item.email,
-    } for item in _document_responsibles_for_equipment(utilaj)]
+    } for item in responsibles]
 
 
 def _create_document_usage_alerts(utilaj, employee, rows, work_date):
@@ -250,13 +256,31 @@ def _create_document_usage_alerts(utilaj, employee, rows, work_date):
                 )
 
 
-def _utilaj_payload(utilaj, request=None):
-    open_session = utilaj.sesiuni.select_related("angajat").filter(sfarsit__isnull=True).first()
+_NOT_PRECOMPUTED = object()
+
+
+def _utilaj_payload(
+    utilaj,
+    request=None,
+    *,
+    technical_responsible=_NOT_PRECOMPUTED,
+    global_document_responsibles=None,
+):
+    prefetched_sessions = getattr(utilaj, "_fleet_open_sessions", None)
+    if prefetched_sessions is None:
+        open_session = utilaj.sesiuni.select_related("angajat").filter(sfarsit__isnull=True).first()
+    else:
+        open_session = prefetched_sessions[0] if prefetched_sessions else None
+    prefetched_recommendations = getattr(utilaj, "_fleet_active_recommendations", None)
+    if prefetched_recommendations is None:
+        prefetched_recommendations = utilaj.recomandari_tehnice.filter(activ=True)
     recommendations = [
         _recommendation_payload(item, request=request)
-        for item in utilaj.recomandari_tehnice.filter(activ=True)
+        for item in prefetched_recommendations
     ]
-    technical_responsible = _technical_responsible_for_request(request) if request else None
+    if technical_responsible is _NOT_PRECOMPUTED:
+        technical_responsible = _technical_responsible_for_request(request) if request else None
+    documents = document_rows(utilaj, request=request)
     payload = {
         "id": utilaj.pk,
         "token": str(utilaj.token_qr),
@@ -276,15 +300,18 @@ def _utilaj_payload(utilaj, request=None):
         "state_label": utilaj.get_stare_display(),
         "site": ({"id": utilaj.santier_curent_id, "code": utilaj.santier_curent.code, "name": utilaj.santier_curent.name}
                  if utilaj.santier_curent else None),
-        "documents": document_rows(utilaj, request=request),
-        "document_responsibles": _document_responsible_contacts(utilaj),
+        "documents": documents,
+        "document_responsibles": _document_responsible_contacts(
+            utilaj,
+            global_responsibles=global_document_responsibles,
+        ),
         "active_session": _session_payload(open_session),
         "recommendations": recommendations,
         "due_recommendations": [item for item in recommendations if item["due"]],
         "technical_blocked": any(item["due"] and not item["can_use"] for item in recommendations),
         "can_review_recommendations": bool(technical_responsible),
         "has_problems": utilaj.stare in {Utilaj.Stare.DEFECT, Utilaj.Stare.SERVICE}
-            or any(row["status"] in {"missing", "expired"} for row in document_rows(utilaj)),
+            or any(row["status"] in {"missing", "expired"} for row in documents),
     }
     if technical_responsible:
         payload["pending_verifications"] = [
@@ -365,7 +392,36 @@ def fleet_lookup(request):
 @csrf_exempt
 def fleet_equipment_collection(request):
     if request.method == "GET":
-        items = Utilaj.objects.select_related("santier_curent").filter(activ=True)
+        items = Utilaj.objects.select_related("santier_curent").filter(activ=True).prefetch_related(
+            Prefetch(
+                "documente",
+                queryset=DocumentUtilaj.objects.select_related("tip"),
+                to_attr="_fleet_documents",
+            ),
+            Prefetch(
+                "tipuri_document_necesare",
+                queryset=TipDocumentUtilaj.objects.filter(activ=True),
+                to_attr="_fleet_required_document_types",
+            ),
+            Prefetch(
+                "sesiuni",
+                queryset=SesiuneUtilaj.objects.filter(sfarsit__isnull=True).select_related("angajat", "santier"),
+                to_attr="_fleet_open_sessions",
+            ),
+            Prefetch(
+                "recomandari_tehnice",
+                queryset=FleetTechnicalRecommendation.objects.filter(activ=True),
+                to_attr="_fleet_active_recommendations",
+            ),
+            Prefetch(
+                "responsabili_documente",
+                queryset=FleetDocumentResponsible.objects.filter(
+                    activ=True,
+                    toate_utilajele=False,
+                ).select_related("responsabil"),
+                to_attr="_fleet_document_responsibles",
+            ),
+        )
         query = str(request.GET.get("q") or "").strip()
         if query:
             items = items.filter(Q(cod_intern__icontains=query) | Q(denumire__icontains=query) | Q(nr_inmatriculare__icontains=query))
@@ -375,7 +431,22 @@ def fleet_equipment_collection(request):
             items = items.filter(stare=request.GET["state"])
         if request.GET.get("site"):
             items = items.filter(santier_curent_id=request.GET["site"])
-        payload = [_utilaj_payload(item, request=request) for item in items]
+        technical_responsible = _technical_responsible_for_request(request)
+        global_document_responsibles = list(
+            FleetDocumentResponsible.objects.filter(
+                activ=True,
+                toate_utilajele=True,
+            ).select_related("responsabil")
+        )
+        payload = [
+            _utilaj_payload(
+                item,
+                request=request,
+                technical_responsible=technical_responsible,
+                global_document_responsibles=global_document_responsibles,
+            )
+            for item in items
+        ]
         if request.GET.get("problems") in {"1", "true"}:
             payload = [item for item in payload if item["has_problems"]]
         return JsonResponse({"ok": True, "equipment": payload})

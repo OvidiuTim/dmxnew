@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { FormsModule } from '@angular/forms';
 
 import { RapoarteComponent } from './rapoarte.component';
 
@@ -8,7 +10,8 @@ describe('RapoarteComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ RapoarteComponent ]
+      declarations: [ RapoarteComponent ],
+      imports: [HttpClientTestingModule, FormsModule]
     })
     .compileComponents();
 

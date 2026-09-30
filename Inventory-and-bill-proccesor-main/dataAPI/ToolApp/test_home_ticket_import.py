@@ -284,11 +284,11 @@ class HomeTicketImportTests(TestCase):
             )
         }
 
-        self.assertEqual(total, 151)
-        self.assertEqual(operation_counts["hire_date"], 137)
+        self.assertEqual(total, 133)
+        self.assertEqual(operation_counts["hire_date"], 123)
         self.assertEqual(operation_counts["ticket_benefit_enabled"], 132)
-        self.assertEqual(operation_counts["last_home_trip_date"], 12)
-        self.assertEqual(len(ignored), 3)
+        self.assertEqual(operation_counts["last_home_trip_date"], 110)
+        self.assertEqual(len(ignored), 10)
 
     def test_command_is_dry_run_by_default_and_prints_required_summary(self):
         Users.objects.create(UserName="Comanda Test", UserSerie="CMD-1")

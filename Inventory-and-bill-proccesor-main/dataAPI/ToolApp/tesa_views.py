@@ -3,6 +3,7 @@ import json
 import math
 
 from django.db import transaction
+from django.db.models import Case, IntegerField, Value, When
 from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -71,9 +72,18 @@ def _day_status(employee, day):
     # sesiunea existentă și permitem check-out-ul, în loc să blocăm pagina.
     # O sesiune deschisă are prioritate. Dacă toate sunt închise, întoarcem
     # ultima sesiune doar pentru rezumat și permitem o intrare nouă.
-    confirmed = sessions.filter(out_time__isnull=True).order_by('-in_time').first()
-    if not confirmed:
-        confirmed = sessions.order_by('-in_time').first()
+    # O singură interogare este suficientă: sesiunile deschise sunt ordonate
+    # primele, apoi alegem cea mai recentă. Pagina de pontaj interoghează acest
+    # status frecvent, inclusiv de pe telefon, deci evităm al doilea query pentru
+    # fiecare refresh atunci când toate sesiunile sunt închise.
+    confirmed = sessions.order_by(
+        Case(
+            When(out_time__isnull=True, then=Value(0)),
+            default=Value(1),
+            output_field=IntegerField(),
+        ),
+        '-in_time',
+    ).first()
     reason = None
     # Concediul/absența blochează numai prima intrare a zilei. Dacă există deja
     # pontaj real (inclusiv o sesiune închisă accidental), angajatul trebuie să

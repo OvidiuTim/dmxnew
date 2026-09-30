@@ -224,7 +224,7 @@ class EmployeeRecordsApiTests(TestCase):
         self.assertEqual(row["status"], "LEAVE")
         self.assertEqual(row["leave"]["label"], "Concediu medical")
 
-    def test_unexcused_absence_has_distinct_status_even_with_later_attendance(self):
+    def test_later_attendance_replaces_absent_status_but_keeps_absence_audit(self):
         LeaveDay.objects.create(
             user_fk=self.employee,
             work_date=timezone.localdate(),
@@ -240,7 +240,7 @@ class EmployeeRecordsApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200, response.content)
         row = next(item for item in response.json()["rows"] if item["UserId"] == self.employee.pk)
-        self.assertEqual(row["status"], "ABSENT")
+        self.assertEqual(row["status"], "IN")
         self.assertEqual(row["leave"]["label"], "Absență nemotivată")
         self.assertEqual(len(row["sessions"]), 1)
 

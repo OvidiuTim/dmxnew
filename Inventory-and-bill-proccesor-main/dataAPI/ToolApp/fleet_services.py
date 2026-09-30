@@ -30,8 +30,13 @@ def document_status(document, today=None):
 
 def document_rows(utilaj, request=None, today=None):
     today = today or localdate()
-    documents = {item.tip_id: item for item in utilaj.documente.select_related("tip").all()}
-    configured = list(utilaj.tipuri_document_necesare.filter(activ=True))
+    prefetched_documents = getattr(utilaj, "_fleet_documents", None)
+    if prefetched_documents is None:
+        prefetched_documents = utilaj.documente.select_related("tip").all()
+    documents = {item.tip_id: item for item in prefetched_documents}
+    configured = getattr(utilaj, "_fleet_required_document_types", None)
+    if configured is None:
+        configured = list(utilaj.tipuri_document_necesare.filter(activ=True))
     configured_ids = {item.pk for item in configured}
     extra_types = [item.tip for item in documents.values() if item.tip_id not in configured_ids and item.tip.activ]
     rows = []

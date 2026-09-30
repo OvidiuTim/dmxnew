@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { timeout } from 'rxjs/operators';
 import { SharedService } from '../shared.service';
 
 type FleetTab = 'overview' | 'equipment' | 'expirations' | 'responsibles' | 'sessions' | 'defects' | 'reports';
@@ -26,6 +27,14 @@ export class FleetAdminComponent implements OnInit {
   equipment: any[] = [];
   expirations: any[] = [];
   authorizationExpirations: any[] = [];
+  // Keep group identities stable: recreating ngModel controls during change
+  // detection schedules another check and can keep the browser in a loop.
+  readonly expiryGroups: Array<{ key: string; label: string; rows: any[]; authorizations: any[] }> = [
+    { key: 'expired', label: 'Expirate', rows: [], authorizations: [] },
+    { key: '7', label: 'Expiră în 7 zile', rows: [], authorizations: [] },
+    { key: '30', label: 'Expiră în 30 de zile', rows: [], authorizations: [] },
+    { key: '60', label: 'Expiră în 60 de zile', rows: [], authorizations: [] },
+  ];
   sessions: any[] = [];
   blockedAttempts: any[] = [];
   defects: any[] = [];
@@ -66,6 +75,12 @@ export class FleetAdminComponent implements OnInit {
     this.createMode = !!this.route.snapshot.data['createEquipment'];
     if (routeTab === 'overview') {
       this.loadOverview();
+      return;
+    }
+    // Paginile independente nu trebuie să aștepte dashboardul flotei înainte
+    // să-și încarce propriile endpointuri.
+    if (routeTab === 'expirations' || routeTab === 'responsibles' || routeTab === 'defects') {
+      this.setTab(routeTab);
       return;
     }
     this.api.getFleetDashboard().subscribe({
@@ -120,8 +135,27 @@ export class FleetAdminComponent implements OnInit {
   }
 
   loadExpirations(): void {
-    this.loading = true;
-    forkJoin({ expirations: this.api.getFleetExpirations(), types: this.api.getFleetDocumentTypes() }).subscribe({ next: result => { this.expirations = result.expirations?.rows || []; this.authorizationExpirations = result.expirations?.authorizations || []; this.documentTypes = result.types?.types || []; this.employeeDocumentTypes = result.types?.employee_document_types || []; this.loading = false; }, error: error => this.fail(error) });
+    // Cele două zone sunt independente: una nu trebuie să o blocheze pe cealaltă.
+    // Pagina rămâne utilizabilă inclusiv când un request este lent sau eșuează.
+    this.loading = false;
+    this.api.getFleetExpirations().pipe(timeout(15000)).subscribe({
+      next: result => {
+        this.expirations = result?.rows || [];
+        this.authorizationExpirations = result?.authorizations || [];
+        for (const group of this.expiryGroups) {
+          group.rows = this.expirations.filter(row => row.group === group.key);
+          group.authorizations = this.authorizationExpirations.filter(row => row.group === group.key);
+        }
+      },
+      error: error => { this.error = this.message(error); },
+    });
+    this.api.getFleetDocumentTypes().pipe(timeout(15000)).subscribe({
+      next: result => {
+        this.documentTypes = result?.types || [];
+        this.employeeDocumentTypes = result?.employee_document_types || [];
+      },
+      error: error => { this.error = this.message(error); },
+    });
   }
 
   loadResponsibles(): void {
@@ -475,9 +509,6 @@ export class FleetAdminComponent implements OnInit {
   documentState(item: any): string { return item.status === 'expired' || item.status === 'missing' ? 'bad' : item.status === 'warning' ? 'warn' : 'good'; }
   duration(seconds: number): string { return `${Math.floor((seconds || 0) / 3600)}h ${Math.floor(((seconds || 0) % 3600) / 60)}m`; }
   qrUrl(id: number): string { return `${window.location.origin}/api/fleet/equipment/${id}/qr.png`; }
-  expiryGroups(): Array<{ key: string; label: string }> { return [{ key: 'expired', label: 'Expirate' }, { key: '7', label: 'Expiră în 7 zile' }, { key: '30', label: 'Expiră în 30 de zile' }, { key: '60', label: 'Expiră în 60 de zile' }]; }
-  rowsForGroup(key: string): any[] { return this.expirations.filter(row => row.group === key); }
-  authorizationsForGroup(key: string): any[] { return this.authorizationExpirations.filter(row => row.group === key); }
   defectsFor(status: string): any[] { return this.defects.filter(item => item.status === status); }
   setFile(target: any, event: Event, key = 'file'): void { target[key] = (event.target as HTMLInputElement).files?.[0] || null; }
 

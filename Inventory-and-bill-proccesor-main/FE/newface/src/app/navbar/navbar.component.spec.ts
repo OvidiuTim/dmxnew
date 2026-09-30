@@ -70,9 +70,9 @@ describe('NavbarComponent module filtering', () => {
     const component = componentFor([], true);
     const groups = visibleGroups(component);
     expect(groups.map(group => group.label)).toEqual([
-      'Pontaj', 'Șantiere', 'Echipe și program', 'Magazie', 'Unelte'
+      'Pontaj', 'Șantiere', 'Echipe și program', 'Magazie', 'Unelte', 'Utilaje'
     ]);
-    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(18);
+    expect(groups.reduce((count, group) => count + component.visibleLinks(group).length, 0)).toBe(26);
   });
 
   it('marchează o singură rută de echipe ca activă', () => {

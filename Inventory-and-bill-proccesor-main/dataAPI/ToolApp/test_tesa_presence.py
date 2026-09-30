@@ -3,11 +3,14 @@ from datetime import datetime, timedelta, timezone as dt_timezone
 from decimal import Decimal
 from unittest.mock import patch
 
+from django.db import connection
 from django.test import Client, TestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from ToolApp.models import AppUser, AttendanceAbsenceMark, AttendanceSession, DailyPay, LeaveDay, PresenceEvent, Users
 from ToolApp.security import make_admin_token, make_app_user_token
+from ToolApp.tesa_views import _day_status
 from ToolApp.worksites import ATTENDANCE_WORKSITES
 
 
@@ -138,8 +141,6 @@ class TesaPresenceTests(TestCase):
         self.assertFalse(status['can_check_in'])
         self.assertTrue(status['can_check_out'])
         self.assertEqual(status['session']['hours'], 0)
-        self.assertEqual(self.post(self.payload(action='check_out', worksite=ATTENDANCE_WORKSITES[1]['name'])).status_code, 409)
-
         checkout_now = self.now + timedelta(hours=2)
         checkout_data = self.payload(captured_at=checkout_now, action='check_out')
         self.assertEqual(self.post(checkout_data, now=checkout_now).status_code, 200)
@@ -149,6 +150,57 @@ class TesaPresenceTests(TestCase):
         self.assertEqual(AttendanceSession.objects.count(), 1)
         self.assertEqual(DailyPay.objects.count(), 1)
         self.assertEqual(PresenceEvent.objects.count(), 2)
+
+    def test_checkout_uses_open_session_worksite_even_if_client_sends_another_one(self):
+        self.assertEqual(self.post().status_code, 201)
+        checkout_at = self.now + timedelta(hours=2)
+
+        response = self.post(
+            self.payload(
+                captured_at=checkout_at,
+                action='check_out',
+                worksite=ATTENDANCE_WORKSITES[1]['name'],
+            ),
+            now=checkout_at,
+        )
+
+        self.assertEqual(response.status_code, 200, response.content)
+        session = AttendanceSession.objects.get(user_fk=self.employee)
+        self.assertEqual(session.worksite, self.site['name'])
+        exit_event = PresenceEvent.objects.filter(
+            user_fk=self.employee,
+            kind=PresenceEvent.Kind.EXIT,
+        ).get()
+        self.assertEqual(exit_event.worksite, self.site['name'])
+
+    def test_checkout_without_any_session_is_rejected(self):
+        response = self.post(self.payload(action='check_out'))
+
+        self.assertEqual(response.status_code, 409, response.content)
+        self.assertEqual(response.json()['error_code'], 'TESA_CHECK_IN_REQUIRED')
+        self.assertFalse(AttendanceSession.objects.exists())
+
+    def test_day_status_reads_attendance_in_one_query_even_with_history(self):
+        for offset in range(20):
+            started = self.now - timedelta(hours=offset + 2)
+            AttendanceSession.objects.create(
+                user_fk=self.employee,
+                work_date=self.now.date(),
+                in_time=started,
+                out_time=started + timedelta(minutes=30),
+                worksite=self.site['name'],
+            )
+
+        with CaptureQueriesContext(connection) as queries:
+            session, reason = _day_status(self.employee, self.now.date())
+
+        attendance_queries = [
+            item for item in queries.captured_queries
+            if 'toolapp_attendancesession' in item['sql'].lower()
+        ]
+        self.assertEqual(len(attendance_queries), 1)
+        self.assertIsNotNone(session)
+        self.assertIsNone(reason)
 
     def test_gps_missing_invalid_stale_or_future_is_rejected(self):
         invalid = [None, {}, {'lat': float('nan')}, {'lat': 91}, {'lng': float('inf')},
@@ -344,9 +396,18 @@ class TesaPresenceTests(TestCase):
         second_checkin_at = self.now + timedelta(minutes=20)
         second = self.post(self.payload(captured_at=second_checkin_at), now=second_checkin_at)
         self.assertEqual(second.status_code, 201, second.content)
+        second_checkout_at = self.now + timedelta(minutes=35)
+        second_checkout = self.post(
+            self.payload(captured_at=second_checkout_at, action='check_out'),
+            now=second_checkout_at,
+        )
+        self.assertEqual(second_checkout.status_code, 200, second_checkout.content)
         self.assertEqual(AttendanceSession.objects.filter(user_fk=self.employee, work_date=self.now.date()).count(), 2)
-        self.assertEqual(AttendanceSession.objects.filter(user_fk=self.employee, out_time__isnull=True).count(), 1)
-        self.assertEqual(PresenceEvent.objects.filter(user_fk=self.employee).count(), 3)
+        self.assertEqual(AttendanceSession.objects.filter(user_fk=self.employee, out_time__isnull=True).count(), 0)
+        self.assertEqual(PresenceEvent.objects.filter(user_fk=self.employee).count(), 4)
+        pay = DailyPay.objects.get(user_fk=self.employee, work_date=self.now.date())
+        self.assertEqual(pay.total_seconds, 30 * 60)
+        self.assertEqual(pay.day_pay, Decimal('12.50'))
 
     def test_pay_failure_rolls_back_session_and_presence_events(self):
         with patch('ToolApp.tesa_views.recompute_daily_pay', side_effect=RuntimeError('test')):
