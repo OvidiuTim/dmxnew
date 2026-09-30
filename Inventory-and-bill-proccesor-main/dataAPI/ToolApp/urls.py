@@ -10,6 +10,7 @@ from ToolApp import employee_reports
 from ToolApp import tesa_views
 from ToolApp import fleet_views
 from ToolApp import warehouse_reports
+from ToolApp.health import backend_health
 from .views import (
     # Pontaj - editare prin sesiuni (nou)
     attendance_edit_day,
@@ -41,6 +42,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path('api/health/', backend_health, name='backend_health'),
     path('api/warehouse/tape-measures/', warehouse_reports.tape_measure_report, name='tape_measure_report'),
     path('api/warehouse/tape-measures/excel/', warehouse_reports.tape_measure_report_excel, name='tape_measure_report_excel'),
     path('api/fleet/lookup/', fleet_views.fleet_lookup, name='fleet_lookup'),

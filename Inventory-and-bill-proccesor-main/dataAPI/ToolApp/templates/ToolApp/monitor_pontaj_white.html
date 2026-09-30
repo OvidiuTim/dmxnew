@@ -134,25 +134,27 @@
       updateActive();
 
       const es = new EventSource('/api/pontaj/stream/');
-      es.onopen = () => dot.classList.add('ok');
-      es.onerror = () => dot.classList.remove('ok');
-
-      es.addEventListener('enter', (ev) => {
-        const d = JSON.parse(ev.data);
-        addCard('enter', d.user_name, d.at, d.worksite);
+      let lastSnapshot = JSON.stringify(initialEvents);
+      let staleTimer;
+      es.addEventListener('snapshot', (ev) => {
+        clearTimeout(staleTimer);
+        dot.classList.add('ok');
+        // A finite response ends normally; only show offline if no new batch
+        // arrives for 15 seconds, rather than blinking on every reconnect.
+        staleTimer = setTimeout(() => dot.classList.remove('ok'), 15000);
+        const events = JSON.parse(ev.data);
+        const snapshot = JSON.stringify(events);
+        if (snapshot === lastSnapshot) return;
+        lastSnapshot = snapshot;
+        feed.replaceChildren();
+        events.slice().reverse().forEach((d) => {
+          addCard(d.kind, d.user_name, d.at, d.worksite, false);
+        });
       });
-      es.addEventListener('exit', (ev) => {
-        const d = JSON.parse(ev.data);
-        addCard('exit', d.user_name, d.at, d.worksite);
-      });
-      es.addEventListener('auto_close', (ev) => {
-        const d = JSON.parse(ev.data);
-        addCard('exit', d.user_name, d.at || d.closed_at_hm, d.worksite);
-      });
-      es.addEventListener('auto_1730', (ev) => {
-        const d = JSON.parse(ev.data);
-        addCard('exit', d.user_name, d.at || d.closed_at_hm, d.worksite);
-      });
+      window.addEventListener('pagehide', () => {
+        es.close();
+        clearTimeout(staleTimer);
+      }, { once: true });
     }
 
     connect();

@@ -15,6 +15,7 @@ from django.utils import timezone
 from ToolApp.attendance_alert_escalation import (
     ensure_level2_auto_marks,
     process_escalation_level,
+    run_attendance_maintenance,
 )
 from ToolApp.models import (
     AppUser,
@@ -106,7 +107,8 @@ class AttendanceFlowFixesTests(TestCase):
         )
         self.assertEqual(notification.case_count, 3)
 
-    def test_web_request_sends_level_notifications_when_cron_did_not_run(self):
+    def test_background_maintenance_sends_overdue_level_notifications(self):
+        run_attendance_maintenance(force=True, send_email=False, send_push=False)
         self.client_for(self.level2).get("/api/team-portal/absent-today/")
         self.assertTrue(AttendanceAlertEscalationNotification.objects.filter(
             recipient=self.level2, work_date=self.day, level=2, case_count__gt=0,

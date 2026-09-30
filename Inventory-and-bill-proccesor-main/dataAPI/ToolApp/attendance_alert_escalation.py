@@ -227,34 +227,25 @@ def run_attendance_maintenance(
     send_email=True,
     send_push=True,
 ):
-    """Întreținerea de pontaj: alertele de la 07:30 plus marcajele automate Nivel 2.
+    """Run company-wide maintenance only from the scheduled command.
 
-    Face exact aceleași operații ca înainte, în aceeași ordine ca jobul din cron,
-    dar dintr-un request se execută cel mult o dată la
-    settings.ATTENDANCE_MAINTENANCE_THROTTLE_SECONDS secunde. Ambele operații sunt
-    idempotente, deci rezultatul final este identic; se elimină doar repetarea lor
-    la fiecare cerere HTTP.
-
-    Returnează True dacă s-a executat acum, False dacă a fost sărită de limitator.
-    Cronul apelează cu force=True.
+    HTTP callers return immediately. force=True is reserved for the background
+    command, protected against overlapping invocations by a process lock.
     """
+    # HTTP requests must never scan the company or wait for email/push services.
+    # The scheduled management command explicitly opts in with force=True.
+    if not force:
+        return False
     local_now = timezone.localtime(now or timezone.now())
     work_date = work_date or local_now.date()
-    throttle = int(getattr(settings, "ATTENDANCE_MAINTENANCE_THROTTLE_SECONDS", 60) or 0)
-    if not force and throttle > 0:
-        key = f"attendance-maintenance:{work_date.isoformat()}"
-        # cache.add scrie numai dacă cheia nu există: primul request din fereastră
-        # face treaba, restul sar peste ea.
-        if not cache.add(key, 1, throttle):
-            return False
     ensure_team_attendance_alerts_due(
         now=local_now,
         send_email=send_email,
         send_push=send_push,
     )
     if work_date == local_now.date():
-        # Plasă de siguranță: dacă cronul de la Nivel 1 / Nivel 2 nu a rulat,
-        # notificările pleacă la primul request după oră. Ordinea contează:
+        # Dacă o execuție programată a fost ratată, timerul recuperează alertele
+        # restante fără implicarea cererilor web. Ordinea contează:
         # escaladările se procesează ÎNAINTE de marcajele automate, altfel
         # cazurile ar fi deja închise și nu s-ar mai trimite nimic.
         process_pending_escalations(
@@ -281,9 +272,9 @@ FINAL_RUN_STATUSES = (
 def process_pending_escalations(work_date=None, now=None, send_email=True, send_push=True):
     """Rulează Nivel 1 / Nivel 2 ajunse la oră și încă neprocesate azi.
 
-    Nu înlocuiește cronul; îl acoperă când acesta lipsește sau a întârziat.
+    Timerul separat recuperează execuțiile programate ratate sau întârziate.
     Fiecare nivel rulează cel mult o dată pe zi pe acest drum (după primul
-    AttendanceAlertRunLog final), ca să nu umple jurnalul la fiecare request.
+    AttendanceAlertRunLog final), ca să nu umple jurnalul la fiecare minut.
     """
     local_now = timezone.localtime(now or timezone.now())
     work_date = work_date or local_now.date()

@@ -6,9 +6,7 @@ import json, logging, math
 import hashlib
 import os
 import uuid
-from threading import Lock
-from queue import Queue, Empty
-from collections import defaultdict, deque
+from collections import defaultdict
 from datetime import datetime, timedelta, date as _date
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
@@ -18,7 +16,7 @@ from rest_framework.parsers import JSONParser
 
 # --- Django ---
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse, StreamingHttpResponse, HttpResponseNotAllowed, HttpResponseBadRequest
+from django.http import JsonResponse, HttpResponse, HttpResponseNotAllowed, HttpResponseBadRequest
 from django.utils import timezone
 from django.utils.timezone import localtime, localdate
 from django.db import transaction
@@ -2471,14 +2469,6 @@ def nfc_scan(request):
                     reason="depontare",
                 )
 
-                _publish("auto_close", user, when, {
-                    "closed_at_hm": None,
-                    "duration_hms": _fmt_hms(open_sess.duration_seconds),
-                    "work_date": str(open_sess.work_date),
-                    "worksite": open_sess.worksite,
-                    "missing_exit": True,
-                })
-
                 # deschidem sesiune nouă la 'when', cu worksite curent (ws)
                 new_sess = AttendanceSession.objects.create(
                     user_fk=user,
@@ -2503,7 +2493,6 @@ def nfc_scan(request):
                 if is_manual_scan and attendance_photo and not str(user.photo or "").strip():
                     Users.objects.filter(pk=user.pk).update(photo=attendance_photo)
                     user.photo = attendance_photo
-                _publish("enter", user, when, {"worksite": ws})
                 PresenceEvent.objects.create(
                     user_fk=user, kind=PresenceEvent.Kind.ENTER,
                     timestamp=when, worksite=ws
@@ -2558,10 +2547,6 @@ def nfc_scan(request):
             )
             recompute_daily_pay(user, open_sess.work_date)
 
-            _publish("exit", user, open_sess.out_time, {
-                "duration_hms": _fmt_hms(open_sess.duration_seconds),
-                "worksite": open_sess.worksite,
-            })
             PresenceEvent.objects.create(
                 user_fk=user, kind=PresenceEvent.Kind.EXIT,
                 timestamp=open_sess.out_time, worksite=open_sess.worksite
@@ -2616,7 +2601,6 @@ def nfc_scan(request):
         from ToolApp.attendance_alert_escalation import resolve_absence_by_late_check_in
         resolve_absence_by_late_check_in(user, today, sess.in_time)
         recompute_daily_pay(user, today)
-        _publish("enter", user, when, {"worksite": ws})
 
         print(f"[NFC] ENTER nou pentru {user.UserName} pe {today} la site='{ws}'")
 
@@ -3744,48 +3728,29 @@ def attendance_day_cost_report(request):
 from django.shortcuts import render
 
 def _monitor_initial_events(limit: int = 24):
-    today = localdate()
+    """Read only the newest arrivals/departures, without loading stored selfies."""
+    sessions = AttendanceSession.objects.filter(
+        work_date=localdate(), user_fk__person_type=Users.PersonType.EMPLOYEE,
+    ).filter(_session_within_employment_q())
     events = []
-
-    sessions = (
-        AttendanceSession.objects
-        .filter(
-            work_date=today,
-            user_fk__person_type=Users.PersonType.EMPLOYEE,
-        )
-        .filter(_session_within_employment_q())
-        .select_related("user_fk")
-        .order_by("in_time", "id")
-    )
-
-    for session in sessions:
-        in_time = localtime(session.in_time) if session.in_time else None
-        out_time = localtime(session.out_time) if session.out_time else None
-        worksite = session.worksite or ""
-
-        if in_time:
+    for kind, field in (("enter", "in_time"), ("exit", "out_time")):
+        rows = sessions.filter(**{f"{field}__isnull": False}).order_by(
+            f"-{field}", "-id",
+        ).values("id", "user_fk__UserName", "worksite", field)[:limit]
+        for row in rows:
+            when = row[field]
             events.append({
-                "kind": "enter",
-                "user_name": session.user_fk.UserName,
-                "at": in_time.strftime("%H:%M:%S"),
-                "worksite": worksite,
-                "_sort_key": session.in_time,
+                "id": f"{row['id']}:{kind}:{when.isoformat()}",
+                "kind": kind,
+                "user_name": row["user_fk__UserName"],
+                "at": localtime(when).strftime("%H:%M:%S"),
+                "worksite": row["worksite"] or "",
+                "_sort_key": (when, row["id"], kind),
             })
-
-        if out_time:
-            events.append({
-                "kind": "exit",
-                "user_name": session.user_fk.UserName,
-                "at": out_time.strftime("%H:%M:%S"),
-                "worksite": worksite,
-                "_sort_key": session.out_time,
-            })
-
     events.sort(key=lambda item: item["_sort_key"], reverse=True)
-    trimmed = events[:limit]
-    for item in trimmed:
-        item.pop("_sort_key", None)
-    return trimmed
+    for item in events:
+        item.pop("_sort_key")
+    return events[:limit]
 
 
 # --- PAGINA MONITOR PONTAJ ---
@@ -3796,83 +3761,33 @@ def monitor_pontaj_page(request):
     })
 
 
-# --- SSE broker minimal pentru monitor pontaj ---(Server-Sent Events), folosit ca să trimiți în timp real către browser ce se întâmplă la pontaj (enter/exit/auto_close etc.).
-class SseBroker:
-    def __init__(self):
-        self._lock = Lock()
-        self._subs = set()               # Set[Queue[str]]
-        self._recent = deque(maxlen=200) # (id, raw_msg)
-        self._next_id = 1
-
-    def publish(self, event_type: str, payload: dict):
-        ev_id = self._next_id
-        self._next_id += 1
-        body = json.dumps(payload, ensure_ascii=False)
-        raw = f"id: {ev_id}\nevent: {event_type}\ndata: {body}\n\n"
-        self._recent.append((ev_id, raw))
-        with self._lock:
-            for q in list(self._subs):
-                try:
-                    q.put_nowait(raw)
-                except Exception:
-                    pass
-
-    def subscribe(self, last_id: Optional[int] = None):
-        q: Queue[str] = Queue()
-        with self._lock:
-            self._subs.add(q)
-
-        def stream():
-            try:
-                # replay după Last-Event-ID
-                if last_id is not None:
-                    for ev_id, raw in list(self._recent):
-                        if ev_id > last_id:
-                            yield raw
-                # buclă principală, cu ping keep-alive
-                from queue import Empty as QEmpty
-                while True:
-                    try:
-                        raw = q.get(timeout=15)
-                        yield raw
-                    except QEmpty:
-                        yield "event: ping\ndata: {}\n\n"
-            finally:
-                with self._lock:
-                    self._subs.discard(q)
-
-        return stream()
-
-sse = SseBroker()
-
-# “anunță live” monitorul de pontaj ce s-a întâmplat (enter/exit/etc.)
-def _publish(kind: str, user, when=None, extra: Optional[dict] = None):
-    sse.publish(kind, {
-        "user_id": user.UserId,
-        "user_name": user.UserName,
-        "at": localtime(when).strftime("%H:%M:%S") if when else "",
-        **(extra or {})
-    })
-
-#endpoint-ul SSE la care se conectează pagina de monitor (browserul)
 @csrf_exempt
 def pontaj_stream(request):
-    """SSE: /api/pontaj/stream/"""
-    last_id = None
-    lei = request.META.get("HTTP_LAST_EVENT_ID")
-    if lei:
-        try:
-            last_id = int(lei)
-        except Exception:
-            last_id = None
+    """Finite SSE batches: even old EventSource clients release the WSGI worker.
 
-    resp = StreamingHttpResponse(sse.subscribe(last_id), content_type="text/event-stream")
-    resp["Cache-Control"] = "no-cache"
-    resp["X-Accel-Buffering"] = "no"
-    return resp
-
-
-
+    EventSource reconnects after 5 seconds using Last-Event-ID. Snapshots also
+    reflect admin edits, midnight and writes handled by another worker.
+    """
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    events = _monitor_initial_events()
+    last_id = request.META.get("HTTP_LAST_EVENT_ID")
+    fresh = []
+    if last_id:
+        for event in events:
+            if event["id"] == last_id:
+                break
+            fresh.append(event)
+    parts = ["retry: 5000\n\n"]
+    # Preserve enter/exit events for monitor tabs opened before this deployment.
+    for event in reversed(fresh):
+        parts.append(f"event: {event['kind']}\ndata: {json.dumps(event, ensure_ascii=False)}\n\n")
+    cursor = events[0]["id"] if events else f"{localdate()}:empty"
+    parts.append(f"id: {cursor}\nevent: snapshot\ndata: {json.dumps(events, ensure_ascii=False)}\n\n")
+    response = HttpResponse("".join(parts), content_type="text/event-stream")
+    response["Cache-Control"] = "no-store"
+    response["X-Accel-Buffering"] = "no"
+    return response
 
 
 def _parse_client_ts(ts_str: str) -> Optional[datetime]:
@@ -3896,7 +3811,7 @@ def close_open_sessions_for_day_at_1730(target_day):
     """
     Închide toate sesiunile cu out_time NULL pentru 'target_day' la 17:30 (ora locală).
     Durata e plafonată și nu devine negativă.
-    Creează și PresenceEvent(EXIT). Trimite SSE (dacă există _publish).
+    Creează și PresenceEvent(EXIT); monitorul citește sesiunile după commit.
     Returnează: numărul de sesiuni închise.
     """
     from ToolApp.models import AttendanceSession, PresenceEvent  # import local ca să evit cicluri
@@ -3907,51 +3822,51 @@ def close_open_sessions_for_day_at_1730(target_day):
         close_at = now
 
     count = 0
-    with transaction.atomic():
-        qs = (AttendanceSession.objects
-              .select_for_update()
-              .filter(work_date=target_day, out_time__isnull=True)
-              .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
-              .order_by('in_time'))
-        for s in qs:
-            # out = max(in_time, 17:30) ca să evităm durată negativă
-            out_dt = max(s.in_time, close_at)
-            # plafon de siguranță
-            max_close = s.in_time + timedelta(hours=PONTAJ_MAX_SHIFT_HOURS)
-            if out_dt > max_close:
-                out_dt = max_close
+    # Match the manual attendance lock order: employee, then their sessions.
+    # Commit each employee separately so a batch cannot lock the whole company.
+    employee_ids = list(AttendanceSession.objects.filter(
+        work_date=target_day, out_time__isnull=True,
+    ).exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
+      .order_by("user_fk_id").values_list("user_fk_id", flat=True).distinct())
+    for employee_id in employee_ids:
+        with transaction.atomic():
+            employee = Users.objects.select_for_update().filter(pk=employee_id).first()
+            if employee is None:
+                continue
+            qs = (AttendanceSession.objects.select_for_update()
+                  .filter(user_fk_id=employee_id, work_date=target_day, out_time__isnull=True)
+                  .exclude(source__contains=MISSING_EXIT_SOURCE_TAG)
+                  .defer("checkin_photo", "checkout_photo")
+                  .order_by("in_time", "id"))
+            for s in qs:
+                # out = max(in_time, 17:30) ca să evităm durată negativă
+                out_dt = max(s.in_time, close_at)
+                # plafon de siguranță
+                max_close = s.in_time + timedelta(hours=PONTAJ_MAX_SHIFT_HOURS)
+                if out_dt > max_close:
+                    out_dt = max_close
 
-            s.out_time = out_dt
-            s.duration_seconds = max(0, int((s.out_time - s.in_time).total_seconds()))
-            s.source = (s.source or '') + AUTO_CLOSE_SOURCE_TAG
-            s.save()
+                s.out_time = out_dt
+                s.duration_seconds = max(0, int((s.out_time - s.in_time).total_seconds()))
+                s.source = (s.source or '') + AUTO_CLOSE_SOURCE_TAG
+                s.save(update_fields=("out_time", "duration_seconds", "source"))
 
-            from ToolApp.fleet_services import close_open_utilaj_sessions
-            close_open_utilaj_sessions(
-                s.user_fk,
-                closed_at=out_dt,
-                reason="final_zi",
-            )
+                from ToolApp.fleet_services import close_open_utilaj_sessions
+                close_open_utilaj_sessions(
+                    employee,
+                    closed_at=out_dt,
+                    reason="final_zi",
+                )
 
-            # PresenceEvent EXIT
-            PresenceEvent.objects.create(
-                user_fk=s.user_fk,
-                kind=PresenceEvent.Kind.EXIT,
-                timestamp=out_dt,
-                worksite=s.worksite
-            )
+                # PresenceEvent EXIT
+                PresenceEvent.objects.create(
+                    user_fk=employee,
+                    kind=PresenceEvent.Kind.EXIT,
+                    timestamp=out_dt,
+                    worksite=s.worksite
+                )
 
-            # SSE (best effort)
-            try:
-                _publish("auto_1730", s.user_fk, out_dt, {
-                    "work_date": str(s.work_date),
-                    "duration_hms": _fmt_hms(s.duration_seconds),
-                    "worksite": s.worksite,
-                })
-            except Exception:
-                pass
-
-            count += 1
+                count += 1
     return count
 
 

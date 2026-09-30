@@ -30,6 +30,7 @@ REPO_DIR="${REPO_DIR:-/srv/pontaj}"
 APP_USER="${APP_USER:-app}"
 PG_DB="${PG_DB:-pontaj}"
 HEALTH_URL="${HEALTH_URL:-https://magazie.dmxconstruction.ro/pontaj/}"
+BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-https://magazie.dmxconstruction.ro/api/health/}"
 NODE_HEAP="${NODE_HEAP:-1536}"
 
 APP_DIR="$REPO_DIR/Inventory-and-bill-proccesor-main/dataAPI"
@@ -48,6 +49,7 @@ CRON_OPRIT=0
 PONTAJ_OPRIT=0
 FE_SCHIMBAT=0
 PREV_HEAD=""
+BACKGROUND_TIMERS=""
 
 titlu() { printf "\n\033[1m=== %s ===\033[0m\n" "$1"; }
 ca_app() { sudo -u "$APP_USER" -H "$@"; }
@@ -71,6 +73,7 @@ la_eroare() {
         echo "  -> pornesc cron"
         systemctl start cron || true
     fi
+    for timer in $BACKGROUND_TIMERS; do systemctl start "$timer" || true; done
 
     printf "\nServiciile au fost repornite. Ce NU s-a revenit automat:\n"
     printf "  - codul din git (HEAD anterior: %s)\n" "${PREV_HEAD:-necunoscut}"
@@ -193,6 +196,14 @@ echo "OK - $BUILD_OUT"
 # --- 9. Migratii (aici incepe downtime-ul) ---------------------------
 titlu "MIGRATII"
 systemctl stop cron;   CRON_OPRIT=1
+for job in pontaj-maintenance pontaj-retention; do
+    if systemctl is-active --quiet "$job.timer"; then
+        BACKGROUND_TIMERS="$BACKGROUND_TIMERS $job.timer"
+        systemctl stop "$job.timer"
+    fi
+    # A running oneshot reports "activating", not "active".
+    if systemctl cat "$job.service" >/dev/null 2>&1; then systemctl stop "$job.service"; fi
+done
 systemctl stop pontaj; PONTAJ_OPRIT=1
 cd "$APP_DIR"
 ca_app "$APP_DIR/.venv/bin/python" manage.py migrate
@@ -217,6 +228,8 @@ echo "OK - copia anterioara ramane in $PREV_LIVE"
 # --- 11. Pornire ------------------------------------------------------
 titlu "PORNIRE SERVICII"
 systemctl start pontaj; PONTAJ_OPRIT=0
+REPO_DIR="$REPO_DIR" APP_USER="$APP_USER" bash "$REPO_DIR/scripts/install-pontaj-background.sh"
+BACKGROUND_TIMERS=""
 systemctl start cron;   CRON_OPRIT=0
 systemctl reload nginx
 
@@ -229,7 +242,7 @@ done
 COD=000
 for i in 1 2 3 4 5; do
     sleep 3
-    COD="$(curl -sS -o /dev/null -w '%{http_code}' "$HEALTH_URL" || echo 000)"
+    COD="$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' "$HEALTH_URL" || echo 000)"
     if [ "$COD" = "200" ]; then break; fi
     echo "  incercarea $i: HTTP $COD"
 done
@@ -237,6 +250,11 @@ printf "  site         HTTP %s\n" "$COD"
 if [ "$COD" != "200" ]; then
     echo "Siteul nu raspunde cu 200."; exit 1
 fi
+
+# Angular's index can return 200 while every backend worker is blocked.
+BACKEND_BODY="$(curl --max-time 10 --fail -sS "$BACKEND_HEALTH_URL")"
+printf '%s' "$BACKEND_BODY" | "$APP_DIR/.venv/bin/python" -c 'import json,sys; assert json.load(sys.stdin).get("ok") is True'
+echo "  backend      Django + baza de date OK"
 
 cd "$APP_DIR"
 ca_app "$APP_DIR/.venv/bin/python" manage.py shell -c "

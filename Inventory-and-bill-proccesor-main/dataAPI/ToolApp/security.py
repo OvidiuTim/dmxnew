@@ -14,6 +14,7 @@ APP_TOKEN_COOKIE = "appj"
 ADMIN_APP_COOKIE = "app_admin"
 
 PUBLIC_API_PREFIXES = (
+    "/api/health/",
     "/api/auth/login/",
     "/api/auth/verify/",
     "/api/auth/logout/",

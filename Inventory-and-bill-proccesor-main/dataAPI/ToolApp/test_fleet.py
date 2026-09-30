@@ -1,6 +1,6 @@
 import json
 import tempfile
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from unittest.mock import patch
 
 from django.db import connection
@@ -581,7 +581,11 @@ class FleetFlowTests(TestCase):
         self.assertEqual(equipment_session.sfarsit, attendance.out_time)
         self.assertEqual(equipment_session.motiv_inchidere, SesiuneUtilaj.MotivInchidere.DEPONTARE)
 
-    def test_end_of_day_closes_equipment_session_idempotently(self):
+    @patch('django.utils.timezone.now')
+    def test_end_of_day_closes_equipment_session_idempotently(self, now):
+        # A fixed working hour keeps the equipment start before the daily cutoff,
+        # including when the test suite itself runs after 17:30.
+        now.return_value = timezone.make_aware(datetime.combine(datetime.now().date(), time(16)))
         attendance = self.check_in()
         self.assertEqual(self.take().status_code, 201)
 

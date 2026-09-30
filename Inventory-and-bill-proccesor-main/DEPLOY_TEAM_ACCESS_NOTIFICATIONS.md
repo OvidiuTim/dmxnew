@@ -54,37 +54,50 @@ Fișierul Firebase este cheia JSON de service account din proiectul Firebase. Nu
 sudo install -o www-data -g www-data -m 600 firebase-service-account.json /etc/dmx/firebase-service-account.json
 ```
 
-## 3. Programarea alertelor la 07:30, 07:55, 08:10 și a raportului de la 18:00
+## 3. Întreținere separată de cererile web
 
-Editează crontab-ul utilizatorului care rulează aplicația:
+`deploy.sh` instalează și pornește acum `pontaj-maintenance.timer` și
+`pontaj-retention.timer`. Nu mai este executată întreținere globală sau ștergere
+istorică în cererile de login/portal. Timerul de pontaj pornește o verificare la
+fiecare minut; regulile existente păstrează orele de 07:30, 07:55, 08:10 și 18:00,
+fusul Europe/Bucharest și excluderea zilelor nelucrătoare. Execuțiile ratate sunt
+recuperate la următoarea rulare, fără ca un utilizator să deschidă aplicația.
 
-```bash
-crontab -e
-```
-
-Pe serverul de producție (`/srv/pontaj`, utilizatorul `app`): `sudo crontab -u app -e`
-
-```cron
-CRON_TZ=Europe/Bucharest
-30 7 * * 1-6 cd /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI && .venv/bin/python manage.py process_attendance_alert_escalations >> /srv/pontaj/logs/dmx-team-attendance.log 2>&1
-55 7 * * 1-6 cd /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI && .venv/bin/python manage.py process_attendance_alert_escalations >> /srv/pontaj/logs/dmx-team-attendance.log 2>&1
-10 8 * * 1-6 cd /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI && .venv/bin/python manage.py process_attendance_alert_escalations >> /srv/pontaj/logs/dmx-team-attendance.log 2>&1
-0 18 * * 1-6 cd /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI && .venv/bin/python manage.py process_attendance_alert_escalations >> /srv/pontaj/logs/dmx-team-attendance.log 2>&1
-```
-
-(`mkdir -p /srv/pontaj/logs && chown app /srv/pontaj/logs` o singură dată.) Fișierul de log trebuie să poată fi scris de `app` — dacă nu poate, cron nici nu pornește comanda.
-
-Plasă de siguranță: dacă cronul lipsește, primul request în Team Dashboard (web sau Android) după 07:30 / 07:55 / 08:10 trimite alertele restante. Push-ul ajunge atunci cu întârziere, deci cronul rămâne necesar.
-
-Rularea de la 18:00 trimite Nivelului 2 raportul cu angajații marcați absenți care s-au pontat totuși în cursul zilei.
-
-Comanda recalculează situația la fiecare nivel, ignoră intern duminica/datele configurate și folosește fusul `Europe/Bucharest`. Constrângerile unice pentru angajat + nivel + zi și pentru emailul centralizat + nivel + zi împiedică duplicatele dacă jobul este lansat de mai multe ori.
-
-Test manual fără email/push:
+Pentru un deploy manual, după migrații, înainte de a considera publicarea completă:
 
 ```bash
-python manage.py send_team_attendance_alerts --date 2026-08-28 --no-email --no-push
+sudo REPO_DIR=/srv/pontaj APP_USER=app bash /srv/pontaj/scripts/install-pontaj-background.sh
+sudo systemctl restart pontaj
+systemctl list-timers pontaj-maintenance.timer pontaj-retention.timer
+journalctl -u pontaj-maintenance.service --since today --no-pager
+curl --fail --max-time 10 https://magazie.dmxconstruction.ro/api/health/
 ```
+
+Endpointul trebuie să returneze `{"ok": true}`. Un răspuns 200 de la `/pontaj/`
+confirmă numai servirea Angular, nu disponibilitatea backendului.
+
+Intrările cron existente pentru `process_attendance_alert_escalations` rămân
+compatibile și folosesc același lock ca timerul dacă rulează sub același utilizator
+`app`. Se pot elimina după verificarea timerului; nu programa separat
+`send_team_attendance_alerts`, care nu participă la acest lock. O execuție lentă
+nu creează o coadă de procese suprapuse. Procesul timerului are o limită de 5 minute,
+iar eșecurile apar în jurnalul systemd.
+
+Retenția angajaților demiși păstrează pragul de doi ani și rulează la 03:15
+Europe/Bucharest. Timerul de retenție nu recuperează rulări ratate în timpul zilei.
+La rollback spre o versiune fără parametrul `--maintenance`, oprește timerul nou
+și restaurează programarea anterioară.
+
+Test fără email/push:
+
+```bash
+sudo -u app /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI/.venv/bin/python \
+  /srv/pontaj/Inventory-and-bill-proccesor-main/dataAPI/manage.py \
+  process_attendance_alert_escalations --maintenance --no-email --no-push
+```
+
+Această comandă modifică marcajele/alertele de pontaj; pentru testele automate
+folosește `manage.py test`, care creează o bază separată.
 
 ## 3.1 Reguli de escaladare implementate
 
