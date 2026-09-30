@@ -306,6 +306,14 @@ export class UnelteComponent implements OnInit {
     return this.statuses.find(item => item.value === status)?.label ?? 'In lucru';
   }
 
+  verificationLabel(tool: ToolItem): string | null {
+    if (tool.IsSSM && tool.RequiresVerification) {
+      return 'Necesită verificare';
+    }
+
+    return this.normalizeStatus(tool.Status) === 'nefunctionala' ? 'Defect' : null;
+  }
+
   possessionLabel(tool: ToolItem): string {
     if (tool.IsLost) {
       return `Pierduta${tool.DateLost ? ` (${this.formatDate(tool.DateLost)})` : ''}`;

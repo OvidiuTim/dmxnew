@@ -183,7 +183,7 @@
           </small>
           <small *ngIf="tool.SerialNumber">SN fizic: {{ tool.SerialNumber }}</small>
           <small *ngIf="tool.Detail">{{ tool.Detail }}</small>
-          <small class="verification" *ngIf="tool.RequiresVerification">{{ tool.IsSSM ? 'Necesită verificare' : 'Defect' }}</small>
+          <small class="verification" *ngIf="verificationLabel(tool) as label">{{ label }}</small>
         </div>
         <div>
           <span class="pill" [class.ssm]="tool.IsSSM">{{ tool.IsSSM ? 'SSM' : 'Santier' }}</span>
