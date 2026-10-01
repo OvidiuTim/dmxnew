@@ -4358,13 +4358,15 @@ def _normalize_login_redirect_path(value):
 
 
 def _serialize_app_user(app_user):
-    permissions = set(_app_user_permissions(app_user))
-    modules = effective_module_codes(app_user)
+    roles = app_user_roles(app_user)
+    is_coordinator = bool(set(roles).intersection({"team_leader", "supervisor"}))
     manual_modules = {
         access.module_code
         for access in app_user.module_accesses.all()
         if access.can_access
     }
+    modules = effective_module_codes(app_user, roles=roles, manual_modules=manual_modules)
+    permissions = set(_app_user_permissions(app_user, modules=modules, is_coordinator=is_coordinator))
     inherited_modules = []
     employee_eligible_for_portal = (
         app_user.employee.active
@@ -4373,12 +4375,9 @@ def _serialize_app_user(app_user):
     )
     if employee_eligible_for_portal:
         inherited_modules.append("team_dashboard")
-    if (
-        app_user.employee.led_employee_teams.filter(active=True).exists()
-        or app_user.employee.supervised_employee_teams.filter(active=True).exists()
-    ):
+    if is_coordinator:
         inherited_modules.append("teams_schedule")
-    elif set(app_user_roles(app_user)).intersection({"alert_level_1", "alert_level_2"}):
+    elif set(roles).intersection({"alert_level_1", "alert_level_2"}):
         inherited_modules.append("team_dashboard")
     if app_user.is_storekeeper:
         inherited_modules.append("tools")
@@ -4408,7 +4407,7 @@ def _serialize_app_user(app_user):
         "module_access": {code: code in modules for code in MODULE_ORDER},
         "manual_module_access": {code: code in manual_modules for code in MODULE_ORDER},
         "inherited_modules": inherited_modules,
-        "roles": app_user_roles(app_user),
+        "roles": roles,
         "effective_permissions": sorted(permissions),
         "coordinated_teams": coordinated_teams,
         "default_module_route": default_module_route(app_user),
@@ -4504,18 +4503,20 @@ def warehouse_storekeepers(request):
     })
 
 
-def _app_user_permissions(app_user):
+def _app_user_permissions(app_user, *, modules=None, is_coordinator=None):
     permissions = set(
-        AppPagePermission.objects
-        .filter(app_user=app_user, can_access=True)
-        .values_list("route", flat=True)
+        permission.route for permission in app_user.page_permissions.all() if permission.can_access
     )
-    for module_code in effective_module_codes(app_user):
+    if modules is None:
+        modules = effective_module_codes(app_user)
+    for module_code in modules:
         permissions.update(route["path"] for route in MODULE_DEFINITIONS[module_code]["routes"])
-    if (
-        app_user.employee.led_employee_teams.filter(active=True).exists()
-        or app_user.employee.supervised_employee_teams.filter(active=True).exists()
-    ):
+    if is_coordinator is None:
+        is_coordinator = (
+            app_user.employee.led_employee_teams.filter(active=True).exists()
+            or app_user.employee.supervised_employee_teams.filter(active=True).exists()
+        )
+    if is_coordinator:
         permissions.update({"/pontaj/echipe", "/pontaj/echipa-mea", "/pontaj/concedii", "/pontaj/notificari", "/pontaj/echipe-azi", "/pontaj/personal"})
     return sorted(permissions)
 
@@ -4647,9 +4648,9 @@ def app_auth_login(request):
         "role": "app_user",
         "auth_type": "app_user",
         "app_user": serialized_app_user,
-        "permissions": _app_user_permissions(app_user),
-        "modules": effective_module_codes(app_user),
-        "default_module_route": default_module_route(app_user),
+        "permissions": serialized_app_user["effective_permissions"],
+        "modules": serialized_app_user["modules"],
+        "default_module_route": serialized_app_user["default_module_route"],
         "login_redirect_path": app_user.login_redirect_path or "/pontaj",
         "roles": serialized_app_user["roles"],
         "effective_permissions": serialized_app_user["effective_permissions"],
@@ -4677,11 +4678,6 @@ def app_auth_verify(request):
     if not app_user:
         return JsonResponse({"ok": False}, status=401)
 
-    app_user = (
-        AppUser.objects.select_related("employee")
-        .prefetch_related("page_permissions")
-        .get(AppUserId=app_user.AppUserId)
-    )
     try:
         data = json.loads(request.body or "{}")
     except Exception:
@@ -4694,9 +4690,9 @@ def app_auth_verify(request):
         "role": "app_user",
         "auth_type": "app_user",
         "app_user": serialized_app_user,
-        "permissions": _app_user_permissions(app_user),
-        "modules": effective_module_codes(app_user),
-        "default_module_route": default_module_route(app_user),
+        "permissions": serialized_app_user["effective_permissions"],
+        "modules": serialized_app_user["modules"],
+        "default_module_route": serialized_app_user["default_module_route"],
         "login_redirect_path": app_user.login_redirect_path or "/pontaj",
         "roles": serialized_app_user["roles"],
         "effective_permissions": serialized_app_user["effective_permissions"],
@@ -4705,7 +4701,7 @@ def app_auth_verify(request):
     if route:
         response["can_access"] = app_user_can_view_route(app_user, route)
     if module_code:
-        response["can_access_module"] = app_user_has_module(app_user, module_code)
+        response["can_access_module"] = module_code in serialized_app_user["modules"]
     return JsonResponse(response)
 
 

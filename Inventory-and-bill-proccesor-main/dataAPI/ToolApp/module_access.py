@@ -154,13 +154,15 @@ def serialize_module_definitions():
     ]
 
 
-def effective_module_codes(app_user):
+def effective_module_codes(app_user, *, roles=None, manual_modules=None):
     if not app_user:
         return []
-    codes = set(
-        app_user.module_accesses.filter(can_access=True).values_list("module_code", flat=True)
-    )
-    roles = set(app_user_roles(app_user))
+    # A response serializer can supply data it has just read. Never cache these
+    # grants on the model or across requests: revocations must take effect now.
+    if manual_modules is None:
+        manual_modules = app_user.module_accesses.filter(can_access=True).values_list("module_code", flat=True)
+    codes = set(manual_modules)
+    roles = set(app_user_roles(app_user) if roles is None else roles)
     employee = getattr(app_user, "employee", None)
     if (
         employee

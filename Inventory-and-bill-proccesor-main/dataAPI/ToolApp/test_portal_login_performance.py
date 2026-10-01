@@ -8,7 +8,7 @@ from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from ToolApp.models import (
-    AppUser, AttendanceAbsenceMark, EmployeeTeam, EmployeeTeamMember, LeaveDay, Users,
+    AppModuleAccess, AppPagePermission, AppUser, AttendanceAbsenceMark, EmployeeTeam, EmployeeTeamMember, LeaveDay, Users,
 )
 from ToolApp.security import make_admin_token, make_app_user_token
 from ToolApp.team_portal_views import portal_personnel, portal_supervised_teams
@@ -37,6 +37,39 @@ class PinOnlyLoginTests(TestCase):
             self.assertEqual(self.client.get('/api/team-portal/dashboard/').status_code, 200)
         self.assertEqual(self.client.get('/api/team-portal/personnel/').status_code, 403)
         self.assertEqual(self.client.post('/api/auth/verify/').status_code, 401)
+
+    def test_login_does_not_recalculate_access_for_each_response_field(self):
+        with CaptureQueriesContext(connection) as queries:
+            response = self.login()
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(len(queries), 12)
+        payload = response.json()
+        for field in ('modules', 'default_module_route', 'roles', 'effective_permissions', 'coordinated_teams'):
+            self.assertEqual(payload[field], payload['app_user'][field])
+        self.assertEqual(payload['permissions'], payload['effective_permissions'])
+
+    def test_verify_has_bounded_queries_and_sees_revocation_on_next_request(self):
+        self.client.cookies['appj'] = make_app_user_token(self.account)
+        grant = AppModuleAccess.objects.create(app_user=self.account, module_code='warehouse')
+        page = AppPagePermission.objects.create(app_user=self.account, route='/custom-test-page', can_access=True)
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.post('/api/app-auth/verify/', json.dumps({
+                'route': '/team-dashboard', 'module_code': 'warehouse',
+            }), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['can_access'])
+        self.assertTrue(response.json()['can_access_module'])
+        self.assertIn('/custom-test-page', response.json()['permissions'])
+        self.assertLessEqual(len(queries), 20)
+        grant.can_access = False
+        grant.save(update_fields=['can_access'])
+        page.can_access = False
+        page.save(update_fields=['can_access'])
+        response = self.client.post('/api/app-auth/verify/', json.dumps({
+            'module_code': 'warehouse',
+        }), content_type='application/json')
+        self.assertFalse(response.json()['can_access_module'])
+        self.assertNotIn('/custom-test-page', response.json()['permissions'])
 
     def test_changed_pin_invalidates_old_pin(self):
         Users.objects.filter(pk=self.employee.pk).update(UserPin='0456')

@@ -60,3 +60,36 @@ journalctl -k --since '2026-09-30 16:45:00' --until '2026-09-30 17:45:00' --no-p
 Nu trimite logurile complete ale scanărilor: codul existent scrie PIN-uri și nume
 în aceste loguri. Sunt necesare mesajele de eroare, timpii și configurația
 workerilor, fără parole sau datele angajaților.
+
+## Testele din 1 octombrie și costul autentificării
+
+Utilizatorul a rulat `run-attendance-loadtest.sh --pause-live-backend` pe server,
+cu baza PostgreSQL temporară, 200 de conturi fictive și un worker gthread cu
+16 fire. Backendul live a fost oprit pe durata fiecărui test și restaurat la
+final (health 200). Comparația comunicată după resize:
+
+| Măsurătoare | 1 vCPU / 1 GB | 2 vCPU / 2 GB |
+| --- | ---: | ---: |
+| 100 clienți, login p95 | 10,333 s | 10,061 s |
+| 100 clienți, depontare p95 | 11,711 s | 6,699 s |
+| 100 clienți, pontare p95 | 13,694 s | 6,190 s |
+| 200 clienți, login nereușit | 136/200 | 72/200 |
+
+La 200 testul s-a oprit la login, înainte de depontare. Erorile sunt raportate
+generic drept `connection-error`, în jurul timeoutului de 15 s al clientului;
+nu sunt coduri HTTP 500 și nu demonstrează singure o cădere a procesului.
+Upgrade-ul a îmbunătățit unele rezultate, dar nu a eliminat problema. Fără
+profilare CPU/DB și datele vmstat nu atribuim întregul incident hardware-ului.
+
+Profilarea SQL locală a identificat recalculări repetate ale rolurilor,
+modulelor și permisiunilor în același răspuns de autentificare. Scenariul de
+regresie pentru login făcea 47 de interogări, iar verify cu route și module_code
+făcea 59. Reutilizarea valorilor proaspăt citite în cadrul aceluiași răspuns le
+reduce la 10, respectiv 15. Nu există cache persistent al permisiunilor.
+Testele verifică și retragerea accesului la următoarea cerere.
+După corecție, întreaga suită backend a trecut: 437 de teste, pe SQLite izolat,
+inclusiv testul HTTP cu clienți concurenți.
+
+Această reducere este măsurată local; nu reprezintă încă un rezultat de
+concurență pe server după corecție. Nu au fost modificate configurația
+Gunicorn, timeoutul testului sau regulile de pontaj pentru a obține reducerea.
