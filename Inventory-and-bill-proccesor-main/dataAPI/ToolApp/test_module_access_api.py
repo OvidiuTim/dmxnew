@@ -3,7 +3,7 @@ import json
 from django.test import Client, TestCase
 
 from ToolApp.models import AppModuleAccess, AppPagePermission, AppUser, Users
-from ToolApp.module_access import MODULE_DEFINITIONS, app_user_roles, default_module_route, effective_module_codes
+from ToolApp.module_access import MODULE_DEFINITIONS, app_user_has_module, app_user_roles, default_module_route, effective_module_codes
 from ToolApp.security import app_user_can_access_api_path, make_admin_token, make_app_user_token
 from ToolApp.views import _make_admin_app_token
 
@@ -31,6 +31,21 @@ class ModuleAccessApiTests(TestCase):
             route=route,
             defaults={"can_access": True},
         )
+
+    def test_single_module_checks_agree_with_full_access_list(self):
+        AppModuleAccess.objects.create(app_user=self.app_user, module_code='warehouse', can_access=True)
+        grant = AppModuleAccess.objects.create(app_user=self.app_user, module_code='tools', can_access=False)
+        for active in (True, False):
+            for storekeeper in (True, False):
+                for manual_tools in (True, False):
+                    self.app_user.employee.active = active
+                    self.app_user.is_storekeeper = storekeeper
+                    grant.can_access = manual_tools
+                    grant.save(update_fields=['can_access'])
+                    modules = effective_module_codes(self.app_user)
+                    for code in [*MODULE_DEFINITIONS, 'unknown']:
+                        with self.subTest(active=active, storekeeper=storekeeper, manual_tools=manual_tools, code=code):
+                            self.assertEqual(app_user_has_module(self.app_user, code), code in modules)
 
     def test_current_modules_are_ordered_and_have_default_route(self):
         AppModuleAccess.objects.create(app_user=self.app_user, module_code="tools")

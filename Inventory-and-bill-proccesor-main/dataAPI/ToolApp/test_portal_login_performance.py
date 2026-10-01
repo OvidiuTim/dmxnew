@@ -71,6 +71,19 @@ class PinOnlyLoginTests(TestCase):
         self.assertFalse(response.json()['can_access_module'])
         self.assertNotIn('/custom-test-page', response.json()['permissions'])
 
+    @override_settings(ATTENDANCE_ALERT_CONFIG_CACHE_SECONDS=60)
+    def test_dashboard_does_not_rebuild_access_for_each_counter(self):
+        from ToolApp.attendance_alert_escalation import alert_config_snapshot
+        alert_config_snapshot()
+        self.client.cookies['appj'] = make_app_user_token(self.account)
+        with CaptureQueriesContext(connection) as queries:
+            response = self.client.get('/api/team-portal/dashboard/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['roles'], [])
+        self.assertEqual(response.json()['unread_notifications'], 0)
+        self.assertFalse(response.json()['attendance']['is_clocked_in'])
+        self.assertLessEqual(len(queries), 18)
+
     def test_changed_pin_invalidates_old_pin(self):
         Users.objects.filter(pk=self.employee.pk).update(UserPin='0456')
         self.assertEqual(self.login().status_code, 401)

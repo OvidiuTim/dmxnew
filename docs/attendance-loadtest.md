@@ -70,6 +70,18 @@ blocărilor SQLite cu PostgreSQL; nu este o măsurătoare a capacității produc
 PostgreSQL folosește configurația comunicată pentru producție: un worker
 Gunicorn gthread, 16 fire, timeout 120 s și keep-alive 5 s.
 
+Pentru comparația a două procese, păstrând același total de 16 fire și fără a
+modifica serviciul live:
+
+```bash
+sudo env LOADTEST_WORKERS=2 LOADTEST_THREADS=8 \
+  bash /srv/pontaj/scripts/run-attendance-loadtest.sh --pause-live-backend
+```
+
+Numărul de procese/fire apare în raport. Limita rolului PostgreSQL temporar
+este de 24 de conexiuni; scriptul refuză combinații cu peste 16 fire totale.
+Această comandă testează configurația; nu o instalează în `pontaj.service`.
+
 `passed` confirmă răspunsurile și integritatea datelor. Verifică separat
 `all_phase_p95_below_2s`, percentilele și duratele maxime pentru fiecare etapă.
 Rezultatul depinde de procesor, RAM, istoric, roluri și versiuni. Nu include

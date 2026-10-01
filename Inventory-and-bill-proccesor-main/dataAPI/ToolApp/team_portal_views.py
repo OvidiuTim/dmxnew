@@ -85,9 +85,12 @@ def _has_global_absence_access(app_user):
     return bool(_escalation_levels(app_user).intersection({1, 2}))
 
 
-def _role_labels(app_user):
+def _role_labels(app_user, *, levels=None):
     """Denumirile configurate pentru nivelurile de alertă ale utilizatorului."""
-    levels = _escalation_levels(app_user)
+    if levels is None:
+        levels = _escalation_levels(app_user)
+    if not levels:
+        return {}
     return {
         level: entry["role_name"]
         for level, entry in alert_config_snapshot().items()
@@ -374,13 +377,13 @@ def portal_dashboard(request):
         user_fk_id=app_user.employee_id,
         work_date=day,
         out_time__isnull=True,
-    ).order_by("-in_time").first()
+    ).only("in_time").order_by("-in_time").first()
     own_reviewed = LeaveRequest.objects.filter(employee_id=app_user.employee_id).exclude(
         status=LeaveRequest.Status.PENDING
     ).filter(employee_seen_at__isnull=True).count()
-    unread = _current_portal_unread_count(app_user)
     roles = app_user_roles(app_user)
-    labels = _role_labels(app_user)
+    unread = _current_portal_unread_count(app_user, roles=roles)
+    labels = _role_labels(app_user, levels=levels)
     payload = {
         "employee": {
             "id": app_user.employee_id,
@@ -1812,7 +1815,7 @@ def _mark_notifications_seen(app_user, attendance_items, personal_items, result_
         ).update(read_at=now)
 
 
-def _current_portal_unread_count(app_user):
+def _current_portal_unread_count(app_user, *, roles=None):
     personal = LeaveRequest.objects.filter(
         employee_id=app_user.employee_id,
         employee_seen_at__isnull=True,
@@ -1820,11 +1823,17 @@ def _current_portal_unread_count(app_user):
         portal_notifications__recipient=app_user,
         portal_notifications__kind=TeamPortalNotification.Kind.LEAVE_RESULT,
     ).exclude(status=LeaveRequest.Status.PENDING).count()
-    items = _team_notification_payloads(app_user)
-    if _escalation_levels(app_user):
+    # Dashboard already has a fresh role list. Other callers retain their
+    # normal checks; no permission facts are cached between requests.
+    known_roles = set(roles) if roles is not None else None
+    items = (_team_notification_payloads(app_user)
+             if known_roles is None or known_roles.intersection({"team_leader", "supervisor"}) else [])
+    if (_escalation_levels(app_user) if known_roles is None
+            else known_roles.intersection({"alert_level_1", "alert_level_2"})):
         items += _global_notification_payloads(app_user)
     attendance = sum(not item["is_read"] for item in items)
-    pending_approvals = len(_pending_approval_payloads(app_user))
+    pending_approvals = (len(_pending_approval_payloads(app_user))
+                         if known_roles is None or "supervisor" in known_roles else 0)
     results = TeamPortalNotification.objects.filter(
         recipient=app_user,
         read_at__isnull=True,
@@ -1833,8 +1842,10 @@ def _current_portal_unread_count(app_user):
             TeamPortalNotification.Kind.TRANSFER_RESULT,
         ),
     ).count()
-    technical = len(_technical_recommendation_notification_payloads(app_user))
-    documents = len(_document_usage_notification_payloads(app_user))
+    technical = (len(_technical_recommendation_notification_payloads(app_user))
+                 if known_roles is None or "technical_responsible" in known_roles else 0)
+    documents = (len(_document_usage_notification_payloads(app_user))
+                 if known_roles is None or "document_responsible" in known_roles else 0)
     return personal + attendance + pending_approvals + results + technical + documents
 
 

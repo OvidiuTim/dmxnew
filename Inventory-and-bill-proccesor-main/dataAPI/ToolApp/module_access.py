@@ -183,6 +183,17 @@ def effective_module_codes(app_user, *, roles=None, manual_modules=None):
 
 
 def app_user_has_module(app_user, module_code):
+    if not app_user:
+        return False
+    # These two common portal checks have simple inheritance rules. Do not
+    # query every fleet/team/escalation role just to answer one of them.
+    if module_code == "team_dashboard":
+        employee = app_user.employee
+        if (employee.active and employee.person_type == "employee"
+                and employee.employment_status == "active"):
+            return True
+    if module_code == "tools":
+        return bool(app_user.is_storekeeper or app_user_has_manual_module(app_user, module_code))
     return module_code in effective_module_codes(app_user)
 
 

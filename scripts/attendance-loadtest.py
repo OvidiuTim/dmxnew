@@ -67,9 +67,16 @@ def main():
     mode.add_argument('--postgres-config', type=Path)
     mode.add_argument('--sqlite-smoke', action='store_true')
     parser.add_argument('--levels', default='25,50,100,200')
+    parser.add_argument('--workers', type=int, choices=(1, 2), default=1)
+    parser.add_argument('--threads', type=int)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     levels = [int(n) for n in args.levels.split(',')]
+    threads = args.threads if args.threads is not None else (1 if args.sqlite_smoke else 16)
+    if threads < 1 or args.workers * threads > 16:
+        parser.error('Use at most 16 request threads total (for example 1x16 or 2x8).')
+    if args.sqlite_smoke and (args.workers != 1 or threads != 1):
+        parser.error('SQLite smoke mode requires one worker and one thread.')
     if not levels or any(n < 1 or n > 200 for n in levels) or levels != sorted(set(levels)):
         parser.error('Levels must increase, between 1 and 200.')
     if importlib.util.find_spec('gunicorn') is None:
@@ -81,7 +88,7 @@ def main():
     with args.output.open('x'):
         pass
     report = {'mode': 'sqlite-smoke-not-capacity' if args.sqlite_smoke else 'postgresql',
-              'workers': 1, 'threads': 1 if args.sqlite_smoke else 16,
+              'workers': args.workers, 'threads': threads,
               'levels': [], 'passed': False,
               'scope': 'HTTP backend only; synthetic data, no production URL, no browser or Nginx.'}
     try:
@@ -244,7 +251,7 @@ CACHES = {{'default': {{'BACKEND': 'django.core.cache.backends.locmem.LocMemCach
         process = subprocess.Popen([
             sys.executable, '-m', 'gunicorn', '--config', '/dev/null',
             'dataAPI.wsgi:application', '--chdir', str(app_dir),
-            '--bind', f'fd://{listener.fileno()}', '--workers', '1', '--worker-class', 'gthread',
+            '--bind', f'fd://{listener.fileno()}', '--workers', str(report['workers']), '--worker-class', 'gthread',
             '--threads', str(report['threads']), '--timeout', '120', '--graceful-timeout', '30',
             '--keep-alive', '5', '--access-logfile', '-', '--error-logfile', '-'],
             cwd=app_dir, env=env, pass_fds=(listener.fileno(),), stdout=raw_log, stderr=raw_log)

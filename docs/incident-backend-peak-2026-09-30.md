@@ -93,3 +93,39 @@ inclusiv testul HTTP cu clienți concurenți.
 Această reducere este măsurată local; nu reprezintă încă un rezultat de
 concurență pe server după corecție. Nu au fost modificate configurația
 Gunicorn, timeoutul testului sau regulile de pontaj pentru a obține reducerea.
+
+## Retest după optimizarea autentificării
+
+Raportul comunicat de utilizator din `pontaj-loadtest.SMSkDv7v`, după deploy
+`4bb051f3`, păstrează 2 vCPU / 2 GB și un worker cu 16 fire:
+
+| Măsurătoare | Înainte de corecție | După corecție |
+| --- | ---: | ---: |
+| 100 clienți, login p95 | 10,061 s | 2,955 s |
+| 100 clienți, verify p95 | 9,685 s | 3,401 s |
+| 200 clienți, login nereușit | 72/200 | 0/200 |
+
+La 200 clienți, login p95 este 7,034 s și verify p95 8,261 s, fără erori.
+Testul ajunge acum la dashboard: 138 răspunsuri 200 și 62 connection-error,
+cu p95 15,087 s. Depontarea la 200 nu a fost încă executată cu succes.
+
+`vmstat.log` arată cel puțin aproximativ 690 MiB RAM liberă, swap ocupat
+stabil la aproximativ 1 MiB și aproape fără transferuri swap. `st` ajunge la
+22%, indicând intervale de așteptare a CPU-ului gazdei. Aceste date nu arată
+presiune de RAM; CPU dedicat poate îmbunătăți predictibilitatea, fără a garanta
+rezolvarea latențelor. Generatorul de trafic și baza rulează pe aceeași mașină,
+deci CPU-ul agregat nu poate fi atribuit exclusiv backendului. Discul raportat
+este acum 58 GiB: un plan cu disc de 25 GB nu este eligibil pentru resize direct.
+
+Corecția următoare reutilizează rolurile deja citite pentru contoarele
+dashboardului, evită verificări complete de acces pentru două module cu reguli
+simple și citește doar ora sesiunii deschise, fără fotografia stocată. Scenariul
+SQL local de dashboard scade de la 39 la 16 interogări; verify scade de la 15
+la 9. Cele 439 teste backend și cele 3 teste ale scriptului au trecut local.
+Nu se păstrează cache de permisiuni între cereri.
+
+Scriptul permite acum comparația 1 worker × 16 fire cu 2 workeri × 8 fire,
+fără schimbarea serviciului live, a timeoutului sau a plafonului total de fire.
+Testele scriptului verifică transmiterea opțiunilor și restaurarea serviciului;
+capacitatea PostgreSQL cu două procese trebuie măsurată pe server. Vezi
+`docs/attendance-loadtest.md` pentru comandă și limitele testului izolat.

@@ -34,8 +34,9 @@ class LoadTestIsolationTests(unittest.TestCase):
 
     def test_server_wrapper_restores_service_on_success_failure_and_low_memory(self):
         script = Path(__file__).resolve().parents[1] / 'scripts/run-attendance-loadtest.sh'
-        for test_exit, available in ((0, 400000), (1, 400000), (0, 100000)):
-            with self.subTest(test_exit=test_exit, available=available), tempfile.TemporaryDirectory() as tmp:
+        for test_exit, available, workers, threads in ((0, 400000, 1, 16), (1, 400000, 1, 16),
+                                                      (0, 100000, 1, 16), (0, 400000, 2, 8)):
+            with self.subTest(test_exit=test_exit, available=available, workers=workers), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 binaries = root / 'bin'
                 binaries.mkdir()
@@ -75,6 +76,7 @@ exit 0''')
                     env={**os.environ, 'PATH': f'{binaries}:/usr/bin:/bin', 'APP_DIR': str(app),
                          'APP_USER': 'test-app', 'TEST_RUN_DIR': str(root / 'run'),
                          'TEST_CALLS': str(calls), 'TEST_STATE': str(state),
+                         'LOADTEST_WORKERS': str(workers), 'LOADTEST_THREADS': str(threads),
                          'TEST_EXIT': str(test_exit), 'TEST_AVAILABLE': str(available)},
                     capture_output=True, text=True, timeout=10)
                 self.assertEqual(result.returncode, 1 if test_exit or available < 307200 else 0,
@@ -85,6 +87,7 @@ exit 0''')
                 self.assertIn('systemctl start pontaj', recorded)
                 self.assertFalse((root / 'run/database.json').exists())
                 if available >= 307200:
+                    self.assertIn(f'--workers {workers} --threads {threads}', recorded)
                     self.assertIn('runuser-cwd=/\n', recorded)
                     self.assertIn('dropdb pontaj_loadtest_123456abcdef', recorded)
                     self.assertIn('dropuser pontaj_loadtest_123456abcdef', recorded)

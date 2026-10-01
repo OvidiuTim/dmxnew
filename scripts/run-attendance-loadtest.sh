@@ -8,6 +8,16 @@ APP_USER=${APP_USER:-app}
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 APP_DIR=$(cd -- "$APP_DIR" && pwd)
 PYTHON="$APP_DIR/.venv/bin/python"
+LOADTEST_WORKERS=${LOADTEST_WORKERS:-1}
+LOADTEST_THREADS=${LOADTEST_THREADS:-16}
+if [[ ! $LOADTEST_WORKERS =~ ^[12]$ || ! $LOADTEST_THREADS =~ ^([1-9]|1[0-6])$ ]]; then
+    echo 'Invalid workers/threads; expected 1 or 2 workers and 1..16 threads.'
+    exit 1
+fi
+if (( LOADTEST_WORKERS * LOADTEST_THREADS > 16 )); then
+    echo 'At most 16 total request threads are allowed (1x16 or 2x8).'
+    exit 1
+fi
 pause_live=0
 if [[ ${1:-} == --pause-live-backend && $# == 1 ]]; then
     pause_live=1
@@ -103,4 +113,5 @@ unset db_password
 runuser -u "$APP_USER" -- timeout --signal=TERM --kill-after=45s 10m \
     "$PYTHON" "$SCRIPT_DIR/attendance-loadtest.py" \
     --app-dir "$APP_DIR" --postgres-config "$run_dir/database.json" \
+    --workers "$LOADTEST_WORKERS" --threads "$LOADTEST_THREADS" \
     --output "$run_dir/report.json"
