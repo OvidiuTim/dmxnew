@@ -17,7 +17,7 @@ After=network.target postgresql.service
 [Service]
 Type=oneshot
 User=$APP_USER
-WorkingDirectory="$APP_DIR"
+WorkingDirectory=$APP_DIR
 ExecStart="$APP_DIR/.venv/bin/python" manage.py process_attendance_alert_escalations --maintenance
 TimeoutStartSec=300
 Nice=10
@@ -41,7 +41,7 @@ After=postgresql.service
 [Service]
 Type=oneshot
 User=$APP_USER
-WorkingDirectory="$APP_DIR"
+WorkingDirectory=$APP_DIR
 ExecStart="$APP_DIR/.venv/bin/python" manage.py purge_dismissed_employees
 TimeoutStartSec=1800
 Nice=10
@@ -57,6 +57,10 @@ AccuracySec=1min
 WantedBy=timers.target
 EOF
 
+# Validate using the server's systemd parser before loading or enabling units.
+systemd-analyze verify \
+  "$UNIT_DIR/pontaj-maintenance.service" "$UNIT_DIR/pontaj-maintenance.timer" \
+  "$UNIT_DIR/pontaj-retention.service" "$UNIT_DIR/pontaj-retention.timer"
 systemctl daemon-reload
 systemctl enable --now pontaj-maintenance.timer pontaj-retention.timer
 systemctl is-active --quiet pontaj-maintenance.timer

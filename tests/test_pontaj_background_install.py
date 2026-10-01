@@ -26,26 +26,46 @@ class BackgroundInstallTests(unittest.TestCase):
             systemctl = binaries / 'systemctl'
             systemctl.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$SYSTEMCTL_LOG"\n')
             systemctl.chmod(0o755)
+            analyze = binaries / 'systemd-analyze'
+            analyze.write_text('#!/bin/sh\nprintf "verify\\n" >> "$SYSTEMCTL_LOG"\nexit "${VERIFY_EXIT:-0}"\n')
+            analyze.chmod(0o755)
             log = root / 'systemctl.log'
-            result = subprocess.run(['bash', str(SCRIPT)], env={
+            env = {
                 **os.environ, 'PATH': f'{binaries}:/usr/bin:/bin',
                 'REPO_DIR': str(root), 'APP_USER': 'test-app',
                 'PONTAJ_SYSTEMD_UNIT_DIR': str(units), 'SYSTEMCTL_LOG': str(log),
-            }, capture_output=True, text=True)
+                'VERIFY_EXIT': '0',
+            }
+            result = subprocess.run(['bash', str(SCRIPT)], env=env, capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(len(list(units.iterdir())), 4)
             service = (units / 'pontaj-maintenance.service').read_text()
             self.assertIn(f'ExecStart="{python}" manage.py process_attendance_alert_escalations --maintenance', service)
             self.assertIn('User=test-app', service)
             self.assertIn('TimeoutStartSec=300', service)
+            for name in ('pontaj-maintenance.service', 'pontaj-retention.service'):
+                working_directory = next(line.partition('=')[2] for line in
+                                         (units / name).read_text().splitlines()
+                                         if line.startswith('WorkingDirectory='))
+                self.assertEqual(working_directory, str(python.parents[2]))
+                self.assertTrue(Path(working_directory).is_absolute())
             self.assertIn('03:15:00 Europe/Bucharest', (units / 'pontaj-retention.timer').read_text())
             calls = log.read_text().splitlines()
             self.assertEqual(calls, [
+                'verify',
                 'daemon-reload',
                 'enable --now pontaj-maintenance.timer pontaj-retention.timer',
                 'is-active --quiet pontaj-maintenance.timer',
                 'is-active --quiet pontaj-retention.timer',
             ])
+
+            # A validation error must stop installation before daemon-reload or
+            # enabling timers, rather than leave a seemingly successful deploy.
+            log.write_text('')
+            result = subprocess.run(['bash', str(SCRIPT)], env={**env, 'VERIFY_EXIT': '1'},
+                                    capture_output=True, text=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertEqual(log.read_text().splitlines(), ['verify'])
 
 
 if __name__ == '__main__':
